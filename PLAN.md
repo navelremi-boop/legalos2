@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-24 (état-major — J0 VALIDÉ, J1 en cours).
+Dernière mise à jour : 2026-09-24 (état-major — J0–J1 VALIDÉS, J2 en cours).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -24,7 +24,7 @@ Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénari
 
 ## Phase 1 — Fondations (gate : contrôleur avant phase 2)
 
-- [ ] **J1** — Instance S1 (`docker compose up`, santé complète)
+- [x] **J1** — Instance S1 (`docker compose up`, santé complète)
   - **Critères** : `cargo xtask recette --scenario s1` (ou `docker compose -f instance/docker-compose.yml ps` + healthchecks HTTP documentés) ; Caddy, API, Postgres, PowerSync, Garage, GreenMail, simulateur PA verts.
   - **Responsable** : `instance-backend`
 

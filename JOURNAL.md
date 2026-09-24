@@ -268,3 +268,35 @@
 | `cargo run -p xtask -- recette --scenario s1` | exit **0** |
 | `instance/scripts/s1-probes.ps1` | exit **0** |
 | CI | job `s1-instance` ajouté (`.github/workflows/ci.yml`) — preuve après push |
+
+### Contrôleur — revalidation jalon J1 / S1 après `81baf0b` (2026-09-24)
+
+- **Verdict : VALIDÉ**
+- **Commandes exécutées (contrôleur indépendant, poste Windows)** :
+
+| Commande | Résultat |
+|----------|----------|
+| `git rev-parse HEAD` | `81baf0b9c84b68bf77bead5a8a0927427162000f` (= `origin/main`) |
+| `git ls-tree HEAD tests/recette/s1.mjs` | blob présent sur `main` (commit `81baf0b`) |
+| `node tests/recette/s1.mjs` | exit **0** — `cargo run -p xtask -- recette --scenario s1`, 7 services **healthy** (caddy, api, postgres, powersync, garage, greenmail, simulateur-pa), probes HTTP API + Caddy |
+| `gh run list -L 1 -b main` | run **36044505780** (`81baf0b`) → **success** |
+| `gh run view 36044505780 --json jobs` | jobs `frontend`, `rust`, **`s1-instance`** (step « Recette S1 (docker compose + probes) » **success**), `macos-smoke` → **success** |
+| `git status -sb` | `main...origin/main` (propre) |
+
+- **§4.4 ordre d’opération (J1)** :
+  - (1) **OK** : barre compile/lint sur `81baf0b` via CI (`frontend` + `rust` **success**).
+  - (2) **OK périmètre J1** : recette S1 = tests d’acceptation contre **vrais** conteneurs ; pas de tests Rust API↔Postgres requis avant **J2**.
+  - (3) **OK** : scénario S1 automatisé exécuté (`s1.mjs` + `xtask recette --scenario s1`).
+  - (4) présente entrée.
+  - (5) **OK** : `tests/recette/README.md` documente S1 (sur `main` depuis `81baf0b`).
+  - (6) **OK** : `tests/recette/s1.mjs`, job CI `s1-instance`, commit **`81baf0b`** sur `main`, CI **verte**.
+
+- **Recherche active** : aucun `todo!()` / `unimplemented!()` / `#[ignore]` dans `crates/` ; pas de `|| exit 0` sur healthchecks `instance/` ; pas de secret réel repéré dans le dépôt versionné.
+
+- **Écarts** :
+  - **Mineur** : `cargo xtask recette --scenario s1` ne duplique pas les probes HTTP hôte (couvert par `s1.mjs` + CI `s1-instance`).
+  - **Mineur** : job CI `rust` n’exécute pas `cargo test --workspace` (déjà signalé à J0 ; couvert par `j0-rust-docker.mjs` / `scripts/clippy-docker.ps1` hors pipeline S1).
+
+- **Non vérifié** : rejeu local `node tests/recette/j0-rust-docker.mjs` / `scripts/clippy-docker.ps1` cette session ; clippy natif poste agent (WDAC **4551**, documenté `BLOCAGES.md`).
+
+- **Prochaine action état-major** : cocher **J1** dans `PLAN.md` ; enchaîner **J2** (auth, 2FA, S2).
