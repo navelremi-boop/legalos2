@@ -562,3 +562,85 @@ Clarifier périmètre **J2** vs **J3** dans `PLAN.md` ; retirer l’écran de sy
 |----------|----------|
 | `pnpm --filter @legal-os/poste typecheck` | exit **0** |
 | `pnpm --filter @legal-os/poste lint:ci` | exit **0** |
+
+---
+
+## 2026-09-24 — Contrôleur : revalidation jalon **J2** (commit `51f04f4`)
+
+**Verdict : VALIDÉ**
+
+**HEAD contrôlé :** `51f04f4cc907d0c2421600893ddc2ee925002a44` (`51f04f4`).
+
+**Périmètre appliqué :** `PLAN.md` J2 (auth HTTP + onboarding poste sans sync PowerSync ; sync = J3). Pas le scénario S2 complet § 3 ordre d’opération.
+
+### Commandes exécutées (contrôleur)
+
+| Commande | Résultat |
+|----------|----------|
+| `git rev-parse HEAD` | `51f04f4cc907d0c2421600893ddc2ee925002a44` |
+| `gh run view 36057024873 --json conclusion,headSha` | **success**, `headSha` = `51f04f4…` |
+| `gh run view 36057024873 --log --job 107827534138` (extrait s1-instance) | `j2-demo-migration-parity: OK`, `s1: OK`, `s2: OK`, `auth_integration` **2 passed** |
+| `node tests/recette/j2-demo-migration-parity.mjs` | exit **0** |
+| `node tests/recette/j2-onboarding-scope.mjs` | exit **0** (ajout contrôleur) |
+| `pnpm --filter @legal-os/poste typecheck` | exit **0** |
+| `pnpm --filter @legal-os/poste lint:ci` | exit **0** |
+| `pnpm --filter @legal-os/poste build` | exit **0** |
+| `node tests/recette/j0-rust-docker.mjs` | exit **101** — `auth_integration` timeout Postgres (stack S1 non démarrée sur poste agent) |
+
+### § 4.4 (J2, périmètre PLAN)
+
+| # | Statut | Preuve |
+|---|--------|--------|
+| 1 Compilation / lints | **OK** | CI jobs `rust` + `frontend` **success** ; poste typecheck / lint / build locaux **0** |
+| 2 Tests intégration Postgres réel | **OK** | CI `auth_integration` 2/2 ; `require_database_url()` dans `auth_integration.rs` |
+| 3 Exécution bout en bout jalon | **OK** | CI `s1.mjs` + `s2.mjs` (connexion → TOTP → JWKS, `aud`) ; `j2-onboarding-scope.mjs` (parcours poste sans sync simulée) |
+| 4 Validation contrôleur | **OK** | présente entrée |
+| 5 Documentation | **OK** | `PLAN.md` périmètre J2/J3 ; `tests/recette/README.md` J2 |
+| 6 CI main | **OK** | run **36057024873** |
+
+### Critères PLAN J2 — contrôle
+
+| Critère | Statut |
+|---------|--------|
+| `auth_integration` (Postgres) | **OK** (CI) |
+| `s2.mjs` + `j2-demo-migration-parity.mjs` | **OK** (CI + local) |
+| OpenAPI auth (`/auth/connexion`, `/auth/totp/verifier`, `/auth/jwks`) | **OK** (`crates/api/src/openapi.rs`) |
+| JWT `aud` / JWKS ↔ PowerSync `client_auth` | **OK** (`s2.mjs` + `instance/powersync/service.yaml` `legalos-powersync`) |
+| UI onboarding sans simulation téléchargement | **OK** (`FirstLaunchFlow.tsx` sans `runInitialSync`) |
+
+### Écarts
+
+| Gravité | Description | Fichier |
+|---------|-------------|---------|
+| **Mineur** | `runInitialSync` conserve des `delay` simulés (stub **J3**, non appelé par onboarding J2) | `apps/poste/src/sync/initialSync.ts` |
+| **Mineur** | `auth_integration` ne vérifie pas le claim `aud` (couvert par `s2.mjs`) | `crates/api/tests/auth_integration.rs` |
+
+Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
+
+### Non vérifié
+
+- **`auth_integration` / `s2.mjs` locaux** : Postgres compose non up sur poste agent (`j0-rust-docker` échoue sur timeout pool) — preuve CI suffisante pour ce jalon.
+- **`cargo clippy` local agent** : WDAC **4551** (`BLOCAGES.md`) — job CI `rust` vert sur `51f04f4`.
+- **Parcours UI poste cliqué (Playwright / Tauri)** : hors critères explicites J2 ; build Vite OK ; session via `saveSessionTokens` vérifiée par contrat `j2-onboarding-scope.mjs`.
+- **Probe PowerSync `/sync` avec jeton post-TOTP** : hors périmètre J2 (`PLAN.md` → J3).
+
+### Recherche active (§ 4.4 contrôleur)
+
+- Pas de `#[ignore]`, `todo!()`, `unimplemented!()` repérés dans les sources Rust/TS du périmètre auth/onboarding.
+- Pas de couleur hex/rgb en dur dans `apps/poste/src/onboarding/`.
+
+---
+
+## 2026-09-24 — État-major : J2 coché, démarrage **J3** (PowerSync)
+
+- **Fait** : `PLAN.md` — J2 `[x]` après verdict contrôleur `51f04f4` ; recette `j3-powersync-liveness.mjs` (JWT post-TOTP + `/sync/probes/readiness`) ; auth poste via **`/api/auth/*`** (Caddy) ; sync réelle dans `InitialSyncScreen` + `@powersync/web` (table `cabinets`).
+- **Preuves** :
+
+| Commande | Résultat |
+|----------|----------|
+| `node tests/recette/j3-powersync-liveness.mjs` | exit **0** |
+| `pnpm --filter @legal-os/poste typecheck` / `lint:ci` / `build` | exit **0** |
+| CI run **36057024873** | **success** (J2 sur `51f04f4`) |
+
+- **Reste J3** : deux postes simulés, hors ligne, parité schéma ; contrôleur J3.
+

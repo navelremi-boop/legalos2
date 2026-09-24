@@ -54,10 +54,14 @@ jobs:
         run: cp .env.example .env
       - name: Parité migration démo J2 (004 / TOTP chiffré)
         run: node tests/recette/j2-demo-migration-parity.mjs
+      - name: Contrat onboarding J2 (sans sync simulée dans FirstLaunchFlow)
+        run: node tests/recette/j2-onboarding-scope.mjs
       - name: Recette S1 (docker compose + probes)
         run: node tests/recette/s1.mjs
       - name: Recette S2 (auth HTTP, stack déjà up)
         run: node tests/recette/s2.mjs
+      - name: Probe PowerSync J3 (JWT post-TOTP via Caddy /sync)
+        run: node tests/recette/j3-powersync-liveness.mjs
       - name: Tests intégration auth (Postgres compose)
         run: cargo test -p legalos-api --test auth_integration -- --nocapture
 

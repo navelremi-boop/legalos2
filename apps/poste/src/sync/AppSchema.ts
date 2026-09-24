@@ -5,6 +5,13 @@ import { column, Schema, Table } from "@powersync/web";
  * Aligné avec docs/sync-rules.md ; parité Postgres à valider par test instance.
  */
 
+const cabinets = new Table({
+  slug: column.text,
+  nom: column.text,
+  totp_obligatoire: column.integer,
+  cree_le: column.text,
+});
+
 const users = new Table(
   {
     cabinet_id: column.text,
@@ -42,12 +49,14 @@ const dossiers = new Table(
 );
 
 export const AppSchema = new Schema({
+  cabinets,
   users,
   postes,
   dossiers,
 });
 
 export type Database = (typeof AppSchema)["types"];
+export type CabinetRecord = Database["cabinets"];
 export type UserRecord = Database["users"];
 export type PosteRecord = Database["postes"];
 export type DossierRecord = Database["dossiers"];

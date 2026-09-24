@@ -16,6 +16,16 @@ export function normalizeInstanceUrl(raw: string): string {
   return trimmed.replace(/\/+$/, "");
 }
 
+/** Chemins API exposés via Caddy (`/api/*` → service Rust). */
+export function apiUrl(instanceUrl: string, path: string): string {
+  const base = normalizeInstanceUrl(instanceUrl);
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  if (normalizedPath.startsWith("/api/")) {
+    return `${base}${normalizedPath}`;
+  }
+  return `${base}/api${normalizedPath}`;
+}
+
 type ApiResult<T> =
   | { ok: true; status: number; data: T }
   | { ok: false; status: number; error: ApiErrorBody };
@@ -28,7 +38,7 @@ async function postJson<T>(
   const base = normalizeInstanceUrl(instanceUrl);
   let response: Response;
   try {
-    response = await fetch(`${base}${path}`, {
+    response = await fetch(apiUrl(base, path), {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(body),
