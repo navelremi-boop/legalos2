@@ -86,6 +86,7 @@ fn decode_cipher_key(raw: &str) -> anyhow::Result<[u8; 32]> {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::decode_cipher_key;
     use crate::auth::totp;

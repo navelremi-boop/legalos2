@@ -520,3 +520,5 @@ Commits contrôlés : **`98055b0`** (auth API + premier lancement poste S2), **`
 | `docker compose down -v` + rebuild API + `up --wait` + `node tests/recette/s2.mjs` | exit **0** |
 
 - **Prochaine action** : commit + push ; attendre CI verte ; relancer **contrôleur J2**.
+
+- **Suivi push `0012f64`** : CI run **36053354807** — clippy `expect_used` sur tests `config.rs` → `#![allow(clippy::expect_used)]` sur le module de tests.
