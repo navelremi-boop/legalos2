@@ -36,9 +36,7 @@ pub async fn cabinet_me(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
 ) -> Result<Json<CabinetResponse>, ApiError> {
-    charger_cabinet(&state, claims.cabinet_id)
-        .await
-        .map(Json)
+    charger_cabinet(&state, claims.cabinet_id).await.map(Json)
 }
 
 #[utoipa::path(
