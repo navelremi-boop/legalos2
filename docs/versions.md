@@ -33,6 +33,10 @@ Vérifiées le **2026-09-24** dans la documentation officielle ou les registres 
 | sqlx | **0.8.5** | https://crates.io/crates/sqlx |
 | Tokio | **1.44.2** | https://crates.io/crates/tokio |
 | utoipa | **5.3.1** | https://crates.io/crates/utoipa |
+| argon2 | **0.6.0** | https://crates.io/crates/argon2 |
+| jsonwebtoken | **9.3.1** | https://crates.io/crates/jsonwebtoken |
+| totp-rs | **6.0.0** | https://crates.io/crates/totp-rs |
+| rsa (JWT RS256) | **0.9.8** | https://crates.io/crates/rsa |
 | Typst (PDF) | **0.14** (cible facturation) | https://typst.app/blog/2025/typst-0.14 |
 | Rust toolchain | **stable ≥ 1.80** (`rust-toolchain.toml`) | https://rust-lang.org |
 | Rust (image build API) | **rust:1.85.0-bookworm** | https://hub.docker.com/_/rust |

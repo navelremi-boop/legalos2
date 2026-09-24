@@ -1,8 +1,12 @@
-use axum::Json;
+use std::sync::Arc;
+
+use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::auth::service;
 use crate::error::ApiError;
+use crate::state::AppState;
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ConnexionRequest {
@@ -18,9 +22,12 @@ pub struct ConnexionRequest {
 pub struct ConnexionResponse {
     /// Indique si une seconde étape TOTP est requise.
     pub totp_requis: bool,
-    /// Jeton d'accès court (JWT) — non émis tant que l'auth n'est pas implémentée.
+    /// Jeton d'accès court (JWT) si la 2FA n'est pas requise.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub access_token: Option<String>,
+    /// Jeton provisoire pour l'étape TOTP.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -43,17 +50,21 @@ pub struct TotpVerifyResponse {
     tag = "auth",
     request_body = ConnexionRequest,
     responses(
-        (status = 501, description = "Non implémenté (J0.6 — contrat seulement)", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Identifiants invalides", body = crate::error::ApiErrorBody),
         (status = 200, description = "Connexion réussie ou TOTP requis", body = ConnexionResponse)
     )
 )]
 pub async fn connexion(
+    State(state): State<Arc<AppState>>,
     Json(body): Json<ConnexionRequest>,
 ) -> Result<Json<ConnexionResponse>, ApiError> {
-    let _ = (&body.email, &body.password, &body.nom_appareil);
-    Err(ApiError::not_implemented(
-        "Authentification argon2 + JWT : phase 1 (S2)",
-    ))
+    let result =
+        service::connexion(&state, &body.email, &body.password, &body.nom_appareil).await?;
+    Ok(Json(ConnexionResponse {
+        totp_requis: result.totp_requis,
+        access_token: result.access_token,
+        session_token: result.session_token,
+    }))
 }
 
 #[utoipa::path(
@@ -62,17 +73,24 @@ pub async fn connexion(
     tag = "auth",
     request_body = TotpVerifyRequest,
     responses(
-        (status = 501, description = "Non implémenté (J0.6 — contrat seulement)", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Code ou session invalide", body = crate::error::ApiErrorBody),
         (status = 200, description = "Jetons émis", body = TotpVerifyResponse)
     )
 )]
 pub async fn totp_verifier(
+    State(state): State<Arc<AppState>>,
     Json(body): Json<TotpVerifyRequest>,
 ) -> Result<Json<TotpVerifyResponse>, ApiError> {
-    let _ = (&body.session_token, &body.code_totp);
-    Err(ApiError::not_implemented(
-        "Vérification TOTP : phase 1 (S2)",
-    ))
+    let result = service::verifier_totp(&state, &body.session_token, &body.code_totp).await?;
+    Ok(Json(TotpVerifyResponse {
+        access_token: result.access_token,
+        refresh_token: result.refresh_token,
+    }))
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct JwksResponse {
+    pub keys: Vec<serde_json::Value>,
 }
 
 #[utoipa::path(
@@ -80,12 +98,9 @@ pub async fn totp_verifier(
     path = "/auth/jwks",
     tag = "auth",
     responses(
-        (status = 501, description = "Non implémenté (J0.6 — contrat seulement)", body = crate::error::ApiErrorBody),
-        (status = 200, description = "JSON Web Key Set pour PowerSync")
+        (status = 200, description = "JSON Web Key Set pour PowerSync", body = JwksResponse)
     )
 )]
-pub async fn jwks() -> Result<Json<serde_json::Value>, ApiError> {
-    Err(ApiError::not_implemented(
-        "Exposition JWKS pour PowerSync : phase 1 (S2)",
-    ))
+pub async fn jwks(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    Json(service::jwks(&state))
 }

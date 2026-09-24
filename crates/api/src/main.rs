@@ -1,14 +1,8 @@
-mod config;
-mod db;
-mod error;
-mod openapi;
-mod routes;
-
-use axum::Router;
-use tower_http::trace::TraceLayer;
+use legalos_api::bootstrap_pool;
+use legalos_api::build_app_state;
+use legalos_api::build_router;
+use legalos_api::config::Config;
 use tracing_subscriber::EnvFilter;
-use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -18,20 +12,12 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
-    let config = config::Config::from_env()?;
+    let config = Config::from_env()?;
     let bind = config.bind;
-    let pool = db::connect_pool(&config.database_url).await?;
-    if config.run_migrations {
-        db::appliquer_migrations(&pool).await?;
-    }
-    let _pool = pool;
+    let pool = bootstrap_pool(&config).await?;
+    let state = build_app_state(&config, pool).await?;
 
-    let openapi = openapi::ApiDoc::openapi();
-    let app = Router::new()
-        .merge(routes::router())
-        .merge(SwaggerUi::new("/docs").url("/openapi.json", openapi))
-        .layer(TraceLayer::new_for_http());
-
+    let app = build_router(state);
     let listener = tokio::net::TcpListener::bind(bind).await?;
     tracing::info!(%bind, "API LEGAL OS en écoute");
     axum::serve(listener, app).await?;

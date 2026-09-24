@@ -41,6 +41,10 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       API_BIND: 0.0.0.0:8080
       API_RUN_MIGRATIONS: "true"
+      SECRETS_CHIFFREMENT_KEY: ${SECRETS_CHIFFREMENT_KEY}
+      JWT_KEY_ID: ${JWT_KEY_ID:-legalos-dev-1}
+      JWT_ISSUER: ${JWT_ISSUER:-legalos-api}
+      JWT_RSA_PRIVATE_KEY_PEM: ${JWT_RSA_PRIVATE_KEY_PEM:-}
       RUST_LOG: info
     ports:
       - "${API_HOST_PORT:-8080}:8080"

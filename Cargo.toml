@@ -29,7 +29,15 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 thiserror = "2.0.12"
 time = { version = "0.3.41", features = ["serde", "formatting", "parsing"] }
-uuid = { version = "1.16.0", features = ["serde", "v4"] }
+uuid = { version = "1.16.0", features = ["serde", "v4", "v7"] }
+argon2 = { version = "0.6.0", features = ["password-hash", "rand_core"] }
+password-hash = "0.6.1"
+jsonwebtoken = { version = "9.3.1", features = ["use_pem"] }
+totp-rs = { version = "6.0.0", features = ["std", "otpauth"] }
+aes-gcm = "0.10.3"
+base64 = "0.22.1"
+rand = "0.8.5"
+rsa = { version = "0.9.8", features = ["pem"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
 tokio = { version = "1.44.2", features = ["macros", "rt-multi-thread", "signal"] }

@@ -198,6 +198,14 @@
 
 **Note poste** : `git config user.name` / `user.email` absents — commit créé via variables d’environnement GitHub noreply ; à configurer localement pour les prochains commits.
 
+### Poste-interface — parcours S2 (2026-09-24)
+
+- **Sous-agent** [J2 écran premier lancement](de050acc-fb28-4cd7-b661-aa9a4eab0774) : flux instance → connexion → TOTP → sync stub → aperçu « La journée ».
+- **Preuves** : `pnpm typecheck`, `lint:ci`, `build` dans `apps/poste` → exit **0** (revalidation état-major).
+- **Contrat** : aligné avec API — `ConnexionResponse.session_token` dans `routes/auth.rs` ; auth implémentée ([Finaliser auth API J2](9228c09a-da73-425c-b499-0ff1ba3ba154)).
+- **Recette** : `node tests/recette/s2.mjs` → exit **0** (état-major, API Docker healthy).
+- **Suite** : essai manuel `pnpm dev` + compte fictif `.env.example` ; contrôleur J2 ; PowerSync (J3).
+
 ### Contrôleur — validation jalon J0 (2026-09-24, B4 levé)
 
 - **Verdict : VALIDÉ**
@@ -300,3 +308,49 @@
 - **Non vérifié** : rejeu local `node tests/recette/j0-rust-docker.mjs` / `scripts/clippy-docker.ps1` cette session ; clippy natif poste agent (WDAC **4551**, documenté `BLOCAGES.md`).
 
 - **Prochaine action état-major** : cocher **J1** dans `PLAN.md` ; enchaîner **J2** (auth, 2FA, S2).
+
+---
+
+## 2026-09-24 — J2 auth API (instance-backend, passe 1)
+
+- **Fait** : routes `/auth/connexion`, `/auth/totp/verifier`, `/auth/jwks` implémentées (Argon2, JWT RS256, TOTP totp-rs 6) ; `AppState` + crate `legalos_api` ; migrations `004_demo_fictif.sql`, `005_demo_fictif_seed.sql` ; tests `crates/api/tests/auth_integration.rs` ; `tests/recette/s2.mjs` ; `cargo xtask recette --scenario s2` (Rust).
+- **Preuves** :
+
+| Commande | Résultat |
+|----------|----------|
+| `cargo build -p legalos-api` | exit **0** |
+| `cargo test -p legalos-api --test auth_integration -- --nocapture` | **2 passed** |
+| `cargo run -p xtask -- recette --scenario s2` | tests Rust **OK** ; `s2.mjs` **ECONNREFUSED** tant que l’API conteneur ne démarre pas |
+| `docker compose … logs api --tail 5` (après rebuild) | `SECRETS_CHIFFREMENT_KEY doit être 32 octets` — `.env` local à harmoniser avec `.env.example` |
+
+- **Décision** : `jsonwebtoken` **9.3.1** (feature `use_pem`) plutôt que 11.x (provider crypto supplémentaire).
+- **Compte fictif S2** : `demo@cabinet-fictif.example` / `MotDePasseDemo123!` ; TOTP base32 `MFRGG43FMZQXIZLTMVRXG43FNZQXIZLTO` ; clé dev `legalos_demo_chiffrement_32oct!!`.
+- **Reste** : rebuild API compose après `.env` ; brancher PowerSync sur JWKS ; UI poste S2 ; `poste-interface` pour consommation jetons.
+
+---
+
+## 2026-09-24 — J2 auth API (instance-backend, passe 2 — finalisation WIP)
+
+- **Fait** : branchement `main` → `build_app_state` / `build_router` ; migration additive `005_demo_email.sql` (identifiant `demo@cabinet-fictif.example`) ; suppression doublon `005_demo_fictif_seed.sql` (conflit sqlx v5) ; `.env.example` + compose `SECRETS_CHIFFREMENT_KEY` / JWT ; recette `tests/recette/s2.mjs` ; `xtask recette --scenario s2` (tests Rust + s2.mjs).
+- **Preuves** :
+
+| Commande | Résultat |
+|----------|----------|
+| `cargo fmt --all` | exit **0** |
+| `node tests/recette/s2.mjs` | exit **0** — connexion → TOTP → JWKS sur `http://127.0.0.1:8080` |
+| `docker compose … up --build api` + health | API **healthy** après réapplication migration 005 |
+| `cargo test -p legalos-api --test demo_migration_assets` | exit **0** |
+
+- **Écarts** : clippy / `auth_integration` natifs poste bloqués (WDAC **4551**, `time_macros` intermittent) — couvert par build Linux Docker API + `s2.mjs`. Si `_sqlx_migrations` v5 incohérente après WIP : `DELETE FROM _sqlx_migrations WHERE version = 5` puis redémarrage API.
+- **Compte fictif** : `demo@cabinet-fictif.example` / `MotDePasseDemo123!` ; TOTP dev base32 `JBSWY3DPEHPK3PXP` (voir `tests/support/demo_seed.rs`).
+- **Reste** : UI poste S2 ; PowerSync JWT ; contrôleur J2.
+
+### État-major — suivi [J2 auth API backend](390f136e-956e-465f-93d1-66d61fb9e799) (2026-09-24)
+
+| Action | Résultat |
+|--------|----------|
+| `.env` local `SECRETS_CHIFFREMENT_KEY` | était **27** octets (placeholder invalide) → harmonisé **32** octets (valeur dev `.env.example`) |
+| `docker compose … up --build api --wait` | API **healthy** |
+| `node tests/recette/s2.mjs` | exit **0** |
+| CI | job `s1-instance` enchaîne `s2.mjs` après `s1.mjs` |
+| Lot J2 | **non poussé** sur `main` (working tree : API auth + poste S2 + migrations 004/005) |

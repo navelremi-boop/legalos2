@@ -92,6 +92,48 @@ fn ensure_env_file(root: &Path) -> Result<()> {
     }
 }
 
+fn run_cargo(root: &Path, args: &[&str]) -> Result<()> {
+    let status = Command::new("cargo")
+        .args(args)
+        .current_dir(root)
+        .status()
+        .context("failed to spawn cargo")?;
+    if status.success() {
+        Ok(())
+    } else {
+        anyhow::bail!("cargo exited with {status}");
+    }
+}
+
+fn recette_s2(root: &Path) -> Result<()> {
+    ensure_env_file(root)?;
+    eprintln!("recette S2 : tests intégration auth (Postgres via DATABASE_URL)…");
+    run_cargo(
+        root,
+        &[
+            "test",
+            "-p",
+            "legalos-api",
+            "--test",
+            "auth_integration",
+            "--",
+            "--nocapture",
+        ],
+    )?;
+    eprintln!("recette S2 : probes HTTP auth (API healthy — ex. après s1)…");
+    let status = Command::new("node")
+        .arg(root.join("tests/recette/s2.mjs"))
+        .current_dir(root)
+        .status()
+        .context("échec node tests/recette/s2.mjs")?;
+    if status.success() {
+        eprintln!("recette: s2 OK");
+        Ok(())
+    } else {
+        anyhow::bail!("s2.mjs exited with {status}");
+    }
+}
+
 fn recette_s1(root: &Path) -> Result<()> {
     ensure_env_file(root)?;
     let instance = root.join("instance");
@@ -130,6 +172,7 @@ fn recette(_root: &Path, scenario: Option<&str>) -> Result<()> {
             Ok(())
         }
         Some("s1") => recette_s1(_root),
+        Some("s2") => recette_s2(_root),
         Some(other) => anyhow::bail!("unknown scenario: {other}"),
     }
 }

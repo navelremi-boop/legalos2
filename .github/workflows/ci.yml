@@ -54,6 +54,8 @@ jobs:
         run: cp .env.example .env
       - name: Recette S1 (docker compose + probes)
         run: node tests/recette/s1.mjs
+      - name: Recette S2 (auth HTTP, stack déjà up)
+        run: node tests/recette/s2.mjs
 
   macos-smoke:
     runs-on: macos-latest
