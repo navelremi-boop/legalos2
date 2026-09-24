@@ -428,3 +428,95 @@ Commit contrôlé : **`98055b0`** (`J2: auth API (argon2, JWT, TOTP, JWKS) et pr
 3. En CI **`s1-instance`** : après S1, lancer **`cargo test -p legalos-api --test auth_integration`** (DATABASE_URL hôte → Postgres exposé) et/ou **`cargo xtask recette --scenario s2`**.
 4. Remplacer le **stub** `initialSync` ou documenter explicitement le découpage J2/J3 ; automatiser le parcours poste quand exigible.
 5. Redemander **contrôleur** ; cocher J2 dans `PLAN.md` seulement après **VALIDÉ**.
+
+---
+
+## 2026-09-24 — Contrôleur : revalidation jalon **J2** (commits `98055b0` + `5f27b3e`)
+
+**Verdict : REFUSÉ**
+
+Commits contrôlés : **`98055b0`** (auth API + premier lancement poste S2), **`5f27b3e`** (CI clippy, JWT `aud`, PowerSync `client_auth`, `auth_integration` en CI). **`HEAD` = `5f27b3e`**.
+
+### Commandes exécutées
+
+| Commande | Résultat |
+|----------|----------|
+| `git rev-parse HEAD` | **`5f27b3e0c8b1bc8ca63c23a3b69276a798e213ab`** |
+| `cargo fmt --all -- --check` | exit **0** |
+| `cargo clippy --workspace --all-targets -- -D warnings` | **échec** poste — WDAC **4551** (`time_macros` / binaire non exécuté) |
+| `gh run watch 36049665261 --exit-status` (push `5f27b3e`) | **échec** — job **`s1-instance`** |
+| `gh run view 36049665261 --log-failed` | **`s2.mjs`** : `POST /auth/totp/verifier → 500` ; `auth_integration` **non exécuté** (étape suivante annulée) |
+| CI jobs `frontend`, `rust` (run **36049665261**) | **succès** (clippy vert sur runner Linux) |
+| `node tests/recette/s2.mjs` | exit **0** (stack S1 déjà up sur poste ; secret TOTP cohérent avec `MFRGG43…`) |
+| `LEGALOS_DEMO_TOTP_SECRET_BASE32=JBSWY3DPEHPK3PXP node tests/recette/s2.mjs` | **401** sur TOTP (attendu si secret recette ≠ secret en base) |
+| `node tests/recette/j2-demo-migration-parity.mjs` | **FAIL** — `004_demo_fictif.sql` ≠ ciphertext `demo_migration_assets` |
+| `pnpm --filter @legal-os/poste typecheck` / `lint:ci` | exit **0** |
+| `node tests/recette/j0.mjs` | exit **0** |
+| `cargo run -p xtask -- check-contracts` | exit **0** |
+| `cargo test -p legalos-api --test auth_integration -- --nocapture` | binaire compilé ; **exécution bloquée** WDAC **4551** (poste agent) |
+| `Invoke-RestMethod http://127.0.0.1:8080/openapi.json` | routes **`/auth/connexion`**, **`/auth/totp/verifier`**, **`/auth/jwks`**, **`/health`** |
+
+### § 4.4 ordre d’opération (J2)
+
+| # | Statut | Commentaire |
+|---|--------|-------------|
+| 1 | **Partiel** | Clippy **vert en CI** (`rust`) ; **non prouvé** sur poste Windows (WDAC) |
+| 2 | **Partiel** | `auth_integration` prévu en CI mais **non joué** (échec `s2.mjs`) ; poste : exécution binaire test **impossible** (4551) |
+| 3 | **Partiel** | Recette HTTP **`s2.mjs`** OK sur poste **avec base déjà alignée** ; **échec CI** sur instance fraîche ; parcours produit S2 (sync initiale) **stub** (`initialSync.ts`) |
+| 4 | **OK** | Présente entrée |
+| 5 | **Partiel** | OpenAPI auth OK ; PowerSync **`client_auth.jwks_uri` + `audience`** présents dans `instance/powersync/service.yaml` — **non prouvé** par appel PowerSync avec jeton post-TOTP |
+| 6 | **KO** | Push `5f27b3e` : **CI non verte** (run **36049665261**) |
+
+### Critères `PLAN.md` J2
+
+| Critère | Statut |
+|---------|--------|
+| Tests intégration API auth | **Partiel** — code + CI prévus ; **non verts en CI** sur ce run ; poste non exécuté (4551) |
+| Recette S2 automatisée | **KO en CI** ; OK poste (base non fraîche) |
+| OpenAPI à jour | **OK** |
+| JWT / JWKS PowerSync | **Partiel** — JWKS + `aud` JWT ; config PowerSync **ajoutée** ; pas de preuve sync service |
+
+### Recherche active
+
+- Aucun `todo!()` / `unimplemented!()` / `#[ignore]` dans le dépôt Rust/TS parcouru.
+- **`tests/recette/j2-demo-migration-parity.mjs`** ajouté (contrôleur) : **échec** — `crates/api/migrations/004_demo_fictif.sql` L20 (`totp_secret_chiffre`) ≠ valeur `demo_migration_assets` / `LEGALOS_DEMO_TOTP_SECRET_BASE32` (`MFRGG43…` vs commentaire SQL `JBSWY3DPEHPK3PXP`).
+- UI premier lancement présente ; **`apps/poste/src/sync/initialSync.ts`** L1–L34 : stub (J3).
+
+### Écarts
+
+| Gravité | Écart | Fichier / preuve |
+|---------|--------|------------------|
+| **Bloquant** | **CI `main` rouge** — `s1-instance` / `s2.mjs` | run **36049665261** ; `POST /auth/totp/verifier → 500` |
+| **Bloquant** | Migration **004** : secret TOTP chiffré **≠** compte fictif recette | `004_demo_fictif.sql` L20 ; `j2-demo-migration-parity.mjs` |
+| **Majeur** | Scénario **S2** produit (sync initiale) non automatisé | `initialSync.ts` |
+| **Majeur** | **`auth_integration`** absent des preuves CI sur ce run | `.github/workflows/ci.yml` — étape annulée après échec S2 |
+| **Mineur** | Clippy / tests Rust **non exécutés** sur poste contrôleur | WDAC **4551** |
+| **Mineur** | Validation PowerSync avec jeton émis post-TOTP | non exécutée |
+
+### Non vérifié
+
+- Build / parcours **Tauri** S2 (WebDriver / app construite).
+- Rejeu instance **Postgres vierge** sur poste (`docker compose down -v` refusé par politique d’exécution).
+- Job **`macos-smoke`** (skipped après échec `s1-instance`).
+
+### Prochaine action état-major
+
+1. Aligner **`004_demo_fictif.sql`** (hash + `totp_secret_chiffre`) avec `demo_migration_assets` / `demo_seed.rs` ; **`j2-demo-migration-parity.mjs`** doit passer.
+2. Diagnostiquer **500** TOTP en CI (logs API conteneur) après correction migration ; confirmer **`s2.mjs` + `auth_integration`** verts sur run CI complet.
+3. Documenter ou implémenter sync initiale (J2 vs J3) ; redemander contrôleur ; cocher J2 dans `PLAN.md` seulement après **VALIDÉ**.
+
+---
+
+## 2026-09-24 — État-major : correctif TOTP migration 004 (J2)
+
+- **Cause** : typo d’un caractère dans `totp_secret_chiffre` (`…demob…` au lieu de `…demoa…` généré par `demo_migration_assets`) ; le test `j2-demo-migration-parity.mjs` comparait SQL à la même valeur erronée → faux positif ; `decode_cipher_key` OK (test unitaire ajouté).
+- **Fait** : correction `004_demo_fictif.sql` ; parité recette + constante test ; CI `s1-instance` exécute `j2-demo-migration-parity.mjs` avant S1.
+- **Preuves** :
+
+| Commande | Résultat |
+|----------|----------|
+| `cargo test -p legalos-api config::tests -- --nocapture` (Docker) | **2 passed** |
+| `node tests/recette/j2-demo-migration-parity.mjs` | exit **0** |
+| `docker compose down -v` + rebuild API + `up --wait` + `node tests/recette/s2.mjs` | exit **0** |
+
+- **Prochaine action** : commit + push ; attendre CI verte ; relancer **contrôleur J2**.

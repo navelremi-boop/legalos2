@@ -52,6 +52,8 @@ jobs:
           node-version: "20"
       - name: Prepare .env for compose
         run: cp .env.example .env
+      - name: Parité migration démo J2 (004 / TOTP chiffré)
+        run: node tests/recette/j2-demo-migration-parity.mjs
       - name: Recette S1 (docker compose + probes)
         run: node tests/recette/s1.mjs
       - name: Recette S2 (auth HTTP, stack déjà up)

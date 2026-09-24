@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-24 (état-major — J2 en cours, correctifs CI + PowerSync JWKS).
+Dernière mise à jour : 2026-09-24 (état-major — J2 en cours, correctif migration TOTP 004 + parité recette).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 

@@ -16,6 +16,9 @@ fn print_demo_migration_assets() {
     let totp_enc =
         totp::chiffrer_secret_totp_demo_fixe(DEMO_TOTP_SECRET_BASE32.as_bytes(), DEMO_CIPHER_KEY)
             .expect("totp chiffré");
+    let roundtrip = totp::dechiffrer_secret_totp(&totp_enc, DEMO_CIPHER_KEY).expect("dechiffrer");
+    let plain = String::from_utf8(roundtrip).expect("utf8 secret");
+    assert_eq!(plain, DEMO_TOTP_SECRET_BASE32);
     println!("password_hash={password_hash}");
     println!("totp_secret_chiffre={totp_enc}");
 }

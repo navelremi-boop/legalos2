@@ -84,3 +84,31 @@ fn decode_cipher_key(raw: &str) -> anyhow::Result<[u8; 32]> {
     }
     anyhow::bail!("SECRETS_CHIFFREMENT_KEY doit être 32 octets (base64 ou UTF-8 brut)")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::decode_cipher_key;
+    use crate::auth::totp;
+
+    const DEMO_KEY_STR: &str = "legalos_demo_chiffrement_32oct!!";
+    const DEMO_TOTP_CIPHERTEXT: &str =
+        "bGVnYWxvcy1kZW1vaN5wGHZGUzOAk20UHXmNR4HEPpOKaY7St3edVKzmtW2h4U1TP4NJKB/QL/SXCuuuuQ==";
+    const DEMO_TOTP_PLAIN: &str = "MFRGG43FMZQXIZLTMVRXG43FNZQXIZLTO";
+
+    #[test]
+    fn decode_demo_cipher_key_is_utf8_not_misread_base64() {
+        let key = decode_cipher_key(DEMO_KEY_STR).expect("clé démo");
+        let expected: [u8; 32] = *b"legalos_demo_chiffrement_32oct!!";
+        assert_eq!(
+            key, expected,
+            "clé démo : decode_cipher_key ne doit pas interpréter la chaîne UTF-8 comme base64"
+        );
+    }
+
+    #[test]
+    fn decode_demo_cipher_key_matches_migration_totp() {
+        let key = decode_cipher_key(DEMO_KEY_STR).expect("clé démo");
+        let plain = totp::dechiffrer_secret_totp(DEMO_TOTP_CIPHERTEXT, &key).expect("déchiffrer");
+        assert_eq!(String::from_utf8(plain).expect("utf8"), DEMO_TOTP_PLAIN);
+    }
+}
