@@ -35,7 +35,8 @@ Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénari
   - **Responsable** : `instance-backend` + `poste-interface`
 
 - [ ] **J3** — Sync bout en bout (1 table, 2 postes simulés)
-  - **Critères** : modification poste A visible poste B ; reprise hors ligne sans écrasement silencieux (préfiguration S4).
+  - **Critères** : modification poste A visible poste B (`j3-sync-two-postes.mjs`) ; reprise hors ligne sans écrasement silencieux (préfiguration S4, en cours).
+  - **Livré partiel** : `PATCH /cabinets/{id}`, upload PowerSync → API, probe JWT, recette deux contextes Playwright.
   - **Responsable** : état-major coordonne ; `poste-interface` + `instance-backend`
 
 - [ ] **J4** — Application Tauri : jetons, police, CI verte

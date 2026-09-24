@@ -117,6 +117,24 @@ impl JwtKeys {
         }
         Ok(data.claims)
     }
+
+    pub fn decode_access(
+        &self,
+        issuer: &str,
+        audience: &str,
+        token: &str,
+    ) -> anyhow::Result<AccessClaims> {
+        let mut validation = Validation::new(Algorithm::RS256);
+        validation.set_issuer(&[issuer]);
+        validation.set_audience(&[audience]);
+        validation.set_required_spec_claims(&["exp", "iat", "sub", "aud"]);
+        let data = decode::<AccessClaims>(token, &self.decoding, &validation)
+            .map_err(|e| anyhow::anyhow!("access JWT: {e}"))?;
+        if data.claims.token_type != "access" {
+            anyhow::bail!("type de jeton d'accès invalide");
+        }
+        Ok(data.claims)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -9,6 +9,7 @@ import { FirstLaunchFlow } from "@/onboarding/FirstLaunchFlow";
 import { InitialSyncScreen } from "@/onboarding/InitialSyncScreen";
 import { JourneePreview } from "@/screens/JourneePreview";
 import { closePowerSyncDatabase } from "@/sync/database";
+import { exposeRecetteHooksIfEnabled } from "@/sync/recetteHooks";
 
 const STORAGE_SYNC_DONE = "legalos.initial_sync_done";
 
@@ -28,6 +29,12 @@ function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = resolveThemeSystem();
   }, []);
+
+  useEffect(() => {
+    if (authenticated && syncDone) {
+      exposeRecetteHooksIfEnabled();
+    }
+  }, [authenticated, syncDone]);
 
   const handleFirstLaunchComplete = useCallback((result: { instanceUrl: string }) => {
     setInstanceUrl(result.instanceUrl);

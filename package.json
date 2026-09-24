@@ -7,5 +7,8 @@
     "poste:build": "pnpm --filter @legal-os/poste build",
     "poste:tauri": "pnpm --filter @legal-os/poste tauri",
     "lint": "pnpm --filter @legal-os/poste lint"
+  },
+  "devDependencies": {
+    "playwright": "1.50.1"
   }
 }

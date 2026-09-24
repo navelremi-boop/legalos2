@@ -1,6 +1,7 @@
 import type { AbstractPowerSyncDatabase, PowerSyncBackendConnector } from "@powersync/web";
+import { UpdateType } from "@powersync/web";
 
-import { normalizeInstanceUrl } from "@/lib/auth/client";
+import { apiUrl, normalizeInstanceUrl } from "@/lib/auth/client";
 
 export function createPowerSyncConnector(
   instanceUrl: string,
@@ -25,7 +26,34 @@ export function createPowerSyncConnector(
       if (transaction === null) {
         return;
       }
-      // Écritures serveur validées par l’API — file d’upload J3+ (docs/sync-rules.md).
+      const token = getAccessToken();
+      if (token === null || token === "") {
+        throw new Error("Jeton d’accès absent pour l’upload sync");
+      }
+      for (const op of transaction.crud) {
+        if (op.table !== "cabinets") {
+          continue;
+        }
+        if (op.op !== UpdateType.PATCH && op.op !== UpdateType.PUT) {
+          continue;
+        }
+        const nom = (op.opData as { nom?: unknown }).nom;
+        if (typeof nom !== "string" || nom.trim() === "") {
+          continue;
+        }
+        const response = await fetch(apiUrl(instanceUrl, `/cabinets/${op.id}`), {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({ nom: nom.trim() }),
+        });
+        if (!response.ok) {
+          throw new Error(`Upload cabinet rejeté (${String(response.status)})`);
+        }
+      }
       await transaction.complete();
     },
   };

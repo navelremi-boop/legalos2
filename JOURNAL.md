@@ -644,3 +644,10 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 
 - **Reste J3** : deux postes simulés, hors ligne, parité schéma ; contrôleur J3.
 
+---
+
+## 2026-09-24 — État-major : J3 sync (écritures + recette deux postes)
+
+- **Fait** : `PATCH /cabinets/{id}` (JWT access) ; `uploadData` PowerSync → API ; proxy Vite `/api` + `/sync` ; `j3-sync-two-postes.mjs` (Playwright) ; champ instance en `type=text` + lecture FormData.
+- **Preuves** : `cargo clippy -p legalos-api` OK ; `pnpm typecheck` / `lint:ci` OK ; `j3-powersync-liveness.mjs` OK ; recette Playwright **à valider en CI** (sync initiale longue / OPFS poste agent).
+

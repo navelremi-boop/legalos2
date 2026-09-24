@@ -50,7 +50,11 @@ export function FirstLaunchFlow({ initialInstanceUrl, onComplete }: FirstLaunchF
 
   const handleInstanceSubmit = (event: SubmitEvent) => {
     event.preventDefault();
-    const normalized = normalizeInstanceUrl(instanceUrl);
+    const form = event.currentTarget as HTMLFormElement;
+    const fromForm = new FormData(form).get("instanceUrl");
+    const raw =
+      typeof fromForm === "string" && fromForm.trim() !== "" ? fromForm : instanceUrl;
+    const normalized = normalizeInstanceUrl(raw);
     setInstanceUrl(normalized);
     saveInstanceUrl(normalized);
     setError(null);
@@ -136,7 +140,8 @@ export function FirstLaunchFlow({ initialInstanceUrl, onComplete }: FirstLaunchF
             <TextInput
               id="instance-url"
               name="instanceUrl"
-              type="url"
+              type="text"
+              inputMode="url"
               autoComplete="url"
               required
               value={instanceUrl}

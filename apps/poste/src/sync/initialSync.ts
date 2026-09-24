@@ -7,7 +7,7 @@ export type InitialSyncProgress = {
   detail: string;
 };
 
-const DEMO_CABINET_ID = "01950000-0000-7000-8000-000000000001";
+import { DEMO_CABINET_ID } from "@/sync/demoCabinet";
 const SYNC_POLL_MS = 500;
 const SYNC_TIMEOUT_MS = 90_000;
 

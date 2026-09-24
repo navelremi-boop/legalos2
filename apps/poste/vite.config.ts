@@ -8,6 +8,17 @@ import { defineConfig } from "vite";
 const host = process.env.TAURI_DEV_HOST;
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
+const instanceProxy = {
+  "/api": {
+    target: process.env.LEGALOS_INSTANCE_PROXY ?? "http://127.0.0.1:8088",
+    changeOrigin: true,
+  },
+  "/sync": {
+    target: process.env.LEGALOS_INSTANCE_PROXY ?? "http://127.0.0.1:8088",
+    changeOrigin: true,
+  },
+};
+
 export default defineConfig(() => ({
   plugins: [react(), tailwindcss()],
   resolve: {
@@ -16,6 +27,9 @@ export default defineConfig(() => ({
     },
   },
   clearScreen: false,
+  preview: {
+    proxy: instanceProxy,
+  },
   server: {
     port: 1420,
     strictPort: true,
@@ -30,5 +44,6 @@ export default defineConfig(() => ({
     watch: {
       ignored: ["**/src-tauri/**"],
     },
+    proxy: instanceProxy,
   },
 }));
