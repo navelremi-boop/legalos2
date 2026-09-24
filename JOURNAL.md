@@ -354,3 +354,77 @@
 | `node tests/recette/s2.mjs` | exit **0** |
 | CI | job `s1-instance` enchaîne `s2.mjs` après `s1.mjs` |
 | Lot J2 | **non poussé** sur `main` (working tree : API auth + poste S2 + migrations 004/005) |
+
+---
+
+## 2026-09-24 — Contrôleur : jalon **J2** (auth, 2FA, S2)
+
+**Verdict : REFUSÉ**
+
+Commit contrôlé : **`98055b0`** (`J2: auth API (argon2, JWT, TOTP, JWKS) et premier lancement poste S2.`) sur `main`.
+
+### Commandes exécutées
+
+| Commande | Résultat |
+|----------|----------|
+| `git rev-parse HEAD` | **`98055b0`** |
+| `node tests/recette/s2.mjs` | exit **0** (connexion → TOTP → JWKS ; contrôle **kid** JWT ↔ JWKS ajouté par contrôleur) |
+| `cargo test -p legalos-api --test auth_integration -- --nocapture` | **2 passed** (Postgres local S1) |
+| `cargo run -p xtask -- recette --scenario s2` | exit **0** (`auth_integration` + `s2.mjs`) |
+| `Invoke-RestMethod http://127.0.0.1:8080/openapi.json` (paths) | `/health`, `/auth/connexion`, `/auth/totp/verifier`, `/auth/jwks` |
+| `gh run watch 36048393455 --exit-status` (push `98055b0`) | **échec** — job **`rust`** : `cargo clippy` |
+| `gh run view 36048393455 --log-failed` | clippy `needless_as_bytes` → `crates/api/src/config.rs:75` |
+| `docker compose -f instance/docker-compose.yml --env-file .env ps` | 7 services **healthy** (stack S1 déjà up) |
+
+### § 4.4 ordre d’opération (J2)
+
+| # | Statut | Commentaire |
+|---|--------|-------------|
+| 1 | **KO** | CI **`rust`** rouge (clippy `-D warnings`) sur `main` |
+| 2 | **Partiel** | `auth_integration` **verts** contre Postgres réel (poste) ; **non exécutés** en CI (`rust` sans Postgres ; job `s1-instance` annulé faute de `needs: rust`) |
+| 3 | **Partiel** | Recette **`s2.mjs`** / **`xtask recette --scenario s2`** OK côté **API** ; scénario **S2 produit** (ordre § 3 : app + sync initiale) **non** automatisé — `apps/poste/src/sync/initialSync.ts` **stub** (délais simulés, commentaire « brancher en J3 ») |
+| 4 | **OK** | Présente entrée |
+| 5 | **Partiel** | OpenAPI servi (`/openapi.json`, Swagger `/docs`) ; **PowerSync** non documenté côté config JWT dans `instance/powersync/service.yaml` |
+| 6 | **KO** | Push `98055b0` sur `main` mais **CI non verte** ; `s1-instance` (S1+S2) **non joué** sur ce run |
+
+### Critères `PLAN.md` J2
+
+| Critère | Statut |
+|---------|--------|
+| Tests intégration API auth | **OK** (2 tests, Postgres réel) |
+| Recette S2 automatisée | **OK** minimal HTTP (`s2.mjs` + `xtask --scenario s2`) |
+| OpenAPI à jour | **OK** (routes auth + health exposées) |
+| JWT / JWKS PowerSync | **Partiel** — endpoint **`GET /auth/jwks`** + JWT RS256 (`cabinet_id`, `poste_id` dans claims) ; **aucun** `client_auth` / URI JWKS dans `instance/powersync/service.yaml` (PowerSync ne valide pas encore les jetons API) |
+
+### Recherche active
+
+- Aucun `todo!()` / `unimplemented!()` / `#[ignore]` dans `crates/api`.
+- Pas de test auth désactivé.
+- Comptes et secrets de recette **fictifs** (migration demo, `demo_seed.rs`, `s2.mjs`).
+- UI premier lancement (`FirstLaunchFlow.tsx`) présente ; **sync initiale factice** (`initialSync.ts` L1–L34).
+
+### Écarts
+
+| Gravité | Écart | Fichier / preuve |
+|---------|--------|------------------|
+| **Bloquant** | CI **`main` rouge** (clippy) | `crates/api/src/config.rs:75` — log run **36048393455** |
+| **Bloquant** | § 4.4 n°6 — **CI verte** non satisfaite sur le commit J2 | `gh run watch 36048393455` |
+| **Majeur** | **PowerSync** non branché sur JWKS / JWT instance | `instance/powersync/service.yaml` (replication/storage seulement) |
+| **Majeur** | Scénario **S2** ordre § 3 (sync initiale réelle) **non** couvert par recette automatisée | `apps/poste/src/sync/initialSync.ts` L2–L33 |
+| **Majeur** | **`auth_integration`** absent du pipeline CI instance | `.github/workflows/ci.yml` — `s1-instance` : `s1.mjs` + `s2.mjs` seulement |
+| **Mineur** | `cargo xtask recette --scenario s2` non invoqué en CI (seul `s2.mjs`) | `.github/workflows/ci.yml` |
+| **Mineur** | Warnings dead_code dans `crates/api/tests/support/demo_seed.rs` (test helper) | sortie `cargo test auth_integration` |
+
+### Non vérifié
+
+- Build / lancement **Tauri** du parcours S2 (pas de WebDriver / Playwright sur ce jalon).
+- Validation **PowerSync** avec un jeton émis post-TOTP (service sans auth JWT configurée).
+- Rejeu **`node tests/recette/j0-rust-docker.mjs`** cette session (clippy natif poste agent : WDAC **4551** / `time_macros`).
+
+### Prochaine action état-major
+
+1. Corriger clippy `config.rs:75` → CI **`rust`** verte.
+2. Configurer **PowerSync** (`client_auth` / JWKS vers l’API, issuer, audience) ; prouver par test recette ou intégration.
+3. En CI **`s1-instance`** : après S1, lancer **`cargo test -p legalos-api --test auth_integration`** (DATABASE_URL hôte → Postgres exposé) et/ou **`cargo xtask recette --scenario s2`**.
+4. Remplacer le **stub** `initialSync` ou documenter explicitement le découpage J2/J3 ; automatiser le parcours poste quand exigible.
+5. Redemander **contrôleur** ; cocher J2 dans `PLAN.md` seulement après **VALIDÉ**.

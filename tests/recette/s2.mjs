@@ -88,4 +88,19 @@ if (!Array.isArray(jwksBody.keys) || jwksBody.keys.length === 0) {
   fail("JWKS vide");
 }
 
+const accessParts = tokens.access_token.split(".");
+if (accessParts.length !== 3) fail("access_token JWT mal formé");
+const headerJson = JSON.parse(Buffer.from(accessParts[0], "base64url").toString("utf8"));
+if (headerJson.alg !== "RS256") fail(`JWT alg attendu RS256, reçu ${headerJson.alg ?? "?"}`);
+const kid = headerJson.kid;
+if (!kid) fail("JWT sans kid");
+if (!jwksBody.keys.some((k) => k.kid === kid && k.alg === "RS256")) {
+  fail("kid du JWT absent du JWKS");
+}
+const payloadJson = JSON.parse(Buffer.from(accessParts[1], "base64url").toString("utf8"));
+const expectedAud = process.env.JWT_AUDIENCE ?? "legalos-powersync";
+if (payloadJson.aud !== expectedAud) {
+  fail(`JWT aud attendu ${expectedAud}, reçu ${payloadJson.aud ?? "?"}`);
+}
+
 console.log("s2: OK");

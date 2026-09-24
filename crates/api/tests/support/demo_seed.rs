@@ -1,4 +1,5 @@
 //! Valeurs fictives pour la recette S2 (cabinet de démonstration).
+#![allow(dead_code)]
 
 pub const DEMO_CIPHER_KEY: &[u8; 32] = b"legalos_demo_chiffrement_32oct!!";
 

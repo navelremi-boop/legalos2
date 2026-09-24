@@ -104,6 +104,7 @@ pub async fn connexion(
         .jwt
         .sign_access(
             &state.jwt_issuer,
+            &state.jwt_audience,
             user.id,
             user.cabinet_id,
             poste_id,
@@ -162,6 +163,7 @@ pub async fn verifier_totp(
         .jwt
         .sign_access(
             &state.jwt_issuer,
+            &state.jwt_audience,
             user.id,
             user.cabinet_id,
             claims.poste_id,

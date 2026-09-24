@@ -42,6 +42,7 @@ pub async fn build_app_state(
         jwt,
         totp_cipher_key: config.totp_cipher_key,
         jwt_issuer: config.jwt_issuer.clone(),
+        jwt_audience: config.jwt_audience.clone(),
         access_token_ttl_secs: config.access_token_ttl_secs,
         session_token_ttl_secs: config.session_token_ttl_secs,
         refresh_token_ttl_secs: config.refresh_token_ttl_secs,

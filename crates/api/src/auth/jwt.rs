@@ -65,12 +65,13 @@ impl JwtKeys {
     pub fn sign_access(
         &self,
         issuer: &str,
+        audience: &str,
         user_id: Uuid,
         cabinet_id: Uuid,
         poste_id: Uuid,
         ttl_secs: u64,
     ) -> anyhow::Result<String> {
-        let claims = AccessClaims::new(issuer, user_id, cabinet_id, poste_id, ttl_secs);
+        let claims = AccessClaims::new(issuer, audience, user_id, cabinet_id, poste_id, ttl_secs);
         self.sign(&claims, "access")
     }
 
@@ -124,6 +125,7 @@ pub struct AccessClaims {
     pub cabinet_id: Uuid,
     pub poste_id: Uuid,
     pub iss: String,
+    pub aud: String,
     pub exp: u64,
     pub iat: u64,
     #[serde(rename = "typ")]
@@ -131,13 +133,21 @@ pub struct AccessClaims {
 }
 
 impl AccessClaims {
-    fn new(issuer: &str, user_id: Uuid, cabinet_id: Uuid, poste_id: Uuid, ttl_secs: u64) -> Self {
+    fn new(
+        issuer: &str,
+        audience: &str,
+        user_id: Uuid,
+        cabinet_id: Uuid,
+        poste_id: Uuid,
+        ttl_secs: u64,
+    ) -> Self {
         let now = now_secs();
         Self {
             sub: user_id,
             cabinet_id,
             poste_id,
             iss: issuer.into(),
+            aud: audience.into(),
             iat: now,
             exp: now + ttl_secs,
             token_type: "access".into(),

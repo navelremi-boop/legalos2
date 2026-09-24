@@ -1,5 +1,6 @@
 //! Génère les constantes SQL pour `004_demo_fictif.sql` :
 //! `cargo test -p legalos-api --test demo_migration_assets -- --nocapture`
+#![allow(clippy::expect_used)]
 
 #[path = "support/mod.rs"]
 mod support;

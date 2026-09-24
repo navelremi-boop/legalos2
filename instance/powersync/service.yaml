@@ -13,5 +13,11 @@ storage:
 
 port: 8080
 
+# JWT émis par l'API (RS256, GET /auth/jwks) — docs.powersync.com/configuration/auth/custom
+client_auth:
+  jwks_uri: http://api:8080/auth/jwks
+  audience:
+    - legalos-powersync
+
 sync_rules:
   path: /config/sync-rules.yaml

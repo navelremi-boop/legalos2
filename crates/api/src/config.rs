@@ -10,6 +10,8 @@ pub struct Config {
     pub jwt_key_id: String,
     pub jwt_rsa_private_key_pem: Option<String>,
     pub jwt_issuer: String,
+    /// Claim `aud` des JWT d'accès (doit correspondre à `client_auth.audience` PowerSync).
+    pub jwt_audience: String,
     pub totp_cipher_key: [u8; 32],
     pub access_token_ttl_secs: u64,
     pub session_token_ttl_secs: u64,
@@ -31,6 +33,8 @@ impl Config {
             .ok()
             .filter(|s| !s.trim().is_empty());
         let jwt_issuer = std::env::var("JWT_ISSUER").unwrap_or_else(|_| "legalos-api".into());
+        let jwt_audience =
+            std::env::var("JWT_AUDIENCE").unwrap_or_else(|_| "legalos-powersync".into());
 
         let totp_cipher_key = decode_cipher_key(
             &std::env::var("SECRETS_CHIFFREMENT_KEY")
@@ -48,6 +52,7 @@ impl Config {
             jwt_key_id,
             jwt_rsa_private_key_pem,
             jwt_issuer,
+            jwt_audience,
             totp_cipher_key,
             access_token_ttl_secs,
             session_token_ttl_secs,
@@ -72,7 +77,7 @@ fn decode_cipher_key(raw: &str) -> anyhow::Result<[u8; 32]> {
             return Ok(key);
         }
     }
-    if trimmed.as_bytes().len() == 32 {
+    if trimmed.len() == 32 {
         let mut key = [0u8; 32];
         key.copy_from_slice(trimmed.as_bytes());
         return Ok(key);
