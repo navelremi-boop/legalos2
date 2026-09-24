@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: pnpm/action-setup@v4.1.0
+        with:
+          version: 12.6.0
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: "20"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @legal-os/poste typecheck
+      - run: pnpm --filter @legal-os/poste lint:ci
+      - run: pnpm --filter @legal-os/poste build
+      - run: node tests/recette/j0.mjs
+
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2.7.5
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo xtask check-contracts
+
+  macos-smoke:
+    runs-on: macos-latest
+    needs: [frontend, rust]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: pnpm/action-setup@v4.1.0
+        with:
+          version: 12.6.0
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: "20"
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: pnpm install --frozen-lockfile
+      - name: Tauri build (S14b placeholder)
+        run: |
+          echo "S14b: build macOS ad hoc — à compléter jalon J16 (icônes, signingIdentity -)"

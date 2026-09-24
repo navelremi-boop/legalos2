@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "hooks": {
+    "stop": [
+      { "command": "node .cursor/hooks/continuer.mjs", "loop_limit": 50, "timeout": 30 }
+    ],
+    "beforeReadFile": [
+      { "command": "node .cursor/hooks/garde-secrets.mjs", "timeout": 10 }
+    ],
+    "beforeShellExecution": [
+      { "command": "node .cursor/hooks/garde-commandes.mjs", "timeout": 10 }
+    ]
+  }
+}

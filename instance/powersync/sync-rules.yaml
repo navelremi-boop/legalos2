@@ -1,0 +1,5 @@
+# Règles de synchronisation V1 — enrichissement phase 1 (cloisonnement dossiers en phase 2).
+bucket_definitions:
+  cabinet_global:
+    data:
+      - SELECT id, slug, nom, totp_obligatoire, cree_le FROM cabinets

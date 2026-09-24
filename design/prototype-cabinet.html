@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prototype — app de gestion de cabinet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--page:#D8DDDB;--classeur:#E6EAE8;--feuille:#F9FAF9;--encre:#1F2629;--graphite:#5A6569;--filet:#CDD4D1;--echeance:#B42318;--echeance-bg:#FBE9E7;--focus:#1F2629}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+.ch-kraft{--c-mid:#B98E57;--c-tint:#F0E5D2;--c-ink:#664A26}
+.ch-bleu{--c-mid:#6F95C4;--c-tint:#DCE5F1;--c-ink:#284C76}
+.ch-amande{--c-mid:#7DAE8A;--c-tint:#DDEBE0;--c-ink:#335C40}
+.ch-neutre{--c-mid:#98A3AB;--c-tint:#E4E8EB;--c-ink:#3F4A51}
+@media (prefers-color-scheme:dark){
+:root:not([data-theme="light"]){--page:#0E1213;--classeur:#161B1D;--feuille:#1E2427;--encre:#E4EAE8;--graphite:#9CA8AC;--filet:#323B3E;--echeance:#F07A6A;--echeance-bg:#3A1F1C;--focus:#E4EAE8}
+:root:not([data-theme="light"]) .ch-kraft{--c-mid:#C9A06A;--c-tint:#3A3124;--c-ink:#EBD3AE}
+:root:not([data-theme="light"]) .ch-bleu{--c-mid:#86A9D6;--c-tint:#23324A;--c-ink:#C9DAF0}
+:root:not([data-theme="light"]) .ch-amande{--c-mid:#8DBE9A;--c-tint:#243A2C;--c-ink:#C6E3CE}
+:root:not([data-theme="light"]) .ch-neutre{--c-mid:#7D8990;--c-tint:#262E32;--c-ink:#D3DBDF}}
+:root[data-theme="dark"]{--page:#0E1213;--classeur:#161B1D;--feuille:#1E2427;--encre:#E4EAE8;--graphite:#9CA8AC;--filet:#323B3E;--echeance:#F07A6A;--echeance-bg:#3A1F1C;--focus:#E4EAE8}
+:root[data-theme="dark"] .ch-kraft{--c-mid:#C9A06A;--c-tint:#3A3124;--c-ink:#EBD3AE}
+:root[data-theme="dark"] .ch-bleu{--c-mid:#86A9D6;--c-tint:#23324A;--c-ink:#C9DAF0}
+:root[data-theme="dark"] .ch-amande{--c-mid:#8DBE9A;--c-tint:#243A2C;--c-ink:#C6E3CE}
+:root[data-theme="dark"] .ch-neutre{--c-mid:#7D8990;--c-tint:#262E32;--c-ink:#D3DBDF}
+body{margin:0;min-height:100%;background:var(--page);color:var(--encre);font-family:"Atkinson Hyperlegible Next",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:14px;line-height:1.45;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;position:relative}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.hint{max-width:1320px;margin:0 auto;padding:18px 24px 10px;color:var(--graphite);font-size:13px}
+.stage{overflow-x:auto;padding:0 24px 32px}
+.win{width:1280px;min-height:780px;margin:0 auto;background:var(--classeur);border-radius:12px;border:1px solid var(--filet);display:grid;grid-template-rows:auto 1fr;overflow:hidden}
+.bar{display:flex;align-items:flex-end;gap:14px;padding:10px 14px 0;min-height:52px}
+.lights{display:flex;gap:8px;align-self:center;padding-right:6px}
+.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.tabs{display:flex;align-items:flex-end;gap:2px;flex:1;min-width:0}
+.tab{display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:8px 8px 0 0;color:var(--graphite);white-space:nowrap}
+.tab:hover{color:var(--encre)}
+.tab .sw{width:9px;height:13px;border-radius:2px;background:var(--c-mid);flex:none}
+.tab.active{background:var(--c-tint);color:var(--c-ink);font-weight:700}
+.tab-day.active{background:var(--feuille);color:var(--encre)}
+.tab.pulse{animation:pulse .7s ease-out}
+@keyframes pulse{0%{box-shadow:inset 0 0 0 3px var(--c-mid)}100%{box-shadow:inset 0 0 0 3px transparent}}
+.tools{display:flex;align-items:center;gap:8px;align-self:center;padding-bottom:4px}
+.tool{height:30px;padding:0 10px;border-radius:5px;display:flex;align-items:center;gap:8px;color:var(--graphite)}
+.tool:hover{background:var(--feuille);color:var(--encre)}
+.timer{color:var(--encre)}
+.timer .dot{width:9px;height:13px;border-radius:2px;background:var(--c-mid)}
+.timer.paused .dot{background:var(--graphite)}
+.key{border:1px solid var(--filet);border-radius:4px;padding:0 5px;font-size:12px;line-height:18px;color:var(--graphite)}
+.body{display:grid;grid-template-columns:188px 1fr 132px;min-height:0}
+.body.no-inter{grid-template-columns:188px 1fr}
+.rail{padding:18px 10px;display:flex;flex-direction:column;gap:2px}
+.rail button{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-radius:5px;color:var(--graphite);text-align:left}
+.rail button:hover{background:var(--feuille);color:var(--encre)}
+.rail button.on{color:var(--encre);font-weight:700}
+.rail .n{font-size:12px;color:var(--graphite);font-weight:400}
+.rail .sep{flex:1}
+main{background:var(--feuille);min-width:0}
+.band{background:var(--c-tint);color:var(--c-ink);padding:22px 32px 20px}
+.band h1{font-size:26px;line-height:1.2;font-weight:700;margin:0;letter-spacing:-.01em;max-width:30ch}
+.band-top{display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
+.stage-lbl{border:1px solid color-mix(in srgb,var(--c-ink) 35%,transparent);border-radius:5px;padding:2px 9px;font-size:13px;white-space:nowrap}
+.facts{display:grid;grid-template-columns:1.2fr .6fr 1.3fr 1.3fr;gap:10px 28px;margin:18px 0 0}
+.facts dt{font-size:12px;opacity:1;color:color-mix(in srgb,var(--c-ink) 72%,var(--c-tint))}
+.facts dd{margin:2px 0 0;font-size:14px}
+.next{margin-top:18px;padding-top:14px;border-top:1px solid color-mix(in srgb,var(--c-ink) 18%,transparent);font-size:14px}
+.next b{font-weight:700}
+.next.urgent{color:var(--echeance)}
+.note{margin:0 32px;padding:10px 0;color:var(--graphite);font-size:13px}
+.chrono{padding:22px 32px 32px}
+.chead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+h2{font-size:17px;font-weight:700;margin:0}
+.seg{display:flex;border:1px solid var(--filet);border-radius:6px;overflow:hidden}
+.seg button{padding:4px 11px;font-size:13px;color:var(--graphite);border-left:1px solid var(--filet)}
+.seg button:first-child{border-left:0}
+.seg button.on{background:var(--classeur);color:var(--encre);font-weight:700}
+.rows{list-style:none;margin:0;padding:0}
+.row{display:grid;grid-template-columns:92px 22px minmax(0,1fr) 190px;column-gap:10px;padding:11px 0;border-top:1px solid var(--filet)}
+.row:first-child{border-top:0}
+.when{text-align:right;color:var(--graphite);font-size:13px;line-height:1.35}
+.when .d{display:block;color:var(--encre);font-weight:700}
+.spine{position:relative}
+.spine i{position:absolute;left:7px;top:5px;width:8px;height:8px;border-radius:50%;background:var(--c-mid)}
+.l1{font-size:14px}
+.type{color:var(--graphite);margin-right:6px}
+.l2{font-size:13px;color:var(--graphite);margin-top:2px}
+.st{font-size:13px;color:var(--graphite);text-align:right}
+.st.fort{color:var(--c-ink);font-weight:700}
+.inter{padding:84px 0 0;display:flex;flex-direction:column;gap:4px}
+.itab{display:flex;justify-content:space-between;align-items:center;padding:8px 12px 8px 10px;margin-right:14px;border-radius:0 7px 7px 0;background:color-mix(in srgb,var(--c-tint) 70%,var(--classeur));color:var(--c-ink);font-size:13px;text-align:left}
+.itab:hover{background:var(--c-tint)}
+.itab.on{background:var(--feuille);color:var(--encre);font-weight:700;margin-right:0}
+.itab .n{font-weight:400;color:var(--graphite)}
+.day{padding:28px 32px 36px}
+.day h1{font-size:28px;font-weight:700;margin:0;letter-spacing:-.01em}
+.day .sub{color:var(--graphite);margin:4px 0 26px}
+.cols{display:grid;grid-template-columns:1fr 1.15fr;gap:40px}
+.block{margin-bottom:30px}
+.block h2{margin-bottom:8px}
+.drow{display:grid;grid-template-columns:78px minmax(0,1fr) auto;gap:12px;padding:10px 0;border-top:1px solid var(--filet);align-items:baseline}
+.drow .w{color:var(--graphite);font-size:13px}
+.drow .w.urgent{color:var(--echeance);font-weight:700}
+.dlink{color:var(--encre);text-decoration:underline;text-decoration-color:var(--filet);text-underline-offset:3px}
+.dlink:hover{text-decoration-color:var(--encre)}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--graphite)}
+.chip .sw{width:8px;height:11px;border-radius:2px;background:var(--c-mid)}
+.mail{padding:12px 0;border-top:1px solid var(--filet)}
+.mail .from{font-size:13px;color:var(--graphite)}
+.mail .subj{margin:2px 0 8px}
+.acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{height:30px;padding:0 12px;border-radius:5px;border:1px solid var(--filet);font-size:13px;display:inline-flex;align-items:center;gap:8px}
+.btn:hover{border-color:var(--graphite)}
+.btn.go{background:var(--c-tint);color:var(--c-ink);border-color:transparent;font-weight:700}
+.btn.go .sw{width:8px;height:11px;border-radius:2px;background:var(--c-mid)}
+.btn.go:hover{outline:1px solid var(--c-mid)}
+.unknown{font-size:13px;color:var(--graphite)}
+.ghost{position:absolute;z-index:10;pointer-events:none;background:var(--c-tint);color:var(--c-ink);border:1px solid var(--c-mid);border-radius:6px;padding:6px 10px;font-size:13px;white-space:nowrap;font-family:inherit}
+.empty{color:var(--graphite);padding:12px 0;border-top:1px solid var(--filet)}
+@media (prefers-reduced-motion:reduce){.tab.pulse{animation:none}}
+</style>
+</head>
+<body>
+<p class="hint">Prototype d’intention, données fictives. Changez d’onglet, classez un mail depuis «&#8239;La journée&#8239;», passez en mode nuit.</p>
+<div class="stage">
+  <div class="win" id="win">
+    <header class="bar">
+      <div class="lights" aria-hidden="true"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></div>
+      <nav class="tabs" id="tabs" aria-label="Dossiers ouverts"></nav>
+      <div class="tools">
+        <button class="tool timer ch-kraft" id="timer" aria-label="Mettre en pause le chronomètre"><span class="dot"></span><span id="timerTxt"></span></button>
+        <button class="tool" aria-label="Rechercher ou aller à un dossier">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          Rechercher ou aller à un dossier <span class="key">⌘K</span></button>
+        <button class="tool" id="theme"></button>
+      </div>
+    </header>
+    <div class="body" id="body">
+      <nav class="rail" id="rail" aria-label="Navigation principale"></nav>
+      <main id="main"></main>
+      <aside class="inter" id="inter" aria-label="Intercalaires du dossier"></aside>
+    </div>
+  </div>
+</div>
+<script>
+const t=s=>String(s).replace(/ ([:;!?»])/g,"\u202F$1").replace(/« /g,"«\u202F").replace(/(\d) (\d{3})/g,"$1\u202F$2").replace(/ €/g,"\u00A0€").replace(/\bMe /g,"Me\u00A0").replace(/\bnos? /g,m=>m.trim()+"\u00A0");
+const D={
+tilleuls:{short:"SCI Les Tilleuls",name:"SCI Les Tilleuls c/ Banque Rhodanienne",ch:"kraft",stage:"Mise en état",
+facts:[["Juridiction","Cour d’appel de Lyon, 1re chambre civile"],["N° RG","25/04417"],["Client","SCI Les Tilleuls, représentée par M. Bernard Roux"],["Adversaire","Banque Rhodanienne, Me Clément Vasseur"]],
+next:["Conclusions d’appelant","le 14 octobre, dans 20 jours",false],counts:{pieces:19,mails:48},
+chrono:[
+{day:"Aujourd’hui",time:"9 h 12",k:"mail",type:"Mail reçu",title:"« Communication de pièces adverses nos 14 à 19 »",detail:"De Me Clément Vasseur, 6 pièces jointes",st:"Classé automatiquement"},
+{day:"Hier",time:"17 h 40",k:"temps",type:"Temps",title:"Rédaction des conclusions d’appelant, projet v3",detail:"1 h 30, non facturé",st:""},
+{day:"22 sept.",time:"15 h 05",k:"pieces",type:"Pièces",title:"Pièces nos 12 et 13 communiquées à Me Vasseur",detail:"Bordereau no 3",st:"Communiquées",fort:true},
+{day:"19 sept.",time:"",k:"facture",type:"Facture",title:"2026-0142, provision sur honoraires",detail:"2 400,00 € TTC, déposée sur la plateforme",st:"Encaissée : 1 200,00 €",fort:true},
+{day:"15 sept.",time:"",k:"autre",type:"Audience",title:"Mise en état : renvoi au 12 novembre",detail:"Conseiller de la mise en état",st:""},
+{day:"10 sept.",time:"11 h 20",k:"mail",type:"Mail envoyé",title:"« Calendrier de procédure et prochaines échéances »",detail:"À M. Bernard Roux",st:"Copie classée"}]},
+ferrand:{short:"Ferrand Métal",name:"SAS Ferrand Métal c/ SARL Duclos Industrie",ch:"bleu",stage:"Plaidoirie",
+facts:[["Juridiction","Tribunal des activités économiques de Lyon"],["N° RG","2026J00311"],["Client","SAS Ferrand Métal, représentée par Mme Inès Ferrand"],["Adversaire","SARL Duclos Industrie, Me Anne Perrin"]],
+next:["Audience de plaidoirie","le 29 septembre à 14 h, dans 5 jours",false],counts:{pieces:27,mails:31},
+chrono:[
+{day:"Aujourd’hui",time:"8 h 05",k:"mail",type:"Mail reçu",title:"« Re : dossier de plaidoirie »",detail:"De Mme Inès Ferrand, 2 pièces jointes",st:"Classé automatiquement"},
+{day:"23 sept.",time:"18 h 10",k:"pieces",type:"Pièces",title:"Dossier de plaidoirie constitué, 27 pièces",detail:"Bordereau no 2",st:"Communiquées",fort:true},
+{day:"18 sept.",time:"",k:"temps",type:"Temps",title:"Préparation de la plaidoirie",detail:"2 h 45, non facturé",st:""},
+{day:"12 sept.",time:"",k:"facture",type:"Facture",title:"2026-0131, honoraires de procédure",detail:"3 600,00 € TTC, déposée sur la plateforme",st:"Encaissée",fort:true},
+{day:"3 sept.",time:"10 h 02",k:"mail",type:"Mail envoyé",title:"« Conclusions récapitulatives »",detail:"À Me Anne Perrin",st:"Copie classée"}]},
+moreau:{short:"Succession Moreau",name:"Succession Moreau",ch:"amande",stage:"Partage amiable",
+facts:[["Nature","Règlement de succession"],["Juridiction","Aucune à ce stade"],["Client","Mme Hélène Moreau"],["Notaire","Me Lucas Garnier"]],
+next:["Rendez-vous à l’étude","le 2 octobre à 10 h, dans 8 jours",false],counts:{pieces:7,mails:22},
+chrono:[
+{day:"Hier",time:"11 h 30",k:"mail",type:"Mail reçu",title:"« Projet d’état liquidatif »",detail:"De Me Lucas Garnier, 1 pièce jointe",st:"Classé automatiquement"},
+{day:"21 sept.",time:"16 h 45",k:"autre",type:"Note",title:"Appel de Mme Moreau : désaccord sur l’évaluation de la maison de Caluire",detail:"Rédigée par vous",st:""},
+{day:"16 sept.",time:"",k:"temps",type:"Temps",title:"Analyse du projet de déclaration de succession",detail:"1 h 10, non facturé",st:""},
+{day:"9 sept.",time:"9 h 40",k:"mail",type:"Mail envoyé",title:"« Pièces demandées par l’étude »",detail:"À Me Lucas Garnier",st:"Copie classée"}]}};
+const order=["tilleuls","ferrand","moreau"];
+let cur="tilleuls",filter="tout",unread=12,timerOn=true;
+let toFile=[
+{id:1,from:"Me Anne Perrin",subj:"« Communication de pièces nos 8 à 11 »",sug:"ferrand",why:"Correspondante liée à un seul dossier actif"},
+{id:2,from:"Me Lucas Garnier",subj:"« Rectificatif de l’état liquidatif »",sug:"moreau",why:"Référence du dossier dans l’objet"},
+{id:3,from:"Greffe du tribunal judiciaire de Lyon",subj:"« Avis de fixation, RG 25/05102 »",sug:null,why:"Numéro RG inconnu de vos dossiers"}];
+const $=s=>document.querySelector(s);
+const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+function tabs(){
+  $("#tabs").innerHTML=`<button class="tab tab-day ch-neutre ${cur==="day"?"active":""}" data-id="day" aria-current="${cur==="day"}">La journée</button>`+
+  order.map(id=>`<button class="tab ch-${D[id].ch} ${cur===id?"active":""}" data-id="${id}" aria-current="${cur===id}"><span class="sw"></span>${t(D[id].short)}</button>`).join("");
+  $("#tabs").querySelectorAll(".tab").forEach(b=>b.onclick=()=>go(b.dataset.id));
+}
+function rail(){
+  const items=[["day","La journée",""],["mails","Mails",unread],["agenda","Agenda",""],["dossiers","Dossiers",""],["fact","Facturation",""],["temps","Temps",""]];
+  const on=cur==="day"?"day":"dossiers";
+  $("#rail").innerHTML=items.map(([k,l,n])=>`<button class="${k===on?"on":""}" data-k="${k}">${l}<span class="n">${n}</span></button>`).join("")+`<span class="sep"></span><button data-k="set">Réglages<span class="n"></span></button>`;
+  $("#rail").querySelectorAll("button").forEach(b=>b.onclick=()=>{if(b.dataset.k==="day")go("day");if(b.dataset.k==="dossiers"&&cur==="day")go("tilleuls")});
+}
+function dossier(){
+  const d=D[cur];
+  const rows=d.chrono.filter(r=>filter==="tout"||r.k===filter);
+  let last=null;
+  const f=[["tout","Tout"],["mail","Mails"],["pieces","Pièces"],["temps","Temps"],["facture","Factures"]];
+  return `<section class="band">
+    <div class="band-top"><h1>${t(d.name)}</h1><span class="stage-lbl">${t(d.stage)}</span></div>
+    <dl class="facts">${d.facts.map(([k,v])=>`<div><dt>${t(k)}</dt><dd>${t(v)}</dd></div>`).join("")}</dl>
+    <p class="next ${d.next[2]?"urgent":""}" style="margin-bottom:0">Prochaine échéance\u202F: <b>${t(d.next[0])}</b>, ${t(d.next[1])}</p>
+  </section>
+  <p class="note" id="note" hidden></p>
+  <section class="chrono">
+    <div class="chead"><h2>Chrono du dossier</h2><div class="seg" role="group" aria-label="Filtrer le chrono">${f.map(([k,l])=>`<button class="${filter===k?"on":""}" data-f="${k}" aria-pressed="${filter===k}">${l}</button>`).join("")}</div></div>
+    <ol class="rows">${rows.length?rows.map(r=>{const show=r.day!==last;last=r.day;return `<li class="row">
+      <div class="when">${show?`<span class="d">${t(r.day)}</span>`:""}${t(r.time)}</div>
+      <div class="spine"><i></i></div>
+      <div class="what"><div class="l1"><span class="type">${t(r.type)}</span>${t(r.title)}</div><div class="l2">${t(r.detail)}</div></div>
+      <div class="st ${r.fort?"fort":""}">${t(r.st)}</div></li>`}).join(""):`<li class="empty">Rien de ce type dans ce dossier pour l’instant.</li>`}</ol>
+  </section>`;
+}
+function inter(){
+  const d=D[cur];
+  const list=[["Chrono",""],["Procédure",""],["Pièces",d.counts.pieces],["Mails",d.counts.mails],["Temps et factures",""],["Notes",""]];
+  $("#inter").innerHTML=list.map(([l,n],i)=>`<button class="itab ${i===0?"on":""}" data-i="${i}">${l}<span class="n">${n}</span></button>`).join("");
+  $("#inter").querySelectorAll(".itab").forEach(b=>b.onclick=()=>{
+    $("#inter").querySelectorAll(".itab").forEach(x=>x.classList.toggle("on",x===b));
+    const n=$("#note"); if(b.dataset.i!=="0"){n.hidden=false;n.textContent=t("Ce prototype ne montre que le chrono. L’intercalaire « "+b.firstChild.textContent+" » ouvrirait la vue correspondante.")}else n.hidden=true;
+  });
+}
+function day(){
+  const pending=toFile.length;
+  return `<div class="day">
+  <h1>Jeudi 24 septembre</h1>
+  <p class="sub">${pending?`${pending} mail${pending>1?"s":""} à classer, `:""}un délai qui expire demain, deux rendez-vous aujourd’hui.</p>
+  <div class="cols">
+    <div>
+      <section class="block"><h2>Aujourd’hui</h2>
+        <div class="drow"><span class="w">11 h 30</span><span>Conseil de prud’hommes de Lyon, bureau de jugement<br><span class="chip">Lemoine c/ SAS Arvel</span></span><span></span></div>
+        <div class="drow"><span class="w">16 h 00</span><span>Rendez-vous au cabinet avec Mme Inès Ferrand, préparation de l’audience<br><button class="dlink ch-bleu chip" data-open="ferrand"><span class="sw"></span>Ferrand Métal</button></span><span></span></div>
+      </section>
+      <section class="block"><h2>Délais</h2>
+        <div class="drow"><span class="w urgent">Demain</span><span>Conclusions d’intimé<br><span class="chip">Garnier c/ Lyon Habitat</span></span><span></span></div>
+        <div class="drow"><span class="w">29 sept.</span><span>Audience de plaidoirie<br><button class="dlink ch-bleu chip" data-open="ferrand"><span class="sw"></span>Ferrand Métal</button></span><span></span></div>
+        <div class="drow"><span class="w">14 oct.</span><span>Conclusions d’appelant<br><button class="dlink ch-kraft chip" data-open="tilleuls"><span class="sw"></span>SCI Les Tilleuls</button></span><span></span></div>
+      </section>
+    </div>
+    <div>
+      <section class="block"><h2>Mails à classer</h2>
+        ${pending?toFile.map(m=>`<div class="mail" data-m="${m.id}">
+          <div class="from">${t(m.from)}</div><div class="subj">${t(m.subj)}</div>
+          <div class="acts">${m.sug?`<button class="btn go ch-${D[m.sug].ch}" data-file="${m.id}"><span class="sw"></span>Classer dans ${t(D[m.sug].short)}</button><button class="btn">Autre dossier</button><span class="unknown">${t(m.why)}</span>`:`<button class="btn">Choisir un dossier</button><span class="unknown">${t(m.why)}</span>`}</div>
+        </div>`).join(""):`<p class="empty">Tous les mails reçus sont classés.</p>`}
+      </section>
+      <section class="block"><h2>Temps à saisir</h2>
+        <div class="drow"><span class="w">Hier</span><span>2 h 10 d’activité sans saisie, sur SCI Les Tilleuls et Ferrand Métal</span><button class="btn">Saisir</button></div>
+      </section>
+    </div>
+  </div></div>`;
+}
+function render(){
+  const w=$("#win"); w.className="win "+(cur==="day"?"ch-neutre":"ch-"+D[cur].ch);
+  tabs(); rail();
+  $("#body").classList.toggle("no-inter",cur==="day");
+  $("#inter").hidden=cur==="day";
+  $("#main").innerHTML=cur==="day"?day():dossier();
+  if(cur!=="day"){inter();$("#main").querySelectorAll(".seg button").forEach(b=>b.onclick=()=>{filter=b.dataset.f;render()})}
+  else{
+    $("#main").querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>go(b.dataset.open));
+    $("#main").querySelectorAll("[data-file]").forEach(b=>b.onclick=()=>fileMail(+b.dataset.file,b));
+  }
+}
+function go(id){cur=id;filter="tout";render()}
+function fileMail(id,btn){
+  const m=toFile.find(x=>x.id===id); if(!m)return;
+  const tab=$(`#tabs .tab[data-id="${m.sug}"]`);
+  const row=btn.closest(".mail");
+  const done=()=>{
+    D[m.sug].chrono.unshift({day:"Aujourd’hui",time:"à l’instant",k:"mail",type:"Mail reçu",title:m.subj,detail:"De "+m.from,st:"Classé par vous"});
+    D[m.sug].counts.mails++; toFile=toFile.filter(x=>x.id!==id); unread=Math.max(0,unread-1); render();
+    const nt=$(`#tabs .tab[data-id="${m.sug}"]`); nt.classList.remove("pulse"); void nt.offsetWidth; nt.classList.add("pulse");
+  };
+  if(reduce||!tab||!row.animate){done();return}
+  const a=btn.getBoundingClientRect(),b=tab.getBoundingClientRect();
+  const g=document.createElement("div"); g.className="ghost ch-"+D[m.sug].ch; g.textContent=t(m.subj);
+  g.style.left=(a.left+scrollX)+"px"; g.style.top=(a.top+scrollY)+"px"; document.body.appendChild(g);
+  const dx=b.left+b.width/2-(a.left+g.offsetWidth/2),dy=b.top+b.height/2-(a.top+g.offsetHeight/2);
+  row.animate([{opacity:1},{opacity:.25}],{duration:380,fill:"forwards"});
+  g.animate([{transform:"translate(0,0) scale(1)",opacity:1},{transform:`translate(${dx}px,${dy}px) scale(.35)`,opacity:.15}],{duration:460,easing:"cubic-bezier(.3,.6,.2,1)"}).onfinish=()=>{g.remove();done()};
+}
+let secs=42*60;
+function tick(){const h=Math.floor(secs/3600),m=Math.floor(secs%3600/60);$("#timerTxt").textContent=t(`${h} h ${String(m).padStart(2,"0")} sur SCI Les Tilleuls`)}
+$("#timer").onclick=()=>{timerOn=!timerOn;$("#timer").classList.toggle("paused",!timerOn);$("#timer").setAttribute("aria-label",timerOn?"Mettre en pause le chronomètre":"Reprendre le chronomètre")};
+setInterval(()=>{if(timerOn){secs+=1;if(secs%60===0)tick()}},1000);
+function isDark(){const th=document.documentElement.dataset.theme;return th?th==="dark":matchMedia("(prefers-color-scheme: dark)").matches}
+function themeLbl(){$("#theme").textContent=isDark()?"Mode jour":"Mode nuit"}
+$("#theme").onclick=()=>{document.documentElement.dataset.theme=isDark()?"light":"dark";themeLbl()};
+tick();themeLbl();render();
+</script>
+</body>
+</html>

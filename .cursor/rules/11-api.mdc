@@ -1,0 +1,16 @@
+---
+description: API Axum de l'instance du cabinet
+globs: crates/api/**
+alwaysApply: false
+---
+
+# API de l'instance
+
+- **Axum** : syntaxe de routes actuelle (`/dossiers/{id}`), à vérifier dans la documentation de la version figée.
+- **Gestionnaires minces** : extraction, validation, appel au domaine, réponse. La logique métier vit dans les crates du domaine.
+- **Toute écriture** : authentification, vérification des droits sur le dossier concerné, validation complète. Le poste n'est jamais cru sur parole.
+- **Idempotence** : toute écriture susceptible d'être rejouée (file de synchronisation, envois) porte une clé d'idempotence.
+- **Erreurs** : type d'erreur unique converti en réponse HTTP ; aucun détail interne ni donnée personnelle dans le corps d'erreur.
+- **Contrat** : OpenAPI généré depuis le code ; le client TypeScript est généré depuis ce contrat, jamais écrit à la main.
+- **Identifiants tiers** (stockage, mail, plateforme agréée) : chiffrés au repos, jamais renvoyés au poste.
+- **Jetons** : JWT courts pour PowerSync, JWKS exposé ; registre des postes consulté à chaque renouvellement (révocation).

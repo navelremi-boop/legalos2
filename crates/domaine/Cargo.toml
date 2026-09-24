@@ -1,0 +1,16 @@
+[package]
+name = "legalos-domaine"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "Types métier partagés LEGAL OS"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+uuid = { workspace = true }

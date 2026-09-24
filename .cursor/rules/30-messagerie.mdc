@@ -1,0 +1,17 @@
+---
+description: Moteur mail (synchronisation IMAP, file d'envoi, classement)
+globs: crates/messagerie/**
+alwaysApply: false
+---
+
+# Messagerie
+
+Référence : cahier des charges § 3.8.
+
+- Bibliothèques imposées : `async-imap`, `mail-parser`, `ammonia`, `lettre`, `oauth2`. Aucun analyseur IMAP ou MIME maison.
+- Synchronisation **uniquement côté serveur**, derrière `FournisseurMail`.
+- **File d'envoi** : brouillon → en attente → envoyé → copie dans « Envoyés » confirmée → (échec). Un mail ne sort jamais de la file avant la confirmation. Identifiant de message généré une seule fois ; vérification dans « Envoyés » avant toute nouvelle tentative.
+- Changement de validité des identifiants IMAP → resynchronisation complète du dossier concerné, sans perte des rattachements aux dossiers.
+- HTML nettoyé avant stockage ; images distantes jamais chargées côté serveur.
+- **Jamais** de contenu de mail, d'objet ou d'adresse dans les journaux.
+- Tests contre GreenMail : coupure réseau pendant l'envoi, changement de validité, boîte de 50 000 messages.

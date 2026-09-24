@@ -1,0 +1,11 @@
+{
+  "name": "legal-os",
+  "private": true,
+  "packageManager": "pnpm@12.6.0",
+  "scripts": {
+    "poste:dev": "pnpm --filter @legal-os/poste dev",
+    "poste:build": "pnpm --filter @legal-os/poste build",
+    "poste:tauri": "pnpm --filter @legal-os/poste tauri",
+    "lint": "pnpm --filter @legal-os/poste lint"
+  }
+}

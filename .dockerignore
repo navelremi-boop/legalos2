@@ -1,0 +1,14 @@
+# Contexte build API (instance/Dockerfile.api) — réduire la taille et éviter les invalidations inutiles.
+.git
+.cursor
+.mission
+**/target
+**/node_modules
+apps
+design
+tests
+docs
+design
+*.md
+.env
+.env.*

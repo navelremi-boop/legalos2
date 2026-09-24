@@ -1,0 +1,16 @@
+---
+description: Règles permanentes de la mission LEGAL OS
+alwaysApply: true
+---
+
+# Mission LEGAL OS — règles permanentes
+
+- **Documents d'autorité** : `docs/cahier-des-charges.md` (le produit), `docs/ordre-operation.md` (le travail). Relis-les en début de session et après chaque compactage.
+- **État de la mission** : `PLAN.md`, `JOURNAL.md`, `BLOCAGES.md`, tenus à jour à chaque étape.
+- **Invariants** : § 5 de l'ordre d'opération. Aucune exception.
+- **Preuve avant affirmation** : rien n'est « fait » sans commande exécutée et résultat consigné.
+- **Versions et API** : vérifiées dans la documentation officielle, consignées dans `docs/versions.md`. Jamais de mémoire.
+- **Données** : uniquement fictives. **Journaux** : jamais de contenu de mail, de document, de note, ni de donnée personnelle ; identifiants techniques seulement.
+- **Langue** : code en anglais, sauf les notions juridiques françaises sans équivalent exact (avoir, pièce, bordereau, chrono…) ; interface et documentation en français.
+- **Poste Windows** : shell PowerShell ; scripts du dépôt multiplateformes (`cargo xtask` ou Node) ; chemins jamais codés en dur ; fins de ligne LF.
+- **Règle vérifiable = règle outillée** : quand une règle peut être contrôlée par un lint, un test ou la CI, elle doit l'être.

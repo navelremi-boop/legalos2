@@ -1,0 +1,57 @@
+# LEGAL OS — Versions des dépendances
+
+Vérifiées le **2026-09-24** dans la documentation officielle ou les registres publics (crates.io, npm, Docker Hub, docs produit). Ne pas modifier sans re-vérification à la date du jour.
+
+## Poste (application desktop)
+
+| Composant | Version figée | Source |
+|-----------|---------------|--------|
+| Tauri (crate) | **2.11.6** (stable ; ne pas prendre 3.0 alpha) | https://crates.io/crates/tauri |
+| @tauri-apps/api | **2.11.1** (lockfile) | https://www.npmjs.com/package/@tauri-apps/api |
+| @tauri-apps/cli | **2.11.5** (lockfile) | https://www.npmjs.com/package/@tauri-apps/cli |
+| React | **19.3.0** (lockfile) | https://www.npmjs.com/package/react |
+| TypeScript | **5.8.3** | https://www.npmjs.com/package/typescript |
+| Vite | **8.3.0** | https://www.npmjs.com/package/vite |
+| Tailwind CSS | **4.3.3** | https://www.npmjs.com/package/tailwindcss |
+| @powersync/web (schéma client web) | **1.39.1** (lockfile) | https://www.npmjs.com/package/@powersync/web |
+| PowerSync Tauri SDK | *à figer phase 1* | https://docs.powersync.com/client-sdks/reference/tauri |
+| pnpm | **12.6.0** | `packageManager` racine |
+| Node.js (poste dev) | **20 LTS** (20.20.2 observé) | https://nodejs.org |
+| ESLint (flat config) | **9.39.x** (lockfile) | https://www.npmjs.com/package/eslint |
+| typescript-eslint | **8.46.x** (lockfile) | https://www.npmjs.com/package/typescript-eslint |
+
+## Instance (serveur)
+
+| Composant | Version figée | Source |
+|-----------|---------------|--------|
+| PowerSync Service (Open Edition) | **journeyapps/powersync-service:1.26.1** | https://hub.docker.com/r/journeyapps/powersync-service/tags |
+| PostgreSQL | **16.8-bookworm** | https://hub.docker.com/_/postgres |
+| Caddy | **2.10.0-alpine** | https://hub.docker.com/_/caddy |
+| Garage (S3) | **dxflrs/garage:v1.0.1** | https://hub.docker.com/r/dxflrs/garage |
+| GreenMail (IMAP/SMTP test) | **greenmail/standalone:2.1.0** | https://hub.docker.com/r/greenmail/standalone |
+| Axum | **0.8.9** | https://crates.io/crates/axum |
+| sqlx | **0.8.5** | https://crates.io/crates/sqlx |
+| Tokio | **1.44.2** | https://crates.io/crates/tokio |
+| utoipa | **5.3.1** | https://crates.io/crates/utoipa |
+| Typst (PDF) | **0.14** (cible facturation) | https://typst.app/blog/2025/typst-0.14 |
+| Rust toolchain | **stable ≥ 1.80** (`rust-toolchain.toml`) | https://rust-lang.org |
+| Rust (image build API) | **rust:1.85.0-bookworm** | https://hub.docker.com/_/rust |
+| Images compose LEGAL OS | **legalos/api:0.1.0**, **legalos/caddy:2.10.0-alpine**, **legalos/simulateur-pa:s1-stub** (build local, pas de `latest`) | `instance/docker-compose.yml` |
+
+## Outils CI (cibles)
+
+| Outil | Usage |
+|-------|--------|
+| veraPDF | PDF/A-3b factures |
+| Schematron EN 16931 | XML Factur-X |
+| Playwright | Captures S13 |
+| WebdriverIO + Tauri | Fumée app construite (feature test uniquement) |
+
+## Actions GitHub (à épingler dans `.github/workflows/`)
+
+| Action | Version |
+|--------|---------|
+| actions/checkout | v4.2.2 |
+| actions/setup-node | v4.4.0 |
+| dtolnay/rust-toolchain | stable (via fichier repo) |
+| pnpm/action-setup | v4.1.0 |

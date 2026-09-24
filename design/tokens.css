@@ -1,0 +1,297 @@
+/**
+ * LEGAL OS — jetons de design (source unique, cahier des charges § 7.3).
+ * Couleurs autorisées uniquement ici ; Tailwind les réexpose via apps/poste/src/index.css.
+ */
+
+/* --- Atkinson Hyperlegible Next (OFL), embarquée — pas de Google Fonts en prod --- */
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/atkinson-hyperlegible-next/AtkinsonHyperlegibleNext-Regular.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/atkinson-hyperlegible-next/AtkinsonHyperlegibleNext-Bold.woff2")
+    format("woff2");
+}
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --page: #d8dddb;
+  --classeur: #e6eae8;
+  --feuille: #f9faf9;
+  --encre: #1f2629;
+  --graphite: #5a6569;
+  --filet: #cdd4d1;
+  --echeance: #b42318;
+  --echeance-fond: #fbe9e7;
+  --focus: #1f2629;
+
+  --font-family: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-size-meta: 12px;
+  --font-size-dense: 13px;
+  --font-size-base: 14px;
+  --font-size-mail: 15px;
+  --font-size-section: 17px;
+  --font-size-dossier: 26px;
+  --font-size-journee: 28px;
+  --line-height-base: 1.45;
+  --line-height-mail: 1.6;
+
+  --space-unit: 4px;
+  --space-page: 32px;
+  --row-height-list: 44px;
+
+  --radius-tab: 8px;
+  --radius-intercalaire: 7px;
+  --radius-control: 5px;
+  --radius-pastille: 2px;
+  --radius-overlay: 8px;
+
+  --shadow-floating: 0 12px 40px rgb(31 38 41 / 0.12);
+
+  --duration-menu: 150ms;
+  --duration-mail-classer: 460ms;
+  --duration-tab-pulse: 700ms;
+}
+
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) {
+  color-scheme: dark;
+
+  --page: #0e1213;
+  --classeur: #161b1d;
+  --feuille: #1e2427;
+  --encre: #e4eae8;
+  --graphite: #9ca8ac;
+  --filet: #323b3e;
+  --echeance: #f07a6a;
+  --echeance-fond: #3a1f1c;
+  --focus: #e4eae8;
+
+  --shadow-floating: 0 12px 40px rgb(0 0 0 / 0.45);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --page: #0e1213;
+    --classeur: #161b1d;
+    --feuille: #1e2427;
+    --encre: #e4eae8;
+    --graphite: #9ca8ac;
+    --filet: #323b3e;
+    --echeance: #f07a6a;
+    --echeance-fond: #3a1f1c;
+    --focus: #e4eae8;
+
+    --shadow-floating: 0 12px 40px rgb(0 0 0 / 0.45);
+  }
+}
+
+/* Chemises (bande / teinte / texte) — huit couleurs § 7.3 */
+
+:root[data-theme="light"] [data-chemise="kraft"],
+:root[data-theme="light"] .chemise-kraft,
+:root:not([data-theme="dark"]) [data-chemise="kraft"],
+:root:not([data-theme="dark"]) .chemise-kraft {
+  --chemise-bande: #b98e57;
+  --chemise-teinte: #f0e5d2;
+  --chemise-texte: #664a26;
+}
+
+:root[data-theme="dark"] [data-chemise="kraft"],
+:root[data-theme="dark"] .chemise-kraft,
+:root:not([data-theme="light"]) [data-chemise="kraft"],
+:root:not([data-theme="light"]) .chemise-kraft {
+  --chemise-bande: #c9a06a;
+  --chemise-teinte: #3a3124;
+  --chemise-texte: #ebd3ae;
+}
+
+:root[data-theme="light"] [data-chemise="bleu-classeur"],
+:root[data-theme="light"] .chemise-bleu-classeur,
+:root:not([data-theme="dark"]) [data-chemise="bleu-classeur"],
+:root:not([data-theme="dark"]) .chemise-bleu-classeur {
+  --chemise-bande: #6f95c4;
+  --chemise-teinte: #dce5f1;
+  --chemise-texte: #284c76;
+}
+
+:root[data-theme="dark"] [data-chemise="bleu-classeur"],
+:root[data-theme="dark"] .chemise-bleu-classeur,
+:root:not([data-theme="light"]) [data-chemise="bleu-classeur"],
+:root:not([data-theme="light"]) .chemise-bleu-classeur {
+  --chemise-bande: #86a9d6;
+  --chemise-teinte: #23324a;
+  --chemise-texte: #c9daf0;
+}
+
+:root[data-theme="light"] [data-chemise="vert-amande"],
+:root[data-theme="light"] .chemise-vert-amande,
+:root:not([data-theme="dark"]) [data-chemise="vert-amande"],
+:root:not([data-theme="dark"]) .chemise-vert-amande {
+  --chemise-bande: #7dae8a;
+  --chemise-teinte: #ddebe0;
+  --chemise-texte: #335c40;
+}
+
+:root[data-theme="dark"] [data-chemise="vert-amande"],
+:root[data-theme="dark"] .chemise-vert-amande,
+:root:not([data-theme="light"]) [data-chemise="vert-amande"],
+:root:not([data-theme="light"]) .chemise-vert-amande {
+  --chemise-bande: #8dbe9a;
+  --chemise-teinte: #243a2c;
+  --chemise-texte: #c6e3ce;
+}
+
+:root[data-theme="light"] [data-chemise="jaune-paille"],
+:root[data-theme="light"] .chemise-jaune-paille,
+:root:not([data-theme="dark"]) [data-chemise="jaune-paille"],
+:root:not([data-theme="dark"]) .chemise-jaune-paille {
+  --chemise-bande: #cdae3c;
+  --chemise-teinte: #f3ebc7;
+  --chemise-texte: #5e4e0e;
+}
+
+:root[data-theme="dark"] [data-chemise="jaune-paille"],
+:root[data-theme="dark"] .chemise-jaune-paille,
+:root:not([data-theme="light"]) [data-chemise="jaune-paille"],
+:root:not([data-theme="light"]) .chemise-jaune-paille {
+  --chemise-bande: #d6bc57;
+  --chemise-teinte: #3a3419;
+  --chemise-texte: #eee0a8;
+}
+
+:root[data-theme="light"] [data-chemise="rose-buvard"],
+:root[data-theme="light"] .chemise-rose-buvard,
+:root:not([data-theme="dark"]) [data-chemise="rose-buvard"],
+:root:not([data-theme="dark"]) .chemise-rose-buvard {
+  --chemise-bande: #d08aab;
+  --chemise-teinte: #f4e0ea;
+  --chemise-texte: #7e3a5c;
+}
+
+:root[data-theme="dark"] [data-chemise="rose-buvard"],
+:root[data-theme="dark"] .chemise-rose-buvard,
+:root:not([data-theme="light"]) [data-chemise="rose-buvard"],
+:root:not([data-theme="light"]) .chemise-rose-buvard {
+  --chemise-bande: #d99bb8;
+  --chemise-teinte: #3d2632;
+  --chemise-texte: #f0ccdc;
+}
+
+:root[data-theme="light"] [data-chemise="lilas"],
+:root[data-theme="light"] .chemise-lilas,
+:root:not([data-theme="dark"]) [data-chemise="lilas"],
+:root:not([data-theme="dark"]) .chemise-lilas {
+  --chemise-bande: #9a8bc7;
+  --chemise-teinte: #e7e2f2;
+  --chemise-texte: #4e4178;
+}
+
+:root[data-theme="dark"] [data-chemise="lilas"],
+:root[data-theme="dark"] .chemise-lilas,
+:root:not([data-theme="light"]) [data-chemise="lilas"],
+:root:not([data-theme="light"]) .chemise-lilas {
+  --chemise-bande: #aa9cd6;
+  --chemise-teinte: #2e2942;
+  --chemise-texte: #dcd4f2;
+}
+
+:root[data-theme="light"] [data-chemise="vert-eau"],
+:root[data-theme="light"] .chemise-vert-eau,
+:root:not([data-theme="dark"]) [data-chemise="vert-eau"],
+:root:not([data-theme="dark"]) .chemise-vert-eau {
+  --chemise-bande: #66aea8;
+  --chemise-teinte: #d9ecea;
+  --chemise-texte: #245c58;
+}
+
+:root[data-theme="dark"] [data-chemise="vert-eau"],
+:root[data-theme="dark"] .chemise-vert-eau,
+:root:not([data-theme="light"]) [data-chemise="vert-eau"],
+:root:not([data-theme="light"]) .chemise-vert-eau {
+  --chemise-bande: #7cc0ba;
+  --chemise-teinte: #1f3836;
+  --chemise-texte: #c2e6e2;
+}
+
+:root[data-theme="light"] [data-chemise="gris-perle"],
+:root[data-theme="light"] .chemise-gris-perle,
+:root:not([data-theme="dark"]) [data-chemise="gris-perle"],
+:root:not([data-theme="dark"]) .chemise-gris-perle {
+  --chemise-bande: #98a3ab;
+  --chemise-teinte: #e4e8eb;
+  --chemise-texte: #3f4a51;
+}
+
+:root[data-theme="dark"] [data-chemise="gris-perle"],
+:root[data-theme="dark"] .chemise-gris-perle,
+:root:not([data-theme="light"]) [data-chemise="gris-perle"],
+:root:not([data-theme="light"]) .chemise-gris-perle {
+  --chemise-bande: #7d8990;
+  --chemise-teinte: #262e32;
+  --chemise-texte: #d3dbdf;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) [data-chemise="kraft"],
+  :root:not([data-theme="light"]) .chemise-kraft {
+    --chemise-bande: #c9a06a;
+    --chemise-teinte: #3a3124;
+    --chemise-texte: #ebd3ae;
+  }
+  :root:not([data-theme="light"]) [data-chemise="bleu-classeur"],
+  :root:not([data-theme="light"]) .chemise-bleu-classeur {
+    --chemise-bande: #86a9d6;
+    --chemise-teinte: #23324a;
+    --chemise-texte: #c9daf0;
+  }
+  :root:not([data-theme="light"]) [data-chemise="vert-amande"],
+  :root:not([data-theme="light"]) .chemise-vert-amande {
+    --chemise-bande: #8dbe9a;
+    --chemise-teinte: #243a2c;
+    --chemise-texte: #c6e3ce;
+  }
+  :root:not([data-theme="light"]) [data-chemise="jaune-paille"],
+  :root:not([data-theme="light"]) .chemise-jaune-paille {
+    --chemise-bande: #d6bc57;
+    --chemise-teinte: #3a3419;
+    --chemise-texte: #eee0a8;
+  }
+  :root:not([data-theme="light"]) [data-chemise="rose-buvard"],
+  :root:not([data-theme="light"]) .chemise-rose-buvard {
+    --chemise-bande: #d99bb8;
+    --chemise-teinte: #3d2632;
+    --chemise-texte: #f0ccdc;
+  }
+  :root:not([data-theme="light"]) [data-chemise="lilas"],
+  :root:not([data-theme="light"]) .chemise-lilas {
+    --chemise-bande: #aa9cd6;
+    --chemise-teinte: #2e2942;
+    --chemise-texte: #dcd4f2;
+  }
+  :root:not([data-theme="light"]) [data-chemise="vert-eau"],
+  :root:not([data-theme="light"]) .chemise-vert-eau {
+    --chemise-bande: #7cc0ba;
+    --chemise-teinte: #1f3836;
+    --chemise-texte: #c2e6e2;
+  }
+  :root:not([data-theme="light"]) [data-chemise="gris-perle"],
+  :root:not([data-theme="light"]) .chemise-gris-perle {
+    --chemise-bande: #7d8990;
+    --chemise-teinte: #262e32;
+    --chemise-texte: #d3dbdf;
+  }
+}

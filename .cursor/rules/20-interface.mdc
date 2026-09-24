@@ -1,0 +1,15 @@
+---
+description: Code React et TypeScript de l'application
+globs: apps/poste/src/**
+alwaysApply: false
+---
+
+# Interface React
+
+- **TypeScript strict** (`strict`, `noUncheckedIndexedAccess`). Pas de `any`, pas de `@ts-ignore`.
+- **Données** : les données synchronisées se lisent dans la base locale (requêtes réactives PowerSync), jamais par un appel réseau. L'API n'est appelée que pour ce qui exige le serveur (validation de facture, envoi, recherche dans l'historique ancien), via le client généré.
+- **Hors ligne d'abord** : chaque écran fonctionne sans réseau ou affiche clairement ce qui attend la connexion.
+- **Texte** : toute chaîne affichée passe par `fr()` ; dates, heures, durées et montants par les formateurs communs. Casse de phrase, verbes d'action, pas de capitales.
+- **Composants** : ceux du dépôt (dérivés de shadcn/ui et rethémés), jamais un composant shadcn brut.
+- **Clavier** : toute action réalisable au clavier ; focus visible ; raccourcis déclarés en un seul endroit.
+- **Tests** : logique en Vitest ; écran modifié → capture de référence mise à jour et revue.

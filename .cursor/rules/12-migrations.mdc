@@ -1,0 +1,14 @@
+---
+description: Schéma de base de données et migrations
+globs: crates/**/migrations/**, instance/**/*.sql
+alwaysApply: false
+---
+
+# Migrations
+
+- Numérotées, **uniquement additives**. On ajoute d'abord ; on supprime ou renomme plusieurs versions plus tard, jamais dans la même release que le code qui cesse de l'utiliser.
+- **Une migration fusionnée dans `main` ne se modifie jamais** : on en écrit une nouvelle.
+- Exécutées par l'API au démarrage, **après** une sauvegarde.
+- Chaque table métier porte l'identifiant du cabinet et, quand c'est pertinent, celui du dossier : c'est ce qui permet aux règles de synchronisation de filtrer.
+- Contraintes en base pour les invariants : unicité des numéros de facture, clés étrangères, `NOT NULL` par défaut.
+- Toute migration est testée sur une base contenant déjà les données de démonstration.

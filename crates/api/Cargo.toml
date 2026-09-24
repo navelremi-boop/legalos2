@@ -1,0 +1,33 @@
+[package]
+name = "legalos-api"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "API Axum de l'instance du cabinet"
+publish = false
+default-run = "legalos-api"
+
+[[bin]]
+name = "legalos-api"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+legalos-domaine = { path = "../domaine" }
+legalos-stockage = { path = "../stockage" }
+anyhow = { workspace = true }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+utoipa = { workspace = true }
+utoipa-swagger-ui = { workspace = true }
+uuid = { workspace = true }

@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1.7
+# Image Rust figée (≥ rust-version workspace 1.80) — voir docs/versions.md.
+
+FROM rust:1.85.0-bookworm AS builder
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends pkg-config libssl-dev libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+COPY Cargo.toml Cargo.lock rust-toolchain.toml rustfmt.toml ./
+COPY crates ./crates
+COPY xtask ./xtask
+RUN cargo build --release -p legalos-api
+
+FROM debian:bookworm-slim AS runtime
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates wget libpq5 libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /src/target/release/legalos-api /usr/local/bin/legalos-api
+USER nobody
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/legalos-api"]

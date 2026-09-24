@@ -1,0 +1,16 @@
+---
+description: Facturation, avoirs, Factur-X et plateforme agréée
+globs: crates/facturation/**, instance/**/simulateur-pa/**
+alwaysApply: false
+---
+
+# Facturation
+
+Référence : cahier des charges § 3.7.
+
+- **Montants** en centimes entiers ; calculs de TVA conformes aux règles de la norme EN 16931 (montant de TVA par catégorie calculé sur la base imposable de la catégorie, arrondi à deux décimales). Chaque règle d'arrondi est testée.
+- **Numérotation** attribuée par le serveur, dans une transaction, avec contrainte d'unicité en base. Test de validations simultanées : aucun trou, aucun doublon.
+- **Immutabilité** : une facture validée ne se modifie jamais ; correction par avoir. Contrainte en base, pas seulement dans le code.
+- **Factur-X** : XML CII EN 16931 + PDF/A-3b (Typst) avec `factur-x.xml` joint et métadonnées XMP. Validation veraPDF et schematron officiel en CI.
+- **Plateforme agréée** : interface `PlateformeAgreee`, envois idempotents, statut « encaissée » à chaque règlement avec son montant.
+- **Droit** : aucune règle fiscale inventée ; ce qui manque au cahier des charges va dans `docs/hypotheses-facturation.md`, marqué « à valider par l'avocat ».

@@ -1,0 +1,18 @@
+---
+description: Direction visuelle (concept de la chemise) et interdits de design
+globs: apps/poste/src/**/*.tsx, apps/poste/src/**/*.css, design/**
+alwaysApply: false
+---
+
+# Design
+
+Référence : cahier des charges § 7 et `design/prototype-cabinet.html`.
+
+- **Jetons uniquement** (`design/tokens.css`). Aucune couleur en dur : la CI échoue sur tout code couleur hors du fichier de jetons.
+- **Chemise** : couleur d'un dossier sur son onglet, sa bande d'en-tête, ses intercalaires, sa pastille, le chronomètre. **Jamais** pour un statut, une alerte ou un bouton générique. Jamais sans le nom du dossier.
+- **Rouge `echeance`** : délais à 2 jours ouvrés ou moins, et erreurs. Nulle part ailleurs.
+- **Typographie** : Atkinson Hyperlegible Next embarquée, graisses 400 et 700, chiffres tabulaires.
+- **Formes** : rayons selon le rôle (§ 7.3) ; pas d'ombre hors couches flottantes ; listes séparées par des filets, jamais en cartes.
+- **Mouvement** : instantané, sauf le classement d'un mail ; « réduire les animations » respecté.
+- **Interdits** : autre police, dégradés, ombres sur les blocs, cartes pour les listes, libellés en capitales, points médians comme séparateurs, flèches dans les boutons, icône seule sans nom accessible, animations d'entrée, illustrations, émojis.
+- En cas de doute : comparer au prototype, pas à l'apparence par défaut d'une bibliothèque.

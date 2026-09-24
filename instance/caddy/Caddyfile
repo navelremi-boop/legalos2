@@ -1,0 +1,29 @@
+{
+	admin 0.0.0.0:2019
+	auto_https off
+}
+
+:80 {
+	@api path /api/*
+	handle @api {
+		uri strip_prefix /api
+		reverse_proxy api:8080
+	}
+
+	@docs path /docs* /openapi.json
+	handle @docs {
+		reverse_proxy api:8080
+	}
+
+	handle /health {
+		reverse_proxy api:8080
+	}
+
+	@sync path /sync/*
+	handle @sync {
+		uri strip_prefix /sync
+		reverse_proxy powersync:8080
+	}
+
+	respond "LEGAL OS instance" 200
+}

@@ -1,0 +1,17 @@
+# PowerSync self-hosted — voir docs.powersync.com/configuration/powersync-service/self-hosted-instances
+
+replication:
+  connections:
+    - type: postgresql
+      uri: !env PS_DATA_SOURCE_URI
+      sslmode: disable
+
+storage:
+  type: postgresql
+  uri: !env PS_STORAGE_URI
+  sslmode: disable
+
+port: 8080
+
+sync_rules:
+  path: /config/sync-rules.yaml
