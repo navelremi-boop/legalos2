@@ -185,3 +185,15 @@
 **Correctifs instance (S1)** : image `legalos/postgres:16.8-s1` (init PowerSync sans montage CRLF Windows) ; commandes Postgres/Garage explicites ; healthchecks PowerSync (node fetch), GreenMail (TCP 3025), Caddy (GET `/health`).
 
 **Jalon en cours** : **J0** — fonctionnellement prêt ; **bloquant unique B4** (Git commit + remote + CI). **J1** : stack S1 prouvée localement, à cocher après gate J0 **VALIDÉ**.
+
+### Remote GitHub — B4 (2026-09-24)
+
+| Élément | Valeur |
+|---------|--------|
+| Remote | `origin` → `https://github.com/navelremi-boop/legalos2.git` |
+| Commit initial | `3f8696b` — Phase 0 fondations (137 fichiers) |
+| Push | `main` → `origin/main` |
+| CI (run push) | **succès** — jobs `frontend`, `rust`, `macos-smoke` |
+| `.env` local | non versionné (`.gitignore`) |
+
+**Note poste** : `git config user.name` / `user.email` absents — commit créé via variables d’environnement GitHub noreply ; à configurer localement pour les prochains commits.
