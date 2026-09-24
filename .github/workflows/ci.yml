@@ -40,9 +40,24 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo xtask check-contracts
 
+  s1-instance:
+    runs-on: ubuntu-latest
+    needs: [rust]
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2.7.5
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: "20"
+      - name: Prepare .env for compose
+        run: cp .env.example .env
+      - name: Recette S1 (docker compose + probes)
+        run: node tests/recette/s1.mjs
+
   macos-smoke:
     runs-on: macos-latest
-    needs: [frontend, rust]
+    needs: [frontend, rust, s1-instance]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4.2.2

@@ -197,3 +197,74 @@
 | `.env` local | non versionné (`.gitignore`) |
 
 **Note poste** : `git config user.name` / `user.email` absents — commit créé via variables d’environnement GitHub noreply ; à configurer localement pour les prochains commits.
+
+### Contrôleur — validation jalon J0 (2026-09-24, B4 levé)
+
+- **Verdict : VALIDÉ**
+- **Commandes exécutées (contrôleur indépendant, poste Windows)** :
+
+| Commande | Résultat |
+|----------|----------|
+| `node tests/recette/j0.mjs` | exit **0** |
+| `node scripts/check-j0.mjs` | exit **0** |
+| `node tests/recette/j0-rust-docker.mjs` | exit **0** (fmt, clippy `-D warnings`, `cargo test --workspace`, `check-contracts`) |
+| `pnpm lint` | exit **0** |
+| `pnpm --filter @legal-os/poste typecheck` | exit **0** (inclus j0.mjs) |
+| `pnpm --filter @legal-os/poste build` | exit **0** (inclus j0.mjs) |
+| `cargo fmt --all -- --check` (local, bootstrap PATH) | exit **0** |
+| `powershell -File scripts/clippy-docker.ps1` | exit **0** |
+| `powershell -File scripts/clippy.ps1` | exit **101** — WDAC **4551** (build scripts) ; barre Rust prouvée via Docker + CI |
+| `cargo run -p xtask -- recette --scenario j0` | exit **1** — `pnpm` introuvable pour `Command` Rust (PATH agent) ; équivalent prouvé par `j0.mjs` + job CI `frontend` |
+| `git status` | `main`, propre, à jour `origin/main` |
+| `git remote -v` | `origin` → `https://github.com/navelremi-boop/legalos2.git` |
+| `git log -1 --oneline` | `94ebcf5` docs B4 |
+| `gh auth status` | connecté (`navelremi-boop`) |
+| `gh run list` (branche `main`) | runs **36043266203** et **36043596239** → **success** (jobs `frontend`, `rust`, `macos-smoke`) |
+
+- **§4.4 ordre d’opération (J0)** : (1) clippy/fmt/eslint/typecheck **OK** (CI + recette Docker) ; (2) tests unitaires workspace **verts** (1 test domaine ; pas de tests d’intégration services — hors périmètre phase 0, requis dès J1/S1) ; (3) scénario J0 automatisé **exécuté** ; (4) présente entrée ; (5) `PLAN.md`, `BLOCAGES.md`, `docs/versions.md` à jour ; (6) commits `3f8696b` + `94ebcf5` sur `main`, CI **verte**.
+- **Recherche active** : aucun `todo!()` / `unimplemented!()` / `#[ignore]` test ; pas de secret committé repéré ; pas de couleur hex/rgb en dur dans `apps/poste/src`.
+- **Écarts mineurs** (non bloquants J0) : clippy natif poste agent **4551** (documenté `BLOCAGES.md`) ; `cargo xtask recette --scenario j0` à durcir côté état-major (`pnpm.cmd` / PATH Windows) ; crates `messagerie`/`facturation` absents (structure suggérée §4.1, pas livrable J0 explicite).
+- **Non vérifié** : build Tauri release Windows (J4) ; S1 via `cargo xtask recette --scenario s1` (jalon J1, hors J0).
+
+### Contrôleur — jalon J1 / scénario S1 (2026-09-24)
+
+- **Verdict : REFUSÉ**
+- **Commandes exécutées (contrôleur indépendant, poste Windows)** :
+
+| Commande | Résultat |
+|----------|----------|
+| `node tests/recette/s1.mjs` | exit **0** — `cargo run -p xtask -- recette --scenario s1`, 7 services **healthy** (caddy, api, postgres, powersync, garage, greenmail, simulateur-pa), probes HTTP `/health` API + Caddy |
+| `powershell -File instance/scripts/s1-probes.ps1` | exit **0** |
+| `git status -sb` | `main...origin/main` ; **non commité** : `tests/recette/s1.mjs`, `tests/recette/README.md` ; modifs locales `JOURNAL.md`, `PLAN.md` |
+| `git log -1 --oneline` | `94ebcf5` (HEAD = origin/main) |
+| `gh run list -L 2 -b main` | runs **36043596239**, **36043266203** → **success** (sans scénario S1) |
+
+- **§4.4 ordre d’opération (J1)** :
+  - (1) **Non rejoué** cette session : `cargo clippy` / `pnpm lint` (barre Rust agent bloquée par auto-review ; dernier run CI `rust`+`frontend` **success** sur `94ebcf5`, pas de diff Rust instance sur `main` depuis).
+  - (2) **OK sur poste** : recette S1 = tests d’acceptation contre **vrais** conteneurs (Postgres, PowerSync, Garage, GreenMail, simulateur PA) ; pas encore de tests Rust API↔Postgres (périmètre **J2**).
+  - (3) **OK** : scénario S1 automatisé (`s1.mjs` + `xtask recette --scenario s1`).
+  - (4) présente entrée.
+  - (5) **Partiel** : `tests/recette/README.md` documente S1 (modif contrôleur, non commitée).
+  - (6) **KO** : test de recette S1 et doc associée **absents de `main`** ; CI ne lance pas `s1.mjs`.
+
+- **Recherche active** : aucun `todo!()` / `unimplemented!()` / `#[ignore]` dans `crates/` ; healthcheck GreenMail sans `|| exit 0` ; `.env` local ignoré par git (placeholders fictifs) ; pas de secret réel repéré dans le dépôt versionné.
+
+- **Écarts** :
+  - **Bloquant** : §4.4 n°6 — commit + push sur `main` manquants pour `tests/recette/s1.mjs` (recette d’acceptation J1) et doc recette.
+  - **Majeur** : CI (`.github/workflows/ci.yml`) n’exécute pas S1 — une régression instance ne serait pas détectée sur push.
+  - **Mineur** : `cargo xtask recette --scenario s1` ne duplique pas les probes HTTP hôte (couvert par `s1.mjs` + `s1-probes.ps1`).
+
+- **Complément contrôleur (tests d’acceptation uniquement)** : `s1.mjs` complété — assertion explicite des 7 noms de service `healthy` via `docker compose ps --format json`.
+
+- **Non vérifié** : rejeu `node tests/recette/j0-rust-docker.mjs` / `scripts/clippy-docker.ps1` (auto-review agent) ; job CI avec Docker pour S1 (non configuré).
+
+- **Prochaine action état-major** : `git add tests/recette/s1.mjs tests/recette/README.md` ; commit ; optionnellement ajouter S1 à la CI (service Docker) ou documenter S1 poste-only jusqu’à J15 ; redemander contrôleur pour **VALIDÉ** et cocher J1 dans `PLAN.md`.
+
+### État-major — J0 coché, J1 en cours (2026-09-24)
+
+| Action | Résultat |
+|--------|----------|
+| Contrôleur J0 | **VALIDÉ** (entrée ci-dessus, B4 levé) |
+| `cargo run -p xtask -- recette --scenario s1` | exit **0** |
+| `instance/scripts/s1-probes.ps1` | exit **0** |
+| CI | job `s1-instance` ajouté (`.github/workflows/ci.yml`) — preuve après push |

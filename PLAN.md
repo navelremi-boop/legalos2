@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-24 (état-major — S1 healthy, J0 en attente B4).
+Dernière mise à jour : 2026-09-24 (état-major — J0 VALIDÉ, J1 en cours).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -8,7 +8,7 @@ Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénari
 
 ## Phase 0 — Reconnaissance et planification
 
-- [ ] **J0** — Phase 0 complète (plan, journal, blocages, versions, dépôt, CI, contrats, validation contrôleur)
+- [x] **J0** — Phase 0 complète (plan, journal, blocages, versions, dépôt, CI, contrats, validation contrôleur)
   - **Objectif** : fondations documentaires et contrats partagés avant tout lot parallèle.
   - **Livrables** : `PLAN.md`, `JOURNAL.md`, `BLOCAGES.md`, `docs/versions.md`, workspace Rust + pnpm, `design/tokens.css`, migrations initiales, schéma PowerSync client, `docs/sync-rules.md`, `instance/docker-compose.yml`, squelette `xtask`, CI GitHub Actions.
   - **Critères d'acceptation (commandes)** :
