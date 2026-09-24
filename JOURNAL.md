@@ -522,3 +522,43 @@ Commits contrôlés : **`98055b0`** (auth API + premier lancement poste S2), **`
 - **Prochaine action** : commit + push ; attendre CI verte ; relancer **contrôleur J2**.
 
 - **Suivi push `0012f64`** : CI run **36053354807** — clippy `expect_used` sur tests `config.rs` → `#![allow(clippy::expect_used)]` sur le module de tests.
+
+---
+
+## 2026-09-24 — Contrôleur : validation jalon **J2** (commit `1d314c0`)
+
+**Verdict : REFUSÉ**
+
+**HEAD contrôlé :** `1d314c09e2c04c7ef8908b7ede3be626a9c9b2cd` (`1d314c0`, parent `0012f64`).
+
+### Contexte
+
+Correctifs état-major post-refus : parité `totp_secret_chiffre` migration **004**, CI run **36054902430** **success** (frontend, rust, s1-instance, macos-smoke).
+
+### § 4.4 (J2) — synthèse contrôleur
+
+| # | Statut |
+|---|--------|
+| 1 Compilation / lints | OK |
+| 2 Tests intégration Postgres | OK |
+| 3 Exécution bout en bout jalon | **KO** (sync poste simulée ; recette sans app) |
+| 6 CI main | OK (run **36054902430**) |
+
+**Écarts bloquants :** `initialSync.ts` simulait une sync terminée ; libellé jalon vs scénario S2 § 3.
+
+### Prochaine action (état-major)
+
+Clarifier périmètre **J2** vs **J3** dans `PLAN.md` ; retirer l’écran de sync simulée du parcours onboarding ; durcir `auth_integration` si `DATABASE_URL` absent.
+
+---
+
+## 2026-09-24 — État-major : périmètre J2 / onboarding poste
+
+- **Décision** : J2 = auth API + parcours poste **instance → connexion → TOTP → jetons en session** ; scénario **S2** complet (sync initiale PowerSync) = **J3** (`PLAN.md` mis à jour).
+- **Fait** : `FirstLaunchFlow.tsx` n’appelle plus `runInitialSync` ; `auth_integration` exige `DATABASE_URL`.
+- **Preuves** :
+
+| Commande | Résultat |
+|----------|----------|
+| `pnpm --filter @legal-os/poste typecheck` | exit **0** |
+| `pnpm --filter @legal-os/poste lint:ci` | exit **0** |

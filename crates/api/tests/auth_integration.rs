@@ -28,6 +28,11 @@ fn ensure_test_env() {
     });
 }
 
+fn require_database_url() {
+    std::env::var("DATABASE_URL")
+        .expect("DATABASE_URL requis pour auth_integration (Postgres réel, ex. instance S1)");
+}
+
 async fn test_app() -> axum::Router {
     ensure_test_env();
     let mut config = Config::from_env().expect("DATABASE_URL requis");
@@ -65,10 +70,7 @@ fn demo_totp_code() -> String {
 #[tokio::test]
 async fn auth_connexion_echoue_mot_de_passe_invalide() {
     ensure_test_env();
-    if std::env::var("DATABASE_URL").is_err() {
-        eprintln!("skip auth_connexion_echoue_mot_de_passe_invalide: DATABASE_URL absent");
-        return;
-    }
+    require_database_url();
     let app = test_app().await;
     let response = app
         .oneshot(
@@ -94,10 +96,7 @@ async fn auth_connexion_echoue_mot_de_passe_invalide() {
 #[tokio::test]
 async fn auth_flow_totp_et_jwks() {
     ensure_test_env();
-    if std::env::var("DATABASE_URL").is_err() {
-        eprintln!("skip auth_flow_totp_et_jwks: DATABASE_URL absent");
-        return;
-    }
+    require_database_url();
     let app = test_app().await;
 
     let connexion = app

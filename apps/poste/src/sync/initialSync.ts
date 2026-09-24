@@ -1,5 +1,5 @@
 /**
- * Synchronisation initiale PowerSync — stub S2 (connexion réelle à brancher en J3).
+ * Synchronisation initiale PowerSync — **J3** (non invoquée par le parcours onboarding J2).
  */
 export type InitialSyncProgress = {
   phase: "connexion" | "schema" | "donnees" | "termine";

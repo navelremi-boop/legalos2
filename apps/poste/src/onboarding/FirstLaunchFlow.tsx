@@ -18,13 +18,11 @@ import {
   saveInstanceUrl,
   saveSessionTokens,
 } from "@/lib/session/storage";
-import { runInitialSync, type InitialSyncProgress } from "@/sync/initialSync";
-
 export type FirstLaunchComplete = {
   instanceUrl: string;
 };
 
-type Step = "instance" | "connexion" | "totp" | "sync";
+type Step = "instance" | "connexion" | "totp";
 
 type FirstLaunchFlowProps = {
   initialInstanceUrl: string;
@@ -41,26 +39,11 @@ export function FirstLaunchFlow({ initialInstanceUrl, onComplete }: FirstLaunchF
   const [codeTotp, setCodeTotp] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [syncProgress, setSyncProgress] = useState<InitialSyncProgress | null>(null);
-
   const finishWithTokens = useCallback(
-    async (accessToken: string, refreshToken: string, url: string) => {
+    (accessToken: string, refreshToken: string, url: string) => {
       saveInstanceUrl(url);
       saveSessionTokens(accessToken, refreshToken);
-      setStep("sync");
-      setBusy(true);
-      setError(null);
-      try {
-        await runInitialSync((progress) => {
-          setSyncProgress(progress);
-        });
-        onComplete({ instanceUrl: url });
-      } catch {
-        setError("La synchronisation initiale a échoué. Réessayez.");
-        setStep("connexion");
-      } finally {
-        setBusy(false);
-      }
+      onComplete({ instanceUrl: url });
     },
     [onComplete],
   );
@@ -110,7 +93,7 @@ export function FirstLaunchFlow({ initialInstanceUrl, onComplete }: FirstLaunchF
       return;
     }
 
-    await finishWithTokens(data.access_token, "", url);
+    finishWithTokens(data.access_token, "", url);
   };
 
   const handleTotpSubmit = async (event: SubmitEvent) => {
@@ -134,7 +117,7 @@ export function FirstLaunchFlow({ initialInstanceUrl, onComplete }: FirstLaunchF
       return;
     }
 
-    await finishWithTokens(result.data.access_token, result.data.refresh_token, url);
+    finishWithTokens(result.data.access_token, result.data.refresh_token, url);
   };
 
   if (step === "instance") {
@@ -241,87 +224,46 @@ export function FirstLaunchFlow({ initialInstanceUrl, onComplete }: FirstLaunchF
     );
   }
 
-  if (step === "totp") {
-    return (
-      <OnboardingShell
-        title="Double authentification"
-        subtitle="Saisissez le code à six chiffres de votre application d’authentification."
-      >
-        <form onSubmit={(event) => void handleTotpSubmit(event)}>
-          {error !== null ? <ErrorMessage message={error} /> : null}
-          <Field id="code-totp" label="Code TOTP">
-            <TextInput
-              id="code-totp"
-              name="codeTotp"
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              pattern="[0-9]{6}"
-              maxLength={6}
-              required
-              value={codeTotp}
-              onChange={(event) => {
-                setCodeTotp(event.target.value.replace(/\D/g, "").slice(0, 6));
-              }}
-            />
-          </Field>
-          <div className="flex flex-col gap-2">
-            <PrimaryButton type="submit" disabled={busy || codeTotp.length !== 6}>
-              {busy ? fr("Vérification…") : fr("Valider")}
-            </PrimaryButton>
-            <SecondaryButton
-              disabled={busy}
-              onClick={() => {
-                setSessionToken(null);
-                setCodeTotp("");
-                setError(null);
-                setStep("connexion");
-              }}
-            >
-              {fr("Retour")}
-            </SecondaryButton>
-          </div>
-        </form>
-      </OnboardingShell>
-    );
-  }
-
   return (
-    <OnboardingShell title="Synchronisation initiale" subtitle="Téléchargement des données autorisées pour ce poste.">
-      {error !== null ? <ErrorMessage message={error} /> : null}
-      <p className="text-[length:var(--font-size-dense)] text-graphite">
-        {syncProgress !== null ? fr(syncProgress.detail) : fr("Initialisation…")}
-      </p>
-      <div
-        className="mt-4 h-2 overflow-hidden rounded-[var(--radius-pastille)] border border-filet bg-classeur"
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={
-          syncProgress?.phase === "termine"
-            ? 100
-            : syncProgress?.phase === "donnees"
-              ? 75
-              : syncProgress?.phase === "schema"
-                ? 50
-                : 25
-        }
-      >
-        <div
-          className="h-full bg-chemise-bande transition-[width] duration-300"
-          data-chemise="bleu-classeur"
-          style={{
-            width:
-              syncProgress?.phase === "termine"
-                ? "100%"
-                : syncProgress?.phase === "donnees"
-                  ? "75%"
-                  : syncProgress?.phase === "schema"
-                    ? "50%"
-                    : "25%",
-          }}
-        />
-      </div>
+    <OnboardingShell
+      title="Double authentification"
+      subtitle="Saisissez le code à six chiffres de votre application d’authentification."
+    >
+      <form onSubmit={(event) => void handleTotpSubmit(event)}>
+        {error !== null ? <ErrorMessage message={error} /> : null}
+        <Field id="code-totp" label="Code TOTP">
+          <TextInput
+            id="code-totp"
+            name="codeTotp"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="[0-9]{6}"
+            maxLength={6}
+            required
+            value={codeTotp}
+            onChange={(event) => {
+              setCodeTotp(event.target.value.replace(/\D/g, "").slice(0, 6));
+            }}
+          />
+        </Field>
+        <div className="flex flex-col gap-2">
+          <PrimaryButton type="submit" disabled={busy || codeTotp.length !== 6}>
+            {busy ? fr("Vérification…") : fr("Valider")}
+          </PrimaryButton>
+          <SecondaryButton
+            disabled={busy}
+            onClick={() => {
+              setSessionToken(null);
+              setCodeTotp("");
+              setError(null);
+              setStep("connexion");
+            }}
+          >
+            {fr("Retour")}
+          </SecondaryButton>
+        </div>
+      </form>
     </OnboardingShell>
   );
 }
