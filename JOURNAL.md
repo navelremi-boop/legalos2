@@ -798,4 +798,6 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - `node tests/recette/s9-factures.mjs` : exit 0, y compris `Factur-X produit après validation` (`GET /factures/{id}/cii`).
 - `node tests/recette/s9-facturx.mjs` : exit 0 (six cas + PDF/A-3b).
 - Image API reconstruite pour exposer le CII. J8 non coché : pas encore de nouveau verdict contrôleur ni de CI sur ce commit.
+- Contrôleur [J8](80f27e83-84d3-488d-8a7f-cc1f2fc67ee2) : **REFUSÉ** sur `d7c274e`. Temps, brouillon hors ligne et jeu § 3.7 rejoués (exit 0). Bloquant : `UPDATE` des lignes d'une facture validée réussissait. La CI de ce commit n'existait pas encore.
+- Migration `012_lignes_immuables.sql` : insertion, modification et suppression des lignes refusées dès que la facture est validée. `node tests/recette/s9-factures.mjs` : `facture validée immuable (entête et lignes)`. J8 non coché.
 

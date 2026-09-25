@@ -28,4 +28,4 @@ Vendeur « Cabinet fictif LEGAL OS », SIREN 123456789, n° TVA FR32123456789, a
 
 ## F6 — Profil CII
 
-Le XML suit la syntaxe CII D16B et l'identifiant `urn:cen.eu:en16931:2017`, validé par le schematron CEN EN 16931 1.3.16 (XSLT précompilé, licence EUPL 1.2). Le PDF lisible est un PDF/A-3b Typst 0.14.0 avec `factur-x.xml` en pièce jointe `alternative`, contrôlé par veraPDF 1.28.2. Le jeu ne couvre encore qu'une facture de prestation à 20 %. Avoir, acompte, débours et particulier restent à produire. **À valider par l'avocat.**
+Le XML suit la syntaxe CII D16B et l'identifiant `urn:cen.eu:en16931:2017`, validé par le schematron CEN EN 16931 1.3.16 (XSLT précompilé, licence EUPL 1.2). Le PDF lisible est un PDF/A-3b Typst 0.14.0 avec `factur-x.xml` en pièce jointe `alternative`, contrôlé par veraPDF 1.28.2. Le jeu couvre professionnel, particulier, avoir, acompte, débours et paiement partiel. **À valider par l'avocat.**
