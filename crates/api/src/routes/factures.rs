@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use axum::http::header::CONTENT_TYPE;
+use axum::response::IntoResponse;
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -7,7 +9,7 @@ use uuid::Uuid;
 
 use crate::auth::access::AuthAccess;
 use crate::error::ApiError;
-use crate::facturation::tva_centimes;
+use crate::facturation::{cii_en16931, tva_centimes, FactureCii};
 use crate::routes::dossiers::dossier_visible;
 use crate::state::AppState;
 
@@ -377,6 +379,41 @@ async fn facture_validee(
         taux_tva_bp: row.7,
     })
     .ok_or_else(|| ApiError::bad_request("Facture non validée"))
+}
+
+pub async fn lire_cii(
+    State(state): State<Arc<AppState>>,
+    AuthAccess(claims): AuthAccess,
+    axum::extract::Path(id): axum::extract::Path<Uuid>,
+) -> Result<axum::response::Response, ApiError> {
+    let facture = facture_validee(&state, claims.cabinet_id, id).await?;
+    let libelle = sqlx::query_as::<_, (String,)>(
+        "SELECT libelle FROM facture_lignes WHERE facture_id = $1 ORDER BY id LIMIT 1",
+    )
+    .bind(id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("ligne"))?
+    .map(|row| row.0)
+    .unwrap_or_else(|| "Honoraires".to_owned());
+    let aujourd_hui = time::OffsetDateTime::now_utc().date();
+    let date = format!(
+        "{:04}{:02}{:02}",
+        aujourd_hui.year(),
+        aujourd_hui.month() as u8,
+        aujourd_hui.day()
+    );
+    let xml = cii_en16931(&FactureCii {
+        numero: facture.numero.unwrap_or(0),
+        avoir: facture.type_document == "avoir",
+        date_aaaammjj: &date,
+        libelle: &libelle,
+        ht_centimes: facture.montant_ht_centimes,
+        tva_centimes: facture.montant_tva_centimes,
+        ttc_centimes: facture.montant_ttc_centimes,
+        taux_bp: facture.taux_tva_bp,
+    });
+    Ok(([(CONTENT_TYPE, "application/xml; charset=utf-8")], xml).into_response())
 }
 
 fn montants(lignes: &[LigneFacture], taux_bp: i32) -> Result<(i64, i64, i64), ApiError> {

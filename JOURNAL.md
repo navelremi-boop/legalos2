@@ -787,5 +787,5 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - Brouillon, validation avec numéro continu (une séquence par cabinet), facture validée immuable en base, avoir sur la même séquence, dépôt idempotent sur le simulateur, encaissement partiel de 6 000 centimes sans doublon.
 - `node tests/recette/s9-factures.mjs` : exit 0. `numéros continus attribués par le serveur` ; `dépôt répété, une seule fiche plateforme` ; `encaissement partiel, 6000 centimes, sans doublon` ; `avoir numéroté, facture validée non renumérotée`.
 - Hypothèses de taux, d'arrondi et de débours dans `docs/hypotheses-facturation.md`, marquées « à valider par l'avocat ».
-- J8 non coché : PDF/A-3b, XML CII, veraPDF et schematron EN 16931 ne sont pas encore exécutés.
+- `node tests/recette/s9-facturx.mjs` : `schematron EN 16931 sans échec` puis `OK — PDF/A-3b conforme, XML EN 16931 valide`. Schematron CEN 1.3.16 (Saxon-HE 12.5), Typst 0.14.0, veraPDF 1.28.2 profil 3b (`isCompliant=true`, 0 règle en échec). Une seule facture de prestation. J8 toujours non coché : le jeu du cahier (particulier, avoir, acompte, débours, paiement partiel) n'est pas couvert, et le contrôleur n'a pas encore validé.
 

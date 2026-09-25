@@ -94,6 +94,35 @@ jobs:
       - name: Tests intégration auth (Postgres compose)
         run: cargo test -p legalos-api --test auth_integration -- --nocapture
 
+  facturx:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-java@v4.7.1
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: XML CII de référence
+        run: cargo test -p legalos-api --lib cii_contient_le_total
+      - name: Saxon et Typst
+        run: |
+          mkdir -p target
+          curl -fsSL -o target/Saxon-HE-12.5.jar https://repo1.maven.org/maven2/net/sf/saxon/Saxon-HE/12.5/Saxon-HE-12.5.jar
+          curl -fsSL -o target/xmlresolver-5.2.2.jar https://repo1.maven.org/maven2/org/xmlresolver/xmlresolver/5.2.2/xmlresolver-5.2.2.jar
+          curl -fsSL -o target/typst.tar.xz https://github.com/typst/typst/releases/download/v0.14.0/typst-x86_64-unknown-linux-musl.tar.xz
+          tar -xJf target/typst.tar.xz -C target
+          curl -fsSL -o target/verapdf.zip https://software.verapdf.org/releases/1.28/verapdf-greenfield-1.28.2-installer.zip
+          unzip -q target/verapdf.zip -d target/verapdf-inst
+          sed "s|INSTALL_PATH|$GITHUB_WORKSPACE/target/verapdf|" tests/recette/facturx/verapdf-auto.xml > target/verapdf-auto.xml
+          java -jar target/verapdf-inst/verapdf-greenfield-1.28.2/verapdf-izpack-installer-1.28.2.jar target/verapdf-auto.xml
+      - name: Schematron, PDF/A-3b, veraPDF
+        run: |
+          export SAXON_CP="$PWD/target/Saxon-HE-12.5.jar:$PWD/target/xmlresolver-5.2.2.jar"
+          export TYPST="$PWD/target/typst-x86_64-unknown-linux-musl/typst"
+          export VERAPDF="$PWD/target/verapdf/verapdf"
+          node tests/recette/s9-facturx.mjs
+
   macos-placeholder:
     runs-on: macos-latest
     needs: [frontend, rust, s1-instance]

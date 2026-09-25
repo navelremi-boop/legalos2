@@ -42,7 +42,10 @@ Vérifiées le **2026-09-24** dans la documentation officielle ou les registres 
 | totp-rs | **6.0.0** | https://crates.io/crates/totp-rs |
 | rsa (JWT RS256) | **0.9.8** | https://crates.io/crates/rsa |
 | keyring (trousseau poste) | **3.6.3** | https://crates.io/crates/keyring — vérifié le 2026-09-25. Pas de feature `default` : sans feature, le crate utilise le magasin factice `mock`. Features explicites **`windows-native`** (Credential Manager) et **`apple-native`** (Keychain). |
-| Typst (PDF) | **0.14** (cible facturation) | https://typst.app/blog/2025/typst-0.14 |
+| Typst (PDF) | **0.14.0** | https://github.com/typst/typst/releases/tag/v0.14.0 — PDF/A-3b et `pdf.attach` |
+| Saxon-HE | **12.5** | https://repo1.maven.org/maven2/net/sf/saxon/Saxon-HE/12.5/ |
+| veraPDF greenfield | **1.28.2** | https://software.verapdf.org/releases/1.28/ |
+| Schematron EN 16931 CII | **1.3.16** | https://github.com/ConnectingEurope/eInvoicing-EN16931/releases/tag/validation-1.3.16 — XSLT EUPL 1.2 |
 | LLVM / libclang (bindgen `powersync_sqlite_nostd`) | **23.1.2** | https://github.com/llvm/llvm-project — installé le 2026-09-25 via winget `LLVM.LLVM`. `LIBCLANG_PATH` = répertoire de `libclang.dll` (`C:\Program Files\LLVM\bin` sur ce poste). |
 | Rust toolchain | **stable ≥ 1.80** (`rust-toolchain.toml`) | https://rust-lang.org |
 | Rust (image build API) | **rust:1.85.0-bookworm** | https://hub.docker.com/_/rust |

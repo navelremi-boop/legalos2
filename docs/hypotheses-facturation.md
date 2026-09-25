@@ -18,6 +18,10 @@ Un débours n'entre pas dans la base de TVA. Il entre dans le total à payer. **
 
 Factures et avoirs partagent la même séquence continue du cabinet. **À valider par l'avocat.**
 
-## Hors périmètre prouvé
+## F5 — Identités du XML
 
-PDF/A-3b, XML CII, veraPDF et schematron EN 16931 ne sont pas encore exécutés. Le jalon J8 reste ouvert tant que ce maillon manque.
+Vendeur « Cabinet fictif LEGAL OS », SIREN 123456789, n° TVA FR32123456789, acheteur « Client fictif », IBAN de test. Ce ne sont pas des données réelles. **À valider par l'avocat** pour un vrai cabinet.
+
+## F6 — Profil CII
+
+Le XML suit la syntaxe CII D16B et l'identifiant `urn:cen.eu:en16931:2017`, validé par le schematron CEN EN 16931 1.3.16 (XSLT précompilé, licence EUPL 1.2). Le PDF lisible est un PDF/A-3b Typst 0.14.0 avec `factur-x.xml` en pièce jointe `alternative`, contrôlé par veraPDF 1.28.2. Le jeu ne couvre encore qu'une facture de prestation à 20 %. Avoir, acompte, débours et particulier restent à produire. **À valider par l'avocat.**
