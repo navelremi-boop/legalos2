@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
  * S9 — XML CII EN 16931 (schematron officiel) et PDF/A-3b (veraPDF).
+ * Cahier § 3.7 : jeu professionnel, particulier, avoir, acompte, débours, paiement partiel.
  * Les binaires Typst, Saxon et veraPDF sont locaux ou fournis par la CI.
  */
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, readFileSync } from "node:fs";
+import { copyFileSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -14,6 +15,17 @@ const xsl = join(root, "tests/recette/en16931/EN16931-CII-validation.xslt");
 const svrl = join(root, "target/svrl.xml");
 const pdf = join(root, "target/facture.pdf");
 const typDir = join(root, "tests/recette/facturx");
+const jeuDir = join(root, "tests/recette/facturx/jeu");
+
+/** Jeu obligatoire cahier § 3.7 — un XML CII par cas, validé au schematron. */
+const JEU_CAHIER = [
+  "professionnel",
+  "particulier",
+  "avoir",
+  "acompte",
+  "debours",
+  "paiement-partiel",
+];
 
 function fail(message) {
   console.error(`s9-facturx: FAIL — ${message}`);
@@ -28,35 +40,70 @@ function run(cmd, args) {
   return enfant.stdout ?? "";
 }
 
+if (!existsSync(jeuDir)) {
+  fail(
+    `jeu § 3.7 absent (${jeuDir}) — attendu : ${JEU_CAHIER.map((c) => c + ".xml").join(", ")}`,
+  );
+}
+const presents = new Set(
+  readdirSync(jeuDir)
+    .filter((n) => n.endsWith(".xml"))
+    .map((n) => n.replace(/\.xml$/i, "")),
+);
+const manquants = JEU_CAHIER.filter((c) => !presents.has(c));
+if (manquants.length) {
+  fail(`jeu § 3.7 incomplet — manquants : ${manquants.join(", ")}`);
+}
+
+function schematron(sourceXml, sortieSvrl) {
+  const saxonCp = process.env.SAXON_CP;
+  if (saxonCp) {
+    run("java", [
+      "-cp",
+      saxonCp,
+      "net.sf.saxon.Transform",
+      `-s:${sourceXml}`,
+      `-xsl:${xsl}`,
+      `-o:${sortieSvrl}`,
+    ]);
+  } else {
+    const rel = sourceXml.replace(/\\/g, "/").replace(root.replace(/\\/g, "/"), "/work");
+    const outRel = sortieSvrl.replace(/\\/g, "/").replace(root.replace(/\\/g, "/"), "/work");
+    run("docker", [
+      "run",
+      "--rm",
+      "-v",
+      `${root}:/work`,
+      "-w",
+      "/work",
+      "eclipse-temurin:21-jre-alpine",
+      "java",
+      "-cp",
+      "/work/target/Saxon-HE-12.5.jar:/work/target/xmlresolver-5.2.2.jar",
+      "net.sf.saxon.Transform",
+      `-s:${rel}`,
+      "-xsl:/work/tests/recette/en16931/EN16931-CII-validation.xslt",
+      `-o:${outRel}`,
+    ]);
+  }
+  const rapport = readFileSync(sortieSvrl, "utf8");
+  if (rapport.includes("failed-assert")) {
+    fail(`schematron : assertion en échec (${sourceXml})`);
+  }
+}
+
+for (const cas of JEU_CAHIER) {
+  const casXml = join(jeuDir, `${cas}.xml`);
+  schematron(casXml, join(root, `target/svrl-${cas}.xml`));
+  console.log(`s9-facturx: schematron OK — ${cas}`);
+}
+
 if (!existsSync(xml)) {
   fail("target/facture-cii.xml absent — cargo test -p legalos-api --lib cii_contient_le_total");
 }
 copyFileSync(xml, join(typDir, "factur-x.xml"));
-
-const saxonCp = process.env.SAXON_CP;
-if (saxonCp) {
-  run("java", ["-cp", saxonCp, "net.sf.saxon.Transform", `-s:${xml}`, `-xsl:${xsl}`, `-o:${svrl}`]);
-} else {
-  run("docker", [
-    "run",
-    "--rm",
-    "-v",
-    `${root}:/work`,
-    "-w",
-    "/work",
-    "eclipse-temurin:21-jre-alpine",
-    "java",
-    "-cp",
-    "/work/target/Saxon-HE-12.5.jar:/work/target/xmlresolver-5.2.2.jar",
-    "net.sf.saxon.Transform",
-    "-s:/work/target/facture-cii.xml",
-    "-xsl:/work/tests/recette/en16931/EN16931-CII-validation.xslt",
-    "-o:/work/target/svrl.xml",
-  ]);
-}
-const rapport = readFileSync(svrl, "utf8");
-if (rapport.includes("failed-assert")) fail("schematron : assertion en échec");
-console.log("s9-facturx: schematron EN 16931 sans échec");
+schematron(xml, svrl);
+console.log("s9-facturx: schematron EN 16931 sans échec (référence API)");
 
 const typst =
   process.env.TYPST ??

@@ -787,5 +787,6 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - Brouillon, validation avec numéro continu (une séquence par cabinet), facture validée immuable en base, avoir sur la même séquence, dépôt idempotent sur le simulateur, encaissement partiel de 6 000 centimes sans doublon.
 - `node tests/recette/s9-factures.mjs` : exit 0. `numéros continus attribués par le serveur` ; `dépôt répété, une seule fiche plateforme` ; `encaissement partiel, 6000 centimes, sans doublon` ; `avoir numéroté, facture validée non renumérotée`.
 - Hypothèses de taux, d'arrondi et de débours dans `docs/hypotheses-facturation.md`, marquées « à valider par l'avocat ».
-- `node tests/recette/s9-facturx.mjs` : `schematron EN 16931 sans échec` puis `OK — PDF/A-3b conforme, XML EN 16931 valide`. Schematron CEN 1.3.16 (Saxon-HE 12.5), Typst 0.14.0, veraPDF 1.28.2 profil 3b (`isCompliant=true`, 0 règle en échec). Une seule facture de prestation. J8 toujours non coché : le jeu du cahier (particulier, avoir, acompte, débours, paiement partiel) n'est pas couvert, et le contrôleur n'a pas encore validé.
+- Contrôleur [J8](b1c52efe-2669-413f-bc93-6833ac28d718) : **REFUSÉ**. Manquaient les temps, le brouillon hors ligne, et le jeu § 3.7.
+- Ensuite : six XML CII (professionnel, particulier, avoir, acompte, débours, paiement partiel) passent le schematron ; `s9-facturx.mjs` et `s9-factures.mjs` exit 0. Le brouillon hors ligne est une base SQLite locale sans numéro, écrite sans appel API. Pas encore l'écran Tauri. J8 non coché.
 

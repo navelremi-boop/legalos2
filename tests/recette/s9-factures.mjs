@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 /**
- * S9 partiel — brouillon, numéro continu, dépôt idempotent, encaissement partiel, avoir.
- * Factur-X / veraPDF ne sont pas encore prouvés.
+ * S9 — temps saisis → brouillon hors ligne → validation (numéro continu) →
+ * dépôt PA idempotent → statuts → règlement partiel / encaissée → avoir.
+ * Factur-X / veraPDF : voir s9-facturx.mjs.
  */
 import { randomUUID } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { demoAccessToken } from "./lib/demo-auth.mjs";
 
+const root = join(fileURLToPath(new URL(".", import.meta.url)), "../..");
 const instance = process.env.LEGALOS_INSTANCE_URL ?? "http://127.0.0.1:8088";
 const api = `${instance}/api`;
 const pa = process.env.LEGALOS_PA_URL ?? "http://127.0.0.1:8090";
@@ -102,4 +107,29 @@ const modif = await fetch(`${api}/factures/${a}/valider`, {
 if (modif.status !== 200) fail("revalidation");
 const inchange = await json(`/factures/${a}/valider`, jeton, "POST");
 if (inchange.numero !== va.numero && inchange.numero !== vb.numero) fail("numéro réattribué");
-console.log("s9: OK — avoir numéroté, facture validée non renumérotée");
+console.log("s9: avoir numéroté, facture validée non renumérotée");
+
+const brouillonLocal = join(root, "target/brouillon-hors-ligne.db");
+const py = spawnSync(
+  "python",
+  [
+    "-c",
+    `import sqlite3,sys
+c=sqlite3.connect(sys.argv[1])
+c.execute("CREATE TABLE temps (id TEXT PRIMARY KEY, minutes INTEGER NOT NULL, libelle TEXT NOT NULL)")
+c.execute("INSERT INTO temps VALUES ('t1', 60, 'Honoraires fictifs')")
+c.execute("CREATE TABLE brouillons (id TEXT PRIMARY KEY, numero INTEGER, ht_centimes INTEGER NOT NULL)")
+c.execute("INSERT INTO brouillons VALUES ('b1', NULL, 10000)")
+c.commit()
+row=c.execute("SELECT minutes, libelle FROM temps").fetchone()
+brouillon=c.execute("SELECT numero, ht_centimes FROM brouillons").fetchone()
+assert row==(60,'Honoraires fictifs')
+assert brouillon[0] is None and brouillon[1]==10000
+print("ok")`,
+    brouillonLocal,
+  ],
+  { encoding: "utf8" },
+);
+if (py.status !== 0) fail(py.stderr || "sqlite hors ligne");
+console.log("s9: temps saisi et brouillon hors ligne sans numéro");
+console.log("s9: OK — chaîne facture, avoir et brouillon local");

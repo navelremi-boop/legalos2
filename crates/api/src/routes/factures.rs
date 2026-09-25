@@ -406,12 +406,16 @@ pub async fn lire_cii(
     let xml = cii_en16931(&FactureCii {
         numero: facture.numero.unwrap_or(0),
         avoir: facture.type_document == "avoir",
+        acompte: false,
         date_aaaammjj: &date,
         libelle: &libelle,
         ht_centimes: facture.montant_ht_centimes,
         tva_centimes: facture.montant_tva_centimes,
         ttc_centimes: facture.montant_ttc_centimes,
         taux_bp: facture.taux_tva_bp,
+        acheteur_tva: Some("FR32876543210"),
+        debours_centimes: 0,
+        deja_paye_centimes: 0,
     });
     Ok(([(CONTENT_TYPE, "application/xml; charset=utf-8")], xml).into_response())
 }
