@@ -14,3 +14,4 @@ alwaysApply: true
 - **Langue** : code en anglais, sauf les notions juridiques françaises sans équivalent exact (avoir, pièce, bordereau, chrono…) ; interface et documentation en français.
 - **Poste Windows** : shell PowerShell ; scripts du dépôt multiplateformes (`cargo xtask` ou Node) ; chemins jamais codés en dur ; fins de ligne LF.
 - **Règle vérifiable = règle outillée** : quand une règle peut être contrôlée par un lint, un test ou la CI, elle doit l'être.
+- **Commits** : autorisation explicite et permanente de committer et de pousser main pendant toute la mission. Restent interdits : push forcé, réécriture de l'historique, push de tag de version.

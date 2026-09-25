@@ -74,7 +74,7 @@ async fn seed_compte_recette(pool: &sqlx::PgPool) {
         ON CONFLICT (id) DO NOTHING
         "#,
     )
-    .bind(support::demo_seed::DEMO_CABINET_ID)
+    .bind(uuid_recette(support::demo_seed::DEMO_CABINET_ID))
     .execute(pool)
     .await
     .expect("cabinet recette");
@@ -87,14 +87,18 @@ async fn seed_compte_recette(pool: &sqlx::PgPool) {
             totp_secret_chiffre = EXCLUDED.totp_secret_chiffre
         "#,
     )
-    .bind(support::demo_seed::DEMO_USER_ID)
-    .bind(support::demo_seed::DEMO_CABINET_ID)
+    .bind(uuid_recette(support::demo_seed::DEMO_USER_ID))
+    .bind(uuid_recette(support::demo_seed::DEMO_CABINET_ID))
     .bind(DEMO_EMAIL)
     .bind(hash)
     .bind(totp)
     .execute(pool)
     .await
     .expect("utilisateur recette");
+}
+
+fn uuid_recette(valeur: &str) -> uuid::Uuid {
+    uuid::Uuid::parse_str(valeur).expect("uuid recette")
 }
 
 fn demo_totp_code() -> String {

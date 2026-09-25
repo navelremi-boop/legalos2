@@ -3,4 +3,5 @@ bucket_definitions:
   cabinet_global:
     data:
       - SELECT id, slug, nom, totp_obligatoire, cree_le::text AS cree_le, revision FROM cabinets
-      - SELECT id, cabinet_id, table_cible, enregistrement_id, champ, valeur_remplacee, valeur_appliquee, revision_base, revision_appliquee, CASE WHEN conflit THEN 1 ELSE 0 END AS conflit, cree_le::text AS cree_le FROM journal_modifications
+      # PowerSync 1.26.1 refuse CASE et ::int. La colonne booléenne est synchronisée telle quelle (0/1 côté SQLite).
+      - SELECT id, cabinet_id, table_cible, enregistrement_id, champ, valeur_remplacee, valeur_appliquee, revision_base, revision_appliquee, conflit, cree_le::text AS cree_le FROM journal_modifications

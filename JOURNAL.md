@@ -697,5 +697,24 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - jsonwebtoken **11.1.0**, features `rust_crypto` et `use_pem`, `default-features = false`.
 - CI : `cargo test --workspace` sur Postgres éphémère ; job renommé `macos-placeholder` (pas une preuve S14b).
 - Git local : `navelremi-boop`. Rust : `stable-x86_64-pc-windows-msvc` (déjà la chaîne active via `rust-toolchain.toml`). MinGW absent du PATH utilisateur, machine et session.
+
+## 2026-09-25 — Consignes du commandement (mode, installation, trousseau)
+
+1. **Commits** : autorisation explicite et permanente de committer et de pousser `main`. Interdits : push forcé, réécriture de l'historique, push de tag. Ligne ajoutée à `.cursor/rules/00-mission.mdc`.
+2. **SDK Tauri** : contournements consignés (`patches/time-macros`, crate poste hors workspace à cause de `sqlite3`). Pas de retour au SDK web. Compilation locale encore sans libclang. Rien n'est validé sur l'app tant qu'elle n'a pas tourné sous Windows.
+3. **Mode** : `LEGALOS_MODE` absent = production. `.env.example` ne fixe pas le développement (clé placeholder `legalos_example_key_32_bytes!!!!`). Développement explicite : `.env.development.example` (ancienne clé `legalos_demo_chiffrement_32oct!!`). Hors développement, l'API refuse ces deux clés. `cargo xtask install` écrit le `.env` (clé aléatoire, mode absent) et affiche le secret TOTP avec son URI `otpauth`.
+4. **Trousseau** : `keyring` 3.6.3 n'a pas de feature par défaut et utilise le magasin factice `mock`. Features explicites `windows-native` et `apple-native`. Critère dès compilation Windows : le jeton de rafraîchissement survit à la fermeture et au redémarrage. Pas encore prouvé.
+
+### Preuves (2026-09-25)
+
+- `.env` local de recette : clé de développement déjà en place, `LEGALOS_MODE` absent. Ligne `LEGALOS_MODE=development` ajoutée (fichier non versionné).
+- Docker Desktop était arrêté. Après démarrage, les volumes `legalos-instance_*` étaient encore là. `docker compose -f instance/docker-compose.yml --env-file .env down -v` les a retirés avant la recette.
+- Premier `node tests/recette/s1.mjs` : échec, PowerSync 1.26.1 unhealthy, message `case not supported here` sur `CASE WHEN conflit`. `::int` refusé aussi (`CAST not supported for 'int'`). Règle corrigée : la colonne booléenne `conflit` est sélectionnée telle quelle.
+- Second `node tests/recette/s1.mjs` : exit 0, `s1: OK`, services api, caddy, postgres, powersync, garage, greenmail, simulateur-pa healthy.
+- Instance neuve avant démo : `SELECT COUNT(*) FROM utilisateurs` = 0.
+- `cargo test -p legalos-api --test migrations_sans_compte --test install_production` : les deux ok. `install_production` démarre l'API sans `LEGALOS_MODE`, sans compte démo, refuse les deux clés connues, `/health` répond avec une clé générée.
+- `cargo test -p xtask --bin xtask env_installe_sans_mode_developpement` : ok (`.env` généré sans `LEGALOS_MODE=`).
+- `cargo run -p xtask -- demo` puis `cargo run -p xtask -- recette --scenario s2` : `s2: OK` (auth_integration 2 tests, sonde HTTP).
+- **Non validé** : app Tauri non compilée ni lancée sous Windows. Survie du jeton de rafraîchissement non prouvée.
 - **Non validé** : l’app Tauri n’a pas été compilée ni lancée sous Windows (libclang absent pour `powersync_sqlite_nostd`, et consigne du point 8).
 

@@ -72,7 +72,7 @@ jobs:
         with:
           node-version: "20"
       - name: Prepare .env for compose
-        run: cp .env.example .env
+        run: cp .env.development.example .env
       - name: Migrations sans compte de démonstration
         run: node tests/recette/j2-demo-migration-parity.mjs
       - name: Contrat onboarding J2 (sans sync simulée dans FirstLaunchFlow)

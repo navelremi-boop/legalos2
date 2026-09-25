@@ -69,7 +69,10 @@ fn parse_u64_env(name: &str, default: u64) -> u64 {
 }
 
 /// Valeurs publiées (`.env.example`, recette). Interdites dès que `LEGALOS_MODE` n'est pas `development`.
-pub const CLES_CHIFFREMENT_CONNUES: &[&str] = &["legalos_demo_chiffrement_32oct!!"];
+pub const CLES_CHIFFREMENT_CONNUES: &[&str] = &[
+    "legalos_example_key_32_bytes!!!!",
+    "legalos_demo_chiffrement_32oct!!",
+];
 
 pub fn mode_developpement() -> bool {
     std::env::var("LEGALOS_MODE")

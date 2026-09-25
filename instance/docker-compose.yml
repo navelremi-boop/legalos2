@@ -42,6 +42,7 @@ services:
       API_BIND: 0.0.0.0:8080
       API_RUN_MIGRATIONS: "true"
       SECRETS_CHIFFREMENT_KEY: ${SECRETS_CHIFFREMENT_KEY}
+      LEGALOS_MODE: ${LEGALOS_MODE:-}
       JWT_KEY_ID: ${JWT_KEY_ID:-legalos-dev-1}
       JWT_ISSUER: ${JWT_ISSUER:-legalos-api}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-legalos-powersync}
