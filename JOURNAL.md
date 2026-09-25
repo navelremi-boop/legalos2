@@ -749,3 +749,10 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - CI `86e0856` (run [36155397731](https://github.com/navelremi-boop/legalos2/actions/runs/36155397731)) : **verte** (rust, frontend dont `lint:ci`, s1-instance, macos-placeholder).
 - Contrôleur [J3](45662d68-8d4f-4fe8-af8c-40e6f92bde89) : **VALIDÉ** sur `86e0856`. `pnpm --filter @legal-os/poste lint:ci` exit 0, `cargo fmt --manifest-path apps/poste/src-tauri/Cargo.toml -- --check` exit 0. `node tests/recette/j3-poste-tauri.mjs` exit 0 après isolation des bases locales : `OK — modification hors ligne visible sur B` ; `OK — les deux champs survivent (écritures par champ)` ; `OK — conflit signalé` ; `OK — coupure pendant l'envoi, une seule écriture`. Coupures réelles (`compose stop`, `pause api`). SDK Tauri, pas de navigateur. Écart majeur non bloquant : un `conflit` peut être journalisé sur une écriture séquentielle du même poste après reprise. Mineurs : README (corrigé), hooks de recette navigateur non utilisés par la preuve. J3 coché. Prochain jalon : J4.
 
+## 2026-09-25 — J4, build Windows
+
+- `pnpm tauri build` depuis `apps/poste` (VsDevCmd amd64, `LIBCLANG_PATH` LLVM) : exit 0 en 3 min 49 s de compilation release. Binaire `target/release/legal-os-poste.exe` (9 848 320 octets). Bundles : `LEGAL OS_0.1.0_x64_en-US.msi`, `LEGAL OS_0.1.0_x64-setup.exe`.
+- Les deux woff2 Atkinson sont dans `apps/poste/dist` et leurs noms sont dans l'exe. `design/tokens.css` est importé par `index.css`. CSP `font-src 'self'`.
+- `node tests/recette/j4-no-webdriver.mjs --exe target/release/legal-os-poste.exe` : `j4: OK` — aucune dépendance WebDriver, feature `test-webdriver` hors défaut, binaire sans `WebDriver` / `tauri-driver` / `msedgedriver`. Le même script est branché sur le job CI `rust`.
+- J4 non coché : validation contrôleur encore requise.
+

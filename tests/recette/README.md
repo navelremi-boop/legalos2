@@ -8,6 +8,7 @@ Scénarios d'acceptation dérivés de `docs/ordre-operation.md` § 3.
 - **J2 (contrat)** : `node tests/recette/j2-demo-migration-parity.mjs` — le `totp_secret_chiffre` de `004_demo_fictif.sql` doit correspondre au secret TOTP fictif documenté (sans Postgres). `node tests/recette/j2-onboarding-scope.mjs` — `FirstLaunchFlow` : auth réelle, pas de `runInitialSync` (sync = J3).
 - **J3 (probe)** : `node tests/recette/j3-powersync-liveness.mjs` — après S1/S2, `/sync/probes/liveness` + `/sync/probes/readiness` avec JWT post-TOTP (Caddy).
 - **J3 (deux postes)** : `node tests/recette/j3-poste-tauri.mjs` — app Tauri réelle (WebView2), cinq critères du cahier § 3.4. `j3-sync-two-postes.mjs` est un ancien scénario Chromium ; ce n'est pas la preuve J3.
+- **J4** : `node tests/recette/j4-no-webdriver.mjs` — features par défaut sans WebDriver, jetons et woff2 embarqués. `--exe` contrôle le binaire release. Le bundle Windows se prouve avec `pnpm tauri build` depuis `apps/poste`.
 - **S3+** : nécessitent Docker et binaires Rust (voir `BLOCAGES.md`).
 
 Les tests exécutables sont ajoutés par le **contrôleur** avant lecture de l'implémentation (ordre d'opération § 4.3).
