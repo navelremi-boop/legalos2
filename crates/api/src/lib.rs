@@ -9,8 +9,10 @@ pub mod state;
 
 use std::sync::Arc;
 
+use axum::http::{HeaderValue, Method};
 use axum::Router;
 use sqlx::PgPool;
+use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -22,7 +24,22 @@ pub fn build_router(state: Arc<AppState>) -> Router {
     Router::new()
         .merge(routes::router(state.clone()))
         .merge(SwaggerUi::new("/docs").url("/openapi.json", openapi))
+        .layer(couche_cors())
         .layer(TraceLayer::new_for_http())
+}
+
+fn couche_cors() -> CorsLayer {
+    const ORIGINES: [&str; 5] = [
+        "http://localhost:1420",
+        "http://127.0.0.1:1420",
+        "http://tauri.localhost",
+        "https://tauri.localhost",
+        "http://asset.localhost",
+    ];
+    CorsLayer::new()
+        .allow_origin(ORIGINES.map(HeaderValue::from_static))
+        .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::OPTIONS])
+        .allow_headers(Any)
 }
 
 pub async fn bootstrap_pool(config: &config::Config) -> anyhow::Result<PgPool> {

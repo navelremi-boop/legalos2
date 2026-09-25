@@ -724,3 +724,10 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - Avant ça (Cursor 3.17.8, 11:21), `continuer.mjs` a répondu `{}` cinq fois, donc pas de relance. Un stdin UTF-16 reproduit exactement `{}` (le JSON ne se parse pas, le statut est absent). `lireEntree` décode maintenant UTF-16 et UTF-8. Rejeu : suivi de mission renvoyé, et `garde-secrets` refuse `.env`.
 - **Non validé** : l’app Tauri n’a pas été compilée ni lancée sous Windows (libclang absent pour `powersync_sqlite_nostd`, et consigne du point 8).
 
+## 2026-09-25 — J2, parcours dans l'app Tauri
+
+- Reprise au premier jalon non coché : **J2**. L'API du poste (webview) ne pouvait pas appeler l'instance : pas d'en-têtes CORS. `couche_cors` autorise les origines du poste (`localhost:1420`, `tauri.localhost`, `asset.localhost`). Image `legalos/api` reconstruite, service healthy.
+- `node tests/recette/j2-poste-tauri.mjs` : exit 0. Parcours instance → identifiants → TOTP dans l'app Tauri (WebView2, port de débogage). `j2-poste: session enregistrée dans l'app`. Après `taskkill` et second lancement : `j2-poste: OK — jeton présent après fermeture et redémarrage`. Aucun secret journalisé.
+- `node tests/recette/j2-demo-migration-parity.mjs` : `migrations-sans-compte: OK`.
+- J2 reste décoché : validation contrôleur encore requise (§ 4.4).
+

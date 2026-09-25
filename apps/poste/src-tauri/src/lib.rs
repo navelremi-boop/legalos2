@@ -12,6 +12,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             powersync_connect::connect_powersync,
             trousseau::keyring_store_refresh,
+            trousseau::keyring_has_refresh,
             trousseau::keyring_clear_refresh
         ])
         .run(tauri::generate_context!())
