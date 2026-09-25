@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * J3 — deux postes simulés (contextes Playwright) : modification locale poste A → visible poste B via PowerSync.
- * Prérequis : stack S1 up, build poste avec VITE_LEGALOS_RECETTE_HOOKS=1, `pnpm exec playwright install chromium`.
+ * Ancien scénario navigateur (Playwright). Ce n'est plus la preuve de J3 :
+ * le cahier § 3.4 exige l'app Tauri et le SDK natif, qui ne s'initialise pas dans Chromium.
+ * La CI ne l'exécute plus. Le lancer ici échoue tant que la synchro n'est pas faite dans l'app réelle.
  */
 import { randomUUID } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
