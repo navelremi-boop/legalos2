@@ -30,6 +30,8 @@ export function JourneePreview({
   const [conflits, setConflits] = useState(0);
   const [nom, setNom] = useState("");
   const [slug, setSlug] = useState("");
+  const [baseNom, setBaseNom] = useState("");
+  const [baseSlug, setBaseSlug] = useState("");
 
   useEffect(() => {
     let stop = false;
@@ -70,8 +72,12 @@ export function JourneePreview({
       )
       .then((rows) => {
         if (stop || rows.length === 0) return;
-        setNom(rows[0]?.nom ?? "");
-        setSlug(rows[0]?.slug ?? "");
+        const nomLu = rows[0]?.nom ?? "";
+        const slugLu = rows[0]?.slug ?? "";
+        setNom(nomLu);
+        setSlug(slugLu);
+        setBaseNom(nomLu);
+        setBaseSlug(slugLu);
       })
       .catch(() => undefined);
     return () => {
@@ -140,13 +146,30 @@ export function JourneePreview({
           className="mb-6 rounded-[var(--radius-control)] border border-filet bg-feuille px-4 py-3"
           onSubmit={(event) => {
             event.preventDefault();
+            const formulaire = new FormData(event.currentTarget);
+            const nomSaisi = String(formulaire.get("nom") ?? nom);
+            const slugSaisi = String(formulaire.get("slug") ?? slug);
+            const colonnes: string[] = [];
+            const valeurs: string[] = [];
+            if (nomSaisi !== baseNom) {
+              colonnes.push("nom = ?");
+              valeurs.push(nomSaisi);
+            }
+            if (slugSaisi !== baseSlug) {
+              colonnes.push("slug = ?");
+              valeurs.push(slugSaisi);
+            }
+            if (colonnes.length === 0) return;
             void getPowerSyncDatabase().then((database) =>
-              database.execute("UPDATE cabinets SET nom = ?, slug = ? WHERE id = ?", [
-                nom,
-                slug,
-                DEMO_CABINET_ID,
-              ]),
+              database.execute(
+                `UPDATE cabinets SET ${colonnes.join(", ")} WHERE id = ?`,
+                [...valeurs, DEMO_CABINET_ID],
+              ),
             );
+            setNom(nomSaisi);
+            setSlug(slugSaisi);
+            setBaseNom(nomSaisi);
+            setBaseSlug(slugSaisi);
           }}
         >
           <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="cabinet-nom">
@@ -154,6 +177,7 @@ export function JourneePreview({
           </label>
           <input
             id="cabinet-nom"
+            name="nom"
             className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
             value={nom}
             onChange={(event) => {
@@ -165,6 +189,7 @@ export function JourneePreview({
           </label>
           <input
             id="cabinet-slug"
+            name="slug"
             className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
             value={slug}
             onChange={(event) => {

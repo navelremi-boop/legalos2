@@ -209,6 +209,59 @@ async function nomAffiche(send) {
   return String((await evaluate(send, `document.getElementById("cabinet-nom")?.value ?? ""`)) ?? "");
 }
 
+function sqlServeur(requete) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      "docker",
+      [
+        "compose",
+        "-f",
+        "instance/docker-compose.yml",
+        "--env-file",
+        ".env",
+        "exec",
+        "-T",
+        "postgres",
+        "psql",
+        "-U",
+        "legalos",
+        "-d",
+        "legalos",
+        "-tAc",
+        requete,
+      ],
+      { cwd: root, stdio: ["ignore", "pipe", "ignore"] },
+    );
+    let out = "";
+    child.stdout.on("data", (chunk) => {
+      out += chunk.toString();
+    });
+    child.on("exit", (code) => (code === 0 ? resolve(out.trim()) : reject(new Error("sql"))));
+  });
+}
+
+async function attendreSql(requete, attendu) {
+  const start = Date.now();
+  let vu = "";
+  while (Date.now() - start < 60_000) {
+    vu = await sqlServeur(requete);
+    if (vu === attendu) return vu;
+    await sleep(500);
+  }
+  throw new Error(`sql ${vu || "vide"} ≠ ${attendu}`);
+}
+
+async function editer(send, id, valeur) {
+  const start = Date.now();
+  while (Date.now() - start < 20_000) {
+    if (await evaluate(send, `Boolean(document.getElementById(${JSON.stringify(id)}))`)) break;
+    await sleep(200);
+  }
+  await setField(send, id, valeur);
+  await evaluate(send, `document.querySelector("form")?.requestSubmit()`);
+  await sleep(400);
+}
+
 function compose(args) {
   return new Promise((resolve, reject) => {
     const child = spawn(
@@ -339,10 +392,135 @@ try {
   pageB.ws.close();
   if (vuB !== nomHorsLigne) fail(`poste B n'a pas reçu le nom (${vuB || "vide"})`);
   console.log("j3-poste: OK — modification hors ligne visible sur B");
+  pageB.ws = pageB.ws;
 } catch (err) {
   console.error(posteA3.logTail());
   console.error(posteB.logTail());
-  fail(err instanceof Error ? err.message : "reprise B");
-} finally {
   await stopApp(posteB);
+  fail(err instanceof Error ? err.message : "reprise B");
 }
+await stopApp(posteB);
+
+await compose(["stop", "api", "powersync"]);
+const fusionA = startApp("a");
+try {
+  await waitCdp(fusionA);
+  const page = await connectCdp(fusionA.port);
+  await editer(page.send, "cabinet-nom", "Nom fusion A");
+  page.ws.close();
+} finally {
+  await stopApp(fusionA);
+}
+const fusionB = startApp("b");
+try {
+  await waitCdp(fusionB);
+  const page = await connectCdp(fusionB.port);
+  await editer(page.send, "cabinet-slug", "slug-fusion-b");
+  page.ws.close();
+} finally {
+  await stopApp(fusionB);
+}
+await compose(["start", "api", "powersync"]);
+await attendreSql("SELECT 1", "1");
+for (const id of ["a", "b"]) {
+  const poste = startApp(id);
+  try {
+    await waitCdp(poste);
+    const page = await connectCdp(poste.port);
+    await login(page.send, `Poste fusion ${id}`);
+    page.ws.close();
+  } finally {
+    await stopApp(poste);
+  }
+}
+await attendreSql("SELECT nom || '|' || slug FROM cabinets LIMIT 1", "Nom fusion A|slug-fusion-b");
+console.log("j3-poste: OK — les deux champs survivent");
+
+await compose(["stop", "api", "powersync"]);
+for (const [id, valeur] of [
+  ["a", "Nom conflit A"],
+  ["b", "Nom conflit B"],
+]) {
+  const poste = startApp(id);
+  try {
+    await waitCdp(poste);
+    const page = await connectCdp(poste.port);
+    await editer(page.send, "cabinet-nom", valeur);
+    page.ws.close();
+  } finally {
+    await stopApp(poste);
+  }
+}
+await compose(["start", "api", "powersync"]);
+for (const id of ["a", "b"]) {
+  const poste = startApp(id);
+  try {
+    await waitCdp(poste);
+    const page = await connectCdp(poste.port);
+    await login(page.send, `Poste conflit ${id}`);
+    page.ws.close();
+  } finally {
+    await stopApp(poste);
+  }
+}
+const conflits = await attendreSql(
+  "SELECT COUNT(*) FROM journal_modifications WHERE champ = 'nom' AND conflit",
+  "1",
+);
+if (conflits !== "1") fail(`conflit non journalisé (${conflits})`);
+const posteConflit = startApp("a");
+try {
+  await waitCdp(posteConflit);
+  const page = await connectCdp(posteConflit.port);
+  await login(page.send, "Poste conflit signal");
+  const debut = Date.now();
+  let vu = false;
+  while (Date.now() - debut < 90_000) {
+    vu = Boolean(await evaluate(page.send, `Boolean(document.querySelector("[data-testid=conflit-sync]"))`));
+    if (vu) break;
+    await sleep(500);
+  }
+  page.ws.close();
+  if (!vu) fail("conflit non signalé dans l'app");
+} finally {
+  await stopApp(posteConflit);
+}
+console.log("j3-poste: OK — conflit signalé");
+
+const avant = await sqlServeur(
+  "SELECT COUNT(*) FROM journal_modifications WHERE champ = 'slug' AND valeur_appliquee = 'slug-coupure'",
+);
+await compose(["stop", "api"]);
+const coupure = startApp("a");
+try {
+  await waitCdp(coupure);
+  const page = await connectCdp(coupure.port);
+  await editer(page.send, "cabinet-slug", "slug-coupure");
+  page.ws.close();
+} finally {
+  await stopApp(coupure);
+}
+await compose(["start", "api"]);
+const reprise = startApp("a");
+try {
+  await waitCdp(reprise);
+  const page = await connectCdp(reprise.port);
+  await login(page.send, "Poste coupure");
+  await compose(["pause", "api"]);
+  await editer(page.send, "cabinet-slug", "slug-coupure");
+  await sleep(1500);
+  await compose(["unpause", "api"]);
+  page.ws.close();
+} finally {
+  await compose(["unpause", "api"]).catch(() => undefined);
+  await stopApp(reprise);
+}
+await attendreSql(
+  "SELECT slug FROM cabinets LIMIT 1",
+  "slug-coupure",
+);
+const apres = await sqlServeur(
+  "SELECT COUNT(*) FROM journal_modifications WHERE champ = 'slug' AND valeur_appliquee = 'slug-coupure'",
+);
+if (apres !== String(Number(avant) + 1)) fail(`doublon ou perte à l'envoi (${avant} → ${apres})`);
+console.log("j3-poste: OK — coupure pendant l'envoi, une seule écriture");

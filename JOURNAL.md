@@ -742,5 +742,6 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - Deux processus sur le même poste : `LEGALOS_POSTE_ID` isole le fichier SQLite et le compte du trousseau. L'écran journée édite le nom et le slug du cabinet dans la base locale.
 - Cause : le client joint `sync/stream` sur l'endpoint. Sans barre finale, l'URL est `/sync/stream`, Caddy la réduit en `/stream` (404). Avec `/sync/`, Caddy transmet `/sync/stream` (401 sans jeton, chemin valide). Après correction, `j3-poste-tauri.mjs` affiche `A synchronisé` et `modification conservée après redémarrage hors ligne`.
 - L'envoi n'a pas suivi tant que la file était antérieure à la connexion. Au retour, une écriture locale sur `cabinets` réveille l'acteur. `node tests/recette/j3-poste-tauri.mjs` : exit 0. `A synchronisé`, `modification conservée après redémarrage hors ligne` (services `api` et `powersync` arrêtés), puis `OK — modification hors ligne visible sur B`.
-- Critères 2 à 4 (fusion de deux champs, conflit signalé, ni perte ni doublon pendant l'envoi) pas encore prouvés. J3 non coché.
+- Critères 2 et 3, une exécution : `OK — les deux champs survivent` (nom du poste A et slug du poste B, chacun seul dans son `UPDATE`) et `OK — conflit signalé` (journal `conflit` et bandeau dans l'app). L'enregistrement n'envoie que le champ modifié.
+- Le script complet n'est pas vert. Après ces étapes, le nom hors ligne suivant reste dans `ps_crud` (révision locale 8, serveur 9) et le serveur garde l'ancien nom. Critère 4 (coupure pendant l'envoi) non prouvé. J3 non coché.
 
