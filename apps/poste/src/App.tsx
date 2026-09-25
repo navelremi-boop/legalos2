@@ -88,6 +88,7 @@ function App() {
         onReconnect={() => {
           resterLocal.current = false;
           setLocalReady(false);
+          (window as unknown as { __legalosReconnect?: boolean }).__legalosReconnect = true;
         }}
       />
     );

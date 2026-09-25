@@ -12,7 +12,13 @@ import { demoEmail, demoPassword, totpNow } from "./lib/demo-auth.mjs";
 const poste = fileURLToPath(new URL("../../apps/poste/", import.meta.url));
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const instanceUrl = process.env.LEGALOS_INSTANCE_URL ?? "http://127.0.0.1:8088";
-const nomHorsLigne = "Cabinet fictif hors ligne";
+const marque = String(Date.now()).slice(-6);
+const nomHorsLigne = `Hors ligne ${marque}`;
+const nomFusion = `Nom fusion ${marque}`;
+const slugFusion = `slugf${marque}`;
+const nomConflitA = `Conflit A ${marque}`;
+const nomConflitB = `Conflit B ${marque}`;
+const slugCoupure = `coupure${marque}`;
 
 function fail(message) {
   console.error(`j3-poste: FAIL — ${message}`);
@@ -54,12 +60,12 @@ function startApp(id) {
   let log = "";
   const onData = (chunk) => {
     log += chunk.toString();
-    if (log.length > 4000) log = log.slice(-4000);
+    if (log.length > 12000) log = log.slice(-12000);
   };
   child.stdout.on("data", onData);
   child.stderr.on("data", onData);
   child.port = port;
-  child.logTail = () => log.slice(-400);
+  child.logTail = () => log.slice(-1500);
   return child;
 }
 
@@ -161,8 +167,19 @@ async function login(send, nomAppareil) {
       `document.getElementById("cabinet-nom") ? "local" : document.getElementById("instance-url") ? "login" : ""`,
     );
     if (ecran === "local") {
-      await evaluate(send, `document.querySelector("[data-testid=se-reconnecter]")?.click()`);
-      await sleep(800);
+      await evaluate(
+        send,
+        `[...document.querySelectorAll("button")].find((b) => (b.innerText || "").includes("reconnecter"))?.click()`,
+      );
+      const jusqua = Date.now() + 10_000;
+      while (Date.now() < jusqua) {
+        if (await evaluate(send, `Boolean(document.getElementById("instance-url"))`)) break;
+        await sleep(200);
+      }
+      if (!(await evaluate(send, `Boolean(document.getElementById("instance-url"))`))) {
+        const flag = await evaluate(send, `Boolean(window.__legalosReconnect)`);
+        throw new Error(`reconnect sans formulaire (handler ${flag ? "oui" : "non"})`);
+      }
       break;
     }
     if (ecran === "login") break;
@@ -181,20 +198,14 @@ async function login(send, nomAppareil) {
   await evaluate(send, `document.querySelector("form")?.requestSubmit()`);
   const totpStart = Date.now();
   while (Date.now() - totpStart < 40_000) {
-    const ecran = await evaluate(
-      send,
-      `document.getElementById("code-totp") ? "totp" : (document.body?.innerText ?? "").includes("La journée") ? "jour" : ""`,
-    );
-    if (ecran === "jour") return;
-    if (ecran === "totp") break;
+    if (await evaluate(send, `Boolean(document.getElementById("cabinet-nom"))`)) return;
+    if (await evaluate(send, `Boolean(document.getElementById("code-totp"))`)) {
+      await setField(send, "code-totp", totpNow());
+      await evaluate(send, `document.querySelector("form")?.requestSubmit()`);
+      break;
+    }
     await sleep(250);
   }
-  if (!(await evaluate(send, `Boolean(document.getElementById("code-totp"))`))) {
-    const texte = await evaluate(send, "document.body?.innerText ?? ''");
-    throw new Error(`TOTP absent — ${String(texte).replace(/\s+/g, " ").slice(0, 200)}`);
-  }
-  await setField(send, "code-totp", totpNow());
-  await evaluate(send, `document.querySelector("form")?.requestSubmit()`);
   const jour = Date.now();
   while (Date.now() - jour < 200_000) {
     const text = await evaluate(send, "document.body?.innerText ?? ''");
@@ -409,7 +420,7 @@ const fusionA = startApp("a");
 try {
   await waitCdp(fusionA);
   const page = await connectCdp(fusionA.port);
-  await editer(page.send, "cabinet-nom", "Nom fusion A");
+  await editer(page.send, "cabinet-nom", nomFusion);
   page.ws.close();
 } finally {
   await stopApp(fusionA);
@@ -418,7 +429,7 @@ const fusionB = startApp("b");
 try {
   await waitCdp(fusionB);
   const page = await connectCdp(fusionB.port);
-  await editer(page.send, "cabinet-slug", "slug-fusion-b");
+  await editer(page.send, "cabinet-slug", slugFusion);
   page.ws.close();
 } finally {
   await stopApp(fusionB);
@@ -436,13 +447,16 @@ for (const id of ["a", "b"]) {
     await stopApp(poste);
   }
 }
-await attendreSql("SELECT nom || '|' || slug FROM cabinets LIMIT 1", "Nom fusion A|slug-fusion-b");
+await attendreSql(
+  "SELECT nom || '|' || slug FROM cabinets LIMIT 1",
+  `${nomFusion}|${slugFusion}`,
+);
 console.log("j3-poste: OK — les deux champs survivent");
 
 await compose(["stop", "api", "powersync"]);
 for (const [id, valeur] of [
-  ["a", "Nom conflit A"],
-  ["b", "Nom conflit B"],
+  ["a", nomConflitA],
+  ["b", nomConflitB],
 ]) {
   const poste = startApp(id);
   try {
@@ -496,14 +510,14 @@ try {
 console.log("j3-poste: OK — conflit signalé");
 
 const avant = await sqlServeur(
-  "SELECT COUNT(*) FROM journal_modifications WHERE champ = 'slug' AND valeur_appliquee = 'slug-coupure'",
+  `SELECT COUNT(*) FROM journal_modifications WHERE champ = 'slug' AND valeur_appliquee = '${slugCoupure}'`,
 );
 await compose(["stop", "api"]);
 const coupure = startApp("a");
 try {
   await waitCdp(coupure);
   const page = await connectCdp(coupure.port);
-  await editer(page.send, "cabinet-slug", "slug-coupure");
+  await editer(page.send, "cabinet-slug", slugCoupure);
   page.ws.close();
 } finally {
   await stopApp(coupure);
@@ -515,7 +529,7 @@ try {
   const page = await connectCdp(reprise.port);
   await login(page.send, "Poste coupure");
   await compose(["pause", "api"]);
-  await editer(page.send, "cabinet-slug", "slug-coupure");
+  await editer(page.send, "cabinet-slug", slugCoupure);
   await sleep(1500);
   await compose(["unpause", "api"]);
   page.ws.close();
@@ -525,10 +539,10 @@ try {
 }
 await attendreSql(
   "SELECT slug FROM cabinets LIMIT 1",
-  "slug-coupure",
+  slugCoupure,
 );
 const apres = await sqlServeur(
-  "SELECT COUNT(*) FROM journal_modifications WHERE champ = 'slug' AND valeur_appliquee = 'slug-coupure'",
+  `SELECT COUNT(*) FROM journal_modifications WHERE champ = 'slug' AND valeur_appliquee = '${slugCoupure}'`,
 );
 if (apres !== String(Number(avant) + 1)) fail(`doublon ou perte à l'envoi (${avant} → ${apres})`);
 console.log("j3-poste: OK — coupure pendant l'envoi, une seule écriture");

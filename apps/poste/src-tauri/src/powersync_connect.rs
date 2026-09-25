@@ -71,7 +71,16 @@ pub async fn connect_powersync<R: Runtime>(
             session,
         }))
         .await;
-    let _ = connector.upload_data().await;
+    if let Ok(reader) = database.reader().await {
+        if let Ok(n) =
+            reader.query_row("SELECT COUNT(*) FROM ps_crud", [], |row| row.get::<_, i64>(0))
+        {
+            eprintln!("file crud: {n}");
+        }
+    }
+    if let Err(err) = connector.upload_data().await {
+        eprintln!("upload file: {err}");
+    }
     Ok(())
 }
 
