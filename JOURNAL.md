@@ -715,6 +715,7 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - `cargo test -p legalos-api --test migrations_sans_compte --test install_production` : les deux ok. `install_production` démarre l'API sans `LEGALOS_MODE`, sans compte démo, refuse les deux clés connues, `/health` répond avec une clé générée.
 - `cargo test -p xtask --bin xtask env_installe_sans_mode_developpement` : ok (`.env` généré sans `LEGALOS_MODE=`).
 - `cargo run -p xtask -- demo` puis `cargo run -p xtask -- recette --scenario s2` : `s2: OK` (auth_integration 2 tests, sonde HTTP).
-- **Non validé** : app Tauri non compilée ni lancée sous Windows. Survie du jeton de rafraîchissement non prouvée.
+- **Compilation poste** : LLVM **23.1.2** (`winget install LLVM.LLVM`). `LIBCLANG_PATH=C:\Program Files\LLVM\bin`. `cargo build --manifest-path apps/poste/src-tauri/Cargo.toml` : exit 0 (2026-09-25). `keyring` 3.6.3 avec `windows-native` compile. Lint retiré du correctif `time` : `illegal_floating_point_literal_pattern` (supprimé en rustc 1.98).
+- **Non validé** : l'app n'a pas été lancée. La survie du jeton de rafraîchissement après fermeture et redémarrage n'est pas prouvée. J2 et J3 restent décochés.
 - **Non validé** : l’app Tauri n’a pas été compilée ni lancée sous Windows (libclang absent pour `powersync_sqlite_nostd`, et consigne du point 8).
 

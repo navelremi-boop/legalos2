@@ -42,6 +42,7 @@ Vérifiées le **2026-09-24** dans la documentation officielle ou les registres 
 | rsa (JWT RS256) | **0.9.8** | https://crates.io/crates/rsa |
 | keyring (trousseau poste) | **3.6.3** | https://crates.io/crates/keyring — vérifié le 2026-09-25. Pas de feature `default` : sans feature, le crate utilise le magasin factice `mock`. Features explicites **`windows-native`** (Credential Manager) et **`apple-native`** (Keychain). |
 | Typst (PDF) | **0.14** (cible facturation) | https://typst.app/blog/2025/typst-0.14 |
+| LLVM / libclang (bindgen `powersync_sqlite_nostd`) | **23.1.2** | https://github.com/llvm/llvm-project — installé le 2026-09-25 via winget `LLVM.LLVM`. `LIBCLANG_PATH` = répertoire de `libclang.dll` (`C:\Program Files\LLVM\bin` sur ce poste). |
 | Rust toolchain | **stable ≥ 1.80** (`rust-toolchain.toml`) | https://rust-lang.org |
 | Rust (image build API) | **rust:1.85.0-bookworm** | https://hub.docker.com/_/rust |
 | Images compose LEGAL OS | **legalos/api:0.1.0**, **legalos/caddy:2.10.0-alpine**, **legalos/simulateur-pa:s1-stub** (build local, pas de `latest`) | `instance/docker-compose.yml` |
