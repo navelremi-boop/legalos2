@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CHEMISE_IDS, type ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
 import { clearSession } from "@/lib/session/storage";
@@ -32,20 +32,35 @@ export function JourneePreview({
   const [slug, setSlug] = useState("");
   const [baseNom, setBaseNom] = useState("");
   const [baseSlug, setBaseSlug] = useState("");
+  const baseNomRef = useRef("");
+  const baseSlugRef = useRef("");
 
   useEffect(() => {
     let stop = false;
     const tick = () => {
       void getPowerSyncDatabase()
         .then((database) =>
-          database.getAll<{ n: number }>(
-            "SELECT COUNT(*) AS n FROM journal_modifications WHERE conflit = 1",
-          ),
+          Promise.all([
+            database.getAll<{ n: number }>(
+              "SELECT COUNT(*) AS n FROM journal_modifications WHERE conflit = 1",
+            ),
+            database.getAll<{ nom: string; slug: string }>(
+              "SELECT nom, slug FROM cabinets WHERE id = ? LIMIT 1",
+              [DEMO_CABINET_ID],
+            ),
+          ]),
         )
-        .then((rows) => {
-          if (!stop) {
-            setConflits(rows[0]?.n ?? 0);
-          }
+        .then(([conflitRows, cabinetRows]) => {
+          if (stop) return;
+          setConflits(conflitRows[0]?.n ?? 0);
+          const cabinet = cabinetRows[0];
+          if (!cabinet) return;
+          setNom((courant) => (courant === baseNomRef.current ? cabinet.nom : courant));
+          setSlug((courant) => (courant === baseSlugRef.current ? cabinet.slug : courant));
+          baseNomRef.current = cabinet.nom;
+          baseSlugRef.current = cabinet.slug;
+          setBaseNom(cabinet.nom);
+          setBaseSlug(cabinet.slug);
         })
         .catch(() => {
           if (!stop) {
@@ -76,6 +91,8 @@ export function JourneePreview({
         const slugLu = rows[0]?.slug ?? "";
         setNom(nomLu);
         setSlug(slugLu);
+        baseNomRef.current = nomLu;
+        baseSlugRef.current = slugLu;
         setBaseNom(nomLu);
         setBaseSlug(slugLu);
       })
@@ -168,6 +185,8 @@ export function JourneePreview({
             );
             setNom(nomSaisi);
             setSlug(slugSaisi);
+            baseNomRef.current = nomSaisi;
+            baseSlugRef.current = slugSaisi;
             setBaseNom(nomSaisi);
             setBaseSlug(slugSaisi);
           }}

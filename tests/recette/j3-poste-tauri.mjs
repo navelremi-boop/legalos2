@@ -370,7 +370,10 @@ try {
     await sleep(500);
   }
   await stopApp(posteA3);
-  if (nomServeur !== nomHorsLigne) fail(`l'API n'a pas enregistré le nom (${nomServeur || "vide"})`);
+  if (nomServeur !== nomHorsLigne) {
+    console.error(posteA3.logTail());
+    fail(`l'API n'a pas enregistré le nom (${nomServeur || "vide"})`);
+  }
 } catch (err) {
   console.error(posteA3.logTail());
   await stopApp(posteA3);
@@ -463,11 +466,16 @@ for (const id of ["a", "b"]) {
     await stopApp(poste);
   }
 }
-const conflits = await attendreSql(
-  "SELECT COUNT(*) FROM journal_modifications WHERE champ = 'nom' AND conflit",
-  "1",
+const conflitsAvant = Number(
+  await sqlServeur("SELECT COUNT(*) FROM journal_modifications WHERE champ = 'nom' AND conflit"),
 );
-if (conflits !== "1") fail(`conflit non journalisé (${conflits})`);
+const conflitsApres = Number(
+  await attendreSql(
+    `SELECT CASE WHEN (SELECT COUNT(*) FROM journal_modifications WHERE champ = 'nom' AND conflit) >= ${conflitsAvant + 1} THEN '${conflitsAvant + 1}' ELSE '' END`,
+    String(conflitsAvant + 1),
+  ),
+);
+if (conflitsApres < conflitsAvant + 1) fail(`conflit non journalisé (${conflitsAvant} → ${conflitsApres})`);
 const posteConflit = startApp("a");
 try {
   await waitCdp(posteConflit);

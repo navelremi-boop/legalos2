@@ -61,11 +61,17 @@ pub async fn connect_powersync<R: Runtime>(
         instance_url,
         access_token,
     }));
-    let options = SyncOptions::new(CabinetConnector {
+    let connector = CabinetConnector {
         db: database.clone(),
-        session,
-    });
-    database.connect(options).await;
+        session: Arc::clone(&session),
+    };
+    database
+        .connect(SyncOptions::new(CabinetConnector {
+            db: database.clone(),
+            session,
+        }))
+        .await;
+    let _ = connector.upload_data().await;
     Ok(())
 }
 
@@ -145,7 +151,8 @@ async fn upload_cabinet(
         .await?;
     if response.status() != StatusCode::OK {
         let status = response.status();
-        return Err(upload_err(format!("upload cabinet rejeté ({status})")));
+        let corps = response.text().await.unwrap_or_default();
+        return Err(upload_err(format!("upload cabinet rejeté ({status}) {corps}")));
     }
     Ok(())
 }
