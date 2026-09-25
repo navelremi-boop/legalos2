@@ -7,7 +7,9 @@ fn entree() -> Result<keyring::Entry, String> {
 
 #[tauri::command]
 pub fn keyring_store_refresh(token: String) -> Result<(), String> {
-    entree()?.set_password(&token).map_err(|err| err.to_string())
+    entree()?
+        .set_password(&token)
+        .map_err(|err| err.to_string())
 }
 
 #[tauri::command]
