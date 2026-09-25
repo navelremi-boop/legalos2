@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-25 (état-major — J4 VALIDÉ).
+Dernière mise à jour : 2026-09-25 (état-major — gate phase 1 VALIDÉE).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -46,7 +46,8 @@ Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénari
   - **Validation 2026-09-25** : contrôleur VALIDÉ sur `7871c68` (CI [36163357952](https://github.com/navelremi-boop/legalos2/actions/runs/36163357952)). `pnpm tauri build` exit 0 (exe, MSI, NSIS). `j4-no-webdriver.mjs --exe` exit 0. Mineurs : pas de fichier OFL à côté des woff2 ; feature `test-webdriver` vide.
   - **Responsable** : `poste-interface`
 
-- [ ] **J1–J4** — **Gate phase 1** : contrôleur VALIDÉ avant tout jalon phase 2.
+- [x] **J1–J4** — **Gate phase 1** : contrôleur VALIDÉ avant tout jalon phase 2.
+  - **Validation 2026-09-25** : contrôleur VALIDÉ. S1, S2 et sonde PowerSync rejoués (exit 0). CI [36163357952](https://github.com/navelremi-boop/legalos2/actions/runs/36163357952) et [36166067737](https://github.com/navelremi-boop/legalos2/actions/runs/36166067737) vertes. J3 Tauri non rejoué (pas de doute sur les cinq critères).
 
 ---
 
