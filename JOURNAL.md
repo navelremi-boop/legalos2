@@ -651,3 +651,18 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - **Fait** : `PATCH /cabinets/{id}` (JWT access) ; `uploadData` PowerSync → API ; proxy Vite `/api` + `/sync` ; `j3-sync-two-postes.mjs` (Playwright) ; champ instance en `type=text` + lecture FormData.
 - **Preuves** : `cargo clippy -p legalos-api` OK ; `pnpm typecheck` / `lint:ci` OK ; `j3-powersync-liveness.mjs` OK ; recette Playwright **à valider en CI** (sync initiale longue / OPFS poste agent).
 
+## 2026-09-25 — État-major : correctif sync CI J3
+
+- **Cause probable échec CI** : proxy Vite `preview` relayait HTTP `/sync` mais pas les **WebSockets** PowerSync.
+- **Correctif** : `ws: true` sur `/sync` ; flags recette `useWebWorker: false`, `enableMultiTabs: false` (`VITE_LEGALOS_RECETTE_HOOKS=1`).
+- **Commit** : `075b0f0` — `fix(J3): proxy WebSocket /sync et flags PowerSync recette CI.`
+- **Preuve CI** : run [36110555427](https://github.com/navelremi-boop/legalos2/actions/runs/36110555427) — **success** (dont `Recette J3 deux postes simulés (PowerSync)`).
+
+### Contrôleur — jalon **J3** (2026-09-25, commit `075b0f0`)
+
+- **Verdict : REFUSÉ** (jalon J3 **complet** ; [contrôleur](f3fdb1d9-58df-4e78-b604-ed2fc5227f4a)).
+- **Satisfait** : critère « modification poste A → poste B » — CI run **36110555427**, job `s1-instance`, étape `j3-sync-two-postes.mjs`.
+- **Bloquant** : critère « reprise hors ligne sans écrasement silencieux » (préfig. S4) — non implémenté, aucune recette ; `PLAN.md` le marque encore « en cours ».
+- **Décision** : **ne pas cocher J3** dans `PLAN.md` tant que le critère offline/conflit n’est pas livré ou retiré explicitement du périmètre.
+- **Suite** : scénario recette offline minimal (Playwright) ou découpage PLAN (offline → S4) puis re-contrôleur.
+
