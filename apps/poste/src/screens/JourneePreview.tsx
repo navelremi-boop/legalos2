@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { CHEMISE_IDS, type ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
 import { clearSession } from "@/lib/session/storage";
+import { getPowerSyncDatabase } from "@/sync/database";
 
 type ThemeMode = "light" | "dark" | "system";
 
@@ -20,6 +21,35 @@ type JourneePreviewProps = {
 export function JourneePreview({ instanceUrl, onResetSession }: JourneePreviewProps) {
   const [themeMode, setThemeMode] = useState<ThemeMode>("system");
   const [previewChemise, setPreviewChemise] = useState<ChemiseId>("bleu-classeur");
+  const [conflits, setConflits] = useState(0);
+
+  useEffect(() => {
+    let stop = false;
+    const tick = () => {
+      void getPowerSyncDatabase()
+        .then((database) =>
+          database.getAll<{ n: number }>(
+            "SELECT COUNT(*) AS n FROM journal_modifications WHERE conflit = 1",
+          ),
+        )
+        .then((rows) => {
+          if (!stop) {
+            setConflits(rows[0]?.n ?? 0);
+          }
+        })
+        .catch(() => {
+          if (!stop) {
+            setConflits(0);
+          }
+        });
+    };
+    tick();
+    const timer = window.setInterval(tick, 2_000);
+    return () => {
+      stop = true;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     const resolved = resolveTheme(themeMode);
@@ -67,6 +97,17 @@ export function JourneePreview({ instanceUrl, onResetSession }: JourneePreviewPr
       </header>
 
       <main className="mx-auto max-w-5xl px-8 py-8">
+        {conflits > 0 ? (
+          <p
+            className="mb-6 rounded-[var(--radius-control)] border border-filet bg-feuille px-4 py-3 text-encre"
+            role="status"
+            data-testid="conflit-sync"
+          >
+            {fr(
+              `Conflit de synchronisation : ${String(conflits)} champ(s). La dernière écriture a été conservée ; la valeur remplacée est dans le journal.`,
+            )}
+          </p>
+        ) : null}
         <section
           className="overflow-hidden rounded-[var(--radius-tab)] border border-filet bg-classeur"
           data-chemise={previewChemise}

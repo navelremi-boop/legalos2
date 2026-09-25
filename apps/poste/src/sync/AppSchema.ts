@@ -1,4 +1,4 @@
-import { column, Schema, Table } from "@powersync/web";
+import { column, Schema, Table } from "@powersync/common";
 
 /**
  * Schéma client PowerSync minimal (miroir stub — phase contrats J0.6).
@@ -10,7 +10,24 @@ const cabinets = new Table({
   nom: column.text,
   totp_obligatoire: column.integer,
   cree_le: column.text,
+  revision: column.integer,
 });
+
+const journalModifications = new Table(
+  {
+    cabinet_id: column.text,
+    table_cible: column.text,
+    enregistrement_id: column.text,
+    champ: column.text,
+    valeur_remplacee: column.text,
+    valeur_appliquee: column.text,
+    revision_base: column.integer,
+    revision_appliquee: column.integer,
+    conflit: column.integer,
+    cree_le: column.text,
+  },
+  { indexes: { enregistrement: ["enregistrement_id"] } },
+);
 
 const users = new Table(
   {
@@ -50,6 +67,7 @@ const dossiers = new Table(
 
 export const AppSchema = new Schema({
   cabinets,
+  journal_modifications: journalModifications,
   users,
   postes,
   dossiers,

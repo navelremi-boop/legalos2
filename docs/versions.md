@@ -14,7 +14,7 @@ Vérifiées le **2026-09-24** dans la documentation officielle ou les registres 
 | Vite | **8.3.0** | https://www.npmjs.com/package/vite |
 | Tailwind CSS | **4.3.3** | https://www.npmjs.com/package/tailwindcss |
 | @powersync/tauri-plugin | **0.0.6** | https://www.npmjs.com/package/@powersync/tauri-plugin — vérifié npm le 2026-09-25 |
-| @powersync/common | **2.3.0** | https://www.npmjs.com/package/@powersync/common — vérifié npm le 2026-09-25 |
+| @powersync/common | **2.0.0** | dépendance exacte de `@powersync/tauri-plugin` 0.0.6 (npm, 2026-09-25) |
 | tauri-plugin-powersync | **0.0.6** | https://crates.io/crates/tauri-plugin-powersync — vérifié le 2026-09-25 ; dépend de `powersync` ^0.0.7 |
 | powersync (crate Rust) | **0.0.7** | https://crates.io/crates/powersync — vérifié le 2026-09-25 |
 | SDK web `@powersync/web` | **écart** : utilisé à tort jusqu'au 2026-09-25 ; retiré (cahier § 2.1) | https://docs.powersync.com/client-sdks/reference/tauri |

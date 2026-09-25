@@ -172,9 +172,12 @@ importers:
 
   apps/poste:
     dependencies:
-      '@powersync/web':
-        specifier: ^1.35.0
-        version: 1.39.1(@journeyapps/wa-sqlite@1.7.2)(@powersync/common@1.57.3)
+      '@powersync/common':
+        specifier: 2.0.0
+        version: 2.0.0
+      '@powersync/tauri-plugin':
+        specifier: 0.0.6
+        version: 0.0.6
       '@tauri-apps/api':
         specifier: ^2.10.0
         version: 2.11.1
@@ -381,9 +384,6 @@ packages:
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
 
-  '@journeyapps/wa-sqlite@1.7.2':
-    resolution: {integrity: sha512-EVRMzqHtHgJBFcTGOgQ5/YlxrYFSXLFFztC5yo6+jQx2mqFR+a1kkLV4IirquiBzIonjmYXfBtvZ26fmI8r9Nw==}
-
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
 
@@ -403,15 +403,14 @@ packages:
   '@oxc-project/types@0.151.0':
     resolution: {integrity: sha512-J1yXrIlNDZVzE3ada310xeAw7nH8yCAyLPuUIsjKatFPmfn5bS1oW+cM+QsGOtVWd5nhSpbwZWx/rue+r5Z+PA==}
 
-  '@powersync/common@1.57.3':
-    resolution: {integrity: sha512-gzXcdfO1EnwXNBITDbnx7oN23d91HjoumS/XzPmVZEwV6S/IBcao/Unv4+aQDvijQVzTtXI+jTl98i9v+TrODQ==}
+  '@powersync/common@2.0.0':
+    resolution: {integrity: sha512-GuWmk0w0Y6I1HDwX4uGFzzw1e4E4bkvDSSCpVikdTEIk1xcW5NNnqTX8xfDheZdoQZunm/XushrR/LsIp1Yc/g==}
 
-  '@powersync/web@1.39.1':
-    resolution: {integrity: sha512-mu01OE3sQrulRgvDOWw1xRbRbPhJMOfz5sIVIQ2lENGDkqgWdlRhpkHVfeVi80tCZoP/AFYkQAFRszCgzqFUxQ==}
-    hasBin: true
-    peerDependencies:
-      '@journeyapps/wa-sqlite': ^1.5.0
-      '@powersync/common': ^1.57.3
+  '@powersync/shared-internals@1.1.0':
+    resolution: {integrity: sha512-wvMzKlyCTEZ87dujK7eID5d5O8EaY/637c4dOj4KmqOA8nosbIqewVxWmGKzySYLh8TnyoIpsz87iniFTA9S0g==}
+
+  '@powersync/tauri-plugin@0.0.6':
+    resolution: {integrity: sha512-jFtSJY3vZ0YeYu5s7N2neGNcjphOi/wwRQHp6nFHvl4ZWWlGLc4NtvseCrRh5WafK2S5wqahH25yIpYA9rLHig==}
 
   '@rolldown/binding-android-arm-eabi@1.2.10':
     resolution: {integrity: sha512-bp9svZb+QurZeh+8H4BhrZkifEB0YBNvTVzNSJnJQkj4NrRwmQoDUCGP0vSN7PbvLeM7l1tK6GXL8mrTiH2myg==}
@@ -842,13 +841,6 @@ packages:
   color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
 
-  comlink@4.4.2:
-    resolution: {integrity: sha512-OxGdvBmJuNKSCMO4NTl1L47VRp6xn2wG4F/2hYzB6tiCb709otOxtEYCSvK80PtjODfXXZu8ds+Nw5kVCjqd2g==}
-
-  commander@12.1.0:
-    resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
-    engines: {node: '>=18'}
-
   concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
 
@@ -1048,9 +1040,6 @@ packages:
   jiti@2.7.0:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
-
-  js-logger@1.6.1:
-    resolution: {integrity: sha512-yTgMCPXVjhmg28CuUH8CKjU+cIKL/G+zTu4Fn4lQxs8mRFH/03QTNvEFngcxfg/gRDiQAOoyCKmMTOm9ayOzXA==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -1675,8 +1664,6 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@journeyapps/wa-sqlite@1.7.2': {}
-
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
@@ -1698,16 +1685,15 @@ snapshots:
 
   '@oxc-project/types@0.151.0': {}
 
-  '@powersync/common@1.57.3':
-    dependencies:
-      js-logger: 1.6.1
+  '@powersync/common@2.0.0': {}
 
-  '@powersync/web@1.39.1(@journeyapps/wa-sqlite@1.7.2)(@powersync/common@1.57.3)':
+  '@powersync/shared-internals@1.1.0': {}
+
+  '@powersync/tauri-plugin@0.0.6':
     dependencies:
-      '@journeyapps/wa-sqlite': 1.7.2
-      '@powersync/common': 1.57.3
-      comlink: 4.4.2
-      commander: 12.1.0
+      '@powersync/common': 2.0.0
+      '@powersync/shared-internals': 1.1.0
+      '@tauri-apps/api': 2.11.1
 
   '@rolldown/binding-android-arm-eabi@1.2.10':
     optional: true
@@ -2046,10 +2032,6 @@ snapshots:
 
   color-name@1.1.4: {}
 
-  comlink@4.4.2: {}
-
-  commander@12.1.0: {}
-
   concat-map@0.0.1: {}
 
   convert-source-map@2.0.0: {}
@@ -2236,8 +2218,6 @@ snapshots:
   isexe@2.0.0: {}
 
   jiti@2.7.0: {}
-
-  js-logger@1.6.1: {}
 
   js-tokens@4.0.0: {}
 

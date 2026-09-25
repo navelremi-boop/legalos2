@@ -1,13 +1,14 @@
-import { createPowerSyncConnector } from "@/sync/connector";
-import { getPowerSyncDatabase } from "@/sync/database";
+import { invoke } from "@tauri-apps/api/core";
+
 import { loadSessionTokens } from "@/lib/session/storage";
+import { DEMO_CABINET_ID } from "@/sync/demoCabinet";
+import { getPowerSyncDatabase } from "@/sync/database";
 
 export type InitialSyncProgress = {
   phase: "connexion" | "schema" | "donnees" | "termine";
   detail: string;
 };
 
-import { DEMO_CABINET_ID } from "@/sync/demoCabinet";
 const SYNC_POLL_MS = 500;
 const SYNC_TIMEOUT_MS = 90_000;
 
@@ -20,10 +21,17 @@ export async function runInitialSync(
     detail: "Connexion au service de synchronisation…",
   });
 
-  const database = getPowerSyncDatabase();
-  const connector = createPowerSyncConnector(instanceUrl, () => loadSessionTokens().accessToken);
+  const accessToken = loadSessionTokens().accessToken;
+  if (accessToken === null || accessToken === "") {
+    throw new Error("Jeton d’accès absent pour PowerSync");
+  }
 
-  await database.connect(connector);
+  const database = await getPowerSyncDatabase();
+  await invoke("connect_powersync", {
+    handle: database.rustHandle,
+    instanceUrl,
+    accessToken,
+  });
 
   onProgress({
     phase: "schema",
