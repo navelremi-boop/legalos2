@@ -3,8 +3,8 @@
  * Ne journalise aucun secret.
  */
 import { spawn } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { demoEmail, demoPassword, totpNow } from "./lib/demo-auth.mjs";
@@ -29,11 +29,27 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Isole chaque exécution : CRUD locales d'un run précédent ne doivent pas remonter. */
+function resetPostesLocaux() {
+  const roaming = process.env.APPDATA ?? join(homedir(), "AppData", "Roaming");
+  const dataDir = join(roaming, "fr.legalos.poste");
+  for (const id of ["a", "b", ""]) {
+    const suffix = id === "" ? "" : `-${id}`;
+    for (const ext of ["", "-shm", "-wal"]) {
+      rmSync(join(dataDir, `legalos-powersync${suffix}.db${ext}`), { force: true });
+    }
+  }
+  for (const id of ["a", "b"]) {
+    rmSync(join(tmpdir(), `legalos-webview-${id}`), { recursive: true, force: true });
+  }
+}
+
 function startApp(id) {
   const port = id === "a" ? "9222" : "9232";
-  const dir = join(tmpdir(), `legalos-webview-${id}`);
+  // Profil isolé par exécution : un run précédent ne doit pas réinjecter des CRUD locales.
+  const dir = join(tmpdir(), `legalos-webview-${id}-${marque}`);
   mkdirSync(dir, { recursive: true });
-  const configPath = join(tmpdir(), `legalos-j3-${id}.json`);
+  const configPath = join(tmpdir(), `legalos-j3-${id}-${marque}.json`);
   writeFileSync(
     configPath,
     JSON.stringify({
@@ -159,47 +175,84 @@ async function setField(send, id, value) {
   if (!ok) throw new Error(`champ ${id}`);
 }
 
+async function ecranAuth(send) {
+  // Priorité au formulaire d'instance : App peut monter JourneePreview + FirstLaunchFlow
+  // en parallèle (données locales sans jeton mémoire). cabinet-nom ne doit pas masquer login.
+  return String(
+    (await evaluate(
+      send,
+      `document.getElementById("instance-url")
+        ? "login"
+        : document.getElementById("email")
+          ? "creds"
+          : document.getElementById("code-totp")
+            ? "totp"
+            : document.getElementById("cabinet-nom")
+              ? "local"
+              : ""`,
+    )) ?? "",
+  );
+}
+
+async function attendreChamp(send, id, ms = 45_000) {
+  const debut = Date.now();
+  while (Date.now() - debut < ms) {
+    if (await evaluate(send, `Boolean(document.getElementById(${JSON.stringify(id)}))`)) {
+      return;
+    }
+    await sleep(200);
+  }
+  const texte = await evaluate(send, "document.body?.innerText ?? ''");
+  throw new Error(
+    `champ ${id} absent — ${String(texte).replace(/\s+/g, " ").slice(-240)}`,
+  );
+}
+
 async function login(send, nomAppareil) {
   const pret = Date.now();
-  while (Date.now() - pret < 20_000) {
-    const ecran = await evaluate(
-      send,
-      `document.getElementById("cabinet-nom") ? "local" : document.getElementById("instance-url") ? "login" : ""`,
-    );
+  let ecran = "";
+  while (Date.now() - pret < 60_000) {
+    ecran = await ecranAuth(send);
     if (ecran === "local") {
       await evaluate(
         send,
         `[...document.querySelectorAll("button")].find((b) => (b.innerText || "").includes("reconnecter"))?.click()`,
       );
-      const jusqua = Date.now() + 10_000;
+      const jusqua = Date.now() + 15_000;
       while (Date.now() < jusqua) {
-        if (await evaluate(send, `Boolean(document.getElementById("instance-url"))`)) break;
+        ecran = await ecranAuth(send);
+        if (ecran === "login" || ecran === "creds" || ecran === "totp") break;
         await sleep(200);
       }
-      if (!(await evaluate(send, `Boolean(document.getElementById("instance-url"))`))) {
+      if (ecran !== "login" && ecran !== "creds" && ecran !== "totp") {
         const flag = await evaluate(send, `Boolean(window.__legalosReconnect)`);
         throw new Error(`reconnect sans formulaire (handler ${flag ? "oui" : "non"})`);
       }
       break;
     }
-    if (ecran === "login") break;
+    if (ecran === "login" || ecran === "creds" || ecran === "totp") break;
     await sleep(200);
   }
-  await setField(send, "instance-url", instanceUrl);
-  await evaluate(
-    send,
-    `document.getElementById("instance-url")?.closest("form")?.requestSubmit()`,
-  );
-  const start = Date.now();
-  while (Date.now() - start < 30_000) {
-    if (await evaluate(send, `Boolean(document.getElementById("email"))`)) break;
-    await sleep(200);
+  if (!ecran) {
+    const texte = await evaluate(send, "document.body?.innerText ?? ''");
+    throw new Error(`écran auth absent — ${String(texte).replace(/\s+/g, " ").slice(-240)}`);
   }
-  await setField(send, "email", demoEmail);
-  await setField(send, "password", demoPassword);
-  await setField(send, "nom-appareil", nomAppareil);
-  await evaluate(send, `document.getElementById("email")?.closest("form")?.requestSubmit()`);
-  let totpSoumis = false;
+  if (ecran === "login") {
+    await attendreChamp(send, "instance-url");
+    await setField(send, "instance-url", instanceUrl);
+    await evaluate(
+      send,
+      `document.getElementById("instance-url")?.closest("form")?.requestSubmit()`,
+    );
+  }
+  if (ecran === "login" || ecran === "creds") {
+    await attendreChamp(send, "email", 45_000);
+    await setField(send, "email", demoEmail);
+    await setField(send, "password", demoPassword);
+    await setField(send, "nom-appareil", nomAppareil);
+    await evaluate(send, `document.getElementById("email")?.closest("form")?.requestSubmit()`);
+  }
+  let totpSoumis = ecran === "totp";
   const totpStart = Date.now();
   while (Date.now() - totpStart < 90_000) {
     if (!totpSoumis && (await evaluate(send, `Boolean(document.getElementById("code-totp"))`))) {
@@ -291,6 +344,8 @@ function compose(args) {
 
 const sante = await fetch(`${instanceUrl}/health`).catch(() => null);
 if (!sante?.ok) fail("instance injoignable");
+resetPostesLocaux();
+console.log("j3-poste: bases locales a/b réinitialisées");
 
 const posteA = startApp("a");
 try {
@@ -456,7 +511,32 @@ await attendreSql(
   "SELECT nom || '|' || slug FROM cabinets LIMIT 1",
   `${nomFusion}|${slugFusion}`,
 );
-console.log("j3-poste: OK — les deux champs survivent");
+// § 3.4.2 — fusion par champ : chaque écriture journalisée porte un seul champ modifié.
+const journalNomFusion = await sqlServeur(
+  `SELECT champ || '|' || COUNT(*)::text FROM journal_modifications
+   WHERE valeur_appliquee = '${nomFusion.replace(/'/g, "''")}'
+   GROUP BY champ`,
+);
+const journalSlugFusion = await sqlServeur(
+  `SELECT champ || '|' || COUNT(*)::text FROM journal_modifications
+   WHERE valeur_appliquee = '${slugFusion.replace(/'/g, "''")}'
+   GROUP BY champ`,
+);
+if (journalNomFusion !== "nom|1") {
+  fail(`écriture nom non atomique par champ (${journalNomFusion || "vide"})`);
+}
+if (journalSlugFusion !== "slug|1") {
+  fail(`écriture slug non atomique par champ (${journalSlugFusion || "vide"})`);
+}
+const croisementFusion = await sqlServeur(
+  `SELECT COUNT(*) FROM journal_modifications
+   WHERE (valeur_appliquee = '${nomFusion.replace(/'/g, "''")}' AND champ <> 'nom')
+      OR (valeur_appliquee = '${slugFusion.replace(/'/g, "''")}' AND champ <> 'slug')`,
+);
+if (Number(croisementFusion) !== 0) {
+  fail(`enregistrement remplacé en entier (croisements journal=${croisementFusion})`);
+}
+console.log("j3-poste: OK — les deux champs survivent (écritures par champ)");
 
 for (const id of ["a", "b"]) {
   const poste = startApp(id);
