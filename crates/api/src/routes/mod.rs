@@ -1,5 +1,7 @@
 pub mod auth;
 pub mod cabinets;
+pub mod collaborateurs;
+pub mod dossiers;
 pub mod health;
 
 use std::sync::Arc;
@@ -19,5 +21,11 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/auth/jwks", get(auth::jwks))
         .route("/cabinets/me", get(cabinets::cabinet_me))
         .route("/cabinets/{cabinet_id}", patch(cabinets::patch_cabinet))
+        .route("/dossiers", post(dossiers::creer_dossier))
+        .route(
+            "/dossiers/{dossier_id}/parties",
+            post(dossiers::creer_partie),
+        )
+        .route("/collaborateurs", post(collaborateurs::creer_collaborateur))
         .with_state(state)
 }

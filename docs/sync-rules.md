@@ -82,24 +82,7 @@ bucket_definitions:
 
 ### 4.3 `dossiers` (publics + restreints autorisés)
 
-```yaml
-  dossiers_visibles:
-    parameters:
-      - SELECT request.cabinet_id() AS cabinet_id
-      - SELECT request.user_id() AS user_id
-    data:
-      - SELECT d.id, d.cabinet_id, d.reference, d.title, d.chemise,
-               d.restricted, d.created_at, d.updated_at
-        FROM dossiers d
-        WHERE d.cabinet_id = bucket.cabinet_id
-          AND (
-            d.restricted = 0
-            OR EXISTS (
-              SELECT 1 FROM dossier_acces a
-              WHERE a.dossier_id = d.id AND a.user_id = bucket.user_id
-            )
-          )
-```
+PowerSync 1.26.1 n'accepte ni jointure ni sous-requête dans une requête de données, ni conversion dans une requête de paramètres. Le fichier déployé `instance/powersync/sync-rules.yaml` sépare donc deux seaux : les dossiers `visibilite = 'public'`, et les dossiers restreints dont l'identifiant figure dans `dossier_acces` pour `request.user_id()`.
 
 **Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, la requête ne retourne aucune ligne ; la table locale `dossiers` ne contient pas l’id.
 

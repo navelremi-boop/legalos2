@@ -5,6 +5,10 @@ use crate::routes::auth::{
     ConnexionRequest, ConnexionResponse, TotpVerifyRequest, TotpVerifyResponse,
 };
 use crate::routes::cabinets::{CabinetResponse, PatchCabinetRequest};
+use crate::routes::collaborateurs::{CollaborateurResponse, CreerCollaborateurRequest};
+use crate::routes::dossiers::{
+    CreerDossierRequest, CreerPartieRequest, DossierResponse, PartieResponse,
+};
 use crate::routes::health::HealthResponse;
 
 #[derive(OpenApi)]
@@ -21,6 +25,9 @@ use crate::routes::health::HealthResponse;
         crate::routes::auth::jwks,
         crate::routes::cabinets::cabinet_me,
         crate::routes::cabinets::patch_cabinet,
+        crate::routes::dossiers::creer_dossier,
+        crate::routes::dossiers::creer_partie,
+        crate::routes::collaborateurs::creer_collaborateur,
     ),
     components(schemas(
         HealthResponse,
@@ -30,6 +37,12 @@ use crate::routes::health::HealthResponse;
         TotpVerifyResponse,
         CabinetResponse,
         PatchCabinetRequest,
+        CreerDossierRequest,
+        DossierResponse,
+        CreerPartieRequest,
+        PartieResponse,
+        CreerCollaborateurRequest,
+        CollaborateurResponse,
         ApiErrorBody,
     )),
     modifiers(&SecurityAddon),

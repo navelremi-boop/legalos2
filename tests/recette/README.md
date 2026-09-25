@@ -9,6 +9,7 @@ Scénarios d'acceptation dérivés de `docs/ordre-operation.md` § 3.
 - **J3 (probe)** : `node tests/recette/j3-powersync-liveness.mjs` — après S1/S2, `/sync/probes/liveness` + `/sync/probes/readiness` avec JWT post-TOTP (Caddy).
 - **J3 (deux postes)** : `node tests/recette/j3-poste-tauri.mjs` — app Tauri réelle (WebView2), cinq critères du cahier § 3.4. `j3-sync-two-postes.mjs` est un ancien scénario Chromium ; ce n'est pas la preuve J3.
 - **J4** : `node tests/recette/j4-no-webdriver.mjs` — features par défaut sans WebDriver, jetons et woff2 embarqués. `--exe` contrôle le binaire release. Le bundle Windows se prouve avec `pnpm tauri build` depuis `apps/poste`.
+- **J5** : `node tests/recette/j5-poste-tauri.mjs` — création d'un dossier dans l'app Tauri, retrouvé par la palette (S3) ; le dossier restreint est absent du SQLite du collaborateur non autorisé (S5).
 - **S3+** : nécessitent Docker et binaires Rust (voir `BLOCAGES.md`).
 
 Les tests exécutables sont ajoutés par le **contrôleur** avant lecture de l'implémentation (ordre d'opération § 4.3).

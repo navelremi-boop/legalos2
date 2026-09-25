@@ -107,11 +107,25 @@ impl BackendConnector for CabinetConnector {
         let mut transactions = self.db.crud_transactions();
         while let Some(mut tx) = transactions.try_next().await? {
             let crud = std::mem::take(&mut tx.crud);
+            let mut cabinets = Vec::new();
+            let mut dossiers = Vec::new();
+            let mut parties = Vec::new();
             for entry in crud {
-                if entry.table != "cabinets" {
-                    return Err(upload_err("table hors périmètre J3"));
+                match entry.table.as_str() {
+                    "cabinets" => cabinets.push(entry),
+                    "dossiers" => dossiers.push(entry),
+                    "parties" => parties.push(entry),
+                    _ => return Err(upload_err("table hors périmètre")),
                 }
+            }
+            for entry in cabinets {
                 upload_cabinet(&self.session, &self.db, &entry.id, entry.data.as_ref()).await?;
+            }
+            for entry in dossiers {
+                upload_dossier(&self.session, &entry.id, entry.data.as_ref()).await?;
+            }
+            for entry in parties {
+                upload_partie(&self.session, &entry.id, entry.data.as_ref()).await?;
             }
             tx.complete().await?;
         }
@@ -166,6 +180,122 @@ async fn upload_cabinet(
         )));
     }
     Ok(())
+}
+
+#[derive(Serialize)]
+struct CreerDossierBody<'a> {
+    id: &'a str,
+    idempotence_cle: String,
+    nom: &'a str,
+    chemise: &'a str,
+    juridiction: &'a str,
+    numero_rg: &'a str,
+    restreint: bool,
+}
+
+#[derive(Serialize)]
+struct CreerPartieBody<'a> {
+    id: &'a str,
+    idempotence_cle: String,
+    role: &'a str,
+    nom: &'a str,
+}
+
+async fn upload_dossier(
+    session: &Arc<Mutex<SessionSync>>,
+    id: &str,
+    data: Option<&Map<String, Value>>,
+) -> Result<(), PowerSyncError> {
+    let Some(data) = data else {
+        return Ok(());
+    };
+    let Some(nom) = json_text(data.get("nom")) else {
+        return Ok(());
+    };
+    let Some(chemise) = json_text(data.get("chemise")) else {
+        return Err(upload_err("chemise absente"));
+    };
+    let Some(juridiction) = json_text(data.get("juridiction")) else {
+        return Err(upload_err("juridiction absente"));
+    };
+    let Some(numero_rg) = json_text(data.get("numero_rg")) else {
+        return Err(upload_err("numéro RG absent"));
+    };
+    let body = CreerDossierBody {
+        id,
+        idempotence_cle: format!("{id}:dossier"),
+        nom,
+        chemise,
+        juridiction,
+        numero_rg,
+        restreint: json_flag(data.get("restreint")),
+    };
+    envoyer(session, "/api/dossiers", &body).await
+}
+
+async fn upload_partie(
+    session: &Arc<Mutex<SessionSync>>,
+    id: &str,
+    data: Option<&Map<String, Value>>,
+) -> Result<(), PowerSyncError> {
+    let Some(data) = data else {
+        return Ok(());
+    };
+    let Some(dossier_id) = json_text(data.get("dossier_id")) else {
+        return Err(upload_err("dossier de la partie absent"));
+    };
+    let Some(role) = json_text(data.get("role")) else {
+        return Err(upload_err("rôle de partie absent"));
+    };
+    let Some(nom) = json_text(data.get("nom")) else {
+        return Err(upload_err("nom de partie absent"));
+    };
+    let body = CreerPartieBody {
+        id,
+        idempotence_cle: format!("{id}:partie"),
+        role,
+        nom,
+    };
+    envoyer(
+        session,
+        &format!("/api/dossiers/{dossier_id}/parties"),
+        &body,
+    )
+    .await
+}
+
+async fn envoyer(
+    session: &Arc<Mutex<SessionSync>>,
+    chemin: &str,
+    body: &impl Serialize,
+) -> Result<(), PowerSyncError> {
+    let (instance_url, token) = {
+        let session = session
+            .lock()
+            .map_err(|_| upload_err("session sync verrouillée"))?;
+        (session.instance_url.clone(), session.access_token.clone())
+    };
+    let url = format!("{}{chemin}", instance_url.trim_end_matches('/'));
+    let response = reqwest::Client::new()
+        .post(url)
+        .bearer_auth(token)
+        .json(body)
+        .send()
+        .await?;
+    if response.status() != StatusCode::OK {
+        let status = response.status();
+        let corps = response.text().await.unwrap_or_default();
+        return Err(upload_err(format!("upload rejeté ({status}) {corps}")));
+    }
+    Ok(())
+}
+
+fn json_flag(value: Option<&Value>) -> bool {
+    match value {
+        Some(Value::Bool(v)) => *v,
+        Some(Value::Number(n)) => n.as_i64().unwrap_or(0) != 0,
+        _ => false,
+    }
 }
 
 fn json_text(value: Option<&Value>) -> Option<&str> {

@@ -1,7 +1,17 @@
-# Règles de synchronisation V1 — enrichissement phase 1 (cloisonnement dossiers en phase 2).
+# Règles de synchronisation. Un dossier restreint n'est répliqué que via dossier_acces (S5).
 bucket_definitions:
   cabinet_global:
     data:
       - SELECT id, slug, nom, totp_obligatoire, cree_le::text AS cree_le, revision FROM cabinets
       # PowerSync 1.26.1 refuse CASE et ::int. La colonne booléenne est synchronisée telle quelle (0/1 côté SQLite).
       - SELECT id, cabinet_id, table_cible, enregistrement_id, champ, valeur_remplacee, valeur_appliquee, revision_base, revision_appliquee, conflit, cree_le::text AS cree_le FROM journal_modifications
+  dossiers_publics:
+    parameters: SELECT request.jwt() ->> 'cabinet_id' AS cabinet_id
+    data:
+      - SELECT id, cabinet_id, nom, chemise, juridiction, numero_rg, restreint, revision, cree_le::text AS cree_le FROM dossiers WHERE cabinet_id::text = bucket.cabinet_id AND visibilite = 'public'
+      - SELECT id, dossier_id, cabinet_id, role, nom, revision, cree_le::text AS cree_le FROM parties WHERE cabinet_id::text = bucket.cabinet_id AND visibilite = 'public'
+  dossiers_restreints:
+    parameters: SELECT dossier_texte AS dossier_id FROM dossier_acces WHERE utilisateur_texte = request.user_id()
+    data:
+      - SELECT id, cabinet_id, nom, chemise, juridiction, numero_rg, restreint, revision, cree_le::text AS cree_le FROM dossiers WHERE id::text = bucket.dossier_id
+      - SELECT id, dossier_id, cabinet_id, role, nom, revision, cree_le::text AS cree_le FROM parties WHERE dossier_id::text = bucket.dossier_id

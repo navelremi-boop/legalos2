@@ -55,14 +55,27 @@ const postes = new Table(
 const dossiers = new Table(
   {
     cabinet_id: column.text,
-    reference: column.text,
-    title: column.text,
+    nom: column.text,
     chemise: column.text,
-    restricted: column.integer,
-    created_at: column.text,
-    updated_at: column.text,
+    juridiction: column.text,
+    numero_rg: column.text,
+    restreint: column.integer,
+    revision: column.integer,
+    cree_le: column.text,
   },
-  { indexes: { cabinet: ["cabinet_id"] } },
+  { indexes: { cabinet: ["cabinet_id"], rg: ["numero_rg"] } },
+);
+
+const parties = new Table(
+  {
+    dossier_id: column.text,
+    cabinet_id: column.text,
+    role: column.text,
+    nom: column.text,
+    revision: column.integer,
+    cree_le: column.text,
+  },
+  { indexes: { dossier: ["dossier_id"] } },
 );
 
 export const AppSchema = new Schema({
@@ -71,6 +84,7 @@ export const AppSchema = new Schema({
   users,
   postes,
   dossiers,
+  parties,
 });
 
 export type Database = (typeof AppSchema)["types"];
@@ -78,3 +92,4 @@ export type CabinetRecord = Database["cabinets"];
 export type UserRecord = Database["users"];
 export type PosteRecord = Database["postes"];
 export type DossierRecord = Database["dossiers"];
+export type PartieRecord = Database["parties"];

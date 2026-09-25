@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { FormulaireDossier } from "@/dossiers/FormulaireDossier";
+import { PaletteCommandes } from "@/dossiers/PaletteCommandes";
 import { CHEMISE_IDS, type ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
 import { clearSession } from "@/lib/session/storage";
@@ -161,6 +163,10 @@ export function JourneePreview({
       </header>
 
       <main className="mx-auto max-w-5xl px-8 py-8">
+        <div className="mb-6">
+          <PaletteCommandes />
+        </div>
+        <FormulaireDossier />
         <form
           className="mb-6 rounded-[var(--radius-control)] border border-filet bg-feuille px-4 py-3"
           onSubmit={(event) => {

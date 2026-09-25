@@ -760,3 +760,9 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - Contrôleur [J4](be04e8b3-4a1b-4fcb-bf20-91eace0e3bcf) : **VALIDÉ** sur `7871c68`. `lint:ci` et `typecheck` exit 0. `node tests/recette/j4-no-webdriver.mjs --exe target/release/legal-os-poste.exe` : `j4: OK`. Binaire, MSI et NSIS présents. Jetons importés, woff2 dans `dist` et noms dans l'exe, CSP `font-src 'self'`. Mineurs : licence OFL non déposée à côté des woff2 ; feature `test-webdriver` vide. J4 coché. Prochain jalon : gate phase 1.
 - Contrôleur [gate phase 1](b29205bf-7a2b-4a83-9abd-c9d76809fb28) : **VALIDÉ**. Rejeu : `s1.mjs`, `s2.mjs`, `j3-powersync-liveness.mjs`, `j4-no-webdriver.mjs` (avec et sans `--exe`) exit 0. CI `7871c68` run [36163357952](https://github.com/navelremi-boop/legalos2/actions/runs/36163357952) et CI `d6ad5b7` run [36166067737](https://github.com/navelremi-boop/legalos2/actions/runs/36166067737) success. J3 Tauri non rejoué. Gate cochée. Prochain jalon : J5.
 
+## 2026-09-25 — J5, dossiers et droits
+
+- Tables `dossiers`, `parties`, `dossier_acces`. Création dans l'app (chemise, partie, juridiction, n° RG, case restreint) puis envoi à l'API. Palette : recherche par nom, n° RG, juridiction ou partie.
+- PowerSync 1.26.1 refuse les jointures et les conversions dans les paramètres. Les dossiers publics suivent `visibilite = 'public'`. Les dossiers restreints ne descendent que si `dossier_acces.utilisateur_texte` est l'utilisateur du jeton.
+- `node tests/recette/j5-poste-tauri.mjs` : exit 0. `OK — dossier retrouvé par la palette`. `OK — dossier restreint absent du SQLite de B`. J5 non coché : contrôleur encore requis.
+
