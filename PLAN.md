@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-25 (état-major — J3 VALIDÉ).
+Dernière mise à jour : 2026-09-25 (état-major — J4 VALIDÉ).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -41,8 +41,9 @@ Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénari
   - **Validation 2026-09-25** : contrôleur VALIDÉ sur `86e0856` (CI [36155397731](https://github.com/navelremi-boop/legalos2/actions/runs/36155397731)). `node tests/recette/j3-poste-tauri.mjs` exit 0, cinq critères § 3.4. Écart non bloquant : un `conflit` peut être journalisé sur une écriture séquentielle du même poste après reprise.
   - **Responsable** : état-major coordonne ; `poste-interface` + `instance-backend`
 
-- [ ] **J4** — Application Tauri : jetons, police, CI verte
+- [x] **J4** — Application Tauri : jetons, police, CI verte
   - **Critères** : `pnpm tauri build` (Windows) ; clippy/ts/eslint verts en CI ; pas de WebDriver en build release.
+  - **Validation 2026-09-25** : contrôleur VALIDÉ sur `7871c68` (CI [36163357952](https://github.com/navelremi-boop/legalos2/actions/runs/36163357952)). `pnpm tauri build` exit 0 (exe, MSI, NSIS). `j4-no-webdriver.mjs --exe` exit 0. Mineurs : pas de fichier OFL à côté des woff2 ; feature `test-webdriver` vide.
   - **Responsable** : `poste-interface`
 
 - [ ] **J1–J4** — **Gate phase 1** : contrôleur VALIDÉ avant tout jalon phase 2.

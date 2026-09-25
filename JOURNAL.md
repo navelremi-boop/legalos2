@@ -756,4 +756,6 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - `node tests/recette/j4-no-webdriver.mjs --exe target/release/legal-os-poste.exe` : `j4: OK` — aucune dépendance WebDriver, feature `test-webdriver` hors défaut, binaire sans `WebDriver` / `tauri-driver` / `msedgedriver`. Le même script est branché sur le job CI `rust`.
 - J4 non coché : validation contrôleur encore requise.
 - CI `498a02b` (run 36162593331) : job `rust` rouge. `auth_flow_totp_et_jwks` et `auth_connexion_echoue_mot_de_passe_invalide` amorcent la même ligne en parallèle ; le second `INSERT` heurte `utilisateurs_cabinet_email_unique` avant `ON CONFLICT (id)`. Amorçage sérialisé par `pg_advisory_lock`. Rejeu local `--test-threads=2` : 2 passed.
+- CI `7871c68` (run [36163357952](https://github.com/navelremi-boop/legalos2/actions/runs/36163357952)) : **verte**.
+- Contrôleur [J4](be04e8b3-4a1b-4fcb-bf20-91eace0e3bcf) : **VALIDÉ** sur `7871c68`. `lint:ci` et `typecheck` exit 0. `node tests/recette/j4-no-webdriver.mjs --exe target/release/legal-os-poste.exe` : `j4: OK`. Binaire, MSI et NSIS présents. Jetons importés, woff2 dans `dist` et noms dans l'exe, CSP `font-src 'self'`. Mineurs : licence OFL non déposée à côté des woff2 ; feature `test-webdriver` vide. J4 coché. Prochain jalon : gate phase 1.
 
