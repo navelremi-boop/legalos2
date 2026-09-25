@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DEFAULT_INSTANCE_URL } from "@/lib/auth/client";
 import {
   isOnboardingComplete,
@@ -28,18 +28,19 @@ function App() {
     () => localStorage.getItem(STORAGE_SYNC_DONE) === "1",
   );
   const [localReady, setLocalReady] = useState(false);
+  const resterLocal = useRef(true);
 
   useEffect(() => {
     let stop = false;
     void (async () => {
       const has = await invoke<boolean>("keyring_has_refresh").catch(() => false);
-      if (!has || stop) return;
+      if (!has || stop || !resterLocal.current) return;
       const database = await getPowerSyncDatabase();
       const rows = await database.getAll<{ id: string }>(
         "SELECT id FROM cabinets WHERE id = ? LIMIT 1",
         [DEMO_CABINET_ID],
       );
-      if (!stop && rows.length > 0) setLocalReady(true);
+      if (!stop && resterLocal.current && rows.length > 0) setLocalReady(true);
     })();
     return () => {
       stop = true;
@@ -85,6 +86,7 @@ function App() {
       <JourneePreview
         instanceUrl={instanceUrl}
         onReconnect={() => {
+          resterLocal.current = false;
           setLocalReady(false);
         }}
       />

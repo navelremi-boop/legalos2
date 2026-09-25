@@ -741,5 +741,6 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 
 - Deux processus sur le même poste : `LEGALOS_POSTE_ID` isole le fichier SQLite et le compte du trousseau. L'écran journée édite le nom et le slug du cabinet dans la base locale.
 - Cause : le client joint `sync/stream` sur l'endpoint. Sans barre finale, l'URL est `/sync/stream`, Caddy la réduit en `/stream` (404). Avec `/sync/`, Caddy transmet `/sync/stream` (401 sans jeton, chemin valide). Après correction, `j3-poste-tauri.mjs` affiche `A synchronisé` et `modification conservée après redémarrage hors ligne`.
-- L'envoi n'a pas suivi : la file `ps_crud` garde le PATCH, aucun `PATCH /api/cabinets` dans les journaux de l'API. L'acteur d'envoi ne réagit qu'aux écritures postérieures à la connexion. Une mise à jour de `ps_crud` tente de le réveiller. Le poste B voit encore le nom d'origine. J3 non coché.
+- L'envoi n'a pas suivi tant que la file était antérieure à la connexion. Au retour, une écriture locale sur `cabinets` réveille l'acteur. `node tests/recette/j3-poste-tauri.mjs` : exit 0. `A synchronisé`, `modification conservée après redémarrage hors ligne` (services `api` et `powersync` arrêtés), puis `OK — modification hors ligne visible sur B`.
+- Critères 2 à 4 (fusion de deux champs, conflit signalé, ni perte ni doublon pendant l'envoi) pas encore prouvés. J3 non coché.
 

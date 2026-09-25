@@ -34,12 +34,9 @@ export async function runInitialSync(
   });
   // L'acteur d'envoi n'écoute que les écritures postérieures à la connexion.
   // Une mise à jour de la file déjà présente le réveille.
-  try {
-    await database.execute(
-      "UPDATE ps_crud SET tx_id = tx_id WHERE id = (SELECT MIN(id) FROM ps_crud)",
-    );
-  } catch {
-    // Base encore vide : rien à relancer.
+  const enFile = await database.getAll<{ n: number }>("SELECT COUNT(*) AS n FROM ps_crud");
+  if ((enFile[0]?.n ?? 0) > 0) {
+    await database.execute("UPDATE cabinets SET nom = nom WHERE id = ?", [DEMO_CABINET_ID]);
   }
 
   onProgress({

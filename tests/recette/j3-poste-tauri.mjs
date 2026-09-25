@@ -181,7 +181,12 @@ async function login(send, nomAppareil) {
   await evaluate(send, `document.querySelector("form")?.requestSubmit()`);
   const totpStart = Date.now();
   while (Date.now() - totpStart < 40_000) {
-    if (await evaluate(send, `Boolean(document.getElementById("code-totp"))`)) break;
+    const ecran = await evaluate(
+      send,
+      `document.getElementById("code-totp") ? "totp" : (document.body?.innerText ?? "").includes("La journée") ? "jour" : ""`,
+    );
+    if (ecran === "jour") return;
+    if (ecran === "totp") break;
     await sleep(250);
   }
   if (!(await evaluate(send, `Boolean(document.getElementById("code-totp"))`))) {
@@ -277,7 +282,42 @@ try {
   const pageA = await connectCdp(posteA3.port);
   await login(pageA.send, "Poste recette A");
   pageA.ws.close();
+  const ecrit = Date.now();
+  let nomServeur = "";
+  while (Date.now() - ecrit < 60_000) {
+    nomServeur = await new Promise((resolve) => {
+      const child = spawn(
+        "docker",
+        [
+          "compose",
+          "-f",
+          "instance/docker-compose.yml",
+          "--env-file",
+          ".env",
+          "exec",
+          "-T",
+          "postgres",
+          "psql",
+          "-U",
+          "legalos",
+          "-d",
+          "legalos",
+          "-tAc",
+          "SELECT nom FROM cabinets LIMIT 1",
+        ],
+        { cwd: root, stdio: ["ignore", "pipe", "ignore"] },
+      );
+      let out = "";
+      child.stdout.on("data", (chunk) => {
+        out += chunk.toString();
+      });
+      child.on("exit", () => resolve(out.trim()));
+    });
+    if (nomServeur === nomHorsLigne) break;
+    await sleep(500);
+  }
   await stopApp(posteA3);
+  if (nomServeur !== nomHorsLigne) fail(`l'API n'a pas enregistré le nom (${nomServeur || "vide"})`);
 } catch (err) {
   console.error(posteA3.logTail());
   await stopApp(posteA3);
