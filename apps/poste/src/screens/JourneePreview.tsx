@@ -166,8 +166,10 @@ export function JourneePreview({
           onSubmit={(event) => {
             event.preventDefault();
             const formulaire = new FormData(event.currentTarget);
-            const nomSaisi = String(formulaire.get("nom") ?? nom);
-            const slugSaisi = String(formulaire.get("slug") ?? slug);
+            const nomBrut = formulaire.get("nom");
+            const slugBrut = formulaire.get("slug");
+            const nomSaisi = typeof nomBrut === "string" ? nomBrut : nom;
+            const slugSaisi = typeof slugBrut === "string" ? slugBrut : slug;
             const colonnes: string[] = [];
             const valeurs: string[] = [];
             if (nomSaisi !== baseNom) {

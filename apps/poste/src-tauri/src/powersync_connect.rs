@@ -72,9 +72,9 @@ pub async fn connect_powersync<R: Runtime>(
         }))
         .await;
     if let Ok(reader) = database.reader().await {
-        if let Ok(n) =
-            reader.query_row("SELECT COUNT(*) FROM ps_crud", [], |row| row.get::<_, i64>(0))
-        {
+        if let Ok(n) = reader.query_row("SELECT COUNT(*) FROM ps_crud", [], |row| {
+            row.get::<_, i64>(0)
+        }) {
             eprintln!("file crud: {n}");
         }
     }
@@ -161,7 +161,9 @@ async fn upload_cabinet(
     if response.status() != StatusCode::OK {
         let status = response.status();
         let corps = response.text().await.unwrap_or_default();
-        return Err(upload_err(format!("upload cabinet rejeté ({status}) {corps}")));
+        return Err(upload_err(format!(
+            "upload cabinet rejeté ({status}) {corps}"
+        )));
     }
     Ok(())
 }

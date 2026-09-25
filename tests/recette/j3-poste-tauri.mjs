@@ -507,6 +507,23 @@ const conflitsApres = Number(
   ),
 );
 if (conflitsApres < conflitsAvant + 1) fail(`conflit non journalisé (${conflitsAvant} → ${conflitsApres})`);
+// B synchronise après A → dernière écriture = nomConflitB ; la valeur remplacée doit être journalisée.
+await attendreSql("SELECT nom FROM cabinets LIMIT 1", nomConflitB);
+const journalConflit = await sqlServeur(
+  `SELECT valeur_remplacee || '|' || valeur_appliquee || '|' || revision_base::text
+   FROM journal_modifications
+   WHERE champ = 'nom' AND conflit
+   ORDER BY revision_appliquee DESC
+   LIMIT 1`,
+);
+const attenduJournal = `${nomConflitA}|${nomConflitB}|`;
+if (!journalConflit.startsWith(attenduJournal)) {
+  fail(`journal conflit inattendu (${journalConflit || "vide"})`);
+}
+const revisionBase = Number(journalConflit.slice(attenduJournal.length));
+if (!Number.isFinite(revisionBase) || revisionBase < 1) {
+  fail(`revision_base absente ou invalide (${journalConflit})`);
+}
 const posteConflit = startApp("a");
 try {
   await waitCdp(posteConflit);
@@ -545,21 +562,22 @@ try {
   await waitCdp(reprise);
   const page = await connectCdp(reprise.port);
   await login(page.send, "Poste coupure");
+  // Coupure réelle pendant l'envoi : API figée, nouvelle écriture distincte, puis reprise.
+  const slugPendant = `${slugCoupure}x`;
   await compose(["pause", "api"]);
-  await editer(page.send, "cabinet-slug", slugCoupure);
+  await editer(page.send, "cabinet-slug", slugPendant);
   await sleep(1500);
   await compose(["unpause", "api"]);
   page.ws.close();
+  await attendreSql("SELECT slug FROM cabinets LIMIT 1", slugPendant);
+  const apres = await sqlServeur(
+    `SELECT COUNT(*) FROM journal_modifications WHERE champ = 'slug' AND valeur_appliquee IN ('${slugCoupure}', '${slugPendant}')`,
+  );
+  if (Number(apres) !== Number(avant) + 2) {
+    fail(`doublon ou perte à l'envoi (${avant} → ${apres}, attendu ${Number(avant) + 2})`);
+  }
 } finally {
   await compose(["unpause", "api"]).catch(() => undefined);
   await stopApp(reprise);
 }
-await attendreSql(
-  "SELECT slug FROM cabinets LIMIT 1",
-  slugCoupure,
-);
-const apres = await sqlServeur(
-  `SELECT COUNT(*) FROM journal_modifications WHERE champ = 'slug' AND valeur_appliquee = '${slugCoupure}'`,
-);
-if (apres !== String(Number(avant) + 1)) fail(`doublon ou perte à l'envoi (${avant} → ${apres})`);
 console.log("j3-poste: OK — coupure pendant l'envoi, une seule écriture");
