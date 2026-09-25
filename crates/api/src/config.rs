@@ -36,10 +36,10 @@ impl Config {
         let jwt_audience =
             std::env::var("JWT_AUDIENCE").unwrap_or_else(|_| "legalos-powersync".into());
 
-        let totp_cipher_key = decode_cipher_key(
-            &std::env::var("SECRETS_CHIFFREMENT_KEY")
-                .map_err(|_| anyhow::anyhow!("SECRETS_CHIFFREMENT_KEY est requis"))?,
-        )?;
+        let cipher_raw = std::env::var("SECRETS_CHIFFREMENT_KEY")
+            .map_err(|_| anyhow::anyhow!("SECRETS_CHIFFREMENT_KEY est requis"))?;
+        refuser_cle_connue_hors_developpement(cipher_raw.trim())?;
+        let totp_cipher_key = decode_cipher_key(&cipher_raw)?;
 
         let access_token_ttl_secs = parse_u64_env("JWT_ACCESS_TTL_SECS", 900);
         let session_token_ttl_secs = parse_u64_env("JWT_SESSION_TTL_SECS", 600);
@@ -66,6 +66,27 @@ fn parse_u64_env(name: &str, default: u64) -> u64 {
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(default)
+}
+
+/// Valeurs publiées (`.env.example`, recette). Interdites dès que `LEGALOS_MODE` n'est pas `development`.
+pub const CLES_CHIFFREMENT_CONNUES: &[&str] = &["legalos_demo_chiffrement_32oct!!"];
+
+pub fn mode_developpement() -> bool {
+    std::env::var("LEGALOS_MODE")
+        .ok()
+        .is_some_and(|v| v == "development")
+}
+
+pub fn refuser_cle_connue_hors_developpement(raw: &str) -> anyhow::Result<()> {
+    if mode_developpement() {
+        return Ok(());
+    }
+    if CLES_CHIFFREMENT_CONNUES.contains(&raw.trim()) {
+        anyhow::bail!(
+            "SECRETS_CHIFFREMENT_KEY est une valeur de démonstration connue ; démarrage refusé hors LEGALOS_MODE=development"
+        );
+    }
+    Ok(())
 }
 
 fn decode_cipher_key(raw: &str) -> anyhow::Result<[u8; 32]> {

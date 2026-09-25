@@ -39,6 +39,21 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo xtask check-contracts
+      - name: Postgres pour cargo test
+        run: docker run -d --name legalos-test-pg -e POSTGRES_PASSWORD=legalos -e POSTGRES_USER=legalos -e POSTGRES_DB=legalos -p 5432:5432 postgres:16.8-bookworm
+      - name: Attendre Postgres
+        run: |
+          for i in $(seq 1 30); do
+            docker exec legalos-test-pg pg_isready -U legalos && exit 0
+            sleep 2
+          done
+          exit 1
+      - name: Tests workspace
+        run: cargo test --workspace
+        env:
+          DATABASE_URL: postgres://legalos:legalos@127.0.0.1:5432/legalos
+          LEGALOS_MODE: development
+          SECRETS_CHIFFREMENT_KEY: legalos_demo_chiffrement_32oct!!
       - name: SDK PowerSync Tauri (crate hors workspace sqlx)
         run: |
           sudo apt-get update
@@ -58,7 +73,7 @@ jobs:
           node-version: "20"
       - name: Prepare .env for compose
         run: cp .env.example .env
-      - name: Parité migration démo J2 (004 / TOTP chiffré)
+      - name: Migrations sans compte de démonstration
         run: node tests/recette/j2-demo-migration-parity.mjs
       - name: Contrat onboarding J2 (sans sync simulée dans FirstLaunchFlow)
         run: node tests/recette/j2-onboarding-scope.mjs
@@ -80,7 +95,7 @@ jobs:
       - name: Tests intégration auth (Postgres compose)
         run: cargo test -p legalos-api --test auth_integration -- --nocapture
 
-  macos-smoke:
+  macos-placeholder:
     runs-on: macos-latest
     needs: [frontend, rust, s1-instance]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -95,6 +110,5 @@ jobs:
           cache: pnpm
       - uses: dtolnay/rust-toolchain@stable
       - run: pnpm install --frozen-lockfile
-      - name: Tauri build (S14b placeholder)
-        run: |
-          echo "S14b: build macOS ad hoc — à compléter jalon J16 (icônes, signingIdentity -)"
+      - name: Présence du dépôt (pas un build, pas un lancement, pas une preuve S14b)
+        run: echo "Ce job ne construit pas et ne lance pas l'application."

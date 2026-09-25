@@ -28,7 +28,8 @@ Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénari
   - **Critères** : `cargo xtask recette --scenario s1` (ou `docker compose -f instance/docker-compose.yml ps` + healthchecks HTTP documentés) ; Caddy, API, Postgres, PowerSync, Garage, GreenMail, simulateur PA verts.
   - **Responsable** : `instance-backend`
 
-- [x] **J2** — Auth API, 2FA, premier lancement poste (connexion instance)
+- [ ] **J2** — Auth API, 2FA, premier lancement poste (connexion instance)
+  - **Décision 2026-09-25** : décoché. Validé après redécoupage à la suite d’un refus (§ 4.5) ; le parcours n’a jamais été exécuté dans l’app Tauri. Il repasse devant le contrôleur après la bascule de SDK.
   - **Périmètre** : authentification HTTP (connexion + TOTP + JWKS) et parcours poste **instance → identifiants → TOTP → session enregistrée**. Le scénario produit **S2** complet (ordre d’opération § 3, sync initiale) s’achève au **J3**.
   - **Critères** : `auth_integration` (Postgres réel) ; `tests/recette/s2.mjs` + `j2-demo-migration-parity.mjs` ; OpenAPI auth ; JWT `aud` / JWKS alignés PowerSync (`client_auth` instance) ; UI onboarding sans simulation de téléchargement de données.
   - **Hors périmètre J2** : synchronisation PowerSync bout en bout, probe service `/sync` avec jeton (J3).

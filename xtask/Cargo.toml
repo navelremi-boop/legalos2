@@ -9,5 +9,11 @@ publish = false
 workspace = true
 
 [dependencies]
-anyhow = "1.0.98"
+anyhow = { workspace = true }
 clap = { version = "4.5.37", features = ["derive"] }
+legalos-api = { path = "../crates/api" }
+sqlx = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+totp-rs = { workspace = true }
+uuid = { workspace = true }
+rand = { workspace = true }

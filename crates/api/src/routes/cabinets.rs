@@ -121,25 +121,26 @@ pub async fn patch_cabinet(
     }
 
     let mut revision = courant.0;
+    let contexte = ContexteChamp {
+        cabinet_id,
+        poste_id: claims.poste_id,
+        base_revision: body.base_revision,
+    };
     appliquer_champ(
         &mut tx,
-        cabinet_id,
-        claims.poste_id,
+        &contexte,
         "nom",
         nom.as_deref(),
         &courant.1,
-        body.base_revision,
         &mut revision,
     )
     .await?;
     appliquer_champ(
         &mut tx,
-        cabinet_id,
-        claims.poste_id,
+        &contexte,
         "slug",
         slug.as_deref(),
         &courant.2,
-        body.base_revision,
         &mut revision,
     )
     .await?;
@@ -174,14 +175,18 @@ fn champ_optionnel(valeur: Option<String>) -> Result<Option<String>, ApiError> {
     Ok(Some(valeur))
 }
 
-async fn appliquer_champ(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+struct ContexteChamp {
     cabinet_id: Uuid,
     poste_id: Uuid,
+    base_revision: i64,
+}
+
+async fn appliquer_champ(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    contexte: &ContexteChamp,
     champ: &str,
     nouvelle: Option<&str>,
     actuelle: &str,
-    base_revision: i64,
     revision: &mut i64,
 ) -> Result<(), ApiError> {
     let Some(nouvelle) = nouvelle else {
@@ -195,9 +200,9 @@ async fn appliquer_champ(
         )
         "#,
     )
-    .bind(cabinet_id)
+    .bind(contexte.cabinet_id)
     .bind(champ)
-    .bind(base_revision)
+    .bind(contexte.base_revision)
     .fetch_one(
         tx.acquire()
             .await
@@ -214,7 +219,7 @@ async fn appliquer_champ(
     let sql = format!("UPDATE cabinets SET {colonne} = $1 WHERE id = $2");
     sqlx::query(&sql)
         .bind(nouvelle)
-        .bind(cabinet_id)
+        .bind(contexte.cabinet_id)
         .execute(
             tx.acquire()
                 .await
@@ -235,13 +240,13 @@ async fn appliquer_champ(
         "#,
     )
     .bind(Uuid::now_v7())
-    .bind(cabinet_id)
+    .bind(contexte.cabinet_id)
     .bind(champ)
     .bind(actuelle)
     .bind(nouvelle)
-    .bind(base_revision)
+    .bind(contexte.base_revision)
     .bind(*revision)
-    .bind(poste_id)
+    .bind(contexte.poste_id)
     .bind(conflit)
     .execute(
         tx.acquire()

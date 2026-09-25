@@ -677,3 +677,25 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - **Serveur** : migration `006` — `cabinets.revision`, `journal_modifications`, `upload_idempotence`. `PATCH` n’applique que les champs présents, détecte un conflit de champ si une écriture plus récente que `base_revision` existe, conserve la valeur remplacée, dernière écriture gagnante. Rejeu de la même clé : aucun second effet.
 - **Pas encore prouvé** : compilation du crate Tauri, scénario J3 sur l’app réelle, coupure réseau réelle. J3 reste non coché.
 
+## 2026-09-25 — Décisions du commandement (ordre d’exécution)
+
+1. **Sécurité, exception unique** : aucune instance réelle n’existe. Les migrations `004`, `005` et suivantes ne portent plus de données de démonstration. Les bases de développement sont réinitialisées. La démo ne se charge que par `cargo xtask demo`, qui refuse hors `LEGALOS_MODE=development`. Une instance neuve (migrations seules) ne contient aucun compte. Hors développement, l’API refuse de démarrer si `SECRETS_CHIFFREMENT_KEY` est une valeur connue (`.env.example` / démo). `cargo xtask install` crée le premier administrateur (mot de passe et secret TOTP aléatoires) — non prévu au cahier, consigné dans `docs/hypotheses-installation.md`. Après cette remise à plat, une migration fusionnée ne se modifie plus.
+2. **J2 décoché** : validé après redécoupage à la suite d’un refus (§ 4.5) et parcours jamais exécuté dans l’app. Il repasse devant le contrôleur sur l’app Tauri après la bascule de SDK.
+3. **Jetons** : rafraîchissement dans le trousseau (`keyring`) ; accès en mémoire seulement, plus dans le stockage du navigateur.
+4. **Fins de ligne** : `.editorconfig` (`end_of_line = lf`), `.vscode/settings.json` (`files.eol`), puis `git add --renormalize .`.
+5. **jsonwebtoken** : version actuelle, fournisseur cryptographique explicite dans `docs/versions.md`.
+6. **CI** : `cargo test --workspace` à chaque push. Le job macOS ne construit ni ne lance l’app : il n’est pas une preuve de S14b et est renommé en conséquence.
+7. **Poste** : identité Git locale ; chaîne Rust MSVC ; MinGW retiré du PATH.
+8. **4551** : Smart App Control, traité par le commandement. La bascule SDK Tauri se prépare ; rien n’est validé sur l’app tant qu’elle n’a pas été compilée et lancée sous Windows.
+
+### Exécution (2026-09-25)
+
+- Migrations `004` et `005` vidées de leurs données. Test `migrations_sans_compte` et contrôle statique `j2-demo-migration-parity.mjs`. `cargo xtask demo` refuse hors `LEGALOS_MODE=development`. `cargo xtask install` crée le premier administrateur. L’API refuse une clé connue hors développement.
+- **Bases de développement** : `docker compose down -v` impossible — démon Docker arrêté (`dockerDesktopLinuxEngine` introuvable). À relancer quand Docker est ouvert.
+- J2 décoché dans `PLAN.md`.
+- Trousseau : commandes `keyring_store_refresh` / `keyring_clear_refresh` ; le jeton d’accès n’est plus écrit dans `localStorage`.
+- jsonwebtoken **11.1.0**, features `rust_crypto` et `use_pem`, `default-features = false`.
+- CI : `cargo test --workspace` sur Postgres éphémère ; job renommé `macos-placeholder` (pas une preuve S14b).
+- Git local : `navelremi-boop`. Rust : `stable-x86_64-pc-windows-msvc` (déjà la chaîne active via `rust-toolchain.toml`). MinGW absent du PATH utilisateur, machine et session.
+- **Non validé** : l’app Tauri n’a pas été compilée ni lancée sous Windows (libclang absent pour `powersync_sqlite_nostd`, et consigne du point 8).
+

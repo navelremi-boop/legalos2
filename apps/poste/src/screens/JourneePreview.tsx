@@ -86,8 +86,9 @@ export function JourneePreview({ instanceUrl, onResetSession }: JourneePreviewPr
               type="button"
               className="rounded-[var(--radius-control)] border border-filet bg-feuille px-3 py-2 text-[length:var(--font-size-dense)] text-graphite hover:border-graphite"
               onClick={() => {
-                clearSession();
-                onResetSession();
+                void clearSession().then(() => {
+                  onResetSession();
+                });
               }}
             >
               {fr("Se déconnecter (test)")}

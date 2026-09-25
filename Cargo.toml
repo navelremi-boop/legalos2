@@ -32,7 +32,7 @@ time = { version = "0.3.41", features = ["serde", "formatting", "parsing"] }
 uuid = { version = "1.16.0", features = ["serde", "v4", "v7"] }
 argon2 = { version = "0.6.0", features = ["password-hash", "rand_core"] }
 password-hash = "0.6.1"
-jsonwebtoken = { version = "9.3.1", features = ["use_pem"] }
+jsonwebtoken = { version = "11.1.0", default-features = false, features = ["rust_crypto", "use_pem"] }
 totp-rs = { version = "6.0.0", features = ["std", "otpauth"] }
 aes-gcm = "0.10.3"
 base64 = "0.22.1"
@@ -44,7 +44,7 @@ tokio = { version = "1.44.2", features = ["macros", "rt-multi-thread", "signal"]
 axum = "0.8.9"
 tower = "0.5.2"
 tower-http = { version = "0.6.2", features = ["trace", "cors"] }
-sqlx = { version = "0.8.5", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "time", "migrate"] }
+sqlx = { version = "0.8.5", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "time", "migrate", "macros"] }
 utoipa = { version = "5.3.1", features = ["axum_extras", "uuid", "time"] }
 utoipa-swagger-ui = { version = "9.0.1", features = ["axum"] }
 anyhow = "1.0.98"

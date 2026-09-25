@@ -42,8 +42,9 @@ export function FirstLaunchFlow({ initialInstanceUrl, onComplete }: FirstLaunchF
   const finishWithTokens = useCallback(
     (accessToken: string, refreshToken: string, url: string) => {
       saveInstanceUrl(url);
-      saveSessionTokens(accessToken, refreshToken);
-      onComplete({ instanceUrl: url });
+      void saveSessionTokens(accessToken, refreshToken).then(() => {
+        onComplete({ instanceUrl: url });
+      });
     },
     [onComplete],
   );

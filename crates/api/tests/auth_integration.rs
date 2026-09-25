@@ -25,6 +25,7 @@ fn ensure_test_env() {
             "SECRETS_CHIFFREMENT_KEY",
             "legalos_demo_chiffrement_32oct!!",
         );
+        std::env::set_var("LEGALOS_MODE", "development");
     });
 }
 
@@ -41,6 +42,10 @@ async fn test_app() -> axum::Router {
     let pool = legalos_api::db::connect_pool(&config.database_url)
         .await
         .expect("connexion Postgres");
+    legalos_api::db::appliquer_migrations(&pool)
+        .await
+        .expect("migrations");
+    seed_compte_recette(&pool).await;
     let state = build_app_state(&config, pool).await.expect("AppState");
     build_router(state)
 }
@@ -53,6 +58,43 @@ async fn json_body(response: axum::response::Response) -> serde_json::Value {
         .expect("body")
         .to_bytes();
     serde_json::from_slice(&bytes).expect("json")
+}
+
+async fn seed_compte_recette(pool: &sqlx::PgPool) {
+    let hash = legalos_api::auth::password::hash_password(DEMO_PASSWORD).expect("hash");
+    let totp = legalos_api::auth::totp::chiffrer_secret_totp(
+        DEMO_TOTP_SECRET_BASE32.as_bytes(),
+        b"legalos_demo_chiffrement_32oct!!",
+    )
+    .expect("totp");
+    sqlx::query(
+        r#"
+        INSERT INTO cabinets (id, slug, nom, totp_obligatoire)
+        VALUES ($1, 'demo-fictif', 'Cabinet fictif LEGAL OS', TRUE)
+        ON CONFLICT (id) DO NOTHING
+        "#,
+    )
+    .bind(support::demo_seed::DEMO_CABINET_ID)
+    .execute(pool)
+    .await
+    .expect("cabinet recette");
+    sqlx::query(
+        r#"
+        INSERT INTO utilisateurs (id, cabinet_id, email, password_hash, totp_secret_chiffre, actif)
+        VALUES ($1, $2, $3, $4, $5, TRUE)
+        ON CONFLICT (id) DO UPDATE SET
+            password_hash = EXCLUDED.password_hash,
+            totp_secret_chiffre = EXCLUDED.totp_secret_chiffre
+        "#,
+    )
+    .bind(support::demo_seed::DEMO_USER_ID)
+    .bind(support::demo_seed::DEMO_CABINET_ID)
+    .bind(DEMO_EMAIL)
+    .bind(hash)
+    .bind(totp)
+    .execute(pool)
+    .await
+    .expect("utilisateur recette");
 }
 
 fn demo_totp_code() -> String {
