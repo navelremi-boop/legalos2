@@ -730,5 +730,6 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - `node tests/recette/j2-poste-tauri.mjs` : exit 0. Parcours instance → identifiants → TOTP dans l'app Tauri (WebView2, port de débogage). `j2-poste: session enregistrée dans l'app`. Après `taskkill` et second lancement : `j2-poste: OK — jeton présent après fermeture et redémarrage`. Aucun secret journalisé.
 - `node tests/recette/j2-demo-migration-parity.mjs` : `migrations-sans-compte: OK`.
 - J2 reste décoché : validation contrôleur encore requise (§ 4.4).
-- Contrôleur [J2](2f33de17-193c-4679-9d8e-377a21397793) : **REFUSÉ** sur `00725fc`. Preuves locales J2 OK. Bloquant : CI rouge, `cargo fmt --check` sur `trousseau.rs` (run 36126399009), job `s1-instance` sauté. Correctif : `cargo fmt` du crate poste. Test d'acceptation ajouté par le contrôleur : `tests/recette/j2-openapi-powersync-auth.mjs`.
+- Contrôleur [J2](2f33de17-193c-4679-9d8e-377a21397793) : **REFUSÉ** sur `00725fc`. Preuves locales J2 OK. Bloquant : CI rouge, `cargo fmt --check` sur `trousseau.rs` (run 36126399009), job `s1-instance` sauté. Correctif : `cargo fmt` du crate poste (`1fb7cec`). Test d'acceptation ajouté par le contrôleur : `tests/recette/j2-openapi-powersync-auth.mjs`.
+- CI `1fb7cec` encore rouge : `cargo check` du poste sur Ubuntu échoue, `glib-2.0` absent (`glib-sys`). Le job installe maintenant les dépendances Tauri Linux (webkit2gtk 4.1, gtk, appindicator, rsvg). J2 toujours décoché.
 
