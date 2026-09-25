@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-25 (état-major — J6 VALIDÉ).
+Dernière mise à jour : 2026-09-25 (état-major — J7 VALIDÉ).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -57,7 +57,8 @@ Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénari
   - **Validation 2026-09-25** : contrôleur VALIDÉ sur `340ac42` (CI [36172577399](https://github.com/navelremi-boop/legalos2/actions/runs/36172577399)). `j5-poste-tauri.mjs` exit 0 : palette et absence du dossier restreint dans le SQLite du collaborateur.
 - [x] **J6** — Agenda et délais (S8, `docs/hypotheses-delais.md`)
   - **Validation 2026-09-25** : contrôleur VALIDÉ sur `bf3bfe3` (CI [36179592258](https://github.com/navelremi-boop/legalos2/actions/runs/36179592258)). `s8-delais.mjs` exit 0. Règles H1–H8 marquées « à valider par l'avocat ». Agenda complet hors périmètre.
-- [ ] **J7** — Documents et versions (S6)
+- [x] **J7** — Documents et versions (S6)
+  - **Validation 2026-09-25** : contrôleur VALIDÉ sur `2eb7266` (CI [36183981852](https://github.com/navelremi-boop/legalos2/actions/runs/36183981852)). `s6-documents.mjs` exit 0 sur Garage. Écarts consignés : métadonnées pas encore dans les règles PowerSync ; un second dépôt du même id peut réécrire l'objet v1.
 - [ ] **J8** — Temps et facturation électronique (S9)
 - [ ] **J9** — Mail étapes 1–3 (S7 partiel)
 - [ ] **J10** — Écrans clés conformes au prototype (base)

@@ -778,5 +778,7 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 ## 2026-09-25 — J7, documents
 
 - Métadonnées `documents` et `document_versions` dans Postgres. Contenu dans Garage via OpenDAL 0.59.3 : lien de dépôt signé, puis scellement qui relit l'objet et vérifie l'empreinte. Une modification crée la version suivante sans remplacer la précédente.
-- `node tests/recette/s6-documents.mjs` : `document déposé et ouvert` puis `OK — nouvelle version renvoyée, version précédente conservée`. J7 non coché : contrôleur encore requis.
+- `node tests/recette/s6-documents.mjs` : `document déposé et ouvert` puis `OK — nouvelle version renvoyée, version précédente conservée`.
+- CI `2eb7266` (run [36183981852](https://github.com/navelremi-boop/legalos2/actions/runs/36183981852)) : **verte**.
+- Contrôleur [J7](6acf8035-815d-47c6-9e4d-2854c328ac4c) : **VALIDÉ** sur `2eb7266`. Recette rejouée exit 0. Clés `v1` et `v2` distinctes, contenus conservés sur Garage. Écarts majeurs non bloquants : métadonnées absentes des règles PowerSync ; un second `POST /documents` du même id peut réémettre un dépôt sur la clé v1. J7 coché. Prochain jalon : J8.
 
