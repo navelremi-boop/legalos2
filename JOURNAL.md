@@ -764,5 +764,7 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 
 - Tables `dossiers`, `parties`, `dossier_acces`. Création dans l'app (chemise, partie, juridiction, n° RG, case restreint) puis envoi à l'API. Palette : recherche par nom, n° RG, juridiction ou partie.
 - PowerSync 1.26.1 refuse les jointures et les conversions dans les paramètres. Les dossiers publics suivent `visibilite = 'public'`. Les dossiers restreints ne descendent que si `dossier_acces.utilisateur_texte` est l'utilisateur du jeton.
-- `node tests/recette/j5-poste-tauri.mjs` : exit 0. `OK — dossier retrouvé par la palette`. `OK — dossier restreint absent du SQLite de B`. J5 non coché : contrôleur encore requis.
+- `node tests/recette/j5-poste-tauri.mjs` : exit 0. `OK — dossier retrouvé par la palette`. `OK — dossier restreint absent du SQLite de B`.
+- CI `340ac42` (run [36172577399](https://github.com/navelremi-boop/legalos2/actions/runs/36172577399)) : **verte**.
+- Contrôleur [J5](b9bba862-c3a6-4656-96e7-98c9a6987099) : **VALIDÉ** sur `340ac42`. Recette rejouée exit 0. SQLite du poste B : aucun dossier `restreint = 1`. Le seau public filtre `visibilite = 'public'` ; le seau restreint passe par `dossier_acces`. J5 coché. Prochain jalon : J6.
 

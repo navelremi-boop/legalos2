@@ -356,6 +356,13 @@ try {
     await sleep(200);
   }
   if (!trouve) fail("palette muette");
+  const paletteIds = await evaluate(
+    send,
+    `JSON.stringify([...document.querySelectorAll("[data-testid=palette-resultat]")].map((n) => n.getAttribute("data-dossier-id")))`,
+  );
+  if (!String(paletteIds).includes(idPublic)) {
+    fail(`palette sans id public (${paletteIds})`);
+  }
   console.log("j5-poste: OK — dossier retrouvé par la palette");
   const idRestreint = await creerDossier(send, {
     nom: `Dossier restreint ${marque}`,
@@ -373,7 +380,27 @@ try {
     await sleep(500);
   }
   if (serveur !== "2") fail(`serveur ${serveur || "vide"}`);
-  console.log("j5-poste: deux dossiers sur le serveur");
+  const metaPublic = await sqlServeur(
+    `SELECT chemise || '|' || juridiction || '|' || restreint::text || '|' || visibilite FROM dossiers WHERE id = '${idPublic}'`,
+  );
+  if (!/^bleu-classeur\|TJ de Lyon\|(f|false)\|public$/i.test(metaPublic)) {
+    fail(`métadonnées public (${metaPublic})`);
+  }
+  const metaRestreint = await sqlServeur(
+    `SELECT chemise || '|' || juridiction || '|' || restreint::text || '|' || visibilite FROM dossiers WHERE id = '${idRestreint}'`,
+  );
+  if (!/^bleu-classeur\|TJ de Lyon\|(t|true)\|restreint$/i.test(metaRestreint)) {
+    fail(`métadonnées restreint (${metaRestreint})`);
+  }
+  const partiesRestreintes = await sqlServeur(
+    `SELECT COUNT(*) FROM parties WHERE dossier_id = '${idRestreint}' AND visibilite = 'restreint'`,
+  );
+  if (partiesRestreintes !== "1") fail(`parties restreintes serveur (${partiesRestreintes})`);
+  const accesEtranger = await sqlServeur(
+    `SELECT COUNT(*) FROM dossier_acces a JOIN utilisateurs u ON u.id = a.utilisateur_id WHERE a.dossier_id = '${idRestreint}' AND u.email = '${collabEmail}'`,
+  );
+  if (accesEtranger !== "0") fail(`accès collab sur restreint (${accesEtranger})`);
+  console.log("j5-poste: deux dossiers sur le serveur (chemise + cloisonnement)");
   ws.close();
   await stopApp(posteA);
 
@@ -393,11 +420,24 @@ try {
       await sleep(1000);
     }
     if (!local.includes(idPublic)) fail(`dossier public absent de B (${local || "vide"})`);
+    // Attente supplémentaire : laisser une fenêtre de sync pour un éventuel seau global erroné.
+    await sleep(5_000);
     const interdit = await sqliteLocal(
       "b",
       `SELECT id FROM dossiers WHERE id = '${idRestreint}' OR numero_rg = '${rgRestreint}'`,
     );
     if (interdit !== "[]") fail(`dossier restreint présent chez B (${interdit})`);
+    const partiesLocales = await sqliteLocal(
+      "b",
+      `SELECT id FROM parties WHERE dossier_id = '${idRestreint}'`,
+    );
+    if (partiesLocales !== "[]") {
+      fail(`parties du dossier restreint présentes chez B (${partiesLocales})`);
+    }
+    const tousLesRg = await sqliteLocal("b", `SELECT numero_rg FROM dossiers`);
+    if (String(tousLesRg).includes(rgRestreint)) {
+      fail(`RG restreint visible en scan complet chez B (${tousLesRg})`);
+    }
     console.log("j5-poste: OK — dossier restreint absent du SQLite de B");
     sessionB.ws.close();
   } finally {
