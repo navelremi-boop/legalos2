@@ -740,5 +740,6 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 ## 2026-09-25 — J3 commencé
 
 - Deux processus sur le même poste : `LEGALOS_POSTE_ID` isole le fichier SQLite et le compte du trousseau. L'écran journée édite le nom et le slug du cabinet dans la base locale.
-- `node tests/recette/j3-poste-tauri.mjs` : la synchro initiale ne reçoit pas le cabinet (`Délai dépassé : aucune donnée cabinet reçue depuis PowerSync`). Pendant l'attente, les journaux PowerSync ne montrent que les sondes de santé, aucune connexion client. J3 non coché.
+- Cause : le client joint `sync/stream` sur l'endpoint. Sans barre finale, l'URL est `/sync/stream`, Caddy la réduit en `/stream` (404). Avec `/sync/`, Caddy transmet `/sync/stream` (401 sans jeton, chemin valide). Après correction, `j3-poste-tauri.mjs` affiche `A synchronisé` et `modification conservée après redémarrage hors ligne`.
+- L'envoi n'a pas suivi : la file `ps_crud` garde le PATCH, aucun `PATCH /api/cabinets` dans les journaux de l'API. L'acteur d'envoi ne réagit qu'aux écritures postérieures à la connexion. Une mise à jour de `ps_crud` tente de le réveiller. Le poste B voit encore le nom d'origine. J3 non coché.
 

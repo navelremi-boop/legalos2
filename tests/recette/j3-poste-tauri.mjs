@@ -103,11 +103,16 @@ async function connectCdp(port) {
 }
 
 async function evaluate(send, expression) {
-  const msg = await send("Runtime.evaluate", {
+  const msg = await Promise.race([
+    send("Runtime.evaluate", {
     expression,
     awaitPromise: true,
-    returnByValue: true,
-  });
+      returnByValue: true,
+    }),
+    sleep(15_000).then(() => {
+      throw new Error("cdp sans réponse");
+    }),
+  ]);
   if (msg.result?.exceptionDetails) {
     throw new Error(String(msg.result.exceptionDetails.text ?? "évaluation").slice(0, 200));
   }
@@ -151,7 +156,16 @@ async function setField(send, id, value) {
 async function login(send, nomAppareil) {
   const pret = Date.now();
   while (Date.now() - pret < 20_000) {
-    if (await evaluate(send, `Boolean(document.getElementById("instance-url"))`)) break;
+    const ecran = await evaluate(
+      send,
+      `document.getElementById("cabinet-nom") ? "local" : document.getElementById("instance-url") ? "login" : ""`,
+    );
+    if (ecran === "local") {
+      await evaluate(send, `document.querySelector("[data-testid=se-reconnecter]")?.click()`);
+      await sleep(800);
+      break;
+    }
+    if (ecran === "login") break;
     await sleep(200);
   }
   await setField(send, "instance-url", instanceUrl);
@@ -169,6 +183,10 @@ async function login(send, nomAppareil) {
   while (Date.now() - totpStart < 40_000) {
     if (await evaluate(send, `Boolean(document.getElementById("code-totp"))`)) break;
     await sleep(250);
+  }
+  if (!(await evaluate(send, `Boolean(document.getElementById("code-totp"))`))) {
+    const texte = await evaluate(send, "document.body?.innerText ?? ''");
+    throw new Error(`TOTP absent — ${String(texte).replace(/\s+/g, " ").slice(0, 200)}`);
   }
   await setField(send, "code-totp", totpNow());
   await evaluate(send, `document.querySelector("form")?.requestSubmit()`);
@@ -245,4 +263,46 @@ try {
   fail(err instanceof Error ? err.message : "parcours");
 }
 await compose(["start", "api", "powersync"]);
+const retour = Date.now();
+while (Date.now() - retour < 60_000) {
+  const reponse = await fetch(`${instanceUrl}/health`).catch(() => null);
+  if (reponse?.ok) break;
+  await sleep(500);
+}
 console.log("j3-poste: services relancés");
+
+const posteA3 = startApp("a");
+try {
+  await waitCdp(posteA3);
+  const pageA = await connectCdp(posteA3.port);
+  await login(pageA.send, "Poste recette A");
+  pageA.ws.close();
+  await stopApp(posteA3);
+} catch (err) {
+  console.error(posteA3.logTail());
+  await stopApp(posteA3);
+  fail(err instanceof Error ? err.message : "reprise A");
+}
+
+const posteB = startApp("b");
+try {
+  await waitCdp(posteB);
+  const pageB = await connectCdp(posteB.port);
+  await login(pageB.send, "Poste recette B");
+  const attente = Date.now();
+  let vuB = "";
+  while (Date.now() - attente < 90_000) {
+    vuB = await nomAffiche(pageB.send);
+    if (vuB === nomHorsLigne) break;
+    await sleep(500);
+  }
+  pageB.ws.close();
+  if (vuB !== nomHorsLigne) fail(`poste B n'a pas reçu le nom (${vuB || "vide"})`);
+  console.log("j3-poste: OK — modification hors ligne visible sur B");
+} catch (err) {
+  console.error(posteA3.logTail());
+  console.error(posteB.logTail());
+  fail(err instanceof Error ? err.message : "reprise B");
+} finally {
+  await stopApp(posteB);
+}

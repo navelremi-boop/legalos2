@@ -113,6 +113,7 @@ export function JourneePreview({
             <button
               type="button"
               className="rounded-[var(--radius-control)] border border-filet bg-feuille px-3 py-2 text-[length:var(--font-size-dense)] text-graphite"
+              data-testid="se-reconnecter"
               onClick={onReconnect}
             >
               {fr("Se reconnecter")}

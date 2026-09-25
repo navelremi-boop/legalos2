@@ -79,7 +79,9 @@ impl BackendConnector for CabinetConnector {
         if session.access_token.is_empty() {
             return Err(upload_err("jeton d'accès absent"));
         }
-        let endpoint = format!("{}/sync", session.instance_url.trim_end_matches('/'));
+        // `Url::join("sync/stream")` remplace le dernier segment s'il n'y a pas de barre finale.
+        // Avec `/sync/`, la requête est `/sync/sync/stream` ; Caddy retire un préfixe et le service reçoit `/sync/stream`.
+        let endpoint = format!("{}/sync/", session.instance_url.trim_end_matches('/'));
         Ok(PowerSyncCredentials {
             endpoint,
             token: session.access_token.clone(),
