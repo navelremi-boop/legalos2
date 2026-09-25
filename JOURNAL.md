@@ -772,5 +772,6 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 
 - Moteur `apps/poste/src/delais/moteur.mjs` : articles 640 à 644 (jours, mois, quantième manquant, report au jour ouvrable, mois de distance). Jours fériés métropolitains, Pâques par l'algorithme grégorien. Chaque règle est dans `docs/hypotheses-delais.md`, marquée « à valider par l'avocat ».
 - `node tests/recette/s8-delais.mjs` : `s8: OK — jeu de cas des délais`. Le script est dans le job CI `frontend`. L'écran « La journée » calcule une échéance. L'agenda complet (audiences, rendez-vous) n'est pas dans ce jalon.
-- J6 non coché : contrôleur encore requis.
+- CI `bf3bfe3` (run [36179592258](https://github.com/navelremi-boop/legalos2/actions/runs/36179592258)) : **verte**.
+- Contrôleur [J6](95b16069-8a4c-4c78-8aa3-f9509cb6f721) : **VALIDÉ** sur `bf3bfe3`. `node tests/recette/s8-delais.mjs` exit 0, y compris après le durcissement qui exige le marqueur sur H1–H8. Aucune règle hors hypothèses. J6 coché. Prochain jalon : J7.
 

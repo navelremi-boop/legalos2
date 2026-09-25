@@ -64,7 +64,7 @@ L'augmentation est un nombre de mois ajouté aux mois du délai, avant le décom
 
 Le moteur reçoit seulement `moisDistance` (0, 1 ou 2). Il ne choisit pas lui-même le régime : l'utilisateur indique l'augmentation. La liste exacte des collectivités et le champ des délais concernés (comparution, appel, opposition, tierce opposition de l'art. 586 al. 3, recours en révision, pourvoi) restent ceux des articles, **à valider par l'avocat** — le texte intégral de Légifrance n'a pas pu être relu directement le 2026-09-25.
 
-Cas : 10 janvier 2024 + 1 mois + 2 mois de distance → 10 avril 2024. 10 janvier 2024 + 15 jours + 1 mois de distance → 25 janvier, plus un mois, puis report du dimanche 25 février au 26 février 2024.
+Cas : 10 janvier 2024 + 1 mois + 2 mois de distance → 10 avril 2024. 10 janvier 2024 + 1 mois de distance, puis 15 jours → 25 février 2024, report du dimanche au 26 février 2024.
 
 ## Hors périmètre de ce jalon
 

@@ -2,7 +2,12 @@
 /**
  * S8 — jeu de cas de la computation des délais (CPC 640 à 644).
  * Les règles sont dans docs/hypotheses-delais.md.
+ * Cas = hypothèses H2–H8 (jour de l'acte exclu, quantième, 31 janv.,
+ * samedi, 1er mai, lundi de Pâques, mois puis jours, mois de distance).
  */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   calculerEcheance,
   dimancheDePaques,
@@ -17,6 +22,22 @@ function fail(message) {
 
 function attendre(libelle, obtenu, voulu) {
   if (obtenu !== voulu) fail(`${libelle} : ${obtenu} ≠ ${voulu}`);
+}
+
+const racine = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const hypotheses = readFileSync(join(racine, "docs", "hypotheses-delais.md"), "utf8");
+const marqueur = /à valider par l'avocat/i;
+if (!marqueur.test(hypotheses)) {
+  fail("docs/hypotheses-delais.md sans marqueur « à valider par l'avocat »");
+}
+for (const id of ["H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8"]) {
+  const debut = hypotheses.indexOf(`## ${id}`);
+  if (debut < 0) fail(`hypothèse ${id} absente de docs/hypotheses-delais.md`);
+  const fin = hypotheses.indexOf("\n## ", debut + 1);
+  const section = fin < 0 ? hypotheses.slice(debut) : hypotheses.slice(debut, fin);
+  if (!marqueur.test(section)) {
+    fail(`${id} sans marqueur « à valider par l'avocat »`);
+  }
 }
 
 const paques = {
@@ -35,53 +56,60 @@ for (const iso of ["2024-01-01", "2024-04-01", "2024-05-01", "2024-05-08", "2024
 }
 if (feries2024.size !== 11) fail(`onze fériés attendus, ${feries2024.size}`);
 
+// H2 — art. 641 al. 1 : jour de l'acte exclu
 attendre(
-  "15 jours, jour de l'acte exclu",
+  "H2 15 jours, jour de l'acte exclu",
   calculerEcheance({ origine: "2024-01-10", jours: 15 }),
   "2024-01-25",
 );
+// H6 — art. 642 al. 2 : samedi → lundi
 attendre(
-  "échéance un samedi, report au lundi",
+  "H6 échéance un samedi, report au lundi",
   calculerEcheance({ origine: "2024-03-15", jours: 1 }),
   "2024-03-18",
 );
+// H6 + H7 — 1er mai
 attendre(
-  "1er mai férié, report au 2 mai",
+  "H6/H7 1er mai férié, report au 2 mai",
   calculerEcheance({ origine: "2024-04-30", jours: 1 }),
   "2024-05-02",
 );
+// H6 + H7 — dimanche de Pâques puis lundi de Pâques
 attendre(
-  "dimanche puis lundi de Pâques",
+  "H6/H7 dimanche puis lundi de Pâques",
   calculerEcheance({ origine: "2024-03-30", jours: 1 }),
   "2024-04-02",
 );
+// H3 — art. 641 al. 2 : quantième / 31 janvier
 attendre(
-  "31 janvier, un mois, année bissextile",
+  "H3 31 janvier, un mois, année bissextile",
   calculerEcheance({ origine: "2024-01-31", mois: 1 }),
   "2024-02-29",
 );
 attendre(
-  "31 janvier, un mois, année non bissextile",
+  "H3 31 janvier, un mois, année non bissextile",
   calculerEcheance({ origine: "2023-01-31", mois: 1 }),
   "2023-02-28",
 );
 attendre(
-  "un mois, même quantième",
+  "H3 un mois, même quantième",
   calculerEcheance({ origine: "2024-03-15", mois: 1 }),
   "2024-04-15",
 );
+// H4 — art. 641 al. 3 : mois puis jours, puis report H6
 attendre(
-  "un mois et dix jours, puis dimanche",
+  "H4 un mois et dix jours, puis dimanche",
   calculerEcheance({ origine: "2024-01-15", mois: 1, jours: 10 }),
   "2024-02-26",
 );
+// H8 — art. 643-644 : mois de distance avant jours et report
 attendre(
-  "deux mois de distance ajoutés au mois",
+  "H8 deux mois de distance ajoutés au mois",
   calculerEcheance({ origine: "2024-01-10", mois: 1, moisDistance: 2 }),
   "2024-04-10",
 );
 attendre(
-  "un mois de distance après quinze jours",
+  "H8 un mois de distance après quinze jours",
   calculerEcheance({ origine: "2024-01-10", jours: 15, moisDistance: 1 }),
   "2024-02-26",
 );
