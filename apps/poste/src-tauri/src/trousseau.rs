@@ -1,8 +1,32 @@
+use tauri::Manager;
+
 const SERVICE: &str = "fr.legalos.poste";
-const ACCOUNT: &str = "refresh";
+
+fn account() -> String {
+    match std::env::var("LEGALOS_POSTE_ID") {
+        Ok(id) if !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric()) => {
+            format!("refresh-{id}")
+        }
+        _ => "refresh".to_owned(),
+    }
+}
+
+#[tauri::command]
+pub fn assurer_repertoire_poste(app: tauri::AppHandle) -> Result<(), String> {
+    let dir = app.path().app_data_dir().map_err(|err| err.to_string())?;
+    std::fs::create_dir_all(dir).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+pub fn poste_isolation_id() -> String {
+    match std::env::var("LEGALOS_POSTE_ID") {
+        Ok(id) if !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric()) => id,
+        _ => String::new(),
+    }
+}
 
 fn entree() -> Result<keyring::Entry, String> {
-    keyring::Entry::new(SERVICE, ACCOUNT).map_err(|err| err.to_string())
+    keyring::Entry::new(SERVICE, &account()).map_err(|err| err.to_string())
 }
 
 #[tauri::command]

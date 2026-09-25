@@ -26,9 +26,13 @@ export function InitialSyncScreen({ instanceUrl, onComplete, onError }: InitialS
         if (!abort.signal.aborted) {
           onComplete();
         }
-      } catch {
+      } catch (err) {
         if (!abort.signal.aborted) {
-          setError("La synchronisation initiale a échoué. Vérifiez l’instance et réessayez.");
+          setError(
+            err instanceof Error
+              ? err.message
+              : "La synchronisation initiale a échoué. Vérifiez l’instance et réessayez.",
+          );
           onError();
         }
       }

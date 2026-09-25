@@ -11,6 +11,8 @@ pub fn run() {
         .plugin(tauri_plugin_powersync::init())
         .invoke_handler(tauri::generate_handler![
             powersync_connect::connect_powersync,
+            trousseau::assurer_repertoire_poste,
+            trousseau::poste_isolation_id,
             trousseau::keyring_store_refresh,
             trousseau::keyring_has_refresh,
             trousseau::keyring_clear_refresh

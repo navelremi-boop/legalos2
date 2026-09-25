@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { CHEMISE_IDS, type ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
 import { clearSession } from "@/lib/session/storage";
+import { DEMO_CABINET_ID } from "@/sync/demoCabinet";
 import { getPowerSyncDatabase } from "@/sync/database";
 
 type ThemeMode = "light" | "dark" | "system";
@@ -16,12 +17,19 @@ function resolveTheme(mode: ThemeMode): "light" | "dark" {
 type JourneePreviewProps = {
   instanceUrl: string;
   onResetSession?: () => void;
+  onReconnect?: () => void;
 };
 
-export function JourneePreview({ instanceUrl, onResetSession }: JourneePreviewProps) {
+export function JourneePreview({
+  instanceUrl,
+  onResetSession,
+  onReconnect,
+}: JourneePreviewProps) {
   const [themeMode, setThemeMode] = useState<ThemeMode>("system");
   const [previewChemise, setPreviewChemise] = useState<ChemiseId>("bleu-classeur");
   const [conflits, setConflits] = useState(0);
+  const [nom, setNom] = useState("");
+  const [slug, setSlug] = useState("");
 
   useEffect(() => {
     let stop = false;
@@ -48,6 +56,26 @@ export function JourneePreview({ instanceUrl, onResetSession }: JourneePreviewPr
     return () => {
       stop = true;
       window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    let stop = false;
+    void getPowerSyncDatabase()
+      .then((database) =>
+        database.getAll<{ nom: string; slug: string }>(
+          "SELECT nom, slug FROM cabinets WHERE id = ? LIMIT 1",
+          [DEMO_CABINET_ID],
+        ),
+      )
+      .then((rows) => {
+        if (stop || rows.length === 0) return;
+        setNom(rows[0]?.nom ?? "");
+        setSlug(rows[0]?.slug ?? "");
+      })
+      .catch(() => undefined);
+    return () => {
+      stop = true;
     };
   }, []);
 
@@ -81,6 +109,15 @@ export function JourneePreview({ instanceUrl, onResetSession }: JourneePreviewPr
             <option value="light">{fr("Jour")}</option>
             <option value="dark">{fr("Nuit")}</option>
           </select>
+          {onReconnect !== undefined ? (
+            <button
+              type="button"
+              className="rounded-[var(--radius-control)] border border-filet bg-feuille px-3 py-2 text-[length:var(--font-size-dense)] text-graphite"
+              onClick={onReconnect}
+            >
+              {fr("Se reconnecter")}
+            </button>
+          ) : null}
           {onResetSession !== undefined ? (
             <button
               type="button"
@@ -98,6 +135,48 @@ export function JourneePreview({ instanceUrl, onResetSession }: JourneePreviewPr
       </header>
 
       <main className="mx-auto max-w-5xl px-8 py-8">
+        <form
+          className="mb-6 rounded-[var(--radius-control)] border border-filet bg-feuille px-4 py-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void getPowerSyncDatabase().then((database) =>
+              database.execute("UPDATE cabinets SET nom = ?, slug = ? WHERE id = ?", [
+                nom,
+                slug,
+                DEMO_CABINET_ID,
+              ]),
+            );
+          }}
+        >
+          <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="cabinet-nom">
+            {fr("Nom du cabinet")}
+          </label>
+          <input
+            id="cabinet-nom"
+            className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+            value={nom}
+            onChange={(event) => {
+              setNom(event.target.value);
+            }}
+          />
+          <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="cabinet-slug">
+            {fr("Slug du cabinet")}
+          </label>
+          <input
+            id="cabinet-slug"
+            className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+            value={slug}
+            onChange={(event) => {
+              setSlug(event.target.value);
+            }}
+          />
+          <button
+            type="submit"
+            className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+          >
+            {fr("Enregistrer")}
+          </button>
+        </form>
         {conflits > 0 ? (
           <p
             className="mb-6 rounded-[var(--radius-control)] border border-filet bg-feuille px-4 py-3 text-encre"

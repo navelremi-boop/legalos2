@@ -737,3 +737,8 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - CI `3f4647d` (run [36134053175](https://github.com/navelremi-boop/legalos2/actions/runs/36134053175)) : **verte** (frontend, rust, s1-instance, macos-placeholder).
 - Contrôleur [J2](9e5cb1a8-05de-45be-aa0a-6ea93fe1a21f) : **VALIDÉ** sur `3f4647d`. Preuves rejouées : `auth_integration` 2/2, `s2.mjs`, parité migrations, OpenAPI/JWKS, `j2-poste-tauri.mjs` (jeton présent après redémarrage), fmt, clippy, typecheck, eslint. Écarts mineurs seulement. J2 coché. Prochain jalon : J3.
 
+## 2026-09-25 — J3 commencé
+
+- Deux processus sur le même poste : `LEGALOS_POSTE_ID` isole le fichier SQLite et le compte du trousseau. L'écran journée édite le nom et le slug du cabinet dans la base locale.
+- `node tests/recette/j3-poste-tauri.mjs` : la synchro initiale ne reçoit pas le cabinet (`Délai dépassé : aucune donnée cabinet reçue depuis PowerSync`). Pendant l'attente, les journaux PowerSync ne montrent que les sondes de santé, aucune connexion client. J3 non coché.
+

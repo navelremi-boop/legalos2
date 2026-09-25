@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useState } from "react";
 import { DEFAULT_INSTANCE_URL } from "@/lib/auth/client";
 import {
@@ -5,10 +6,11 @@ import {
   loadInstanceUrl,
   loadSessionTokens,
 } from "@/lib/session/storage";
+import { DEMO_CABINET_ID } from "@/sync/demoCabinet";
 import { FirstLaunchFlow } from "@/onboarding/FirstLaunchFlow";
 import { InitialSyncScreen } from "@/onboarding/InitialSyncScreen";
 import { JourneePreview } from "@/screens/JourneePreview";
-import { closePowerSyncDatabase } from "@/sync/database";
+import { closePowerSyncDatabase, getPowerSyncDatabase } from "@/sync/database";
 import { exposeRecetteHooksIfEnabled } from "@/sync/recetteHooks";
 
 const STORAGE_SYNC_DONE = "legalos.initial_sync_done";
@@ -25,6 +27,24 @@ function App() {
   const [syncDone, setSyncDone] = useState(
     () => localStorage.getItem(STORAGE_SYNC_DONE) === "1",
   );
+  const [localReady, setLocalReady] = useState(false);
+
+  useEffect(() => {
+    let stop = false;
+    void (async () => {
+      const has = await invoke<boolean>("keyring_has_refresh").catch(() => false);
+      if (!has || stop) return;
+      const database = await getPowerSyncDatabase();
+      const rows = await database.getAll<{ id: string }>(
+        "SELECT id FROM cabinets WHERE id = ? LIMIT 1",
+        [DEMO_CABINET_ID],
+      );
+      if (!stop && rows.length > 0) setLocalReady(true);
+    })();
+    return () => {
+      stop = true;
+    };
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = resolveThemeSystem();
@@ -59,6 +79,17 @@ function App() {
     setSyncDone(false);
     setAuthenticated(false);
   }, []);
+
+  if (!authenticated && localReady) {
+    return (
+      <JourneePreview
+        instanceUrl={instanceUrl}
+        onReconnect={() => {
+          setLocalReady(false);
+        }}
+      />
+    );
+  }
 
   if (!authenticated) {
     return (

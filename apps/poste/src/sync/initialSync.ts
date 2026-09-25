@@ -10,7 +10,7 @@ export type InitialSyncProgress = {
 };
 
 const SYNC_POLL_MS = 500;
-const SYNC_TIMEOUT_MS = 90_000;
+const SYNC_TIMEOUT_MS = 180_000;
 
 export async function runInitialSync(
   instanceUrl: string,

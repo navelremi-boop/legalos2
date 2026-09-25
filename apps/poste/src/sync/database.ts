@@ -1,4 +1,5 @@
 import { PowerSyncTauriDatabase } from "@powersync/tauri-plugin";
+import { invoke } from "@tauri-apps/api/core";
 import { appDataDir } from "@tauri-apps/api/path";
 
 import { AppSchema } from "@/sync/AppSchema";
@@ -13,10 +14,13 @@ export function getPowerSyncDatabase(): Promise<PowerSyncTauriDatabase> {
 }
 
 async function openDatabase(): Promise<PowerSyncTauriDatabase> {
+  await invoke("assurer_repertoire_poste");
+  const posteId = await invoke<string>("poste_isolation_id");
+  const suffix = posteId === "" ? "" : `-${posteId}`;
   const database = new PowerSyncTauriDatabase({
     schema: AppSchema,
     database: {
-      dbFilename: "legalos-powersync.db",
+      dbFilename: `legalos-powersync${suffix}.db`,
       dbLocationAsync: appDataDir,
     },
   });
