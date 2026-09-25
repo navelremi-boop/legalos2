@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { FormulaireDelai } from "@/delais/FormulaireDelai";
+import { FormulaireTemps } from "@/facturation/FormulaireTemps";
 import { FormulaireDossier } from "@/dossiers/FormulaireDossier";
 import { PaletteCommandes } from "@/dossiers/PaletteCommandes";
 import { CHEMISE_IDS, type ChemiseId } from "@/lib/chemise";
@@ -168,6 +169,7 @@ export function JourneePreview({
           <PaletteCommandes />
         </div>
         <FormulaireDossier />
+        <FormulaireTemps instanceUrl={instanceUrl} />
         <FormulaireDelai />
         <form
           className="mb-6 rounded-[var(--radius-control)] border border-filet bg-feuille px-4 py-3"

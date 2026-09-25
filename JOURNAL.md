@@ -790,3 +790,12 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - Contrôleur [J8](b1c52efe-2669-413f-bc93-6833ac28d718) : **REFUSÉ**. Manquaient les temps, le brouillon hors ligne, et le jeu § 3.7.
 - Ensuite : six XML CII (professionnel, particulier, avoir, acompte, débours, paiement partiel) passent le schematron ; `s9-facturx.mjs` et `s9-factures.mjs` exit 0. Le brouillon hors ligne est une base SQLite locale sans numéro, écrite sans appel API. Pas encore l'écran Tauri. J8 non coché.
 
+## 2026-09-26 — J8, temps sur le poste
+
+- Écran « Saisir du temps » : la minute est enregistrée dans le SQLite du poste (`temps_saisis`, `brouillons_facture`) sans appel API, numéro nul. Hypothèse F0 : 100 centimes par minute, marquée « à valider par l'avocat ».
+- « Valider en ligne » crée le dossier, le brouillon et la ligne d'honoraires, puis le serveur attribue le numéro et sert le CII.
+- `node tests/recette/s9-poste-tauri.mjs` : exit 0. `temps saisi, brouillon local sans numéro, puis numéro serveur`.
+- `node tests/recette/s9-factures.mjs` : exit 0, y compris `Factur-X produit après validation` (`GET /factures/{id}/cii`).
+- `node tests/recette/s9-facturx.mjs` : exit 0 (six cas + PDF/A-3b).
+- Image API reconstruite pour exposer le CII. J8 non coché : pas encore de nouveau verdict contrôleur ni de CI sur ce commit.
+

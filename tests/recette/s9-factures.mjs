@@ -6,6 +6,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { demoAccessToken } from "./lib/demo-auth.mjs";
@@ -71,7 +72,15 @@ const [va, vb] = await Promise.all([
 ]);
 const numeros = [va.numero, vb.numero].sort((x, y) => x - y);
 if (numeros[1] !== numeros[0] + 1) fail(`numéros non continus ${numeros.join(",")}`);
+const cii = await fetch(`${api}/factures/${a}/cii`, {
+  headers: { authorization: `Bearer ${jeton}` },
+});
+const xml = await cii.text();
+if (!cii.ok || !xml.includes("urn:cen.eu:en16931:2017") || !xml.includes("100.00")) {
+  fail(`cii ${cii.status}`);
+}
 console.log("s9: numéros continus attribués par le serveur");
+console.log("s9: Factur-X produit après validation");
 
 const cle = `emission-${a}`;
 await json(`/factures/${a}/emettre`, jeton, "POST", { cle_idempotence: cle });
@@ -110,6 +119,7 @@ if (inchange.numero !== va.numero && inchange.numero !== vb.numero) fail("numér
 console.log("s9: avoir numéroté, facture validée non renumérotée");
 
 const brouillonLocal = join(root, "target/brouillon-hors-ligne.db");
+rmSync(brouillonLocal, { force: true });
 const py = spawnSync(
   "python",
   [

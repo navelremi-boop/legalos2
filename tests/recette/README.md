@@ -12,7 +12,7 @@ Scénarios d'acceptation dérivés de `docs/ordre-operation.md` § 3.
 - **J5** : `node tests/recette/j5-poste-tauri.mjs` — création d'un dossier dans l'app Tauri, retrouvé par la palette (S3) ; le dossier restreint est absent du SQLite du collaborateur non autorisé (S5).
 - **S6** : `node tests/recette/s6-documents.mjs` — dépôt, ouverture, modification : la version 2 est relue et la version 1 reste (Garage).
 - **S8** : `node tests/recette/s8-delais.mjs` — jeu de cas de la computation des délais. Règles dans `docs/hypotheses-delais.md`, chacune « à valider par l'avocat ».
-- **S9 (partiel)** : `node tests/recette/s9-factures.mjs` — brouillon, numéro continu, dépôt idempotent, encaissement partiel, avoir. `node tests/recette/s9-facturx.mjs` — schematron EN 16931 et PDF/A-3b (Typst, Saxon, veraPDF locaux ou CI).
+- **S9** : `node tests/recette/s9-poste-tauri.mjs` — temps saisi dans l'app Tauri, brouillon SQLite sans numéro, puis validation en ligne et CII. `node tests/recette/s9-factures.mjs` — numéro continu, Factur-X après validation, dépôt idempotent, encaissement partiel, avoir. `node tests/recette/s9-facturx.mjs` — schematron EN 16931 + PDF/A-3b sur le **jeu § 3.7** (`tests/recette/facturx/jeu/` : professionnel, particulier, avoir, acompte, debours, paiement-partiel).
 - **S3+** : nécessitent Docker et binaires Rust (voir `BLOCAGES.md`).
 
 Les tests exécutables sont ajoutés par le **contrôleur** avant lecture de l'implémentation (ordre d'opération § 4.3).
