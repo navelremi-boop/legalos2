@@ -144,6 +144,8 @@ Un obstacle n'est **jamais** une raison de s'arrêter. Dans l'ordre :
 
 Trois échecs de suite avec la même approche : changer d'approche et le consigner.
 
+Jalon refusé : un refus du contrôleur se traite en complétant le jalon, jamais en retirant ou en déplaçant le critère refusé. Choisir comment compléter un jalon relève de ta liberté d'action (§ 4.1) : tu décides, tu consignes dans JOURNAL.md, tu continues. Tu ne me sollicites que dans les cas du § 7.
+
 **Interdit :**
 - désactiver, ignorer ou supprimer un test ; affaiblir une assertion ;
 - baisser le niveau des lints ou ajouter des exceptions pour faire passer la CI ;

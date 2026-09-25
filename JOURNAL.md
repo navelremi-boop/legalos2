@@ -666,3 +666,10 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - **Décision** : **ne pas cocher J3** dans `PLAN.md` tant que le critère offline/conflit n’est pas livré ou retiré explicitement du périmètre.
 - **Suite** : scénario recette offline minimal (Playwright) ou découpage PLAN (offline → S4) puis re-contrôleur.
 
+## 2026-09-25 — Commandement : compléter J3 (pas de retrait de critère)
+
+- **Décision** : le refus du contrôleur se traite en implémentant la reprise hors ligne et l'absence d'écrasement silencieux. Les cinq critères sont reportés au § 3.4 du cahier des charges. Paragraphe « Jalon refusé » ajouté au § 4.5 de `docs/ordre-operation.md`.
+- **SDK constaté** : l'application poste dépend de **`@powersync/web`** (`apps/poste/package.json`, `PowerSyncDatabase` dans `apps/poste/src/sync/database.ts`, options `useWebWorker` / `enableMultiTabs`). Le cahier § 2.1 impose le **SDK Tauri** (`tauri-plugin-powersync` **0.0.6** + `@powersync/tauri-plugin` **0.0.6**, crate `powersync` **0.0.7**), SQLite natif géré en Rust, parce que la base du SDK web dans la webview ne survit pas aux mises à jour.
+- **Écart** : non consigné jusqu'ici. **Correction avant toute poursuite fonctionnelle de J3** : retirer le SDK web et les options de recette qui modifient la synchronisation ; connecteur d'upload en Rust ; scénario sur l'app Tauri réelle.
+- **Versions** : figées dans `docs/versions.md` (npm et crates.io, 2026-09-25). Documentation : https://docs.powersync.com/client-sdks/reference/tauri
+

@@ -13,8 +13,11 @@ Vérifiées le **2026-09-24** dans la documentation officielle ou les registres 
 | TypeScript | **5.8.3** | https://www.npmjs.com/package/typescript |
 | Vite | **8.3.0** | https://www.npmjs.com/package/vite |
 | Tailwind CSS | **4.3.3** | https://www.npmjs.com/package/tailwindcss |
-| @powersync/web (schéma client web) | **1.39.1** (lockfile) | https://www.npmjs.com/package/@powersync/web |
-| PowerSync Tauri SDK | *à figer phase 1* | https://docs.powersync.com/client-sdks/reference/tauri |
+| @powersync/tauri-plugin | **0.0.6** | https://www.npmjs.com/package/@powersync/tauri-plugin — vérifié npm le 2026-09-25 |
+| @powersync/common | **2.3.0** | https://www.npmjs.com/package/@powersync/common — vérifié npm le 2026-09-25 |
+| tauri-plugin-powersync | **0.0.6** | https://crates.io/crates/tauri-plugin-powersync — vérifié le 2026-09-25 ; dépend de `powersync` ^0.0.7 |
+| powersync (crate Rust) | **0.0.7** | https://crates.io/crates/powersync — vérifié le 2026-09-25 |
+| SDK web `@powersync/web` | **écart** : utilisé à tort jusqu'au 2026-09-25 ; retiré (cahier § 2.1) | https://docs.powersync.com/client-sdks/reference/tauri |
 | pnpm | **12.6.0** | `packageManager` racine |
 | Node.js (poste dev) | **20 LTS** (20.20.2 observé) | https://nodejs.org |
 | ESLint (flat config) | **9.39.x** (lockfile) | https://www.npmjs.com/package/eslint |

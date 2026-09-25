@@ -34,9 +34,9 @@ Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénari
   - **Hors périmètre J2** : synchronisation PowerSync bout en bout, probe service `/sync` avec jeton (J3).
   - **Responsable** : `instance-backend` + `poste-interface`
 
-- [ ] **J3** — Sync bout en bout (1 table, 2 postes simulés)
-  - **Critères** : modification poste A visible poste B (`j3-sync-two-postes.mjs`) ; reprise hors ligne sans écrasement silencieux (préfiguration S4, en cours).
-  - **Livré partiel** : `PATCH /cabinets/{id}`, upload PowerSync → API, probe JWT, recette deux contextes Playwright.
+- [ ] **J3** — Sync bout en bout (1 table, 2 postes, app Tauri réelle)
+  - **Critères** : cahier des charges § 3.4 (cinq points : persistance hors ligne et reprise, fusion par champ, conflit signalé avec journal, ni perte ni doublon, coupure réseau réelle). Recette sur l'app Tauri, SDK `tauri-plugin-powersync`, sans option qui change le comportement de sync.
+  - **Écart consigné** : l'app utilisait `@powersync/web` ; correction avant poursuite (voir `JOURNAL.md` 2026-09-25).
   - **Responsable** : état-major coordonne ; `poste-interface` + `instance-backend`
 
 - [ ] **J4** — Application Tauri : jetons, police, CI verte

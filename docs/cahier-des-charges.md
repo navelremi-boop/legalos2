@@ -163,6 +163,13 @@ La CI bloque tout merge qui ne passe pas clippy, les tests, le typage, la valida
 - Schéma client PowerSync : défini en TypeScript, appliqué sous forme de vues, sans migration locale → évolutif par mise à jour à chaud.
 - Écritures : file d'attente locale → API Rust → Postgres. L'API valide tout (droits, cohérence) ; le poste n'est jamais cru sur parole.
 - Conflits : dernière écriture gagnante par champ par défaut, sauf données sensibles (factures validées, pièces communiquées, mails envoyés) qui sont **immuables** une fois validées.
+- Critères d'acceptation de la synchronisation (jalon J3, deux postes) :
+  1. Modification faite hors ligne sur le poste A : conservée à la fermeture et au redémarrage de l'app, envoyée au retour du réseau, visible sur le poste B.
+  2. Deux champs différents d'un même enregistrement modifiés hors ligne sur A et sur B : les deux modifications survivent. Seuls les champs modifiés sont envoyés ; un enregistrement n'est jamais remplacé en entier.
+  3. Même champ modifié des deux côtés : la dernière écriture gagne, mais pas en silence. Chaque modification porte la version sur laquelle elle a été faite ; le serveur détecte le conflit, conserve la valeur remplacée dans le journal des modifications et le conflit est signalé dans l'app.
+  4. Coupure réseau pendant l'envoi : ni perte, ni doublon.
+  5. Coupure réelle du réseau entre le poste et l'instance (service arrêté ou flux bloqué), pas une simulation interne à l'app.
+  Le scénario s'exécute sur l'application Tauri réelle (SDK Tauri de PowerSync, § 2.1), pas dans un navigateur, et sans option de recette qui modifie le comportement de la synchronisation.
 
 ### 3.5 Fichiers
 
