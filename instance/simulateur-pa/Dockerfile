@@ -1,4 +1,5 @@
-FROM caddy:2.10.0-alpine
-RUN apk add --no-cache wget
-COPY Caddyfile /etc/caddy/Caddyfile
+FROM node:20-alpine
+WORKDIR /app
+COPY serveur.mjs .
 EXPOSE 8090
+CMD ["node", "serveur.mjs"]

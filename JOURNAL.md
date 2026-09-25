@@ -782,3 +782,10 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - CI `2eb7266` (run [36183981852](https://github.com/navelremi-boop/legalos2/actions/runs/36183981852)) : **verte**.
 - Contrôleur [J7](6acf8035-815d-47c6-9e4d-2854c328ac4c) : **VALIDÉ** sur `2eb7266`. Recette rejouée exit 0. Clés `v1` et `v2` distinctes, contenus conservés sur Garage. Écarts majeurs non bloquants : métadonnées absentes des règles PowerSync ; un second `POST /documents` du même id peut réémettre un dépôt sur la clé v1. J7 coché. Prochain jalon : J8.
 
+## 2026-09-25 — J8 commencé
+
+- Brouillon, validation avec numéro continu (une séquence par cabinet), facture validée immuable en base, avoir sur la même séquence, dépôt idempotent sur le simulateur, encaissement partiel de 6 000 centimes sans doublon.
+- `node tests/recette/s9-factures.mjs` : exit 0. `numéros continus attribués par le serveur` ; `dépôt répété, une seule fiche plateforme` ; `encaissement partiel, 6000 centimes, sans doublon` ; `avoir numéroté, facture validée non renumérotée`.
+- Hypothèses de taux, d'arrondi et de débours dans `docs/hypotheses-facturation.md`, marquées « à valider par l'avocat ».
+- J8 non coché : PDF/A-3b, XML CII, veraPDF et schematron EN 16931 ne sont pas encore exécutés.
+

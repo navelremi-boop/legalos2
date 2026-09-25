@@ -51,6 +51,7 @@ services:
       S3_PUBLIC_ENDPOINT: http://127.0.0.1:3900
       S3_REGION: garage
       S3_BUCKET: legalos
+      PA_BASE_URL: http://simulateur-pa:8090
       RUST_LOG: info
     env_file:
       - path: ./garage/cles.local
@@ -182,8 +183,10 @@ services:
     build:
       context: ./simulateur-pa
       dockerfile: Dockerfile
-    image: legalos/simulateur-pa:s1-stub
+    image: legalos/simulateur-pa:s9
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:8090:8090"
     expose:
       - "8090"
     healthcheck:

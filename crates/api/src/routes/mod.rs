@@ -3,6 +3,7 @@ pub mod cabinets;
 pub mod collaborateurs;
 pub mod documents;
 pub mod dossiers;
+pub mod factures;
 pub mod health;
 
 use std::sync::Arc;
@@ -41,5 +42,10 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/documents/{document_id}/versions/{numero}",
             get(documents::lire_version),
         )
+        .route("/factures", post(factures::creer_brouillon))
+        .route("/factures/{id}/valider", post(factures::valider))
+        .route("/factures/{id}/emettre", post(factures::emettre))
+        .route("/factures/{id}/encaissements", post(factures::encaisser))
+        .route("/factures/{id}/avoir", post(factures::avoir))
         .with_state(state)
 }

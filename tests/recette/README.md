@@ -12,6 +12,7 @@ Scénarios d'acceptation dérivés de `docs/ordre-operation.md` § 3.
 - **J5** : `node tests/recette/j5-poste-tauri.mjs` — création d'un dossier dans l'app Tauri, retrouvé par la palette (S3) ; le dossier restreint est absent du SQLite du collaborateur non autorisé (S5).
 - **S6** : `node tests/recette/s6-documents.mjs` — dépôt, ouverture, modification : la version 2 est relue et la version 1 reste (Garage).
 - **S8** : `node tests/recette/s8-delais.mjs` — jeu de cas de la computation des délais. Règles dans `docs/hypotheses-delais.md`, chacune « à valider par l'avocat ».
+- **S9 (partiel)** : `node tests/recette/s9-factures.mjs` — brouillon, numéro continu, dépôt idempotent, encaissement partiel, avoir. Factur-X encore absent.
 - **S3+** : nécessitent Docker et binaires Rust (voir `BLOCAGES.md`).
 
 Les tests exécutables sont ajoutés par le **contrôleur** avant lecture de l'implémentation (ordre d'opération § 4.3).
