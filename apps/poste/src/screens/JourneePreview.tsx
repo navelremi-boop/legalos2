@@ -55,8 +55,10 @@ export function JourneePreview({
           setConflits(conflitRows[0]?.n ?? 0);
           const cabinet = cabinetRows[0];
           if (!cabinet) return;
-          setNom((courant) => (courant === baseNomRef.current ? cabinet.nom : courant));
-          setSlug((courant) => (courant === baseSlugRef.current ? cabinet.slug : courant));
+          const nomBase = baseNomRef.current;
+          const slugBase = baseSlugRef.current;
+          setNom((courant) => (courant === nomBase ? cabinet.nom : courant));
+          setSlug((courant) => (courant === slugBase ? cabinet.slug : courant));
           baseNomRef.current = cabinet.nom;
           baseSlugRef.current = cabinet.slug;
           setBaseNom(cabinet.nom);
@@ -177,12 +179,25 @@ export function JourneePreview({
               valeurs.push(slugSaisi);
             }
             if (colonnes.length === 0) return;
-            void getPowerSyncDatabase().then((database) =>
-              database.execute(
+            void (async () => {
+              const database = await getPowerSyncDatabase();
+              const actuels = await database.getAll<{ revision: number | null }>(
+                "SELECT revision FROM cabinets WHERE id = ?",
+                [DEMO_CABINET_ID],
+              );
+              const revision = actuels[0]?.revision ?? 1;
+              await database.execute(
+                "CREATE TABLE IF NOT EXISTS revision_edition (id TEXT PRIMARY KEY, revision INTEGER NOT NULL)",
+              );
+              await database.execute(
+                "INSERT INTO revision_edition (id, revision) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET revision = excluded.revision",
+                [DEMO_CABINET_ID, revision],
+              );
+              await database.execute(
                 `UPDATE cabinets SET ${colonnes.join(", ")} WHERE id = ?`,
                 [...valeurs, DEMO_CABINET_ID],
-              ),
-            );
+              );
+            })();
             setNom(nomSaisi);
             setSlug(slugSaisi);
             baseNomRef.current = nomSaisi;

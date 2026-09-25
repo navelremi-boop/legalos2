@@ -172,6 +172,13 @@ fn json_text(value: Option<&Value>) -> Option<&str> {
 
 async fn lire_revision(db: &PowerSyncDatabase, id: &str) -> Result<i64, PowerSyncError> {
     let conn = db.reader().await?;
+    if let Ok(revision) = conn.query_row(
+        "SELECT revision FROM revision_edition WHERE id = ?1",
+        [id],
+        |row| row.get(0),
+    ) {
+        return Ok(revision);
+    }
     let revision = conn.query_row("SELECT revision FROM cabinets WHERE id = ?1", [id], |row| {
         row.get(0)
     })?;

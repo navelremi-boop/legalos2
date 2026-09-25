@@ -458,6 +458,18 @@ await attendreSql(
 );
 console.log("j3-poste: OK — les deux champs survivent");
 
+for (const id of ["a", "b"]) {
+  const poste = startApp(id);
+  try {
+    await waitCdp(poste);
+    const page = await connectCdp(poste.port);
+    await login(page.send, `Poste aligné ${id}`);
+    page.ws.close();
+  } finally {
+    await stopApp(poste);
+  }
+}
+
 await compose(["stop", "api", "powersync"]);
 for (const [id, valeur] of [
   ["a", nomConflitA],
@@ -474,6 +486,9 @@ for (const [id, valeur] of [
   }
 }
 await compose(["start", "api", "powersync"]);
+const conflitsAvant = Number(
+  await sqlServeur("SELECT COUNT(*) FROM journal_modifications WHERE champ = 'nom' AND conflit"),
+);
 for (const id of ["a", "b"]) {
   const poste = startApp(id);
   try {
@@ -485,9 +500,6 @@ for (const id of ["a", "b"]) {
     await stopApp(poste);
   }
 }
-const conflitsAvant = Number(
-  await sqlServeur("SELECT COUNT(*) FROM journal_modifications WHERE champ = 'nom' AND conflit"),
-);
 const conflitsApres = Number(
   await attendreSql(
     `SELECT CASE WHEN (SELECT COUNT(*) FROM journal_modifications WHERE champ = 'nom' AND conflit) >= ${conflitsAvant + 1} THEN '${conflitsAvant + 1}' ELSE '' END`,
