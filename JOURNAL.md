@@ -734,4 +734,6 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - CI `1fb7cec` encore rouge : `cargo check` du poste sur Ubuntu échoue, `glib-2.0` absent (`glib-sys`). Le job installe maintenant les dépendances Tauri Linux (webkit2gtk 4.1, gtk, appindicator, rsvg). J2 toujours décoché.
 - CI `9296016` (run 36129205636) : jobs `rust` et `frontend` verts. `s1-instance` échoue à S2 : `POST /auth/connexion → 401`. L'instance neuve n'a plus de compte dans les migrations. Le job charge désormais la démo avec `cargo xtask demo` après S1, avant S2.
 - CI `5300d81` (run 36131432065) : S2 passe. Échec ensuite de `j3-sync-two-postes.mjs` dans Chromium (`sync initiale / hooks recette absents`). Ce scénario navigateur n'est plus la preuve J3 (cahier § 3.4, SDK Tauri). Il sort du job `s1-instance`. La sonde `j3-powersync-liveness` et `auth_integration` restent.
+- CI `3f4647d` (run [36134053175](https://github.com/navelremi-boop/legalos2/actions/runs/36134053175)) : **verte** (frontend, rust, s1-instance, macos-placeholder).
+- Contrôleur [J2](9e5cb1a8-05de-45be-aa0a-6ea93fe1a21f) : **VALIDÉ** sur `3f4647d`. Preuves rejouées : `auth_integration` 2/2, `s2.mjs`, parité migrations, OpenAPI/JWKS, `j2-poste-tauri.mjs` (jeton présent après redémarrage), fmt, clippy, typecheck, eslint. Écarts mineurs seulement. J2 coché. Prochain jalon : J3.
 
