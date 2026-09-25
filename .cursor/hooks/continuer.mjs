@@ -8,7 +8,7 @@ const entree = await lireEntree();
 const racine = process.env.CURSOR_PROJECT_DIR || process.cwd();
 
 // Pas de relance si l'utilisateur a interrompu l'agent ou en cas d'erreur.
-if (entree.status !== 'completed') repondre({});
+if (String(entree.status ?? '').trim() !== 'completed') repondre({});
 
 // Arrêt demandé, mission terminée ou bloquée : pas de relance.
 for (const f of ['STOP', 'TERMINEE', 'BLOQUEE']) {

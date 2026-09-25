@@ -717,5 +717,10 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - `cargo run -p xtask -- demo` puis `cargo run -p xtask -- recette --scenario s2` : `s2: OK` (auth_integration 2 tests, sonde HTTP).
 - **Compilation poste** : LLVM **23.1.2** (`winget install LLVM.LLVM`). `LIBCLANG_PATH=C:\Program Files\LLVM\bin`. `cargo build --manifest-path apps/poste/src-tauri/Cargo.toml` : exit 0 (2026-09-25). `keyring` 3.6.3 avec `windows-native` compile. Lint retiré du correctif `time` : `illegal_floating_point_literal_pattern` (supprimé en rustc 1.98).
 - **Non validé** : l'app n'a pas été lancée. La survie du jeton de rafraîchissement après fermeture et redémarrage n'est pas prouvée. J2 et J3 restent décochés.
+
+## 2026-09-25 — Hooks du dépôt
+
+- Fenêtre Cursor ouverte à 11:30 (`cursor.hooks`, workspace `84b002c1…`) : « Loaded 3 project hook(s) », puis **aucune** exécution (`beforeShellExecution`, `beforeReadFile`, `stop` à 0) pendant toute la reprise de session. Redémarrage 12:03 : les mêmes hooks s'exécutent (exit 0).
+- Avant ça (Cursor 3.17.8, 11:21), `continuer.mjs` a répondu `{}` cinq fois, donc pas de relance. Un stdin UTF-16 reproduit exactement `{}` (le JSON ne se parse pas, le statut est absent). `lireEntree` décode maintenant UTF-16 et UTF-8. Rejeu : suivi de mission renvoyé, et `garde-secrets` refuse `.env`.
 - **Non validé** : l’app Tauri n’a pas été compilée ni lancée sous Windows (libclang absent pour `powersync_sqlite_nostd`, et consigne du point 8).
 
