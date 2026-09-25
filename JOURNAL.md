@@ -768,3 +768,9 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - CI `340ac42` (run [36172577399](https://github.com/navelremi-boop/legalos2/actions/runs/36172577399)) : **verte**.
 - Contrôleur [J5](b9bba862-c3a6-4656-96e7-98c9a6987099) : **VALIDÉ** sur `340ac42`. Recette rejouée exit 0. SQLite du poste B : aucun dossier `restreint = 1`. Le seau public filtre `visibilite = 'public'` ; le seau restreint passe par `dossier_acces`. J5 coché. Prochain jalon : J6.
 
+## 2026-09-25 — J6, délais
+
+- Moteur `apps/poste/src/delais/moteur.mjs` : articles 640 à 644 (jours, mois, quantième manquant, report au jour ouvrable, mois de distance). Jours fériés métropolitains, Pâques par l'algorithme grégorien. Chaque règle est dans `docs/hypotheses-delais.md`, marquée « à valider par l'avocat ».
+- `node tests/recette/s8-delais.mjs` : `s8: OK — jeu de cas des délais`. Le script est dans le job CI `frontend`. L'écran « La journée » calcule une échéance. L'agenda complet (audiences, rendez-vous) n'est pas dans ce jalon.
+- J6 non coché : contrôleur encore requis.
+
