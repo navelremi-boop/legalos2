@@ -186,7 +186,10 @@ async function login(send, nomAppareil) {
     await sleep(200);
   }
   await setField(send, "instance-url", instanceUrl);
-  await evaluate(send, `document.querySelector("form")?.requestSubmit()`);
+  await evaluate(
+    send,
+    `document.getElementById("instance-url")?.closest("form")?.requestSubmit()`,
+  );
   const start = Date.now();
   while (Date.now() - start < 30_000) {
     if (await evaluate(send, `Boolean(document.getElementById("email"))`)) break;
@@ -195,25 +198,27 @@ async function login(send, nomAppareil) {
   await setField(send, "email", demoEmail);
   await setField(send, "password", demoPassword);
   await setField(send, "nom-appareil", nomAppareil);
-  await evaluate(send, `document.querySelector("form")?.requestSubmit()`);
+  await evaluate(send, `document.getElementById("email")?.closest("form")?.requestSubmit()`);
+  let totpSoumis = false;
   const totpStart = Date.now();
-  while (Date.now() - totpStart < 40_000) {
-    if (await evaluate(send, `Boolean(document.getElementById("cabinet-nom"))`)) return;
-    if (await evaluate(send, `Boolean(document.getElementById("code-totp"))`)) {
+  while (Date.now() - totpStart < 90_000) {
+    if (!totpSoumis && (await evaluate(send, `Boolean(document.getElementById("code-totp"))`))) {
       await setField(send, "code-totp", totpNow());
-      await evaluate(send, `document.querySelector("form")?.requestSubmit()`);
-      break;
+      await evaluate(
+        send,
+        `document.getElementById("code-totp")?.closest("form")?.requestSubmit()`,
+      );
+      totpSoumis = true;
     }
+    const connecte = await evaluate(
+      send,
+      `Boolean(document.getElementById("cabinet-nom")) && !document.getElementById("instance-url") && !document.getElementById("code-totp")`,
+    );
+    if (totpSoumis && connecte) return;
     await sleep(250);
   }
-  const jour = Date.now();
-  while (Date.now() - jour < 200_000) {
-    const text = await evaluate(send, "document.body?.innerText ?? ''");
-    if (String(text).includes("La journée")) return;
-    await sleep(400);
-  }
   const texte = await evaluate(send, "document.body?.innerText ?? ''");
-  throw new Error(`journée absente — ${String(texte).replace(/\s+/g, " ").slice(0, 180)}`);
+  throw new Error(`journée absente — ${String(texte).replace(/\s+/g, " ").slice(-240)}`);
 }
 
 async function nomAffiche(send) {

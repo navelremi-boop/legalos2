@@ -28,19 +28,22 @@ function App() {
     () => localStorage.getItem(STORAGE_SYNC_DONE) === "1",
   );
   const [localReady, setLocalReady] = useState(false);
+  const [ecranPret, setEcranPret] = useState(false);
   const resterLocal = useRef(true);
 
   useEffect(() => {
     let stop = false;
     void (async () => {
       const has = await invoke<boolean>("keyring_has_refresh").catch(() => false);
-      if (!has || stop || !resterLocal.current) return;
-      const database = await getPowerSyncDatabase();
-      const rows = await database.getAll<{ id: string }>(
-        "SELECT id FROM cabinets WHERE id = ? LIMIT 1",
-        [DEMO_CABINET_ID],
-      );
-      if (!stop && resterLocal.current && rows.length > 0) setLocalReady(true);
+      if (has && !stop && resterLocal.current) {
+        const database = await getPowerSyncDatabase();
+        const rows = await database.getAll<{ id: string }>(
+          "SELECT id FROM cabinets WHERE id = ? LIMIT 1",
+          [DEMO_CABINET_ID],
+        );
+        if (!stop && resterLocal.current && rows.length > 0) setLocalReady(true);
+      }
+      if (!stop) setEcranPret(true);
     })();
     return () => {
       stop = true;
@@ -81,16 +84,19 @@ function App() {
     setAuthenticated(false);
   }, []);
 
+  if (!ecranPret) {
+    return null;
+  }
+
   if (!authenticated && localReady) {
     return (
-      <JourneePreview
-        instanceUrl={instanceUrl}
-        onReconnect={() => {
-          resterLocal.current = false;
-          setLocalReady(false);
-          (window as unknown as { __legalosReconnect?: boolean }).__legalosReconnect = true;
-        }}
-      />
+      <>
+        <JourneePreview instanceUrl={instanceUrl} />
+        <FirstLaunchFlow
+          initialInstanceUrl={instanceUrl}
+          onComplete={handleFirstLaunchComplete}
+        />
+      </>
     );
   }
 
