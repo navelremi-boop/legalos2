@@ -1,6 +1,7 @@
 # Secrets : jamais dans le dépôt
 .env
 .env.*
+instance/garage/cles.local
 !.env.example
 !.env.development.example
 *.key

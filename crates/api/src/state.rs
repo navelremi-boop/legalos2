@@ -3,6 +3,7 @@ use std::sync::Arc;
 use sqlx::PgPool;
 
 use crate::auth::jwt::JwtKeys;
+use legalos_stockage::StockageFichiers;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -14,4 +15,5 @@ pub struct AppState {
     pub access_token_ttl_secs: u64,
     pub session_token_ttl_secs: u64,
     pub refresh_token_ttl_secs: u64,
+    pub stockage: Option<StockageFichiers>,
 }

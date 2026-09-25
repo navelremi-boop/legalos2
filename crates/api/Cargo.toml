@@ -30,7 +30,9 @@ base64 = { workspace = true }
 jsonwebtoken = { workspace = true }
 rand = { workspace = true }
 rsa = { workspace = true }
+hex = "0.4"
 serde = { workspace = true }
+sha2 = "0.10"
 serde_json = { workspace = true }
 sqlx = { workspace = true }
 time = { workspace = true }

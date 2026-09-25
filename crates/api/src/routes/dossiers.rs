@@ -203,7 +203,7 @@ pub async fn creer_partie(
     }))
 }
 
-async fn dossier_visible(
+pub(crate) async fn dossier_visible(
     state: &AppState,
     cabinet_id: Uuid,
     utilisateur_id: Uuid,

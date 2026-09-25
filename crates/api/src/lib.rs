@@ -55,9 +55,23 @@ pub async fn build_app_state(
     pool: PgPool,
 ) -> anyhow::Result<Arc<AppState>> {
     let jwt = auth::service::build_jwt_keys(config).await?;
+    let stockage = match &config.s3 {
+        Some(parametres) => Some(legalos_stockage::StockageFichiers::connecter(
+            &legalos_stockage::ParametresS3 {
+                endpoint_interne: parametres.endpoint_interne.clone(),
+                endpoint_public: parametres.endpoint_public.clone(),
+                region: parametres.region.clone(),
+                bucket: parametres.bucket.clone(),
+                access_key_id: parametres.access_key_id.clone(),
+                secret_access_key: parametres.secret_access_key.clone(),
+            },
+        )?),
+        None => None,
+    };
     Ok(Arc::new(AppState {
         pool,
         jwt,
+        stockage,
         totp_cipher_key: config.totp_cipher_key,
         jwt_issuer: config.jwt_issuer.clone(),
         jwt_audience: config.jwt_audience.clone(),

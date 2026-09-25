@@ -31,6 +31,7 @@ Vérifiées le **2026-09-24** dans la documentation officielle ou les registres 
 | PostgreSQL | **16.8-bookworm** | https://hub.docker.com/_/postgres |
 | Caddy | **2.10.0-alpine** | https://hub.docker.com/_/caddy |
 | Garage (S3) | **dxflrs/garage:v1.0.1** | https://hub.docker.com/r/dxflrs/garage |
+| OpenDAL | **0.59.3** (`services-s3`) | https://crates.io/crates/opendal — vérifié le 2026-09-25 |
 | GreenMail (IMAP/SMTP test) | **greenmail/standalone:2.1.0** | https://hub.docker.com/r/greenmail/standalone |
 | Axum | **0.8.9** | https://crates.io/crates/axum |
 | sqlx | **0.8.5** | https://crates.io/crates/sqlx |

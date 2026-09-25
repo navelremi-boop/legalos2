@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod cabinets;
 pub mod collaborateurs;
+pub mod documents;
 pub mod dossiers;
 pub mod health;
 
@@ -27,5 +28,18 @@ pub fn router(state: Arc<AppState>) -> Router {
             post(dossiers::creer_partie),
         )
         .route("/collaborateurs", post(collaborateurs::creer_collaborateur))
+        .route("/documents", post(documents::creer_document))
+        .route(
+            "/documents/{document_id}/versions",
+            post(documents::preparer_version),
+        )
+        .route(
+            "/documents/{document_id}/versions/{numero}/sceller",
+            post(documents::sceller_version),
+        )
+        .route(
+            "/documents/{document_id}/versions/{numero}",
+            get(documents::lire_version),
+        )
         .with_state(state)
 }

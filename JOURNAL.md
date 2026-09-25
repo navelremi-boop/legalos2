@@ -775,3 +775,8 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - CI `bf3bfe3` (run [36179592258](https://github.com/navelremi-boop/legalos2/actions/runs/36179592258)) : **verte**.
 - Contrôleur [J6](95b16069-8a4c-4c78-8aa3-f9509cb6f721) : **VALIDÉ** sur `bf3bfe3`. `node tests/recette/s8-delais.mjs` exit 0, y compris après le durcissement qui exige le marqueur sur H1–H8. Aucune règle hors hypothèses. J6 coché. Prochain jalon : J7.
 
+## 2026-09-25 — J7, documents
+
+- Métadonnées `documents` et `document_versions` dans Postgres. Contenu dans Garage via OpenDAL 0.59.3 : lien de dépôt signé, puis scellement qui relit l'objet et vérifie l'empreinte. Une modification crée la version suivante sans remplacer la précédente.
+- `node tests/recette/s6-documents.mjs` : `document déposé et ouvert` puis `OK — nouvelle version renvoyée, version précédente conservée`. J7 non coché : contrôleur encore requis.
+

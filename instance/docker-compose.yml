@@ -47,7 +47,14 @@ services:
       JWT_ISSUER: ${JWT_ISSUER:-legalos-api}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-legalos-powersync}
       JWT_RSA_PRIVATE_KEY_PEM: ${JWT_RSA_PRIVATE_KEY_PEM:-}
+      S3_ENDPOINT: http://garage:3900
+      S3_PUBLIC_ENDPOINT: http://127.0.0.1:3900
+      S3_REGION: garage
+      S3_BUCKET: legalos
       RUST_LOG: info
+    env_file:
+      - path: ./garage/cles.local
+        required: false
     ports:
       - "${API_HOST_PORT:-8080}:8080"
     healthcheck:
@@ -131,6 +138,8 @@ services:
       - garage_meta:/var/lib/garage/meta
       - garage_data:/var/lib/garage/data
       - ./garage/garage.toml:/etc/garage.toml:ro
+    ports:
+      - "127.0.0.1:3900:3900"
     expose:
       - "3900"
       - "3901"

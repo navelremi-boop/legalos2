@@ -16,6 +16,17 @@ pub struct Config {
     pub access_token_ttl_secs: u64,
     pub session_token_ttl_secs: u64,
     pub refresh_token_ttl_secs: u64,
+    pub s3: Option<ParametresS3>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ParametresS3 {
+    pub endpoint_interne: String,
+    pub endpoint_public: String,
+    pub region: String,
+    pub bucket: String,
+    pub access_key_id: String,
+    pub secret_access_key: String,
 }
 
 impl Config {
@@ -44,6 +55,7 @@ impl Config {
         let access_token_ttl_secs = parse_u64_env("JWT_ACCESS_TTL_SECS", 900);
         let session_token_ttl_secs = parse_u64_env("JWT_SESSION_TTL_SECS", 600);
         let refresh_token_ttl_secs = parse_u64_env("JWT_REFRESH_TTL_SECS", 2_592_000);
+        let s3 = parametres_s3();
 
         Ok(Self {
             bind,
@@ -57,8 +69,26 @@ impl Config {
             access_token_ttl_secs,
             session_token_ttl_secs,
             refresh_token_ttl_secs,
+            s3,
         })
     }
+}
+
+fn parametres_s3() -> Option<ParametresS3> {
+    let lire = |nom: &str| {
+        std::env::var(nom)
+            .ok()
+            .map(|v| v.trim().to_owned())
+            .filter(|v| !v.is_empty())
+    };
+    Some(ParametresS3 {
+        endpoint_interne: lire("S3_ENDPOINT")?,
+        endpoint_public: lire("S3_PUBLIC_ENDPOINT")?,
+        region: lire("S3_REGION")?,
+        bucket: lire("S3_BUCKET")?,
+        access_key_id: lire("S3_ACCESS_KEY_ID")?,
+        secret_access_key: lire("S3_SECRET_ACCESS_KEY")?,
+    })
 }
 
 fn parse_u64_env(name: &str, default: u64) -> u64 {

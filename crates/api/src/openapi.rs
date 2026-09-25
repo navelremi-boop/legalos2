@@ -6,6 +6,9 @@ use crate::routes::auth::{
 };
 use crate::routes::cabinets::{CabinetResponse, PatchCabinetRequest};
 use crate::routes::collaborateurs::{CollaborateurResponse, CreerCollaborateurRequest};
+use crate::routes::documents::{
+    CreerDocumentRequest, DepotDocument, LectureDocument, ScellerVersionRequest, VersionScellee,
+};
 use crate::routes::dossiers::{
     CreerDossierRequest, CreerPartieRequest, DossierResponse, PartieResponse,
 };
@@ -28,6 +31,10 @@ use crate::routes::health::HealthResponse;
         crate::routes::dossiers::creer_dossier,
         crate::routes::dossiers::creer_partie,
         crate::routes::collaborateurs::creer_collaborateur,
+        crate::routes::documents::creer_document,
+        crate::routes::documents::preparer_version,
+        crate::routes::documents::sceller_version,
+        crate::routes::documents::lire_version,
     ),
     components(schemas(
         HealthResponse,
@@ -43,6 +50,11 @@ use crate::routes::health::HealthResponse;
         PartieResponse,
         CreerCollaborateurRequest,
         CollaborateurResponse,
+        CreerDocumentRequest,
+        DepotDocument,
+        ScellerVersionRequest,
+        VersionScellee,
+        LectureDocument,
         ApiErrorBody,
     )),
     modifiers(&SecurityAddon),
