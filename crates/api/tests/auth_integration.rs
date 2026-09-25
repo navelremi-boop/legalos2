@@ -61,6 +61,21 @@ async fn json_body(response: axum::response::Response) -> serde_json::Value {
 }
 
 async fn seed_compte_recette(pool: &sqlx::PgPool) {
+    // Les deux tests partagent la même ligne : sans verrou, les INSERT concurrents
+    // violent utilisateurs_cabinet_email_unique avant que ON CONFLICT (id) ne s'applique.
+    sqlx::query("SELECT pg_advisory_lock(8042003)")
+        .execute(pool)
+        .await
+        .expect("verrou recette");
+    let seeded = seed_compte_recette_locked(pool).await;
+    sqlx::query("SELECT pg_advisory_unlock(8042003)")
+        .execute(pool)
+        .await
+        .expect("deverrouillage recette");
+    seeded.expect("compte recette");
+}
+
+async fn seed_compte_recette_locked(pool: &sqlx::PgPool) -> Result<(), sqlx::Error> {
     let hash = legalos_api::auth::password::hash_password(DEMO_PASSWORD).expect("hash");
     let totp = legalos_api::auth::totp::chiffrer_secret_totp(
         DEMO_TOTP_SECRET_BASE32.as_bytes(),
@@ -76,8 +91,7 @@ async fn seed_compte_recette(pool: &sqlx::PgPool) {
     )
     .bind(uuid_recette(support::demo_seed::DEMO_CABINET_ID))
     .execute(pool)
-    .await
-    .expect("cabinet recette");
+    .await?;
     sqlx::query(
         r#"
         INSERT INTO utilisateurs (id, cabinet_id, email, password_hash, totp_secret_chiffre, actif)
@@ -93,8 +107,8 @@ async fn seed_compte_recette(pool: &sqlx::PgPool) {
     .bind(hash)
     .bind(totp)
     .execute(pool)
-    .await
-    .expect("utilisateur recette");
+    .await?;
+    Ok(())
 }
 
 fn uuid_recette(valeur: &str) -> uuid::Uuid {

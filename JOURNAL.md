@@ -755,4 +755,5 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - Les deux woff2 Atkinson sont dans `apps/poste/dist` et leurs noms sont dans l'exe. `design/tokens.css` est importé par `index.css`. CSP `font-src 'self'`.
 - `node tests/recette/j4-no-webdriver.mjs --exe target/release/legal-os-poste.exe` : `j4: OK` — aucune dépendance WebDriver, feature `test-webdriver` hors défaut, binaire sans `WebDriver` / `tauri-driver` / `msedgedriver`. Le même script est branché sur le job CI `rust`.
 - J4 non coché : validation contrôleur encore requise.
+- CI `498a02b` (run 36162593331) : job `rust` rouge. `auth_flow_totp_et_jwks` et `auth_connexion_echoue_mot_de_passe_invalide` amorcent la même ligne en parallèle ; le second `INSERT` heurte `utilisateurs_cabinet_email_unique` avant `ON CONFLICT (id)`. Amorçage sérialisé par `pg_advisory_lock`. Rejeu local `--test-threads=2` : 2 passed.
 
