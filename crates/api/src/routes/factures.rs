@@ -151,22 +151,19 @@ pub async fn valider(
             .map_err(|_| ApiError::internal("commit"))?;
         return charger(&state, id).await.map(Json);
     }
-    let dossier_id = sqlx::query_as::<_, (Uuid,)>(
-        "SELECT dossier_id FROM factures WHERE id = $1",
-    )
-    .bind(id)
-    .fetch_one(&mut *tx)
-    .await
-    .map_err(|_| ApiError::internal("dossier facture"))?
-    .0;
-    let dossier_ok = sqlx::query_as::<_, (Uuid,)>(
-        "SELECT id FROM dossiers WHERE id = $1 AND cabinet_id = $2",
-    )
-    .bind(dossier_id)
-    .bind(claims.cabinet_id)
-    .fetch_optional(&mut *tx)
-    .await
-    .map_err(|_| ApiError::internal("lecture dossier"))?;
+    let dossier_id = sqlx::query_as::<_, (Uuid,)>("SELECT dossier_id FROM factures WHERE id = $1")
+        .bind(id)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|_| ApiError::internal("dossier facture"))?
+        .0;
+    let dossier_ok =
+        sqlx::query_as::<_, (Uuid,)>("SELECT id FROM dossiers WHERE id = $1 AND cabinet_id = $2")
+            .bind(dossier_id)
+            .bind(claims.cabinet_id)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|_| ApiError::internal("lecture dossier"))?;
     if dossier_ok.is_none() {
         return Err(ApiError::bad_request("Dossier introuvable"));
     }
