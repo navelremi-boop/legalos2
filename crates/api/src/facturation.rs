@@ -1,6 +1,15 @@
 //! TVA en centimes. Taux en points de base : 2000 = 20,00 %.
 //! Arrondi moitié vers le haut, à valider (docs/hypotheses-facturation.md).
 
+/// Montant HT d'une saisie de temps : (minutes × taux_centimes_heure) / 60.
+/// Le taux vient des paramètres (client, dossier, intervenant), pas d'une constante F0.
+pub fn ht_temps_centimes(minutes: i32, taux_centimes_heure: i64) -> Option<i64> {
+    if minutes <= 0 || taux_centimes_heure <= 0 {
+        return None;
+    }
+    Some(i64::from(minutes) * taux_centimes_heure / 60)
+}
+
 pub fn tva_centimes(base_ht_centimes: i64, taux_bp: i32) -> i64 {
     let produit = base_ht_centimes * i64::from(taux_bp);
     (produit + 5_000) / 10_000
@@ -205,7 +214,14 @@ fn echapper(texte: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::tva_centimes;
+    use super::{ht_temps_centimes, tva_centimes};
+
+    #[test]
+    fn ht_temps_utilise_le_taux_parametre() {
+        assert_eq!(ht_temps_centimes(60, 6_000), Some(6_000));
+        assert_eq!(ht_temps_centimes(30, 12_000), Some(6_000));
+        assert_eq!(ht_temps_centimes(0, 6_000), None);
+    }
 
     #[test]
     fn vingt_pourcent_juste() {

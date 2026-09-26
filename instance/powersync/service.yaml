@@ -19,5 +19,5 @@ client_auth:
   audience:
     - legalos-powersync
 
-sync_rules:
-  path: /config/sync-rules.yaml
+sync_config:
+  path: /config/sync-config.yaml

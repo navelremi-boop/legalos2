@@ -1,13 +1,14 @@
 ---
-description: Règles de synchronisation PowerSync et schéma client
+description: Synchronisation PowerSync (Sync Streams) et schéma client
 globs: instance/powersync/**, apps/poste/src/**/schema*.ts, apps/poste/src/**/sync/**
 alwaysApply: false
 ---
 
 # Synchronisation
 
-- **Les règles de synchronisation sont une frontière de sécurité**, pas une optimisation. Ce qui n'a pas à être sur un poste n'y descend jamais.
-- Filtres obligatoires : cabinet de l'utilisateur ; droits par dossier (dossier restreint → absent du poste non autorisé) ; boîte mail nominative → son seul titulaire ; boîte partagée → ses membres.
-- Toute modification des règles s'accompagne d'un test qui vérifie **le contenu de la base SQLite locale** d'un poste non autorisé (scénario S5).
+- **Les Sync Streams sont une frontière de sécurité**, pas une optimisation. Ce qui n'a pas à être sur un poste n'y descend jamais.
+- Contrat : `docs/sync-streams.md` ; déploiement : `instance/powersync/sync-config.yaml` (`config.edition: 3`), référencé par `sync_config.path` dans `instance/powersync/service.yaml`.
+- Filtres obligatoires : cabinet de l'utilisateur (`auth.parameter('cabinet_id')`) ; droits par dossier via JOIN `dossier_acces` (`auth.user_id()`) — un dossier restreint est absent du poste non autorisé ; boîte mail nominative → son seul titulaire ; boîte partagée → ses membres.
+- Toute modification des flux s'accompagne d'un test qui vérifie **le contenu de la base SQLite locale** d'un poste non autorisé (scénario S5).
 - Le schéma client est défini en TypeScript et reste aligné sur les migrations serveur ; un test compare les deux.
 - Les écritures du poste passent par la file d'envoi PowerSync vers l'API, jamais directement vers Postgres.

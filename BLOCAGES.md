@@ -22,7 +22,7 @@
 
 ## Décisions d'architecture en attente
 
-*(Aucune en attente au 2026-09-26.)* Les consignes de l’architecte sur la dénormalisation PowerSync (pas de JOIN en Sync Rules 1.26.1 ; `dossier_id` + copie de visibilité) sont **décidées** et consignées dans `docs/sync-rules.md`. Migration éventuelle vers **Sync Streams** (`edition: 3`, JOIN supportés) : non engagée ; à ouvrir ici si le commandement veut changer de modèle.
+*(Aucune en attente au 2026-09-26.)* **Sync Streams** (`edition: 3`) : migration **engagée** — contrat `docs/sync-streams.md`, déploiement `instance/powersync/sync-config.yaml`. JOIN autorisés (contrat ≤ 2 tables). La copie `visibilite` sur les enfants reste additive ; l’auth des flux restreints passe par `dossier_acces` + `auth.user_id()`.
 
 ---
 

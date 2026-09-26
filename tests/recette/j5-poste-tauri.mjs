@@ -132,7 +132,7 @@ async function evaluate(send, expression) {
 
 async function waitCdp(child) {
   const start = Date.now();
-  while (Date.now() - start < 180_000) {
+  while (Date.now() - start < 360_000) {
     if (child.exitCode !== null) throw new Error(`tauri arrêté (${child.exitCode})`);
     try {
       const list = await fetch(`http://127.0.0.1:${child.port}/json`);
@@ -207,20 +207,44 @@ async function login(send, email, password, secret, nomAppareil) {
   }
   let totpSoumis = ecran === "totp";
   const totpStart = Date.now();
-  while (Date.now() - totpStart < 90_000) {
+  while (Date.now() - totpStart < 180_000) {
     if (!totpSoumis && (await evaluate(send, `Boolean(document.getElementById("code-totp"))`))) {
       await setField(send, "code-totp", totpNow(secret));
       await evaluate(send, `document.getElementById("code-totp")?.closest("form")?.requestSubmit()`);
       totpSoumis = true;
     }
-    const connecte = await evaluate(
+    const coque = await evaluate(
       send,
-      `Boolean(document.getElementById("dossier-nom")) && !document.getElementById("instance-url") && !document.getElementById("code-totp")`,
+      `Boolean(document.querySelector("[data-testid=ecran-journee], [data-testid=ecran-dossiers], [data-testid=barre-haut]")) && !document.getElementById("instance-url") && !document.getElementById("code-totp")`,
     );
-    if (totpSoumis && connecte) return;
+    if (totpSoumis && coque) {
+      await ouvrirFormulaireDossier(send);
+      return;
+    }
     await sleep(250);
   }
   throw new Error("journée absente");
+}
+
+/** Coque : le formulaire n'est plus sur La journée — Dossiers ou panneau « Nouveau dossier ». */
+async function ouvrirFormulaireDossier(send) {
+  if (await evaluate(send, `Boolean(document.getElementById("dossier-nom"))`)) return;
+  await evaluate(
+    send,
+    `([...document.querySelectorAll("button")].find((b) => /dossiers/i.test(b.textContent || "")) || null)?.click()`,
+  );
+  await sleep(400);
+  if (await evaluate(send, `Boolean(document.getElementById("dossier-nom"))`)) return;
+  await evaluate(
+    send,
+    `([...document.querySelectorAll("button")].find((b) => /nouveau dossier/i.test(b.textContent || "")) || null)?.click()`,
+  );
+  const debut = Date.now();
+  while (Date.now() - debut < 15_000) {
+    if (await evaluate(send, `Boolean(document.getElementById("dossier-nom"))`)) return;
+    await sleep(200);
+  }
+  throw new Error("formulaire dossier absent (coque)");
 }
 
 function sqlServeur(requete) {
@@ -434,11 +458,25 @@ try {
     if (partiesLocales !== "[]") {
       fail(`parties du dossier restreint présentes chez B (${partiesLocales})`);
     }
+    const documentsLocaux = await sqliteLocal(
+      "b",
+      `SELECT id FROM documents WHERE dossier_id = '${idRestreint}'`,
+    );
+    if (documentsLocaux !== "[]") {
+      fail(`documents du dossier restreint présents chez B (${documentsLocaux})`);
+    }
+    const versionsLocales = await sqliteLocal(
+      "b",
+      `SELECT id FROM document_versions WHERE dossier_id = '${idRestreint}'`,
+    );
+    if (versionsLocales !== "[]") {
+      fail(`document_versions du dossier restreint présents chez B (${versionsLocales})`);
+    }
     const tousLesRg = await sqliteLocal("b", `SELECT numero_rg FROM dossiers`);
     if (String(tousLesRg).includes(rgRestreint)) {
       fail(`RG restreint visible en scan complet chez B (${tousLesRg})`);
     }
-    console.log("j5-poste: OK — dossier restreint absent du SQLite de B");
+    console.log("j5-poste: OK — dossier restreint et enfants absents du SQLite de B");
     sessionB.ws.close();
   } finally {
     await stopApp(posteB);

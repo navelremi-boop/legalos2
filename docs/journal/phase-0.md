@@ -27,7 +27,7 @@
 ### Délégation sous-agents (J0.6 contrats)
 
 - **instance-backend** : workspace Rust, migrations 001–003, docker-compose, OpenAPI stubs auth, `.env.example`. Clippy/fmt non prouvés (pas de cargo).
-- **poste-interface** : `design/tokens.css`, scaffold Tauri+React, `AppSchema.ts`, `docs/sync-rules.md`. Typecheck/build prouvés.
+- **poste-interface** : `design/tokens.css`, scaffold Tauri+React, `AppSchema.ts`, `docs/sync-streams.md` (ex-`sync-rules.md`). Typecheck/build prouvés.
 
 ### Contrôleur — jalon J0 (2026-09-24)
 

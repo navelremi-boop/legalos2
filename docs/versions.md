@@ -27,7 +27,7 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 
 | Composant | Version figée | Source |
 |-----------|---------------|--------|
-| PowerSync Service (Open Edition) | **journeyapps/powersync-service:1.26.1** | https://hub.docker.com/r/journeyapps/powersync-service/tags — vérifié 2026-09-26 : tag `1.26.1` toujours courant. **Sync Rules** (legacy) : pas de JOIN ni sous-requête. **Sync Streams** (`config.edition: 3`) : JOIN / CTE / sous-requêtes supportés (docs.powersync.com). Décision en vigueur : rester en Sync Rules + dénormalisation (`docs/sync-rules.md`) ; migration Streams non engagée. |
+| PowerSync Service (Open Edition) | **journeyapps/powersync-service:1.26.1** | https://hub.docker.com/r/journeyapps/powersync-service/tags — vérifié 2026-09-26 : tag `1.26.1` courant (≥ 1.26.1 requis pour Sync Streams). **Sync Streams** (`config.edition: 3`, `instance/powersync/sync-config.yaml`) : JOIN / CTE / sous-requêtes supportés — **décision en vigueur** (voir `docs/sync-streams.md`). Sync Rules (legacy) abandonnées. |
 | PostgreSQL | **16.8-bookworm** | https://hub.docker.com/_/postgres |
 | Caddy | **2.10.0-alpine** | https://hub.docker.com/_/caddy |
 | Garage (S3) | **dxflrs/garage:v1.0.1** | https://hub.docker.com/r/dxflrs/garage |

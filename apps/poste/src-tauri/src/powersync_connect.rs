@@ -110,11 +110,15 @@ impl BackendConnector for CabinetConnector {
             let mut cabinets = Vec::new();
             let mut dossiers = Vec::new();
             let mut parties = Vec::new();
+            let mut temps = Vec::new();
+            let mut brouillons = Vec::new();
             for entry in crud {
                 match entry.table.as_str() {
                     "cabinets" => cabinets.push(entry),
                     "dossiers" => dossiers.push(entry),
                     "parties" => parties.push(entry),
+                    "temps_saisis" => temps.push(entry),
+                    "brouillons_facture" => brouillons.push(entry),
                     _ => return Err(upload_err("table hors périmètre")),
                 }
             }
@@ -126,6 +130,12 @@ impl BackendConnector for CabinetConnector {
             }
             for entry in parties {
                 upload_partie(&self.session, &entry.id, entry.data.as_ref()).await?;
+            }
+            for entry in temps {
+                upload_temps(&self.session, &entry.id, entry.data.as_ref()).await?;
+            }
+            for entry in brouillons {
+                upload_brouillon(&self.session, &entry.id, entry.data.as_ref()).await?;
             }
             tx.complete().await?;
         }
@@ -264,6 +274,93 @@ async fn upload_partie(
     .await
 }
 
+#[derive(Serialize)]
+struct CreerTempsBody<'a> {
+    id: &'a str,
+    dossier_id: &'a str,
+    minutes: i64,
+    libelle: &'a str,
+    taux_centimes_heure: i64,
+    idempotence_cle: String,
+}
+
+#[derive(Serialize)]
+struct CreerBrouillonBody<'a> {
+    id: &'a str,
+    dossier_id: &'a str,
+    temps_id: &'a str,
+    libelle: &'a str,
+    ht_centimes: i64,
+    taux_centimes_heure: i64,
+    idempotence_cle: String,
+}
+
+async fn upload_temps(
+    session: &Arc<Mutex<SessionSync>>,
+    id: &str,
+    data: Option<&Map<String, Value>>,
+) -> Result<(), PowerSyncError> {
+    let Some(data) = data else {
+        return Ok(());
+    };
+    let Some(dossier_id) = json_text(data.get("dossier_id")) else {
+        return Err(upload_err("dossier du temps absent"));
+    };
+    let Some(libelle) = json_text(data.get("libelle")) else {
+        return Err(upload_err("libellé du temps absent"));
+    };
+    let Some(minutes) = json_i64(data.get("minutes")) else {
+        return Err(upload_err("minutes absentes"));
+    };
+    let Some(taux) = json_i64(data.get("taux_centimes_heure")) else {
+        return Err(upload_err("taux horaire absent"));
+    };
+    let body = CreerTempsBody {
+        id,
+        dossier_id,
+        minutes,
+        libelle,
+        taux_centimes_heure: taux,
+        idempotence_cle: format!("{id}:temps"),
+    };
+    envoyer(session, "/api/temps", &body).await
+}
+
+async fn upload_brouillon(
+    session: &Arc<Mutex<SessionSync>>,
+    id: &str,
+    data: Option<&Map<String, Value>>,
+) -> Result<(), PowerSyncError> {
+    let Some(data) = data else {
+        return Ok(());
+    };
+    let Some(dossier_id) = json_text(data.get("dossier_id")) else {
+        return Err(upload_err("dossier du brouillon absent"));
+    };
+    let Some(temps_id) = json_text(data.get("temps_id")) else {
+        return Err(upload_err("temps du brouillon absent"));
+    };
+    let Some(libelle) = json_text(data.get("libelle")) else {
+        return Err(upload_err("libellé du brouillon absent"));
+    };
+    let Some(ht) = json_i64(data.get("ht_centimes")) else {
+        return Err(upload_err("montant HT absent"));
+    };
+    let Some(taux) = json_i64(data.get("taux_centimes_heure")) else {
+        return Err(upload_err("taux du brouillon absent"));
+    };
+    let body = CreerBrouillonBody {
+        id,
+        dossier_id,
+        temps_id,
+        libelle,
+        ht_centimes: ht,
+        taux_centimes_heure: taux,
+        idempotence_cle: format!("{id}:brouillon"),
+    };
+    envoyer(session, "/api/brouillons-facture", &body).await
+}
+
 async fn envoyer(
     session: &Arc<Mutex<SessionSync>>,
     chemin: &str,
@@ -295,6 +392,14 @@ fn json_flag(value: Option<&Value>) -> bool {
         Some(Value::Bool(v)) => *v,
         Some(Value::Number(n)) => n.as_i64().unwrap_or(0) != 0,
         _ => false,
+    }
+}
+
+fn json_i64(value: Option<&Value>) -> Option<i64> {
+    match value {
+        Some(Value::Number(n)) => n.as_i64(),
+        Some(Value::String(s)) => s.parse().ok(),
+        _ => None,
     }
 }
 

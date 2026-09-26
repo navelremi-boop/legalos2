@@ -1,0 +1,71 @@
+# Sync Streams (edition 3) — frontière de sécurité (S5).
+# Auth : auth.user_id() = JWT sub ; auth.parameter('cabinet_id') = claim cabinet_id.
+config:
+  edition: 3
+
+streams:
+  cabinet_global:
+    auto_subscribe: true
+    queries:
+      - SELECT id, slug, nom, totp_obligatoire, cree_le::text AS cree_le, revision FROM cabinets WHERE id::text = auth.parameter('cabinet_id')
+      - SELECT id, cabinet_id, table_cible, enregistrement_id, champ, valeur_remplacee, valeur_appliquee, revision_base, revision_appliquee, conflit, cree_le::text AS cree_le FROM journal_modifications WHERE cabinet_id::text = auth.parameter('cabinet_id')
+
+  dossiers_publics:
+    auto_subscribe: true
+    query: SELECT id, cabinet_id, nom, chemise, juridiction, numero_rg, restreint, revision, cree_le::text AS cree_le FROM dossiers WHERE visibilite = 'public' AND cabinet_id::text = auth.parameter('cabinet_id')
+
+  dossiers_restreints:
+    auto_subscribe: true
+    query: |
+      SELECT dossiers.id, dossiers.cabinet_id, dossiers.nom, dossiers.chemise, dossiers.juridiction, dossiers.numero_rg, dossiers.restreint, dossiers.revision, dossiers.cree_le::text AS cree_le
+      FROM dossiers
+      INNER JOIN dossier_acces ON dossiers.id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
+
+  parties_publics:
+    auto_subscribe: true
+    query: |
+      SELECT parties.id, parties.dossier_id, parties.cabinet_id, parties.role, parties.nom, parties.revision, parties.cree_le::text AS cree_le
+      FROM parties
+      INNER JOIN dossiers ON parties.dossier_id = dossiers.id
+      WHERE dossiers.visibilite = 'public' AND dossiers.cabinet_id::text = auth.parameter('cabinet_id')
+
+  parties_restreints:
+    auto_subscribe: true
+    query: |
+      SELECT parties.id, parties.dossier_id, parties.cabinet_id, parties.role, parties.nom, parties.revision, parties.cree_le::text AS cree_le
+      FROM parties
+      INNER JOIN dossier_acces ON parties.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
+
+  documents_publics:
+    auto_subscribe: true
+    query: |
+      SELECT documents.id, documents.cabinet_id, documents.dossier_id, documents.nom, documents.visibilite, documents.cree_le::text AS cree_le
+      FROM documents
+      INNER JOIN dossiers ON documents.dossier_id = dossiers.id
+      WHERE dossiers.visibilite = 'public' AND dossiers.cabinet_id::text = auth.parameter('cabinet_id')
+
+  documents_restreints:
+    auto_subscribe: true
+    query: |
+      SELECT documents.id, documents.cabinet_id, documents.dossier_id, documents.nom, documents.visibilite, documents.cree_le::text AS cree_le
+      FROM documents
+      INNER JOIN dossier_acces ON documents.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
+
+  document_versions_publics:
+    auto_subscribe: true
+    query: |
+      SELECT document_versions.id, document_versions.document_id, document_versions.cabinet_id, document_versions.dossier_id, document_versions.numero, document_versions.empreinte, document_versions.taille, document_versions.auteur_id, document_versions.visibilite, document_versions.cree_le::text AS cree_le
+      FROM document_versions
+      INNER JOIN dossiers ON document_versions.dossier_id = dossiers.id
+      WHERE dossiers.visibilite = 'public' AND dossiers.cabinet_id::text = auth.parameter('cabinet_id')
+
+  document_versions_restreints:
+    auto_subscribe: true
+    query: |
+      SELECT document_versions.id, document_versions.document_id, document_versions.cabinet_id, document_versions.dossier_id, document_versions.numero, document_versions.empreinte, document_versions.taille, document_versions.auteur_id, document_versions.visibilite, document_versions.cree_le::text AS cree_le
+      FROM document_versions
+      INNER JOIN dossier_acces ON document_versions.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()

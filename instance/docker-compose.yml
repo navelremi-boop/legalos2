@@ -112,7 +112,7 @@ services:
       PS_STORAGE_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/powersync_storage
     volumes:
       - ./powersync/service.yaml:/config/service.yaml:ro
-      - ./powersync/sync-rules.yaml:/config/sync-rules.yaml:ro
+      - ./powersync/sync-config.yaml:/config/sync-config.yaml:ro
     expose:
       - "8080"
     healthcheck:

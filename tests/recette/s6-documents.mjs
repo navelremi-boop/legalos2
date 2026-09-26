@@ -91,33 +91,31 @@ async function lire(url) {
   return Buffer.from(await reponse.arrayBuffer());
 }
 
-/** Contrôle statique : tables documents dans les buckets dossier (mêmes droits). */
+/** Contrôle statique : tables documents dans les flux Sync Streams (mêmes droits dossier). */
 function verifierReglesSync() {
-  const yaml = readFileSync(join(root, "instance/powersync/sync-rules.yaml"), "utf8");
-  for (const bucket of ["dossiers_publics", "dossiers_restreints"]) {
-    if (!yaml.includes(`${bucket}:`)) fail(`bucket ${bucket} absent des règles PowerSync`);
-  }
-  const publics = yaml.split("dossiers_restreints:")[0] ?? "";
-  const restreints = yaml.includes("dossiers_restreints:")
-    ? yaml.slice(yaml.indexOf("dossiers_restreints:"))
-    : "";
-  for (const [nom, bloc] of [
-    ["dossiers_publics", publics],
-    ["dossiers_restreints", restreints],
+  const yaml = readFileSync(join(root, "instance/powersync/sync-config.yaml"), "utf8");
+  for (const flux of [
+    "dossiers_publics",
+    "dossiers_restreints",
+    "documents_publics",
+    "documents_restreints",
+    "document_versions_publics",
+    "document_versions_restreints",
   ]) {
-    if (!/\bFROM dossiers\b/i.test(bloc)) fail(`${nom} : dossiers absents`);
-    if (!/\bFROM documents\b/i.test(bloc)) {
-      fail(`${nom} : documents absents (métadonnées non synchronisées)`);
-    }
-    if (!/\bFROM document_versions\b/i.test(bloc)) {
-      fail(`${nom} : document_versions absents (métadonnées non synchronisées)`);
-    }
+    if (!yaml.includes(`${flux}:`)) fail(`flux ${flux} absent de sync-config.yaml`);
+  }
+  if (!/\bFROM documents\b/i.test(yaml)) fail("documents absents des Sync Streams");
+  if (!/\bFROM document_versions\b/i.test(yaml)) {
+    fail("document_versions absents des Sync Streams");
+  }
+  if (!/INNER JOIN dossier_acces/i.test(yaml)) {
+    fail("flux restreints : JOIN dossier_acces requis (S5)");
   }
   const schema = readFileSync(join(root, "apps/poste/src/sync/AppSchema.ts"), "utf8");
   if (!/\bdocuments\b/.test(schema) || !/\bdocument_versions\b/.test(schema)) {
     fail("AppSchema : tables documents / document_versions absentes");
   }
-  console.log("s6: règles PowerSync + AppSchema (documents, droits dossier)");
+  console.log("s6: Sync Streams + AppSchema (documents, droits dossier)");
 }
 
 verifierReglesSync();

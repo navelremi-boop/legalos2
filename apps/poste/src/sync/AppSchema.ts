@@ -104,6 +104,50 @@ const parties = new Table(
   { indexes: { dossier: ["dossier_id"] } },
 );
 
+const tempsSaisis = new Table(
+  {
+    cabinet_id: column.text,
+    dossier_id: column.text,
+    intervenant_id: column.text,
+    minutes: column.integer,
+    libelle: column.text,
+    taux_centimes_heure: column.integer,
+    ht_centimes: column.integer,
+    visibilite: column.text,
+    cree_le: column.text,
+  },
+  { indexes: { dossier: ["dossier_id"] } },
+);
+
+const brouillonsFacture = new Table(
+  {
+    cabinet_id: column.text,
+    dossier_id: column.text,
+    temps_id: column.text,
+    numero: column.integer,
+    ht_centimes: column.integer,
+    libelle: column.text,
+    intervenant_id: column.text,
+    taux_centimes_heure: column.integer,
+    visibilite: column.text,
+    cree_le: column.text,
+  },
+  { indexes: { dossier: ["dossier_id"] } },
+);
+
+const tauxHoraires = new Table(
+  {
+    cabinet_id: column.text,
+    client_partie_id: column.text,
+    dossier_id: column.text,
+    intervenant_id: column.text,
+    centimes_par_heure: column.integer,
+    visibilite: column.text,
+    cree_le: column.text,
+  },
+  { indexes: { cabinet: ["cabinet_id"], dossier: ["dossier_id"] } },
+);
+
 export const AppSchema = new Schema({
   cabinets,
   journal_modifications: journalModifications,
@@ -113,6 +157,9 @@ export const AppSchema = new Schema({
   parties,
   documents,
   document_versions: documentVersions,
+  temps_saisis: tempsSaisis,
+  brouillons_facture: brouillonsFacture,
+  taux_horaires: tauxHoraires,
 });
 
 export type Database = (typeof AppSchema)["types"];
@@ -121,3 +168,6 @@ export type UserRecord = Database["users"];
 export type PosteRecord = Database["postes"];
 export type DossierRecord = Database["dossiers"];
 export type PartieRecord = Database["parties"];
+export type TempsSaisiRecord = Database["temps_saisis"];
+export type BrouillonFactureRecord = Database["brouillons_facture"];
+export type TauxHoraireRecord = Database["taux_horaires"];

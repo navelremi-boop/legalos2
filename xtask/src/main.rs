@@ -48,7 +48,7 @@ fn must_exist(root: &Path, rel: &str) -> Result<()> {
 fn check_contracts(root: &Path) -> Result<()> {
     let required = [
         "design/tokens.css",
-        "docs/sync-rules.md",
+        "docs/sync-streams.md",
         "docs/versions.md",
         "apps/poste/src/sync/AppSchema.ts",
         "crates/api/migrations/001_cabinets.sql",
