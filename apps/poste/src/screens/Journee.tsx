@@ -24,13 +24,13 @@ export const JOURNEE_DEMO: DonneesJournee = {
     {
       id: "aud-1",
       titre: "Audience de mise en état",
-      meta: "TJ Nanterre · 9 h 30",
+      meta: "TJ Nanterre, 9 h 30",
       dossier: { nom: "Ferrand Métal", chemise: "kraft" },
     },
     {
       id: "aud-2",
       titre: "Rendez-vous client",
-      meta: "Cabinet · 14 h 00",
+      meta: "Cabinet, 14 h 00",
       dossier: { nom: "SCI des Lilas", chemise: "vert-amande" },
     },
   ],
@@ -38,14 +38,14 @@ export const JOURNEE_DEMO: DonneesJournee = {
     {
       id: "del-1",
       titre: "Conclusions adverses",
-      meta: "échéance le 3 oct. · 5 jours",
+      meta: "échéance le 3 oct., dans 5 jours",
       dossier: { nom: "Ferrand Métal", chemise: "kraft" },
       urgent: false,
     },
     {
       id: "del-2",
       titre: "Appel incident",
-      meta: "échéance le 29 sept. · 2 jours",
+      meta: "échéance le 29 sept., dans 2 jours",
       dossier: { nom: "Martin / Assurances Loire", chemise: "bleu-classeur" },
       urgent: true,
     },
@@ -68,13 +68,13 @@ export const JOURNEE_DEMO: DonneesJournee = {
     {
       id: "tps-1",
       titre: "Préparation audience",
-      meta: "0 h 45 · brouillon",
+      meta: "0 h 45, brouillon",
       dossier: { nom: "Ferrand Métal", chemise: "kraft" },
     },
     {
       id: "tps-2",
       titre: "Entretien téléphonique",
-      meta: "0 h 20 · brouillon",
+      meta: "0 h 20, brouillon",
       dossier: { nom: "SCI des Lilas", chemise: "vert-amande" },
     },
   ],

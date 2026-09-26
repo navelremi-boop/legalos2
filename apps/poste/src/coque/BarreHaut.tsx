@@ -5,6 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { IconDots } from "@tabler/icons-react";
 import { fr } from "@/lib/fr";
 import { formatDuree } from "@/lib/format";
 import { libelleEtiquetteReference, libelleReferenceDossier } from "@/lib/referenceDossier";
@@ -259,7 +260,7 @@ export function BarreHaut({
                 setMenuOuvert((v) => !v);
               }}
             >
-              ···
+              <IconDots size={16} stroke={1.8} aria-hidden />
             </button>
             {menuOuvert ? (
               <ul
