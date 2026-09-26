@@ -2,6 +2,7 @@
 .git
 .cursor
 .mission
+.worktrees
 **/target
 **/node_modules
 apps

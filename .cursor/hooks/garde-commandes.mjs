@@ -42,4 +42,48 @@ for (const [motif, raison] of interdits) {
     });
   }
 }
+
+// Worktrees des sous-agents : uniquement sous .worktrees/ à la racine du dépôt (ordre d'opération § 4.3).
+const racines = (Array.isArray(lu.valeur.workspace_roots) ? lu.valeur.workspace_roots : [])
+  .map((racine) => normaliser(String(racine)).replace(/\/+$/, ""));
+
+function normaliser(chemin) {
+  return chemin
+    .replace(/^["']|["']$/g, "")
+    .replace(/\\/g, "/")
+    .replace(/^\/([A-Za-z]:)/, "$1")
+    .toLowerCase();
+}
+
+function worktreeAutorise(chemin) {
+  const net = normaliser(chemin);
+  if (/^(\.\/)?\.worktrees\/[^/]/.test(net)) return true;
+  return racines.some((racine) => net.startsWith(`${racine}/.worktrees/`));
+}
+
+const optionsAvecValeur = new Set(["-b", "-B", "--reason"]);
+for (const segment of c.split(/;|&&|\|\||&|\||\r?\n/)) {
+  const mots = segment.trim().split(/\s+/);
+  const i = mots.findIndex(
+    (mot, k) => /^git(\.exe)?$/i.test(mot) && mots[k + 1] === "worktree" && mots[k + 2] === "add",
+  );
+  if (i < 0) continue;
+  let chemin = null;
+  for (let k = i + 3; k < mots.length; k += 1) {
+    if (optionsAvecValeur.has(mots[k])) {
+      k += 1;
+    } else if (!mots[k].startsWith("-")) {
+      chemin = mots[k];
+      break;
+    }
+  }
+  if (!chemin || !worktreeAutorise(chemin)) {
+    repondre({
+      permission: "deny",
+      user_message: "Commande bloquée par garde-commandes : worktree hors de .worktrees/.",
+      agent_message:
+        "Les worktrees des sous-agents se créent dans le dossier du projet : git worktree add .worktrees/<lot> -b lot/<nom> (ordre d'opération § 4.3).",
+    });
+  }
+}
 repondre({ permission: "allow" });

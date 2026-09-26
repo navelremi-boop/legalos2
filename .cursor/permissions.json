@@ -1,0 +1,78 @@
+// .cursor/permissions.json — dépôt legalos2
+// Réduit les demandes d'autorisation de l'agent. Ce n'est pas une barrière de sécurité :
+// la liste fonctionne par préfixe, et une commande chaînée qui commence par un préfixe
+// autorisé passe. La vraie barrière reste le hook garde-commandes (.cursor/hooks).
+{
+  "terminalAllowlist": [
+    // Rust
+    "cargo",
+    "rustup show",
+    "rustc --version",
+    // Node et interface
+    "pnpm",
+    "pnpm.cmd",
+    "node",
+    "npx playwright",
+    "npx tauri",
+    "npx wdio",
+    // Git (le hook bloque push forcé, tags, suppression de branche distante, réécriture d'historique)
+    "git status",
+    "git diff",
+    "git log",
+    "git show",
+    "git add",
+    "git commit",
+    "git fetch",
+    "git pull",
+    "git switch",
+    "git checkout",
+    "git branch",
+    "git rev-parse",
+    "git worktree",
+    "git stash",
+    "git push origin",
+    // CI GitHub
+    "gh run",
+    "gh pr view",
+    // Instance Docker du projet
+    "docker compose",
+    "docker ps",
+    "docker logs",
+    "docker inspect",
+    "docker exec",
+    // Lecture PowerShell
+    "Get-ChildItem",
+    "Get-Content",
+    "Select-String",
+    "Test-Path",
+    "Get-Location",
+    "Set-Location",
+    "Resolve-Path",
+    "Measure-Object",
+    // Scripts du dépôt
+    ".\\scripts\\clippy.ps1",
+    ". .\\scripts\\bootstrap-path.ps1",
+    // Contrôles de santé locaux
+    "curl -s http://127.0.0.1",
+    "curl http://127.0.0.1",
+    "Invoke-WebRequest http://127.0.0.1"
+  ],
+
+  // Consignes pour le classifieur du mode Auto-review (sans effet dans les autres modes).
+  "autoRun": {
+    "allow_instructions": [
+      "Compiler, tester, formater et analyser ce dépôt (cargo, pnpm, scripts Node de tests/recette et de xtask) est autorisé.",
+      "Démarrer, arrêter, réinitialiser (y compris docker compose down -v) et inspecter l'instance Docker du projet définie dans instance/docker-compose.yml est autorisé.",
+      "Lire les fichiers du dépôt et l'historique Git, créer des commits et pousser la branche main vers origin est autorisé.",
+      "Installer les dépendances déclarées dans Cargo.toml, package.json ou pnpm-lock.yaml est autorisé.",
+      "Lancer l'application Tauri en mode développement ou de test, et les tests WebdriverIO ou Playwright, est autorisé."
+    ],
+    "block_instructions": [
+      "Toute élévation de privilèges, modification du registre Windows, de Microsoft Defender, de Smart App Control, de la stratégie d'exécution PowerShell ou des réglages système doit être soumise à approbation.",
+      "Toute suppression de fichiers en dehors de ce dépôt ou dans le profil utilisateur doit être soumise à approbation.",
+      "Tout push forcé, réécriture d'historique, suppression de branche distante ou push de tag doit être bloqué.",
+      "Toute lecture ou affichage d'un fichier .env, d'une clé privée ou d'un jeton doit être soumis à approbation.",
+      "Tout appel réseau vers un hôte autre que localhost, github.com, crates.io, le registre npm ou la documentation officielle des outils du projet doit être soumis à approbation."
+    ]
+  }
+}

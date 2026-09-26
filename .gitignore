@@ -13,6 +13,9 @@ secrets/
 # Arrêt d'urgence local de la mission
 .mission/STOP
 
+# Worktrees des sous-agents (ordre d'opération § 4.3)
+.worktrees/
+
 # Artefacts
 target/
 node_modules/

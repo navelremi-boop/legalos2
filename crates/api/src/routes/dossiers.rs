@@ -66,6 +66,7 @@ pub struct PartieResponse {
     responses(
         (status = 200, description = "Dossier créé ou déjà présent", body = DossierResponse),
         (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Dossier restreint hors de vos droits", body = crate::error::ApiErrorBody),
     )
 )]
 pub async fn creer_dossier(
@@ -88,6 +89,13 @@ pub async fn creer_dossier(
         .begin()
         .await
         .map_err(|_| ApiError::internal("transaction"))?;
+    // Envois concurrents du même dossier (rejeu du poste) : sans ce verrou, deux transactions
+    // voient le dossier absent et la seconde échoue sur la clé primaire (500).
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))")
+        .bind(body.id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| ApiError::internal("verrou dossier"))?;
     let existant = sqlx::query_as::<_, (Uuid, bool, Option<String>)>(
         "SELECT cabinet_id, restreint, reference FROM dossiers WHERE id = $1",
     )
@@ -98,6 +106,21 @@ pub async fn creer_dossier(
     if let Some((cabinet_id, restreint, reference)) = existant {
         if cabinet_id != claims.cabinet_id {
             return Err(ApiError::unauthorized("Dossier hors cabinet"));
+        }
+        // Dossier restreint : le rejeu ne renvoie rien à un collaborateur hors dossier_acces
+        // (droits par dossier, § 3.1).
+        if restreint {
+            let autorise = sqlx::query_scalar::<_, bool>(
+                "SELECT EXISTS (SELECT 1 FROM dossier_acces WHERE dossier_id = $1 AND utilisateur_id = $2)",
+            )
+            .bind(body.id)
+            .bind(claims.sub)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|_| ApiError::internal("droit dossier"))?;
+            if !autorise {
+                return Err(ApiError::not_found("Dossier introuvable"));
+            }
         }
         tx.commit()
             .await

@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
  * Référence de dossier (§ 3.4) — acceptation API / Postgres.
- * Deux créations concurrentes → numéros distincts continus ; unicité ; référence figée ;
- * Sync Streams + OpenAPI ; libellé « en attente » si null (contrat partagé poste).
+ * Deux créations concurrentes → numéros distincts continus ; rejeu idempotent, y compris
+ * dix envois simultanés du même dossier ; rejeu d'un dossier restreint refusé hors dossier_acces ;
+ * unicité ; référence figée ; Sync Streams + OpenAPI ; libellé « Référence en attente » si null.
  * Usage : node tests/recette/reference-dossier-api.mjs
  */
 import { randomUUID } from "node:crypto";
@@ -10,7 +11,7 @@ import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { demoAccessToken } from "./lib/demo-auth.mjs";
+import { accessToken, demoAccessToken } from "./lib/demo-auth.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const instance = process.env.LEGALOS_INSTANCE_URL ?? "http://127.0.0.1:8088";
@@ -150,6 +151,92 @@ if (replay.reference !== da.reference) {
   fail(`idempotence : référence changée ${da.reference} → ${replay.reference}`);
 }
 console.log("reference-dossier-api: rejeu idempotent");
+
+async function envoyer(jetonAppel, corps) {
+  const reponse = await fetch(`${api}/dossiers`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${jetonAppel}`, "content-type": "application/json" },
+    body: JSON.stringify(corps),
+  });
+  const texte = await reponse.text();
+  let donnees = {};
+  try {
+    donnees = texte ? JSON.parse(texte) : {};
+  } catch {
+    donnees = { brut: texte.slice(0, 120) };
+  }
+  return { statut: reponse.status, corps: donnees };
+}
+
+// Rejeu concurrent du même dossier (poste qui réessaie) : aucune erreur, une seule référence.
+{
+  const id = randomUUID();
+  const corps = {
+    id,
+    idempotence_cle: `${id}:dossier`,
+    nom: "Dossier fictif rejeu concurrent",
+    chemise: "kraft",
+    juridiction: "TJ de Lyon",
+    numero_rg: `RG${String(Date.now()).slice(-5)}C`,
+    restreint: false,
+  };
+  const reponses = await Promise.all(Array.from({ length: 10 }, () => envoyer(jeton, corps)));
+  const statuts = reponses.map((r) => r.statut);
+  if (statuts.some((s) => s !== 200)) {
+    fail(`rejeu concurrent : statuts ${JSON.stringify(statuts)} (attendu dix 200)`);
+  }
+  const uniques = [...new Set(reponses.map((r) => r.corps.reference))];
+  if (uniques.length !== 1 || !reFormat.test(String(uniques[0]))) {
+    fail(`rejeu concurrent : références ${JSON.stringify(uniques)}`);
+  }
+  console.log(`reference-dossier-api: dix rejeux simultanés → 200, une seule référence (${uniques[0]})`);
+}
+
+// Dossier restreint : le rejeu par un collaborateur hors dossier_acces ne renvoie rien (§ 3.1).
+{
+  const collab = {
+    email: "collab-reference@cabinet-fictif.example",
+    password: "MotDePasseCollab123!",
+    totpSecret: "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+  };
+  const creation = await fetch(`${api}/collaborateurs`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${jeton}`, "content-type": "application/json" },
+    body: JSON.stringify({
+      email: collab.email,
+      password: collab.password,
+      totp_secret_base32: collab.totpSecret,
+    }),
+  });
+  if (!creation.ok && creation.status !== 409) fail(`collaborateur → ${creation.status}`);
+  const jetonCollab = await accessToken(api, { ...collab, nomAppareil: "reference-dossier-collab" });
+  const id = randomUUID();
+  const corps = {
+    id,
+    idempotence_cle: `${id}:dossier`,
+    nom: "Dossier fictif restreint rejeu",
+    chemise: "lilas",
+    juridiction: "TJ de Lyon",
+    numero_rg: `RG${String(Date.now()).slice(-5)}X`,
+    restreint: true,
+  };
+  const titulaire = await envoyer(jeton, corps);
+  if (titulaire.statut !== 200 || !reFormat.test(String(titulaire.corps.reference))) {
+    fail(`dossier restreint : création ${titulaire.statut} ${JSON.stringify(titulaire.corps)}`);
+  }
+  const etranger = await envoyer(jetonCollab, corps);
+  if (etranger.statut !== 404) {
+    fail(`rejeu restreint par un collaborateur hors accès : statut ${etranger.statut} (attendu 404)`);
+  }
+  if (JSON.stringify(etranger.corps).includes(titulaire.corps.reference)) {
+    fail("rejeu restreint : la référence fuit vers un collaborateur hors accès");
+  }
+  const rejeuTitulaire = await envoyer(jeton, corps);
+  if (rejeuTitulaire.statut !== 200 || rejeuTitulaire.corps.reference !== titulaire.corps.reference) {
+    fail(`rejeu restreint par le titulaire : ${rejeuTitulaire.statut} ${rejeuTitulaire.corps.reference}`);
+  }
+  console.log("reference-dossier-api: rejeu restreint → 404 hors dossier_acces, référence inchangée pour le titulaire");
+}
 
 const doublon = await sqlServeur(
   `INSERT INTO dossiers (

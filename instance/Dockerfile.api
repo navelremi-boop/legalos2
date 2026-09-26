@@ -9,6 +9,12 @@ WORKDIR /src
 COPY Cargo.toml Cargo.lock rust-toolchain.toml rustfmt.toml ./
 COPY crates ./crates
 COPY xtask ./xtask
+# Le contexte de build est l'arbre de travail : sous Windows, des fichiers y sont souvent en CRLF
+# alors que le commit est en LF (.gitattributes). On rétablit le contenu commité avant de compiler,
+# sinon sqlx::migrate! embarque des sommes de contrôle différentes de celles de la CI.
+RUN find crates xtask -type f \( -name '*.sql' -o -name '*.rs' -o -name '*.toml' -o -name '*.typ' -o -name '*.json' \) \
+        -exec sed -i 's/\r$//' {} + \
+    && sed -i 's/\r$//' Cargo.toml Cargo.lock rust-toolchain.toml rustfmt.toml
 RUN cargo build --release -p legalos-api
 
 FROM debian:bookworm-slim AS runtime

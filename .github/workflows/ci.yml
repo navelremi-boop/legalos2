@@ -34,7 +34,7 @@ jobs:
       - run: node tests/recette/s5-sync-streams.mjs
       - run: node tests/recette/s5-sqlite-par-flux.mjs
       - run: node tests/recette/encodage-texte.mjs
-      - run: node tests/recette/garde-hooks.mjs
+      - run: node tests/recette/reference-dossier.mjs
 
   rust:
     runs-on: ubuntu-latest
@@ -100,6 +100,10 @@ jobs:
         run: node tests/recette/j3-powersync-liveness.mjs
       - name: Tests intégration auth (Postgres compose)
         run: cargo test -p legalos-api --test auth_integration -- --nocapture
+      - name: Référence de dossier (API, rejeux concurrents, dossier restreint)
+        run: node tests/recette/reference-dossier-api.mjs
+      - name: Référence de dossier — acceptation contrôleur (API + Postgres)
+        run: node tests/recette/reference-dossier-controleur.mjs
 
   facturx:
     runs-on: ubuntu-latest

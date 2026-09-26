@@ -38,12 +38,22 @@ export function totpNow(secretBase32 = totpSecretB32) {
 
 /** Jetons après connexion + TOTP (API directe port 8080). */
 export async function demoAccessToken(apiBase, nomAppareil) {
+  return accessToken(apiBase, {
+    email: demoEmail,
+    password: demoPassword,
+    totpSecret: totpSecretB32,
+    nomAppareil,
+  });
+}
+
+/** Jeton d'accès d'un compte fictif quelconque (connexion + TOTP). */
+export async function accessToken(apiBase, { email, password, totpSecret, nomAppareil }) {
   const connexion = await fetch(`${apiBase}/auth/connexion`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      email: demoEmail,
-      password: demoPassword,
+      email,
+      password,
       nom_appareil: nomAppareil,
     }),
     signal: AbortSignal.timeout(15_000),
@@ -57,7 +67,7 @@ export async function demoAccessToken(apiBase, nomAppareil) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       session_token: connexionBody.session_token,
-      code_totp: totpNow(),
+      code_totp: totpNow(totpSecret),
     }),
     signal: AbortSignal.timeout(15_000),
   });

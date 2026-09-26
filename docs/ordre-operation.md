@@ -117,7 +117,7 @@ xtask/               commandes du dépôt (recette, demo…), multiplateformes
 - **Sous-agents** (`.cursor/agents/`) : `instance-backend`, `poste-interface`, `messagerie`, `facturation`, `controleur`.
 - **Parallélisme** : lance en arrière-plan les sous-agents dont les lots sont indépendants.
 - **Propriété** : chaque sous-agent n'écrit que dans ses répertoires. Toute modification d'un contrat partagé passe par l'état-major.
-- **Isolation** : quand plusieurs sous-agents écrivent en même temps, chacun travaille sur sa branche dans son propre worktree git (`git worktree add ../legal-os-<lot> -b lot/<nom>`). L'état-major fusionne dans `main` uniquement ce qui passe la CI complète après rebase.
+- **Isolation** : quand plusieurs sous-agents écrivent en même temps, chacun travaille sur sa branche dans son propre worktree git, **dans le dossier du projet** : `git worktree add .worktrees/<lot> -b lot/<nom>` (`.worktrees/` est ignoré par git et exclu du contexte de build Docker). Jamais de worktree hors du dossier du projet. L'état-major fusionne dans `main` uniquement ce qui passe la CI complète après rebase, puis retire le worktree (`git worktree remove .worktrees/<lot>`).
 - **Consignes aux sous-agents** : ils n'ont pas l'historique de la conversation. Chaque consigne contient : jalon, fichiers à lire, contrats applicables, critères d'acceptation, répertoires autorisés, format du compte rendu.
 - **Contrôleur indépendant** : il écrit les tests d'acceptation à partir du cahier des charges avant de lire l'implémentation, exécute tout, ne corrige jamais le code de production et renvoie les écarts à l'état-major.
 - **Compte rendu d'un sous-agent** : fait / preuves (commandes et résultats) / écarts / décisions / reste à faire.
