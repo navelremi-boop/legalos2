@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # Image Rust figée (≥ rust-version workspace 1.80) — voir docs/versions.md.
 
-FROM rust:1.85.0-bookworm AS builder
+FROM rust:1.98.1-bookworm AS builder
 RUN apt-get update \
     && apt-get install -y --no-install-recommends pkg-config libssl-dev libpq-dev \
     && rm -rf /var/lib/apt/lists/*

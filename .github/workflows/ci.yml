@@ -20,7 +20,7 @@ jobs:
           version: 12.6.0
       - uses: actions/setup-node@v4.4.0
         with:
-          node-version: "20"
+          node-version: "24"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @legal-os/poste typecheck
@@ -29,6 +29,7 @@ jobs:
       - run: node tests/recette/j0.mjs
       - run: node tests/recette/s8-delais.mjs
       - run: node tests/recette/coque-app.mjs
+      - run: node tests/recette/garde-hooks.mjs
 
   rust:
     runs-on: ubuntu-latest
@@ -64,7 +65,7 @@ jobs:
           cargo check --manifest-path apps/poste/src-tauri/Cargo.toml
       - uses: actions/setup-node@v4.4.0
         with:
-          node-version: "20"
+          node-version: "24"
       - name: J4 — pas de WebDriver dans le build distribué
         run: node tests/recette/j4-no-webdriver.mjs
 
@@ -77,7 +78,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2.7.5
       - uses: actions/setup-node@v4.4.0
         with:
-          node-version: "20"
+          node-version: "24"
       - name: Prepare .env for compose
         run: cp .env.development.example .env
       - name: Migrations sans compte de démonstration
@@ -135,7 +136,7 @@ jobs:
           version: 12.6.0
       - uses: actions/setup-node@v4.4.0
         with:
-          node-version: "20"
+          node-version: "24"
           cache: pnpm
       - uses: dtolnay/rust-toolchain@stable
       - run: pnpm install --frozen-lockfile

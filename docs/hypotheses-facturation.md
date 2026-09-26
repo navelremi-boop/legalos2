@@ -14,9 +14,14 @@ Les honoraires et les frais du jeu de cas sont soumis au taux de 20,00 % (2 000 
 
 La TVA d'une catégorie est `(base_ht_centimes × taux_points_de_base + 5 000) / 10 000`, division entière. Cas : 100,00 € → 20,00 € ; 10,01 € → 2,00 € ; 10,03 € → 2,01 €. **À valider par l'avocat.**
 
-## F3 — Débours
+## F3 — Deux types de ligne : débours et frais
 
-Un débours n'entre pas dans la base de TVA. Il entre dans le total à payer. **À valider par l'avocat.**
+Deux types distincts :
+
+- **Débours** : hors base de TVA ; réservés aux dépenses engagées **au nom et pour le compte du client** et justifiées. Ils entrent dans le total à payer sans TVA.
+- **Frais** : soumis à la TVA (même régime de taux et d’arrondi que les honoraires, F1–F2).
+
+**À valider par l'avocat.**
 
 ## F4 — Une seule séquence
 

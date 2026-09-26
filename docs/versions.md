@@ -1,6 +1,6 @@
 # LEGAL OS — Versions des dépendances
 
-Vérifiées le **2026-09-24** dans la documentation officielle ou les registres publics (crates.io, npm, Docker Hub, docs produit). Ne pas modifier sans re-vérification à la date du jour.
+Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-24** pour le reste, dans la documentation officielle ou les registres publics (crates.io, npm, Docker Hub, docs produit). Ne pas modifier sans re-vérification à la date du jour.
 
 ## Poste (application desktop)
 
@@ -19,7 +19,7 @@ Vérifiées le **2026-09-24** dans la documentation officielle ou les registres 
 | powersync (crate Rust) | **0.0.7** | https://crates.io/crates/powersync — vérifié le 2026-09-25 |
 | SDK web `@powersync/web` | **écart** : utilisé à tort jusqu'au 2026-09-25 ; retiré (cahier § 2.1) | https://docs.powersync.com/client-sdks/reference/tauri |
 | pnpm | **12.6.0** | `packageManager` racine |
-| Node.js (poste dev) | **20 LTS** (20.20.2 observé) | https://nodejs.org |
+| Node.js (poste dev) | **24 LTS** (24.21.0 observé sur le poste) | https://nodejs.org — CI `actions/setup-node` alignée sur **24** |
 | ESLint (flat config) | **9.39.x** (lockfile) | https://www.npmjs.com/package/eslint |
 | typescript-eslint | **8.46.x** (lockfile) | https://www.npmjs.com/package/typescript-eslint |
 
@@ -27,7 +27,7 @@ Vérifiées le **2026-09-24** dans la documentation officielle ou les registres 
 
 | Composant | Version figée | Source |
 |-----------|---------------|--------|
-| PowerSync Service (Open Edition) | **journeyapps/powersync-service:1.26.1** | https://hub.docker.com/r/journeyapps/powersync-service/tags |
+| PowerSync Service (Open Edition) | **journeyapps/powersync-service:1.26.1** | https://hub.docker.com/r/journeyapps/powersync-service/tags — vérifié 2026-09-26 : tag `1.26.1` toujours courant. **Sync Rules** (legacy) : pas de JOIN ni sous-requête. **Sync Streams** (`config.edition: 3`) : JOIN / CTE / sous-requêtes supportés (docs.powersync.com). Décision en vigueur : rester en Sync Rules + dénormalisation (`docs/sync-rules.md`) ; migration Streams non engagée. |
 | PostgreSQL | **16.8-bookworm** | https://hub.docker.com/_/postgres |
 | Caddy | **2.10.0-alpine** | https://hub.docker.com/_/caddy |
 | Garage (S3) | **dxflrs/garage:v1.0.1** | https://hub.docker.com/r/dxflrs/garage |
@@ -47,8 +47,8 @@ Vérifiées le **2026-09-24** dans la documentation officielle ou les registres 
 | veraPDF greenfield | **1.28.2** | https://software.verapdf.org/releases/1.28/ |
 | Schematron EN 16931 CII | **1.3.16** | https://github.com/ConnectingEurope/eInvoicing-EN16931/releases/tag/validation-1.3.16 — XSLT EUPL 1.2 |
 | LLVM / libclang (bindgen `powersync_sqlite_nostd`) | **23.1.2** | https://github.com/llvm/llvm-project — installé le 2026-09-25 via winget `LLVM.LLVM`. `LIBCLANG_PATH` = répertoire de `libclang.dll` (`C:\Program Files\LLVM\bin` sur ce poste). |
-| Rust toolchain | **stable ≥ 1.80** (`rust-toolchain.toml`) | https://rust-lang.org |
-| Rust (image build API) | **rust:1.85.0-bookworm** | https://hub.docker.com/_/rust |
+| Rust toolchain | **stable** (`rust-toolchain.toml`) — **1.98.1** observé sur le poste 2026-09-26 | https://rust-lang.org |
+| Rust (image build API) | **rust:1.98.1-bookworm** (alignée sur la toolchain du dépôt) | https://hub.docker.com/_/rust |
 | Images compose LEGAL OS | **legalos/api:0.1.0**, **legalos/caddy:2.10.0-alpine**, **legalos/simulateur-pa:s1-stub** (build local, pas de `latest`) | `instance/docker-compose.yml` |
 
 ## Outils CI (cibles)

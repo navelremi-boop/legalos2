@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-26 (J7 VALIDÉ — prochain jalon : Coque de l'app).
+Dernière mise à jour : 2026-09-26 (consignes architecte — prochain jalon : **J8**).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -29,7 +29,7 @@ Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénari
   - **Responsable** : `instance-backend`
 
 - [x] **J2** — Auth API, 2FA, premier lancement poste (connexion instance)
-  - **Décision 2026-09-25** : décoché. Validé après redécoupage à la suite d’un refus (§ 4.5) ; le parcours n’a jamais été exécuté dans l’app Tauri. Il repasse devant le contrôleur après la bascule de SDK.
+  - **Validation 2026-09-25** : contrôleur VALIDÉ sur `3f4647d` (CI [36134053175](https://github.com/navelremi-boop/legalos2/actions/runs/36134053175)). Parcours dans l'app Tauri (`j2-poste-tauri.mjs`) : jeton présent après redémarrage. Preuves : `auth_integration`, `s2.mjs`, parité migrations, OpenAPI/JWKS.
   - **Périmètre** : authentification HTTP (connexion + TOTP + JWKS) et parcours poste **instance → identifiants → TOTP → session enregistrée**. Le scénario produit **S2** complet (ordre d’opération § 3, sync initiale) s’achève au **J3**.
   - **Critères** : `auth_integration` (Postgres réel) ; `tests/recette/s2.mjs` + `j2-demo-migration-parity.mjs` ; OpenAPI auth ; JWT `aud` / JWKS alignés PowerSync (`client_auth` instance) ; UI onboarding sans simulation de téléchargement de données.
   - **Hors périmètre J2** : synchronisation PowerSync bout en bout, probe service `/sync` avec jeton (J3).
@@ -37,7 +37,7 @@ Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénari
 
 - [x] **J3** — Sync bout en bout (1 table, 2 postes, app Tauri réelle)
   - **Critères** : cahier des charges § 3.4 (cinq points : persistance hors ligne et reprise, fusion par champ, conflit signalé avec journal, ni perte ni doublon, coupure réseau réelle). Recette sur l'app Tauri, SDK `tauri-plugin-powersync`, sans option qui change le comportement de sync.
-  - **Écart consigné** : l'app utilisait `@powersync/web` ; correction avant poursuite (voir `JOURNAL.md` 2026-09-25).
+  - **Écart consigné** : l'app utilisait `@powersync/web` ; correction avant poursuite (voir archive `docs/journal/phase-1.md`).
   - **Validation 2026-09-25** : contrôleur VALIDÉ sur `86e0856` (CI [36155397731](https://github.com/navelremi-boop/legalos2/actions/runs/36155397731)). `node tests/recette/j3-poste-tauri.mjs` exit 0, cinq critères § 3.4. Écart non bloquant : un `conflit` peut être journalisé sur une écriture séquentielle du même poste après reprise.
   - **Responsable** : état-major coordonne ; `poste-interface` + `instance-backend`
 
@@ -53,29 +53,38 @@ Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénari
 
 ## Phase 2 — Lots parallèles
 
+Ordre de l’architecte (2026-09-26) : **J8** → **Référence de dossier** → **Coque** → **Vue scindée** → **Intercalaires personnalisés** → **J9**, puis J10.
+
 - [x] **J5** — Dossiers, contacts, droits (S3, S5)
   - **Validation 2026-09-25** : contrôleur VALIDÉ sur `340ac42` (CI [36172577399](https://github.com/navelremi-boop/legalos2/actions/runs/36172577399)). `j5-poste-tauri.mjs` exit 0 : palette et absence du dossier restreint dans le SQLite du collaborateur.
 - [x] **J6** — Agenda et délais (S8, `docs/hypotheses-delais.md`)
-  - **Validation 2026-09-25** : contrôleur VALIDÉ sur `bf3bfe3` (CI [36179592258](https://github.com/navelremi-boop/legalos2/actions/runs/36179592258)). `s8-delais.mjs` exit 0. Règles H1–H8 marquées « à valider par l'avocat ». Agenda complet hors périmètre.
+  - **Validation 2026-09-25** : contrôleur VALIDÉ sur `bf3bfe3` (CI [36179592258](https://github.com/navelremi-boop/legalos2/actions/runs/36179592258)). `s8-delais.mjs` exit 0. Règles marquées « à valider par l'avocat ». Agenda complet hors périmètre.
+  - **Reprise 2026-09-26** : hypothèses révisées (H1–H13) implémentées (`0fc0c17`) ; `s8-delais.mjs` exit 0 (cinq cas du tableau + H8–H11). Points H7/H10/H12 → B10.
 - [x] **J7** — Documents et versions (S6)
   - **Décoché puis repris 2026-09-26** : l'API refuse la réécriture d'une version scellée (409). Garage 1.0.1 ne permet pas l'écriture conditionnelle. Métadonnées dans les règles PowerSync, mêmes droits que le dossier.
   - **Validation 2026-09-26** : contrôleur VALIDÉ sur `5ff58b9` (CI [36232407821](https://github.com/navelremi-boop/legalos2/actions/runs/36232407821)). `s6-documents.mjs` exit 0. Mineur : `PermissionDenied` sur une clé absente est traité comme « objet absent ».
-- [ ] **Coque de l'app** — avant la suite de la phase 2 (cahier § 7, version 5)
-  - `design/tokens.css` conforme au § 7.3 : couleurs de base, huit chemises à quatre valeurs (fond, teinte, texte, accent), jour et nuit, fond `neutre`, tuile de grain embarquée ; thème shadcn réécrit à partir de ces jetons.
-  - Composants du § 7.4 : barre du haut, étiquette avec référence, informations du dossier, jauge d'échéance, feuille, intercalaires standards, barre d'actions flottante. Jour et nuit.
-  - Hors dossier : fond `neutre`. La journée selon le § 7.6.
-  - Fonctions déjà présentes à leur place : nouveau dossier depuis la palette et la vue Dossiers ; saisie de temps rattachée à un dossier, depuis la barre d'actions et le chronomètre ; calcul de délai depuis la barre d'actions (type choisi dans la bibliothèque, lieu où demeure la partie : métropole, outre-mer, étranger) ; nom du cabinet et thème dans Réglages.
-  - Synchronisation invisible : aucun bouton « hors ligne » ou « en ligne ».
-  - Galerie de démonstration réservée au développement, absente des builds distribués.
-  - Recettes sur des `data-testid` stables. Captures jour et nuit de la vue dossier (trois couleurs de chemise) et de La journée, comparées au prototype par le contrôleur.
-- [ ] **Vue scindée** — chrono groupé par période, filtres, aperçu selon le type (mail, pièces, facture, audience, note), badges « définitif » (§ 7.4). Captures comparées au prototype.
-- [ ] **Référence de dossier** — § 3.4 : année + numéro remis à zéro chaque année, attribué par le serveur dans une transaction avec unicité ; « référence en attente » hors ligne ; jamais modifiée. Le classement des mails la cherche dans l'objet. Test : deux postes créent en même temps, sans doublon ni trou.
-- [ ] **Intercalaires personnalisés** — § 7.4 : table synchronisée, droits du dossier ; rattacher un élément ne le retire pas du chrono ; retirer un intercalaire ne supprime pas son contenu ; les standards ne se retirent pas.
-- [ ] **J8** — Temps et facturation électronique (S9)
+- [ ] **J8** — Temps et facturation électronique (S9) — **jalon en cours**
   - **Dette** (majeur, à solder avant la fin de la phase 2) : fausse alerte de conflit J3 sur une écriture séquentielle du même poste après reprise.
-  - **Dette** (à solder dans ce jalon) : `temps_saisis` et `brouillons_facture` sont des tables SQLite hors synchronisation ; la validation crée un dossier ; le taux horaire est une constante. Ils doivent se synchroniser, garder un numéro nul jusqu'à la validation, se rattacher à un dossier existant, et prendre le taux comme paramètre.
+  - **Dette** (à solder dans ce jalon) : `temps_saisis` et `brouillons_facture` synchronisés (PowerSync) ; numéro nul jusqu’à la validation ; rattachés à un dossier **existant** (la validation ne crée jamais de dossier) ; taux horaire en paramètre par client, dossier et intervenant.
+  - **Dette sync** : tables rattachées au dossier portent `dossier_id` + copie de la visibilité du dossier, tenue à jour par l’API dans la même transaction qu’un changement de visibilité ; test S5 pour chaque nouvelle table.
+- [ ] **Référence de dossier** — § 3.4 : année + numéro remis à zéro chaque année, attribué par le serveur dans une transaction avec unicité ; « référence en attente » hors ligne ; jamais modifiée. Le classement des mails la cherche dans l'objet. Test : deux postes créent en même temps, sans doublon ni trou.
+- [ ] **Coque de l'app** — cahier § 7, version 5 (code déjà poussé sur `a24d0a2` / captures ; **non cochée** tant que le contrôleur n’a pas VALIDÉ après J8 et Référence selon l’ordre architecte)
+  - `design/tokens.css` conforme au § 7.3 ; composants § 7.4 ; hors dossier fond `neutre` ; La journée § 7.6 ; fonctions existantes à leur place ; sync invisible ; galerie DEV seule ; recettes `data-testid` + captures jour/nuit.
+  - **Dette** (avant la fin de la Coque) : CORS — ajouter `tauri://localhost` ; `localhost:1420` accepté seulement en mode développement.
+- [ ] **Vue scindée** — chrono groupé par période, filtres, aperçu selon le type (mail, pièces, facture, audience, note), badges « définitif » (§ 7.4). Captures comparées au prototype.
+- [ ] **Intercalaires personnalisés** — § 7.4 : table synchronisée, droits du dossier ; rattacher un élément ne le retire pas du chrono ; retirer un intercalaire ne supprime pas son contenu ; les standards ne se retirent pas.
 - [ ] **J9** — Mail étapes 1–3 (S7 partiel)
 - [ ] **J10** — Écrans restants (Mails, Agenda, Facturation, Réglages) selon le § 7.6, après la coque
+
+### Dettes transverses (§ 4.4) — consignes antérieures
+
+- [ ] **Immédiat** : `garde-commandes` et `garde-secrets` refusent, et le signalent, quand ils ne parviennent pas à lire leur entrée — test à l’appui.
+  - **Fait 2026-09-26** : fail-closed dans `.cursor/hooks/` ; `node tests/recette/garde-hooks.mjs` (à cocher après preuve CI).
+- [ ] **Avant la fin de la Coque** : CORS `tauri://localhost` ; port 1420 réservé au mode développement.
+- [ ] **Avant J14** : feature `test-webdriver` réalisée (WebDriver embarqué, WebdriverIO) pour scénarios app aussi en CI macOS.
+- [ ] **Avant J14** : build distribué sans outils de développement ni débogage distant, vérifié par un test.
+- [ ] **Avant la fin de la phase 2** : `cargo-deny` (ou `cargo-audit`) en CI sur les deux workspaces ; signalement préparé pour PowerSync / dépendance `time` 0.2.
+- [ ] **Avant la fin de la phase 2** : moteur de délais en TypeScript strict ; licence OFL livrée avec les polices.
 
 Chaque jalon : critères = tests recette + clippy + contrôleur.
 

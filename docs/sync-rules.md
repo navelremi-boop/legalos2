@@ -20,156 +20,106 @@ PowerSync évalue les règles avec ces claims. Toute requête de sync est filtr�
 
 ---
 
-## 2. Principes communs
+## 2. Limite Sync Rules (1.26.1) et décision
+
+**Constat (doc officielle, 2026-09-26)** : le service déployé `journeyapps/powersync-service:1.26.1` utilise les **Sync Rules** (legacy). Dans ce mode : **pas de JOIN**, pas de sous-requête dans une requête de données, pas de conversion dans une requête de paramètres ([Supported SQL — Sync Rules](https://docs.powersync.com/sync/rules/supported-sql)).
+
+**Sync Streams** (`config.edition: 3`) lèvent cette limite (JOIN internes, CTE, sous-requêtes). Disponibles sur le service récent ; **migration non engagée**. Tant que nous restons en Sync Rules, toute relation dossier → enfants passe par **dénormalisation**.
+
+**Règle d’architecture (architecte, 2026-09-26)** :
+
+1. Toute table rattachée à un dossier (`documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, factures / lignes, intercalaires, liaisons mail, etc.) porte **`dossier_id`** et une **copie de la visibilité** du dossier (`visibilite` / équivalent).
+2. L’API met à jour cette copie **dans la même transaction** que tout changement de visibilité du dossier.
+3. **Dossiers restreints** : requête de **paramètres** sur `dossier_acces` qui renvoie les `dossier_id` autorisés pour `request.user_id()`, puis requêtes de **données** filtrées par `dossier_id IN (…)`, sans JOIN.
+4. Toute nouvelle table synchronisée : test **S5** (poste non autorisé → aucune ligne locale).
+
+---
+
+## 3. Principes communs
 
 1. **Cabinet** : toute ligne synchronisée appartient au `cabinet_id` du JWT.
-2. **Dossiers** : un dossier **restreint** n’est répliqué que vers les utilisateurs explicitement autorisés (table d’association `dossier_acces`, à créer côté serveur). Les autres postes **n’ont pas la ligne en SQLite** (S5).
-3. **Mail — comptes** : compte nominatif → uniquement le titulaire ; boîte partagée → membres de la boîte (tables `mail_comptes`, `mail_compte_membres` — structure ci-dessous, implémentation serveur ultérieure).
-4. **Mail — messages** : un message non classé suit les règles du compte ; une fois classé dans un dossier, il suit les **mêmes filtres que ce dossier** (y compris restriction).
+2. **Dossiers** : un dossier **restreint** n’est répliqué que vers les utilisateurs explicitement autorisés (`dossier_acces`). Les autres postes **n’ont pas la ligne en SQLite** (S5).
+3. **Mail — comptes** : compte nominatif → uniquement le titulaire ; boîte partagée → via table de membership dénormalisée ou seau paramètres (pas de JOIN sur `mail_comptes` × `mail_compte_membres` dans une requête de données).
+4. **Mail — messages classés** : filtrés comme le dossier via `dossier_id` + copie de visibilité (pas de JOIN sur `dossiers`).
 5. **Écritures** : le poste enqueue via PowerSync ; l’API valide droits et cohérence avant Postgres (§ 3.4).
 
 ---
 
-## 3. Tables miroir (phase contrats — stub)
-
-Alignées sur le schéma client minimal. Les migrations Postgres et les vues PowerSync seront tenues en sync par un test de parité (jalon instance).
+## 4. Tables miroir
 
 | Table client | Rôle |
 |--------------|------|
 | `users` | Collaborateurs du cabinet visibles pour l’annuaire local |
 | `postes` | Postes enregistrés (état, révocation) |
-| `dossiers` | Métadonnées dossier (dont chemise, flag restreint) |
+| `dossiers` | Métadonnées dossier (dont chemise, flag / visibilité) |
+| `documents` / `document_versions` | Métadonnées ; `dossier_id` + copie visibilité |
+| `temps_saisis` / `brouillons_facture` | (J8) sync ; `dossier_id` + copie visibilité ; numéro nul jusqu’à validation |
 
-Tables mail **documentées** pour les règles, pas encore dans `AppSchema` :
+Tables mail **documentées** pour les règles, pas encore toutes dans `AppSchema` :
 
 | Table (future) | Rôle |
 |----------------|------|
 | `mail_comptes` | Comptes IMAP / boîtes partagées |
-| `mail_compte_membres` | Membres d’une boîte partagée |
-| `mail_messages` | En-têtes synchronisés (corps selon politique de rétention) |
+| `mail_compte_membres` | Membres d’une boîte partagée (sert aux **paramètres**, pas en JOIN de données) |
+| `mail_messages` | En-têtes ; si classé : `dossier_id` + copie visibilité |
 | `mail_dossier_liaisons` | Classement message → dossier |
 
 ---
 
-## 4. Règles par bucket (YAML indicatif)
+## 5. Règles par bucket (YAML indicatif, Sync Rules)
 
-Syntaxe PowerSync Sync Rules ; à déployer dans `instance/powersync/` une fois l’instance en place. Les noms de paramètres (`request.user_id()`, etc.) suivent la doc PowerSync Open Edition.
+Syntaxe Sync Rules ; déployée dans `instance/powersync/sync-rules.yaml`.
 
-### 4.1 `users`
+### 5.1 `users` / `postes`
 
-```yaml
-bucket_definitions:
-  cabinet_users:
-    parameters:
-      - SELECT request.cabinet_id() AS cabinet_id
-    data:
-      - SELECT id, cabinet_id, display_name, email, role, created_at, updated_at
-        FROM users
-        WHERE cabinet_id = bucket.cabinet_id
-```
+Filtrage par `cabinet_id` (voir fichier déployé).
 
-### 4.2 `postes`
+### 5.2 `dossiers` (publics + restreints autorisés)
+
+Deux seaux sans JOIN : dossiers `visibilite = 'public'` (ou `restricted = 0`) ; dossiers restreints dont l’id figure dans les paramètres issus de `dossier_acces` pour `request.user_id()`.
+
+**Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants.
+
+### 5.3 Enfants de dossier (documents, temps, brouillons, …)
 
 ```yaml
-  cabinet_postes:
+  # Paramètres : ids de dossiers accessibles (publics + restreints autorisés)
+  # (détail exact dans instance/powersync/sync-rules.yaml)
+  documents_par_dossier:
     parameters:
-      - SELECT request.cabinet_id() AS cabinet_id
+      - SELECT dossier_id FROM dossier_acces WHERE user_id = request.user_id()
+      # + seau / liste des dossiers publics du cabinet
     data:
-      - SELECT id, cabinet_id, user_id, device_label, registered_at, revoked_at
-        FROM postes
-        WHERE cabinet_id = bucket.cabinet_id
+      - SELECT id, cabinet_id, dossier_id, visibilite, ...
+        FROM documents
+        WHERE dossier_id = bucket.dossier_id
 ```
 
-### 4.3 `dossiers` (publics + restreints autorisés)
+La colonne `visibilite` sur `documents` est une **copie** ; elle ne remplace pas le filtre par `dossier_id`, elle permet contrôles locaux et audits.
 
-PowerSync 1.26.1 n'accepte ni jointure ni sous-requête dans une requête de données, ni conversion dans une requête de paramètres. Le fichier déployé `instance/powersync/sync-rules.yaml` sépare donc deux seaux : les dossiers `visibilite = 'public'`, et les dossiers restreints dont l'identifiant figure dans `dossier_acces` pour `request.user_id()`.
+### 5.4 Mail — **sans JOIN** (exemples précédents avec JOIN non déployables)
 
-**Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, la requête ne retourne aucune ligne ; la table locale `dossiers` ne contient pas l’id.
+**Comptes nominatifs** : filtre direct `titulaire_user_id = request.user_id()`.
 
-### 4.4 Mail (structure — activation ultérieure)
+**Boîtes partagées** : paramètres = `compte_id` depuis `mail_compte_membres` où `user_id = request.user_id()` ; données = `mail_comptes` où `id = bucket.compte_id`.
 
-**Comptes nominatifs :**
-
-```yaml
-  mail_comptes_nominatifs:
-    parameters:
-      - SELECT request.user_id() AS user_id
-    data:
-      - SELECT c.id, c.cabinet_id, c.adresse, c.type, c.titulaire_user_id
-        FROM mail_comptes c
-        WHERE c.type = 'nominatif' AND c.titulaire_user_id = bucket.user_id
-```
-
-**Boîtes partagées :**
-
-```yaml
-  mail_comptes_partages:
-    parameters:
-      - SELECT request.user_id() AS user_id
-    data:
-      - SELECT c.id, c.cabinet_id, c.adresse, c.type, c.titulaire_user_id
-        FROM mail_comptes c
-        INNER JOIN mail_compte_membres m ON m.compte_id = c.id
-        WHERE c.type = 'partage' AND m.user_id = bucket.user_id
-```
-
-**Messages (non classés — compte accessible) :**
-
-```yaml
-  mail_messages_par_compte:
-    parameters:
-      - SELECT request.user_id() AS user_id
-    data:
-      - SELECT msg.id, msg.compte_id, msg.folder, msg.date_envoi, msg.sujet,
-               msg.dossier_id, msg.snippet
-        FROM mail_messages msg
-        INNER JOIN mail_comptes c ON c.id = msg.compte_id
-        WHERE msg.dossier_id IS NULL
-          AND (
-            (c.type = 'nominatif' AND c.titulaire_user_id = bucket.user_id)
-            OR EXISTS (
-              SELECT 1 FROM mail_compte_membres m
-              WHERE m.compte_id = c.id AND m.user_id = bucket.user_id
-            )
-          )
-```
-
-**Messages classés — droits dossier :**
-
-```yaml
-  mail_messages_classes:
-    parameters:
-      - SELECT request.cabinet_id() AS cabinet_id
-      - SELECT request.user_id() AS user_id
-    data:
-      - SELECT msg.id, msg.compte_id, msg.folder, msg.date_envoi, msg.sujet,
-               msg.dossier_id, msg.snippet
-        FROM mail_messages msg
-        INNER JOIN dossiers d ON d.id = msg.dossier_id
-        WHERE d.cabinet_id = bucket.cabinet_id
-          AND msg.dossier_id IS NOT NULL
-          AND (
-            d.restricted = 0
-            OR EXISTS (
-              SELECT 1 FROM dossier_acces a
-              WHERE a.dossier_id = d.id AND a.user_id = bucket.user_id
-            )
-          )
-```
+**Messages classés** : comme les documents — `dossier_id` + paramètres d’accès dossier ; **pas** de `INNER JOIN dossiers`.
 
 ---
 
-## 5. Évolution et tests
+## 6. Évolution et tests
 
-- Toute modification de ce fichier ou des règles déployées exige un test d’intégration S5 (SQLite locale sur poste non autorisé).
-- Le schéma client TypeScript reste la source des vues SQLite côté poste ; un test comparera colonnes et tables avec les migrations Postgres (instance-backend).
+- Toute modification de ce fichier ou des règles déployées exige un test d’intégration **S5** pour **chaque nouvelle table**.
+- Le schéma client TypeScript reste la source des vues SQLite côté poste ; un test compare colonnes et tables avec les migrations Postgres.
 
 ---
 
-## 6. Décisions provisoires (phase 0)
+## 7. Décisions
 
 | Sujet | Décision |
 |-------|----------|
-| Nom table accès dossier | `dossier_acces` (singulier métier, clé composite `dossier_id` + `user_id`) |
-| Flag restreint | Colonne entière `restricted` (0 / 1) dans `dossiers` |
-| Mail | Règles rédigées ici ; tables absentes du `AppSchema` minimal jusqu’au lot messagerie |
+| Nom table accès dossier | `dossier_acces` (clé composite `dossier_id` + `user_id`) |
+| Visibilité enfants | Copie sur chaque ligne enfant, transaction API avec le dossier |
+| JOIN Sync Rules | Interdits ; dénormalisation obligatoire |
+| Sync Streams | Documentés ; migration hors périmètre tant que non décidé dans `BLOCAGES.md` |
+| Mail | Règles sans JOIN ; tables absentes du `AppSchema` minimal jusqu’au lot messagerie |
