@@ -41,6 +41,24 @@ Traitement :
   - dettes transverses rétablies dans leur rédaction complète ;
   - J9 et J10 : critères proposés, marqués « à valider par l'architecte ».
 - **Arbitrage R0** : son texte n'a jamais été reçu (recherche dans le dépôt, l'historique git et toutes les sessions : seuls le complément du 27/09 et la présente consigne le citent). Les politiques de remise à zéro et le numéro de départ figurent en critères tels que la consigne les nomme ; leur interprétation est consignée dans `docs/hypotheses-dossiers.md` (R0-d à R0-f) et le texte est demandé au commandement (`BLOCAGES.md`, B11).
+- **Preuves** (2026-09-27) :
+  - commits `7bd1886` (règle, outillage, journal) puis `57e7046` « plan: rétablir les critères des jalons non validés » (PLAN.md seul) ;
+  - `node tests/recette/plan-gouvernance.mjs` → OK ; `PLAN_RANGE=f1c90a2..261e538` → 1 commit touchant PLAN.md, OK ;
+  - essais négatifs : rejeu de `9ef3be6` → FAIL (commit non dédié, jalons sans critères, six dettes reformulées) ; commit d'essai hors branche retirant un critère et une dette → FAIL sur les deux ;
+  - CI de `445c910` : workflow refusé par GitHub en 0 s (nom d'étape contenant « plan: » sans guillemets), aucun job lancé. Correctif `261e538` et contrôle `workflows-valides.mjs` (essai négatif : FAIL ligne 48). La plage de l'exécution suivante ne contient plus `57e7046` : son contrôle est la preuve locale ci-dessus.
+
+## 2026-09-27 — Référence de dossier : personnalisation (en cours)
+
+- **Contrat partagé** (état-major, `445c910`) : `crates/domaine/src/reference.rs` (analyse du modèle, refus des modèles invalides, politique de remise à zéro, production, références qui seraient redonnées sous leur forme d'origine ou de classement, formes normalisées, reconnaissance des deux formes, initiales) ; cas partagés avec le poste dans `crates/domaine/tests/reference-vecteurs.json`. `cargo test -p legalos-domaine reference` → 7 tests OK ; `cargo clippy -p legalos-domaine --all-targets -- -D warnings` → OK.
+- Précision de R0-f : un changement est refusé aussi quand il pourrait produire une référence de même forme de classement qu'une référence existante (l'adresse de classement doit désigner un seul dossier).
+- **Lots lancés** en parallèle, chacun dans son worktree : API (`.worktrees/reference-modele-api`, sous-agent instance-backend : migration 017, `GET` et `PUT /cabinets/{id}/reference`, attribution selon le modèle, recette `reference-modele.mjs`) ; poste (`.worktrees/reference-modele-poste`, sous-agent poste-interface : portage TypeScript vérifié sur les vecteurs, constructeur visuel dans Réglages, palette avec échappement de `LIKE`, recettes Tauri).
+- À corriger au retour du lot API : le cahier (§ 3.4) veut des migrations uniquement additives ; la séquence continue doit donc vivre dans une table nouvelle plutôt que par assouplissement de la contrainte de `sequences_dossiers` (consigne donnée au lot avant ce constat).
+
+## 2026-09-27 — La journée sans points médians (consigne 3)
+
+- `Journee.tsx` : séparateurs remplacés par une virgule (« TJ Nanterre, 9 h 30 », « échéance le 3 oct., dans 5 jours ») ; `BarreHaut.tsx` : bouton des onglets en trop avec l'icône Tabler `IconDots` au lieu de « ··· ».
+- Contrôle CI `tests/recette/points-medians.mjs` (job frontend) : refuse « · » et les caractères semblables dans les sources de l'interface. Essai négatif sur la version précédente → 9 occurrences refusées ; version corrigée → OK (44 fichiers). `typecheck`, `lint:ci`, `coque-app.mjs` → OK.
+- Captures B9 : à régénérer à la validation de la Coque (critère `coque-app.mjs --captures`).
 
 ## 2026-09-26 — Consignes du commandement (architecte) : journal, conflits, La journée, permissions
 
