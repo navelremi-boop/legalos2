@@ -4,24 +4,42 @@
 @theme inline {
   --color-page: var(--page);
   --color-classeur: var(--classeur);
+  --color-neutre: var(--neutre);
   --color-feuille: var(--feuille);
+  --color-feuille-2: var(--feuille-2);
   --color-encre: var(--encre);
   --color-graphite: var(--graphite);
   --color-filet: var(--filet);
+  --color-survol: var(--survol);
+  --color-barre: var(--barre);
   --color-echeance: var(--echeance);
   --color-echeance-fond: var(--echeance-fond);
+  --color-definitif: var(--definitif);
+  --color-synchro: var(--synchro);
+  --color-sur-chemise: var(--sur-chemise);
+  --color-chemise-fond: var(--chemise-fond);
   --color-chemise-bande: var(--chemise-bande);
   --color-chemise-teinte: var(--chemise-teinte);
   --color-chemise-texte: var(--chemise-texte);
+  --color-chemise-accent: var(--chemise-accent);
+  --color-barre-texte: var(--barre-texte);
+  --color-barre-texte-muet: var(--barre-texte-muet);
+  --color-barre-pilule: var(--barre-pilule);
 
   --font-sans: var(--font-family);
 
   --radius-tab: var(--radius-tab);
+  --radius-feuille: var(--radius-feuille);
+  --radius-intercalaire: var(--radius-intercalaire);
   --radius-control: var(--radius-control);
   --radius-pastille: var(--radius-pastille);
   --radius-overlay: var(--radius-overlay);
+  --radius-tuile: var(--radius-tuile);
 
   --shadow-floating: var(--shadow-floating);
+  --shadow-carte: var(--ombre-carte);
+  --shadow-etiquette: var(--ombre-etiquette);
+  --shadow-dock: var(--ombre-dock);
 }
 
 @layer base {
@@ -36,7 +54,7 @@
   body {
     margin: 0;
     min-height: 100vh;
-    background-color: var(--page);
+    background-color: var(--neutre);
     color: var(--encre);
   }
 
@@ -53,5 +71,337 @@
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
+  }
+}
+
+@layer components {
+  .coque-app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .coque-workspace {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .barre-haut {
+    position: relative;
+    z-index: 20;
+    display: flex;
+    height: 58px;
+    flex-shrink: 0;
+    align-items: flex-end;
+    gap: 20px;
+    padding: 0 18px;
+    background: var(--barre);
+    -webkit-backdrop-filter: blur(20px) saturate(1.1);
+    backdrop-filter: blur(20px) saturate(1.1);
+    box-shadow: var(--barre-inset);
+  }
+
+  .barre-haut__compteur {
+    margin-left: 6px;
+    border-radius: 999px;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--barre-compteur);
+    color: var(--barre-pilule);
+  }
+
+  .barre-haut__pilule {
+    display: flex;
+    height: 30px;
+    align-items: center;
+    gap: 8px;
+    border-radius: 999px;
+    padding: 0 12px;
+    background: var(--barre-surface);
+    box-shadow: var(--barre-surface-bord);
+    color: var(--barre-texte);
+  }
+
+  .barre-haut__kbd {
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-size: 11px;
+    background: var(--barre-kbd-fond);
+    color: var(--barre-kbd);
+  }
+
+  .barre-haut__sync-point {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--synchro);
+  }
+
+  .barre-haut__chrono-point {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--chemise-accent, var(--synchro));
+    box-shadow: var(--barre-chrono-anneau);
+  }
+
+  .onglet-dossier {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 18px;
+    transition: background-color var(--duration-dossier) ease;
+  }
+
+  .onglet-dossier--actif {
+    height: 40px;
+    border-radius: var(--radius-tab) var(--radius-tab) 0 0;
+    font-weight: 700;
+    color: var(--sur-chemise);
+    background-color: var(--chemise-fond);
+    background-image: var(--barre-onglet-reflet);
+    box-shadow: var(--barre-onglet-ombre);
+  }
+
+  .onglet-dossier--inactif {
+    height: 32px;
+    margin-bottom: 4px;
+    border-radius: 10px 10px 0 0;
+    font-weight: 400;
+    color: var(--barre-texte);
+    background: var(--barre-surface);
+    box-shadow: var(--barre-onglet-inactif-bord);
+  }
+
+  .onglet-dossier__pastille {
+    display: block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--chemise-accent);
+    box-shadow: var(--barre-pastille-anneau);
+  }
+
+  .etiquette-dossier {
+    display: inline-block;
+    max-width: 640px;
+    padding: 9px 16px 11px;
+    border-radius: var(--radius-tab);
+    background: var(--feuille);
+    color: var(--encre);
+    box-shadow: var(--ombre-etiquette);
+  }
+
+  .etiquette-dossier__ref {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--chemise-texte);
+    letter-spacing: 0.01em;
+  }
+
+  .etiquette-dossier__nom {
+    margin: 2px 0 0;
+    font-size: var(--font-size-dossier);
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+  }
+
+  .infos-dossier {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 30px;
+    margin: 16px 0 0 16px;
+    color: var(--sur-chemise);
+  }
+
+  .infos-dossier dt {
+    font-size: 12px;
+    opacity: 0.72;
+  }
+
+  .infos-dossier dd {
+    margin: 2px 0 0;
+    font-weight: 700;
+  }
+
+  .jauge-echeance {
+    display: grid;
+    grid-template-columns: auto auto;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 18px 12px 12px;
+    border-radius: var(--radius-feuille);
+    background: var(--verre);
+    box-shadow: var(--jauge-ombre);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    color: var(--sur-chemise);
+  }
+
+  .jauge-echeance__anneau {
+    width: 64px;
+    height: 64px;
+  }
+
+  .feuille-surface {
+    position: relative;
+    height: 100%;
+    border-radius: var(--radius-feuille) var(--radius-feuille) 0 0;
+    background: var(--feuille);
+    color: var(--encre);
+    box-shadow: var(--ombre-carte);
+    transition: background-color var(--duration-dossier) ease;
+  }
+
+  .feuille-pile {
+    position: relative;
+    margin-top: 26px;
+    min-height: 0;
+    flex: 1;
+  }
+
+  .feuille-pile__carte {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-feuille) var(--radius-feuille) 0 0;
+    background: var(--carte-arriere);
+  }
+
+  .feuille-pile__carte--loin {
+    transform: translateY(-14px) scaleX(0.93);
+    opacity: 0.55;
+  }
+
+  .feuille-pile__carte--proche {
+    transform: translateY(-7px) scaleX(0.965);
+  }
+
+  .intercalaires {
+    position: absolute;
+    right: -130px;
+    top: 16px;
+    display: flex;
+    width: 130px;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .intercalaire {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 9px 10px 9px 14px;
+    border-radius: 0 var(--radius-intercalaire) var(--radius-intercalaire) 0;
+    text-align: left;
+    font-size: var(--font-size-dense);
+    color: var(--sur-chemise);
+    background: var(--verre);
+    box-shadow: var(--intercalaire-ombre-inactif);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    transition: background-color var(--duration-hover) ease;
+  }
+
+  .intercalaire:hover {
+    background: var(--verre-fort);
+  }
+
+  .intercalaire--actif {
+    margin-left: -2px;
+    font-weight: 700;
+    color: var(--encre);
+    background: var(--feuille);
+    box-shadow: var(--intercalaire-ombre-actif);
+  }
+
+  .intercalaire__compteur {
+    margin-left: auto;
+    border-radius: 999px;
+    padding: 0 7px;
+    font-size: 11.5px;
+    font-style: normal;
+    background: var(--verre-fort);
+  }
+
+  .barre-actions {
+    position: absolute;
+    left: 50%;
+    bottom: 18px;
+    z-index: 4;
+    display: flex;
+    transform: translateX(-50%);
+    gap: 2px;
+    padding: 6px;
+    border-radius: var(--radius-overlay);
+    background: var(--barre);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
+    box-shadow: var(--ombre-dock);
+  }
+
+  .barre-actions__btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 11px;
+    color: var(--barre-texte);
+    font-size: var(--font-size-dense);
+    white-space: nowrap;
+    transition: background-color var(--duration-hover) ease;
+  }
+
+  .barre-actions__btn:hover {
+    background: var(--dock-hover);
+  }
+
+  .barre-actions__btn--prim {
+    background: var(--chemise-fond, var(--feuille));
+    color: var(--sur-chemise, var(--encre));
+    font-weight: 700;
+  }
+
+  .fond-neutre .barre-actions__btn--prim {
+    background: var(--feuille);
+    color: var(--encre);
+  }
+
+  .barre-actions__kbd {
+    margin-left: 2px;
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-size: 11px;
+    background: var(--barre-kbd-fond);
+    color: var(--barre-kbd);
+  }
+
+  .panneau-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: grid;
+    place-items: center;
+    background: var(--barre);
+  }
+
+  .panneau-modal__carte {
+    width: min(480px, calc(100vw - 32px));
+    max-height: calc(100vh - 64px);
+    overflow: auto;
+    border-radius: var(--radius-overlay);
+    background: var(--feuille);
+    color: var(--encre);
+    padding: 24px;
+    box-shadow: var(--ombre-carte);
   }
 }

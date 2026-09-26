@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useState } from "react";
+import { CoqueApp } from "@/coque/CoqueApp";
 import { DEFAULT_INSTANCE_URL } from "@/lib/auth/client";
 import {
   isOnboardingComplete,
@@ -9,7 +10,6 @@ import {
 import { DEMO_CABINET_ID } from "@/sync/demoCabinet";
 import { FirstLaunchFlow } from "@/onboarding/FirstLaunchFlow";
 import { InitialSyncScreen } from "@/onboarding/InitialSyncScreen";
-import { JourneePreview } from "@/screens/JourneePreview";
 import { closePowerSyncDatabase, getPowerSyncDatabase } from "@/sync/database";
 import { exposeRecetteHooksIfEnabled } from "@/sync/recetteHooks";
 
@@ -86,7 +86,7 @@ function App() {
   if (!authenticated && localReady) {
     return (
       <>
-        <JourneePreview instanceUrl={instanceUrl} />
+        <CoqueApp instanceUrl={instanceUrl} />
         <FirstLaunchFlow
           initialInstanceUrl={instanceUrl}
           onComplete={handleFirstLaunchComplete}
@@ -111,9 +111,7 @@ function App() {
     );
   }
 
-  return (
-    <JourneePreview instanceUrl={instanceUrl} onResetSession={handleResetSession} />
-  );
+  return <CoqueApp instanceUrl={instanceUrl} onResetSession={handleResetSession} />;
 }
 
 export default App;

@@ -22,21 +22,93 @@
     format("woff2");
 }
 
+/* Graisse 800 : ExtraBold non embarqué — Bold synthétique jusqu’à disponibilité du woff2 */
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/fonts/atkinson-hyperlegible-next/AtkinsonHyperlegibleNext-Bold.woff2")
+    format("woff2");
+}
+
 :root,
 :root[data-theme="light"] {
   color-scheme: light;
 
-  --page: #d8dddb;
-  --classeur: #e6eae8;
-  --feuille: #f9faf9;
-  --encre: #1f2629;
+  --encre: #141a1c;
   --graphite: #5a6569;
-  --filet: #cdd4d1;
+  --feuille: #ffffff;
+  --feuille-2: #f6f8f7;
+  --filet: #e8eceb;
+  --survol: #f3f6f5;
+  --barre: rgb(16 21 23 / 0.86);
+  --neutre: #2a3337;
+  --definitif: #43388a;
+  --definitif-fond: rgb(67 56 138 / 0.09);
+  --definitif-bord: rgb(67 56 138 / 0.2);
   --echeance: #b42318;
   --echeance-fond: #fbe9e7;
-  --focus: #1f2629;
+  --synchro: #7bd89a;
+  --sur-chemise: #141a1c;
+  --focus: #141a1c;
 
-  --font-family: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Chrome barre / dock (texte clair sur --barre) */
+  --barre-texte: #e6ecea;
+  --barre-texte-muet: #aeb8bc;
+  --barre-pilule: #f2f5f4;
+  --barre-kbd: #c9d1d4;
+  --verre: rgb(255 255 255 / 0.3);
+  --verre-bord: rgb(255 255 255 / 0.42);
+  --verre-fort: rgb(255 255 255 / 0.6);
+  --arc-piste: rgb(20 26 28 / 0.14);
+  --barre-inset: inset 0 -1px 0 rgb(255 255 255 / 0.06);
+  --barre-compteur: rgb(255 255 255 / 0.12);
+  --barre-surface: rgb(255 255 255 / 0.08);
+  --barre-surface-bord: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+  --barre-onglet-reflet: linear-gradient(
+    rgb(255 255 255 / 0.2),
+    rgb(255 255 255 / 0) 60%
+  );
+  --barre-onglet-ombre: inset 0 1px 0 rgb(255 255 255 / 0.32);
+  --barre-onglet-inactif-bord: inset 0 1px 0 rgb(255 255 255 / 0.06);
+  --barre-pastille-anneau: 0 0 0 2px rgb(255 255 255 / 0.12);
+  --barre-chrono-anneau: 0 0 0 3px rgb(255 255 255 / 0.1);
+  --barre-kbd-fond: rgb(255 255 255 / 0.1);
+  --dock-hover: rgb(255 255 255 / 0.1);
+  --intercalaire-ombre-actif: 12px 10px 24px -18px rgb(0 0 0 / 0.45);
+  --intercalaire-ombre-inactif:
+    inset 0 1px 0 var(--verre-bord),
+    inset -1px 0 0 var(--verre-bord),
+    inset 0 -1px 0 var(--verre-bord),
+    inset 10px 0 10px -10px rgb(0 0 0 / 0.25);
+  --jauge-ombre: inset 0 0 0 1px var(--verre-bord), 0 12px 30px -18px rgb(0 0 0 / 0.45);
+  --carte-arriere: var(--verre-fort);
+
+  /* Compatibilité recettes / anciennes classes */
+  --page: #d8dddb;
+  --classeur: #e6eae8;
+
+  --grain: url("./grain.svg");
+  --lumiere:
+    radial-gradient(
+      120% 90% at 8% -12%,
+      rgb(255 255 255 / 0.36),
+      rgb(255 255 255 / 0) 55%
+    ),
+    radial-gradient(90% 80% at 110% 120%, rgb(0 0 0 / 0.18), rgb(0 0 0 / 0) 60%);
+
+  --ombre-carte:
+    0 1px 0 rgb(255 255 255 / 0.9) inset,
+    0 28px 56px -28px rgb(0 0 0 / 0.5),
+    0 2px 8px rgb(0 0 0 / 0.06);
+  --ombre-etiquette: 0 10px 24px -16px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.08);
+  --ombre-dock:
+    0 18px 40px -16px rgb(0 0 0 / 0.55), inset 0 0 0 1px rgb(255 255 255 / 0.08);
+  --shadow-floating: 0 12px 40px rgb(31 38 41 / 0.12);
+
+  --font-family: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI",
+    sans-serif;
   --font-size-meta: 12px;
   --font-size-dense: 13px;
   --font-size-base: 14px;
@@ -48,36 +120,95 @@
   --line-height-mail: 1.6;
 
   --space-unit: 4px;
-  --space-page: 32px;
+  --space-chemise-top: 28px;
+  --space-chemise-left: 42px;
+  --space-feuille: 22px;
   --row-height-list: 44px;
 
-  --radius-tab: 8px;
-  --radius-intercalaire: 7px;
-  --radius-control: 5px;
-  --radius-pastille: 2px;
-  --radius-overlay: 8px;
+  --radius-tab: 12px;
+  --radius-feuille: 18px;
+  --radius-intercalaire: 12px;
+  --radius-control: 8px;
+  --radius-pastille: 999px;
+  --radius-overlay: 16px;
+  --radius-tuile: 9px;
 
-  --shadow-floating: 0 12px 40px rgb(31 38 41 / 0.12);
-
+  --duration-hover: 150ms;
+  --duration-dossier: 300ms;
   --duration-menu: 150ms;
   --duration-mail-classer: 460ms;
   --duration-tab-pulse: 700ms;
 }
 
-:root[data-theme="dark"],
-:root:not([data-theme="light"]) {
+:root[data-theme="dark"] {
   color-scheme: dark;
+
+  --encre: #e8eeec;
+  --graphite: #9ca8ac;
+  --feuille: #1a2023;
+  --feuille-2: #20272a;
+  --filet: #2b3438;
+  --survol: #222a2d;
+  --barre: rgb(16 21 23 / 0.86);
+  --neutre: #11171a;
+  --definitif: #bdb4f5;
+  --definitif-fond: rgb(189 180 245 / 0.1);
+  --definitif-bord: rgb(189 180 245 / 0.25);
+  --echeance: #f07a6a;
+  --echeance-fond: #3a1f1c;
+  --synchro: #7bd89a;
+  --sur-chemise: #f2f5f4;
+  --focus: #e8eeec;
+
+  --barre-texte: #e6ecea;
+  --barre-texte-muet: #aeb8bc;
+  --barre-pilule: #f2f5f4;
+  --barre-kbd: #c9d1d4;
+  --verre: rgb(0 0 0 / 0.18);
+  --verre-bord: rgb(255 255 255 / 0.1);
+  --verre-fort: rgb(255 255 255 / 0.1);
+  --arc-piste: rgb(255 255 255 / 0.18);
+  --barre-inset: inset 0 -1px 0 rgb(255 255 255 / 0.06);
+  --barre-compteur: rgb(255 255 255 / 0.12);
+  --barre-surface: rgb(255 255 255 / 0.08);
+  --barre-surface-bord: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+  --barre-onglet-reflet: linear-gradient(
+    rgb(255 255 255 / 0.2),
+    rgb(255 255 255 / 0) 60%
+  );
+  --barre-onglet-ombre: inset 0 1px 0 rgb(255 255 255 / 0.32);
+  --barre-onglet-inactif-bord: inset 0 1px 0 rgb(255 255 255 / 0.06);
+  --barre-pastille-anneau: 0 0 0 2px rgb(255 255 255 / 0.12);
+  --barre-chrono-anneau: 0 0 0 3px rgb(255 255 255 / 0.1);
+  --barre-kbd-fond: rgb(255 255 255 / 0.1);
+  --dock-hover: rgb(255 255 255 / 0.1);
+  --intercalaire-ombre-actif: 12px 10px 24px -18px rgb(0 0 0 / 0.45);
+  --intercalaire-ombre-inactif:
+    inset 0 1px 0 var(--verre-bord),
+    inset -1px 0 0 var(--verre-bord),
+    inset 0 -1px 0 var(--verre-bord),
+    inset 10px 0 10px -10px rgb(0 0 0 / 0.25);
+  --jauge-ombre: inset 0 0 0 1px var(--verre-bord), 0 12px 30px -18px rgb(0 0 0 / 0.45);
+  --carte-arriere: var(--verre-fort);
 
   --page: #0e1213;
   --classeur: #161b1d;
-  --feuille: #1e2427;
-  --encre: #e4eae8;
-  --graphite: #9ca8ac;
-  --filet: #323b3e;
-  --echeance: #f07a6a;
-  --echeance-fond: #3a1f1c;
-  --focus: #e4eae8;
 
+  --lumiere:
+    radial-gradient(
+      120% 90% at 8% -12%,
+      rgb(255 255 255 / 0.12),
+      rgb(255 255 255 / 0) 55%
+    ),
+    radial-gradient(90% 80% at 110% 120%, rgb(0 0 0 / 0.35), rgb(0 0 0 / 0) 60%);
+
+  --ombre-carte:
+    0 1px 0 rgb(255 255 255 / 0.05) inset,
+    0 28px 56px -24px rgb(0 0 0 / 0.7),
+    0 2px 8px rgb(0 0 0 / 0.3);
+  --ombre-etiquette: 0 10px 24px -16px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.08);
+  --ombre-dock:
+    0 18px 40px -12px rgb(0 0 0 / 0.8), inset 0 0 0 1px rgb(255 255 255 / 0.14);
   --shadow-floating: 0 12px 40px rgb(0 0 0 / 0.45);
 }
 
@@ -85,213 +216,314 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    --page: #0e1213;
-    --classeur: #161b1d;
-    --feuille: #1e2427;
-    --encre: #e4eae8;
+    --encre: #e8eeec;
     --graphite: #9ca8ac;
-    --filet: #323b3e;
+    --feuille: #1a2023;
+    --feuille-2: #20272a;
+    --filet: #2b3438;
+    --survol: #222a2d;
+    --barre: rgb(16 21 23 / 0.86);
+    --neutre: #11171a;
+    --definitif: #bdb4f5;
+    --definitif-fond: rgb(189 180 245 / 0.1);
+    --definitif-bord: rgb(189 180 245 / 0.25);
     --echeance: #f07a6a;
     --echeance-fond: #3a1f1c;
-    --focus: #e4eae8;
+    --synchro: #7bd89a;
+    --sur-chemise: #f2f5f4;
+    --focus: #e8eeec;
 
+    --barre-texte: #e6ecea;
+    --barre-texte-muet: #aeb8bc;
+    --barre-pilule: #f2f5f4;
+    --barre-kbd: #c9d1d4;
+    --verre: rgb(0 0 0 / 0.18);
+    --verre-bord: rgb(255 255 255 / 0.1);
+    --verre-fort: rgb(255 255 255 / 0.1);
+    --arc-piste: rgb(255 255 255 / 0.18);
+    --barre-inset: inset 0 -1px 0 rgb(255 255 255 / 0.06);
+    --barre-compteur: rgb(255 255 255 / 0.12);
+    --barre-surface: rgb(255 255 255 / 0.08);
+    --barre-surface-bord: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+    --barre-onglet-reflet: linear-gradient(
+      rgb(255 255 255 / 0.2),
+      rgb(255 255 255 / 0) 60%
+    );
+    --barre-onglet-ombre: inset 0 1px 0 rgb(255 255 255 / 0.32);
+    --barre-onglet-inactif-bord: inset 0 1px 0 rgb(255 255 255 / 0.06);
+    --barre-pastille-anneau: 0 0 0 2px rgb(255 255 255 / 0.12);
+    --barre-chrono-anneau: 0 0 0 3px rgb(255 255 255 / 0.1);
+    --barre-kbd-fond: rgb(255 255 255 / 0.1);
+    --dock-hover: rgb(255 255 255 / 0.1);
+    --intercalaire-ombre-actif: 12px 10px 24px -18px rgb(0 0 0 / 0.45);
+    --intercalaire-ombre-inactif:
+      inset 0 1px 0 var(--verre-bord),
+      inset -1px 0 0 var(--verre-bord),
+      inset 0 -1px 0 var(--verre-bord),
+      inset 10px 0 10px -10px rgb(0 0 0 / 0.25);
+    --jauge-ombre: inset 0 0 0 1px var(--verre-bord), 0 12px 30px -18px rgb(0 0 0 / 0.45);
+    --carte-arriere: var(--verre-fort);
+
+    --page: #0e1213;
+    --classeur: #161b1d;
+
+    --lumiere:
+      radial-gradient(
+        120% 90% at 8% -12%,
+        rgb(255 255 255 / 0.12),
+        rgb(255 255 255 / 0) 55%
+      ),
+      radial-gradient(90% 80% at 110% 120%, rgb(0 0 0 / 0.35), rgb(0 0 0 / 0) 60%);
+
+    --ombre-carte:
+      0 1px 0 rgb(255 255 255 / 0.05) inset,
+      0 28px 56px -24px rgb(0 0 0 / 0.7),
+      0 2px 8px rgb(0 0 0 / 0.3);
+    --ombre-dock:
+      0 18px 40px -12px rgb(0 0 0 / 0.8), inset 0 0 0 1px rgb(255 255 255 / 0.14);
     --shadow-floating: 0 12px 40px rgb(0 0 0 / 0.45);
   }
 }
 
-/* Chemises (bande / teinte / texte) — huit couleurs § 7.3 */
+/* --- Chemises : fond / teinte / texte / accent (§ 7.3) --- */
 
 :root[data-theme="light"] [data-chemise="kraft"],
 :root[data-theme="light"] .chemise-kraft,
 :root:not([data-theme="dark"]) [data-chemise="kraft"],
 :root:not([data-theme="dark"]) .chemise-kraft {
-  --chemise-bande: #b98e57;
-  --chemise-teinte: #f0e5d2;
-  --chemise-texte: #664a26;
+  --chemise-fond: #ce9a55;
+  --chemise-teinte: #f6e7ce;
+  --chemise-texte: #5a3f14;
+  --chemise-accent: #a9783a;
+  --chemise-bande: var(--chemise-fond);
 }
 
 :root[data-theme="dark"] [data-chemise="kraft"],
-:root[data-theme="dark"] .chemise-kraft,
-:root:not([data-theme="light"]) [data-chemise="kraft"],
-:root:not([data-theme="light"]) .chemise-kraft {
-  --chemise-bande: #c9a06a;
-  --chemise-teinte: #3a3124;
-  --chemise-texte: #ebd3ae;
+:root[data-theme="dark"] .chemise-kraft {
+  --chemise-fond: #6e5128;
+  --chemise-teinte: #3a2e1c;
+  --chemise-texte: #f2d6ab;
+  --chemise-accent: #d9a860;
+  --chemise-bande: var(--chemise-fond);
 }
 
 :root[data-theme="light"] [data-chemise="bleu-classeur"],
 :root[data-theme="light"] .chemise-bleu-classeur,
 :root:not([data-theme="dark"]) [data-chemise="bleu-classeur"],
 :root:not([data-theme="dark"]) .chemise-bleu-classeur {
-  --chemise-bande: #6f95c4;
-  --chemise-teinte: #dce5f1;
-  --chemise-texte: #284c76;
+  --chemise-fond: #6fa2e0;
+  --chemise-teinte: #e1ecfa;
+  --chemise-texte: #1c4273;
+  --chemise-accent: #3f72b8;
+  --chemise-bande: var(--chemise-fond);
 }
 
 :root[data-theme="dark"] [data-chemise="bleu-classeur"],
-:root[data-theme="dark"] .chemise-bleu-classeur,
-:root:not([data-theme="light"]) [data-chemise="bleu-classeur"],
-:root:not([data-theme="light"]) .chemise-bleu-classeur {
-  --chemise-bande: #86a9d6;
-  --chemise-teinte: #23324a;
-  --chemise-texte: #c9daf0;
+:root[data-theme="dark"] .chemise-bleu-classeur {
+  --chemise-fond: #2f4f7a;
+  --chemise-teinte: #1e2f48;
+  --chemise-texte: #d2e3f8;
+  --chemise-accent: #86b6f0;
+  --chemise-bande: var(--chemise-fond);
 }
 
 :root[data-theme="light"] [data-chemise="vert-amande"],
 :root[data-theme="light"] .chemise-vert-amande,
 :root:not([data-theme="dark"]) [data-chemise="vert-amande"],
 :root:not([data-theme="dark"]) .chemise-vert-amande {
-  --chemise-bande: #7dae8a;
-  --chemise-teinte: #ddebe0;
-  --chemise-texte: #335c40;
+  --chemise-fond: #6cbf84;
+  --chemise-teinte: #e1f3e7;
+  --chemise-texte: #1f5431;
+  --chemise-accent: #3e9158;
+  --chemise-bande: var(--chemise-fond);
 }
 
 :root[data-theme="dark"] [data-chemise="vert-amande"],
-:root[data-theme="dark"] .chemise-vert-amande,
-:root:not([data-theme="light"]) [data-chemise="vert-amande"],
-:root:not([data-theme="light"]) .chemise-vert-amande {
-  --chemise-bande: #8dbe9a;
-  --chemise-teinte: #243a2c;
-  --chemise-texte: #c6e3ce;
+:root[data-theme="dark"] .chemise-vert-amande {
+  --chemise-fond: #2e5a3d;
+  --chemise-teinte: #1c3827;
+  --chemise-texte: #cfedd8;
+  --chemise-accent: #86cf9c;
+  --chemise-bande: var(--chemise-fond);
 }
 
 :root[data-theme="light"] [data-chemise="jaune-paille"],
 :root[data-theme="light"] .chemise-jaune-paille,
 :root:not([data-theme="dark"]) [data-chemise="jaune-paille"],
 :root:not([data-theme="dark"]) .chemise-jaune-paille {
-  --chemise-bande: #cdae3c;
-  --chemise-teinte: #f3ebc7;
-  --chemise-texte: #5e4e0e;
+  --chemise-fond: #d9b84a;
+  --chemise-teinte: #f7efcb;
+  --chemise-texte: #5a4a0c;
+  --chemise-accent: #9c8420;
+  --chemise-bande: var(--chemise-fond);
 }
 
 :root[data-theme="dark"] [data-chemise="jaune-paille"],
-:root[data-theme="dark"] .chemise-jaune-paille,
-:root:not([data-theme="light"]) [data-chemise="jaune-paille"],
-:root:not([data-theme="light"]) .chemise-jaune-paille {
-  --chemise-bande: #d6bc57;
-  --chemise-teinte: #3a3419;
-  --chemise-texte: #eee0a8;
+:root[data-theme="dark"] .chemise-jaune-paille {
+  --chemise-fond: #6b5a1c;
+  --chemise-teinte: #36301a;
+  --chemise-texte: #f2e3a8;
+  --chemise-accent: #d9c25a;
+  --chemise-bande: var(--chemise-fond);
 }
 
 :root[data-theme="light"] [data-chemise="rose-buvard"],
 :root[data-theme="light"] .chemise-rose-buvard,
 :root:not([data-theme="dark"]) [data-chemise="rose-buvard"],
 :root:not([data-theme="dark"]) .chemise-rose-buvard {
-  --chemise-bande: #d08aab;
-  --chemise-teinte: #f4e0ea;
-  --chemise-texte: #7e3a5c;
+  --chemise-fond: #d98bb0;
+  --chemise-teinte: #f8e4ee;
+  --chemise-texte: #7a2f55;
+  --chemise-accent: #b0557f;
+  --chemise-bande: var(--chemise-fond);
 }
 
 :root[data-theme="dark"] [data-chemise="rose-buvard"],
-:root[data-theme="dark"] .chemise-rose-buvard,
-:root:not([data-theme="light"]) [data-chemise="rose-buvard"],
-:root:not([data-theme="light"]) .chemise-rose-buvard {
-  --chemise-bande: #d99bb8;
-  --chemise-teinte: #3d2632;
-  --chemise-texte: #f0ccdc;
+:root[data-theme="dark"] .chemise-rose-buvard {
+  --chemise-fond: #6e3350;
+  --chemise-teinte: #3a2130;
+  --chemise-texte: #f4cfe0;
+  --chemise-accent: #e39cbf;
+  --chemise-bande: var(--chemise-fond);
 }
 
 :root[data-theme="light"] [data-chemise="lilas"],
 :root[data-theme="light"] .chemise-lilas,
 :root:not([data-theme="dark"]) [data-chemise="lilas"],
 :root:not([data-theme="dark"]) .chemise-lilas {
-  --chemise-bande: #9a8bc7;
-  --chemise-teinte: #e7e2f2;
-  --chemise-texte: #4e4178;
+  --chemise-fond: #a493d6;
+  --chemise-teinte: #ece7f8;
+  --chemise-texte: #45377a;
+  --chemise-accent: #7462b5;
+  --chemise-bande: var(--chemise-fond);
 }
 
 :root[data-theme="dark"] [data-chemise="lilas"],
-:root[data-theme="dark"] .chemise-lilas,
-:root:not([data-theme="light"]) [data-chemise="lilas"],
-:root:not([data-theme="light"]) .chemise-lilas {
-  --chemise-bande: #aa9cd6;
-  --chemise-teinte: #2e2942;
-  --chemise-texte: #dcd4f2;
+:root[data-theme="dark"] .chemise-lilas {
+  --chemise-fond: #4a3f78;
+  --chemise-teinte: #2a2542;
+  --chemise-texte: #ddd5f5;
+  --chemise-accent: #b1a3e8;
+  --chemise-bande: var(--chemise-fond);
 }
 
 :root[data-theme="light"] [data-chemise="vert-eau"],
 :root[data-theme="light"] .chemise-vert-eau,
 :root:not([data-theme="dark"]) [data-chemise="vert-eau"],
 :root:not([data-theme="dark"]) .chemise-vert-eau {
-  --chemise-bande: #66aea8;
-  --chemise-teinte: #d9ecea;
-  --chemise-texte: #245c58;
+  --chemise-fond: #5fb8b0;
+  --chemise-teinte: #ddf2f0;
+  --chemise-texte: #1d5550;
+  --chemise-accent: #2f8a82;
+  --chemise-bande: var(--chemise-fond);
 }
 
 :root[data-theme="dark"] [data-chemise="vert-eau"],
-:root[data-theme="dark"] .chemise-vert-eau,
-:root:not([data-theme="light"]) [data-chemise="vert-eau"],
-:root:not([data-theme="light"]) .chemise-vert-eau {
-  --chemise-bande: #7cc0ba;
-  --chemise-teinte: #1f3836;
-  --chemise-texte: #c2e6e2;
+:root[data-theme="dark"] .chemise-vert-eau {
+  --chemise-fond: #245a56;
+  --chemise-teinte: #183634;
+  --chemise-texte: #c6ece8;
+  --chemise-accent: #7fcfc7;
+  --chemise-bande: var(--chemise-fond);
 }
 
 :root[data-theme="light"] [data-chemise="gris-perle"],
 :root[data-theme="light"] .chemise-gris-perle,
 :root:not([data-theme="dark"]) [data-chemise="gris-perle"],
 :root:not([data-theme="dark"]) .chemise-gris-perle {
-  --chemise-bande: #98a3ab;
-  --chemise-teinte: #e4e8eb;
-  --chemise-texte: #3f4a51;
+  --chemise-fond: #a3aeb6;
+  --chemise-teinte: #e9edf0;
+  --chemise-texte: #36424a;
+  --chemise-accent: #6b7882;
+  --chemise-bande: var(--chemise-fond);
 }
 
 :root[data-theme="dark"] [data-chemise="gris-perle"],
-:root[data-theme="dark"] .chemise-gris-perle,
-:root:not([data-theme="light"]) [data-chemise="gris-perle"],
-:root:not([data-theme="light"]) .chemise-gris-perle {
-  --chemise-bande: #7d8990;
-  --chemise-teinte: #262e32;
-  --chemise-texte: #d3dbdf;
+:root[data-theme="dark"] .chemise-gris-perle {
+  --chemise-fond: #45515a;
+  --chemise-teinte: #283034;
+  --chemise-texte: #d8dfe3;
+  --chemise-accent: #a9b5bd;
+  --chemise-bande: var(--chemise-fond);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) [data-chemise="kraft"],
   :root:not([data-theme="light"]) .chemise-kraft {
-    --chemise-bande: #c9a06a;
-    --chemise-teinte: #3a3124;
-    --chemise-texte: #ebd3ae;
+    --chemise-fond: #6e5128;
+    --chemise-teinte: #3a2e1c;
+    --chemise-texte: #f2d6ab;
+    --chemise-accent: #d9a860;
+    --chemise-bande: var(--chemise-fond);
   }
   :root:not([data-theme="light"]) [data-chemise="bleu-classeur"],
   :root:not([data-theme="light"]) .chemise-bleu-classeur {
-    --chemise-bande: #86a9d6;
-    --chemise-teinte: #23324a;
-    --chemise-texte: #c9daf0;
+    --chemise-fond: #2f4f7a;
+    --chemise-teinte: #1e2f48;
+    --chemise-texte: #d2e3f8;
+    --chemise-accent: #86b6f0;
+    --chemise-bande: var(--chemise-fond);
   }
   :root:not([data-theme="light"]) [data-chemise="vert-amande"],
   :root:not([data-theme="light"]) .chemise-vert-amande {
-    --chemise-bande: #8dbe9a;
-    --chemise-teinte: #243a2c;
-    --chemise-texte: #c6e3ce;
+    --chemise-fond: #2e5a3d;
+    --chemise-teinte: #1c3827;
+    --chemise-texte: #cfedd8;
+    --chemise-accent: #86cf9c;
+    --chemise-bande: var(--chemise-fond);
   }
   :root:not([data-theme="light"]) [data-chemise="jaune-paille"],
   :root:not([data-theme="light"]) .chemise-jaune-paille {
-    --chemise-bande: #d6bc57;
-    --chemise-teinte: #3a3419;
-    --chemise-texte: #eee0a8;
+    --chemise-fond: #6b5a1c;
+    --chemise-teinte: #36301a;
+    --chemise-texte: #f2e3a8;
+    --chemise-accent: #d9c25a;
+    --chemise-bande: var(--chemise-fond);
   }
   :root:not([data-theme="light"]) [data-chemise="rose-buvard"],
   :root:not([data-theme="light"]) .chemise-rose-buvard {
-    --chemise-bande: #d99bb8;
-    --chemise-teinte: #3d2632;
-    --chemise-texte: #f0ccdc;
+    --chemise-fond: #6e3350;
+    --chemise-teinte: #3a2130;
+    --chemise-texte: #f4cfe0;
+    --chemise-accent: #e39cbf;
+    --chemise-bande: var(--chemise-fond);
   }
   :root:not([data-theme="light"]) [data-chemise="lilas"],
   :root:not([data-theme="light"]) .chemise-lilas {
-    --chemise-bande: #aa9cd6;
-    --chemise-teinte: #2e2942;
-    --chemise-texte: #dcd4f2;
+    --chemise-fond: #4a3f78;
+    --chemise-teinte: #2a2542;
+    --chemise-texte: #ddd5f5;
+    --chemise-accent: #b1a3e8;
+    --chemise-bande: var(--chemise-fond);
   }
   :root:not([data-theme="light"]) [data-chemise="vert-eau"],
   :root:not([data-theme="light"]) .chemise-vert-eau {
-    --chemise-bande: #7cc0ba;
-    --chemise-teinte: #1f3836;
-    --chemise-texte: #c2e6e2;
+    --chemise-fond: #245a56;
+    --chemise-teinte: #183634;
+    --chemise-texte: #c6ece8;
+    --chemise-accent: #7fcfc7;
+    --chemise-bande: var(--chemise-fond);
   }
   :root:not([data-theme="light"]) [data-chemise="gris-perle"],
   :root:not([data-theme="light"]) .chemise-gris-perle {
-    --chemise-bande: #7d8990;
-    --chemise-teinte: #262e32;
-    --chemise-texte: #d3dbdf;
+    --chemise-fond: #45515a;
+    --chemise-teinte: #283034;
+    --chemise-texte: #d8dfe3;
+    --chemise-accent: #a9b5bd;
+    --chemise-bande: var(--chemise-fond);
   }
+}
+
+/* Surfaces de coque */
+.fond-neutre {
+  background-color: var(--neutre);
+  color: var(--sur-chemise);
+  background-image: var(--lumiere), var(--grain);
+}
+
+.fond-chemise {
+  background-color: var(--chemise-fond);
+  color: var(--sur-chemise);
+  background-image: var(--lumiere), var(--grain);
+  transition: background-color var(--duration-dossier) ease;
 }
