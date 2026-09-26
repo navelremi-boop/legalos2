@@ -202,7 +202,7 @@ async function login(send) {
   throw new Error("écran temps absent");
 }
 
-function lireSqlite() {
+function sqliteLocal(sql) {
   const roaming = process.env.APPDATA ?? join(homedir(), "AppData", "Roaming");
   const fichier = join(roaming, "fr.legalos.poste", `legalos-powersync-${posteId}.db`);
   return new Promise((resolve, reject) => {
@@ -210,13 +210,15 @@ function lireSqlite() {
       "python",
       [
         "-c",
-        `import sqlite3,sys
+        `import sqlite3,sys,json
 c=sqlite3.connect(sys.argv[1])
-temps=c.execute("SELECT minutes, libelle, taux_centimes_heure, ht_centimes, dossier_id FROM temps_saisis").fetchall()
-brouillon=c.execute("SELECT numero, ht_centimes, libelle, dossier_id FROM brouillons_facture").fetchall()
-print(temps)
-print(brouillon)`,
+try:
+  rows=c.execute(sys.argv[2]).fetchall()
+except Exception as e:
+  print(json.dumps({"err":str(e)})); raise SystemExit(0)
+print(json.dumps(rows))`,
         fichier,
+        sql,
       ],
       { stdio: ["ignore", "pipe", "pipe"] },
     );
@@ -233,6 +235,15 @@ print(brouillon)`,
       else reject(new Error(err.slice(-300) || "sqlite"));
     });
   });
+}
+
+function lireSqlite() {
+  return Promise.all([
+    sqliteLocal(
+      "SELECT minutes, libelle, taux_centimes_heure, ht_centimes, dossier_id FROM temps_saisis",
+    ),
+    sqliteLocal("SELECT numero, ht_centimes, libelle, dossier_id FROM brouillons_facture"),
+  ]).then(([temps, brouillon]) => `${temps}\n${brouillon}`);
 }
 
 const sante = await fetch(`${instanceUrl}/health`).catch(() => null);
@@ -273,9 +284,27 @@ try {
   const { send, ws } = await connectCdp();
   await login(send);
 
+  // Attendre la sync PowerSync (SQLite locale) avant d'exiger l'option du <select>.
   const syncDebut = Date.now();
+  let syncOk = false;
+  while (Date.now() - syncDebut < 120_000) {
+    const local = await sqliteLocal(
+      `SELECT id FROM dossiers WHERE id = '${dossierId}'`,
+    ).catch(() => "[]");
+    if (local.includes(dossierId)) {
+      syncOk = true;
+      break;
+    }
+    await sleep(1000);
+  }
+  if (!syncOk) fail(`dossier non synchronisé en SQLite locale (${dossierId})`);
+
+  // Remonter le panneau pour forcer le rechargement de FormulaireTemps.
+  await evaluate(send, `document.querySelector(".panneau-modal")?.click()`);
+  await sleep(300);
   let optionOk = false;
-  while (Date.now() - syncDebut < 90_000) {
+  const formDebut = Date.now();
+  while (Date.now() - formDebut < 60_000) {
     await ouvrirTemps(send);
     optionOk = Boolean(
       await evaluate(
@@ -284,9 +313,15 @@ try {
       ),
     );
     if (optionOk) break;
-    await sleep(800);
+    await sleep(500);
   }
-  if (!optionOk) fail(`dossier existant absent du formulaire (${dossierId})`);
+  if (!optionOk) {
+    const options = await evaluate(
+      send,
+      `JSON.stringify([...document.querySelectorAll("#temps-dossier option")].map((o) => o.value))`,
+    );
+    fail(`dossier existant absent du formulaire (${dossierId}) options=${options}`);
+  }
 
   await evaluate(
     send,
@@ -313,13 +348,19 @@ try {
     await sleep(200);
   }
   if (!texte.includes("sans numéro")) fail(`brouillon non affiché (${texte})`);
-  const lu = await lireSqlite();
-  if (!lu.includes("60") || !lu.includes("Honoraires fictifs") || !lu.includes("None")) {
-    fail(`sqlite inattendu (${lu})`);
+  const tempsLocal = await sqliteLocal(
+    `SELECT minutes, libelle, taux_centimes_heure, ht_centimes FROM temps_saisis WHERE dossier_id = '${dossierId}' AND minutes = 60`,
+  );
+  if (!tempsLocal.includes("Honoraires fictifs") || !tempsLocal.includes("6000")) {
+    fail(`temps local absent (${tempsLocal})`);
   }
-  if (!lu.includes("6000") || !lu.includes(dossierId)) {
-    fail(`taux/dossier absents (${lu})`);
+  const brouillonAvant = await sqliteLocal(
+    `SELECT numero, ht_centimes, libelle FROM brouillons_facture WHERE dossier_id = '${dossierId}' AND libelle = 'Honoraires fictifs'`,
+  );
+  if (!brouillonAvant.includes("null") && !brouillonAvant.includes("None")) {
+    fail(`brouillon avait déjà un numéro (${brouillonAvant})`);
   }
+  if (!brouillonAvant.includes("6000")) fail(`ht brouillon (${brouillonAvant})`);
   await evaluate(send, `document.getElementById("valider-facture")?.click()`);
   const numeroDebut = Date.now();
   let apres = "";
@@ -338,8 +379,12 @@ try {
   if (!xml.includes("urn:cen.eu:en16931:2017") || !xml.includes("60.00") || !xml.includes("Honoraires fictifs")) {
     fail("Factur-X absent du brouillon validé");
   }
-  const apresSql = await lireSqlite();
-  if (apresSql.includes("None")) fail(`numéro local resté vide (${apresSql})`);
+  const brouillonApres = await sqliteLocal(
+    `SELECT numero FROM brouillons_facture WHERE dossier_id = '${dossierId}' AND libelle = 'Honoraires fictifs'`,
+  );
+  if (brouillonApres.includes("null") || brouillonApres === "[]") {
+    fail(`numéro local resté vide (${brouillonApres})`);
+  }
   console.log(
     "s9-poste: OK — dossier existant, taux paramétrable, brouillon sync sans numéro, puis numéro serveur",
   );

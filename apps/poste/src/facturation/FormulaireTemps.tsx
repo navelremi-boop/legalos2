@@ -59,7 +59,7 @@ export function FormulaireTemps({ instanceUrl }: { instanceUrl: string }) {
     void charger();
     const timer = window.setInterval(() => {
       void charger();
-    }, 2_000);
+    }, 800);
     return () => {
       annule = true;
       window.clearInterval(timer);
