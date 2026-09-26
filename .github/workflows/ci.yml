@@ -34,6 +34,7 @@ jobs:
       - run: node tests/recette/s5-sync-streams.mjs
       - run: node tests/recette/s5-sqlite-par-flux.mjs
       - run: node tests/recette/encodage-texte.mjs
+      - run: node tests/recette/workflows-valides.mjs
       - run: node tests/recette/reference-dossier.mjs
 
   gouvernance:
@@ -45,7 +46,7 @@ jobs:
       - uses: actions/setup-node@v4.4.0
         with:
           node-version: "24"
-      - name: PLAN.md — critères en commandes, commits « plan: » dédiés, rien d'affaibli
+      - name: "PLAN.md : critères en commandes, commits « plan: » dédiés, rien d'affaibli"
         run: node tests/recette/plan-gouvernance.mjs
         env:
           PLAN_RANGE: ${{ github.event_name == 'pull_request' && format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) || format('{0}..{1}', github.event.before, github.sha) }}
