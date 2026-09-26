@@ -34,4 +34,13 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 ## 2026-09-26 — J8 (repris après Streams VALIDÉ)
 
 - Code déjà sur main (`c34a033` / `07a7ff7` / `a00e56d`) : migration 014, flux temps/brouillons/taux, S9.
-- Prochaine étape : recettes S9 + contrôleur J8 (dont revue règle `31-facturation`).
+- Inventaire OK. Écart règle 31 : pas d’interface `PlateformeAgreee` (appels `reqwest` directs) ; S9 ne poussait pas jusqu’au statut « encaissée » total.
+- Correctifs : `crates/api/src/plateforme.rs` (trait + `HttpPlateformeAgreee` idempotent) ; routes `emettre`/`encaisser` branchées ; simulateur `/v1/e-reporting` + `/v1/annuaire/{siren}` ; `s9-factures` vérifie règlement 2×6000 → `encaissee` 12000 ; migration 014 en LF (checksum sqlx local aligné).
+- Preuves (2026-09-26) :
+  - `cargo clippy -p legalos-api --all-targets -- -D warnings` → exit 0
+  - `cargo test -p legalos-api plateforme` → 2 ok
+  - `node tests/recette/s9-factures.mjs` → OK (dont encaissée 12000)
+  - `node tests/recette/s9-facturx.mjs` → schematron 6 cas + PDF/A-3b OK
+  - `node tests/recette/s9-s5-temps.mjs` → OK
+  - `node tests/recette/s9-poste-tauri.mjs` → OK (temps hors ligne → numéro serveur)
+- Conformité 31 : centimes ; numérotation transactionnelle ; immutabilité entête+lignes (012) ; Factur-X ; PA idempotente via trait ; débours/frais (F3) ; hypothèses F0–F6. J8 non coché (contrôleur).

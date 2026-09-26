@@ -10,8 +10,19 @@ use uuid::Uuid;
 use crate::auth::access::AuthAccess;
 use crate::error::ApiError;
 use crate::facturation::{cii_en16931, tva_centimes, FactureCii};
+use crate::plateforme::{
+    DepotFacture, EncaissementPa, ErreurPlateforme, HttpPlateformeAgreee, PlateformeAgreee,
+};
 use crate::routes::temps::exiger_dossier_existant;
 use crate::state::AppState;
+
+fn err_pa(err: ErreurPlateforme) -> ApiError {
+    match err {
+        ErreurPlateforme::Absente => ApiError::internal("plateforme absente"),
+        ErreurPlateforme::Indisponible => ApiError::internal("plateforme indisponible"),
+        ErreurPlateforme::Refusee => ApiError::bad_request("plateforme a refusé l'opération"),
+    }
+}
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct LigneFacture {
@@ -221,36 +232,24 @@ pub async fn emettre(
     if deja.is_some() {
         return charger(&state, id).await.map(Json);
     }
-    let pa = std::env::var("PA_BASE_URL").map_err(|_| ApiError::internal("plateforme absente"))?;
-    let reponse = reqwest::Client::new()
-        .post(format!("{pa}/v1/factures/deposer"))
-        .header("idempotency-key", cle)
-        .json(&serde_json::json!({
-            "reference": id.to_string(),
-            "numero": facture.numero,
-            "montant_ttc_centimes": facture.montant_ttc_centimes,
-        }))
-        .send()
+    let pa = HttpPlateformeAgreee::depuis_env().map_err(err_pa)?;
+    let resultat = pa
+        .deposer(
+            cle,
+            DepotFacture {
+                reference: id.to_string(),
+                numero: facture.numero,
+                montant_ttc_centimes: facture.montant_ttc_centimes,
+            },
+        )
         .await
-        .map_err(|_| ApiError::internal("dépôt plateforme"))?;
-    if !reponse.status().is_success() {
-        return Err(ApiError::bad_request("plateforme a refusé le dépôt"));
-    }
-    let corps: serde_json::Value = reponse
-        .json()
-        .await
-        .map_err(|_| ApiError::internal("réponse plateforme"))?;
-    let identifiant = corps
-        .get("id")
-        .and_then(|v| v.as_str())
-        .unwrap_or("pa")
-        .to_owned();
+        .map_err(err_pa)?;
     sqlx::query(
         "INSERT INTO envois_plateforme (cle_idempotence, facture_id, identifiant_pa) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
     )
     .bind(cle)
     .bind(id)
-    .bind(identifiant)
+    .bind(resultat.id)
     .execute(&state.pool)
     .await
     .map_err(|_| ApiError::internal("journal d'envoi"))?;
@@ -282,22 +281,18 @@ pub async fn encaisser(
     .execute(&state.pool)
     .await
     .map_err(|_| ApiError::internal("encaissement"))?;
-    let pa = std::env::var("PA_BASE_URL").map_err(|_| ApiError::internal("plateforme absente"))?;
-    let reponse = reqwest::Client::new()
-        .post(format!("{pa}/v1/encaissements"))
-        .header("idempotency-key", cle)
-        .json(&serde_json::json!({
-            "reference": id.to_string(),
-            "montant_centimes": body.montant_centimes,
-            "taux_tva_bp": facture.taux_tva_bp,
-            "montant_ttc_centimes": facture.montant_ttc_centimes,
-        }))
-        .send()
-        .await
-        .map_err(|_| ApiError::internal("encaissement plateforme"))?;
-    if !reponse.status().is_success() {
-        return Err(ApiError::bad_request("plateforme a refusé l'encaissement"));
-    }
+    let pa = HttpPlateformeAgreee::depuis_env().map_err(err_pa)?;
+    pa.envoyer_encaissement(
+        cle,
+        EncaissementPa {
+            reference: id.to_string(),
+            montant_centimes: body.montant_centimes,
+            taux_tva_bp: facture.taux_tva_bp,
+            montant_ttc_centimes: facture.montant_ttc_centimes,
+        },
+    )
+    .await
+    .map_err(err_pa)?;
     charger(&state, id).await.map(Json)
 }
 

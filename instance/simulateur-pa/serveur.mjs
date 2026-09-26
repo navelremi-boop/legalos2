@@ -98,6 +98,23 @@ const serveur = createServer(async (req, res) => {
       envoyer(res, 200, fiche);
       return;
     }
+    if (req.method === "POST" && url.pathname === "/v1/e-reporting") {
+      const cle = req.headers["idempotency-key"];
+      if (typeof cle !== "string" || cle.length < 8) {
+        envoyer(res, 400, { message: "Idempotency-Key requise" });
+        return;
+      }
+      envoyer(res, 200, { ok: true, cle });
+      return;
+    }
+    const annuaire = /^\/v1\/annuaire\/([^/]+)$/.exec(url.pathname);
+    if (req.method === "GET" && annuaire) {
+      envoyer(res, 200, {
+        siren: decodeURIComponent(annuaire[1]),
+        adresse_facturation_electronique: "box-fictive@annuaire.example",
+      });
+      return;
+    }
     envoyer(res, 404, { message: "route inconnue" });
   } catch {
     envoyer(res, 400, { message: "json illisible" });

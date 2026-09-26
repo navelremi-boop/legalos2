@@ -228,6 +228,16 @@ if (apres.encaissements.length !== 1 || apres.encaissements[0].montant_centimes 
 if (apres.statut !== "partiellement_encaissee") fail(`statut encaissement ${apres.statut}`);
 console.log("s9: encaissement partiel, 6000 centimes, sans doublon");
 
+await json(`/factures/${a}/encaissements`, jeton, "POST", {
+  montant_centimes: 6_000,
+  cle_idempotence: `enc2-${a}`,
+});
+const solde = await fetch(`${pa}/v1/factures/${a}/statuts`).then((r) => r.json());
+if (solde.statut !== "encaissee") fail(`statut final ${solde.statut}`);
+const totalEnc = solde.encaissements.reduce((s, e) => s + e.montant_centimes, 0);
+if (totalEnc !== 12_000) fail(`montant encaissé ${totalEnc} (attendu 12000)`);
+console.log("s9: règlement complété → statut encaissée, 12000 centimes");
+
 const avoirId = randomUUID();
 const avoir = await json(`/factures/${a}/avoir`, jeton, "POST", { id: avoirId });
 if (avoir.statut !== "validee" || avoir.numero !== numeros[1] + 1) {

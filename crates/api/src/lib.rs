@@ -4,6 +4,7 @@ pub mod db;
 pub mod error;
 pub mod facturation;
 pub mod install;
+pub mod plateforme;
 pub mod openapi;
 pub mod routes;
 pub mod state;
