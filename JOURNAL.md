@@ -2,10 +2,10 @@
 
 Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
-- **Phase 0–1** VALIDÉES ; **J5–J7** VALIDÉS ; **Migration Sync Streams** VALIDÉE `9f80388`.
-- **En cours** : **J8** — temps et facturation (S9) ; contrôleur + revue `31-facturation`.
-- **Ordre** : ~~Migration Sync Streams~~ → **J8** → Référence → Coque → Vue scindée → Intercalaires → J9.
-- **Sync** : Streams édition 3, service 1.26.1. GHSA-q6wc-xx4m-92fj + 1.23.3. Dette mensuelle avis PowerSync.
+- **Phase 0–1** VALIDÉES ; **J5–J7** VALIDÉS ; **Migration Sync Streams** VALIDÉE `9f80388` ; **J8** VALIDÉ `e8eb6b2`.
+- **En cours** : **Référence de dossier** (§ 3.4).
+- **Ordre** : ~~Streams~~ → ~~J8~~ → **Référence** → Coque → Vue scindée → Intercalaires → J9.
+- **Sync** : Streams édition 3, service 1.26.1. Dette mensuelle avis PowerSync.
 - **Coque** corrigée (`22d765e`), non cochée (après Référence).
 
 ---
@@ -61,3 +61,12 @@ Preuves (2026-09-26) :
 - `cargo test -p legalos-api --lib` → 11 ok
 - `node tests/recette/s9-factures.mjs` → OK (PDF+CII API schematron+veraPDF ; débours ; e-reporting ; lignes avoir)
 - `node tests/recette/s9-facturx.mjs` → OK (6 cas schematron + PDF/A-3b)
+
+## 2026-09-26 � J8 VALID�
+
+- Contr�leur sur `e8eb6b2` (CI `36269667975`) : **VALID�**. Revue 31-facturation OK.
+- Correctifs majeurs sold�s (PDF/CII validation, CII d�bours, avoir+lignes, e-reporting).
+
+## 2026-09-26 � R�f�rence de dossier (d�marrage)
+
+- Jalon � 3.4 : ann�e + num�ro continu cabinet, serveur, unicit�, hors ligne � r�f�rence en attente �.

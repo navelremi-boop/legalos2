@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-26 (jalon en cours : **J8**).
+Dernière mise à jour : 2026-09-26 (jalon en cours : **Référence de dossier**).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -35,9 +35,9 @@ Ordre architecte (révisé 2026-09-26) : **Migration Sync Streams** → **J8** �
 - [x] **Migration Sync Streams** — VALIDÉ `9f80388` (contrôleur ; CI `36265441004`)
   - `sync-config.yaml` édition 3 ; `auto_subscribe: true` ; JOIN `dossier_acces` ≤ 2 ; `visibilite` fille non lue pour l’auth.
   - S5 SQLite par flux (`j5-poste-tauri` + `s5-sqlite-par-flux`) ; service 1.26.1 ; GHSA + 1.23.3 ; `docs/sync-streams.md`.
-- [ ] **J8** — Temps et facturation (S9) — **jalon en cours**
-  - Dette conflit J3 (fin phase 2). Code sync temps présent — contrôleur J8 + revue `31-facturation`.
-- [ ] **Référence de dossier** — § 3.4
+- [x] **J8** — Temps et facturation (S9) — VALIDÉ `e8eb6b2` (contrôleur ; CI `36269667975`)
+  - PlateformeAgreee ; PDF/CII à la validation ; avoir+lignes ; e-reporting ; revue 31 OK. Dette conflit J3 (fin phase 2).
+- [ ] **Référence de dossier** — § 3.4 — **jalon en cours**
 - [ ] **Coque de l'app** — § 7 ; écarts captures corrigés `22d765e` ; dette CORS avant fin
 - [ ] **Vue scindée** — § 7.4
 - [ ] **Intercalaires personnalisés** — § 7.4
