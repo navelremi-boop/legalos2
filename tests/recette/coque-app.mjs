@@ -175,21 +175,54 @@ async function runCaptures() {
     await page.goto("http://127.0.0.1:1420/?galerie=1", { waitUntil: "networkidle" });
     await page.waitForSelector("[data-testid=galerie-demo]");
 
+    const commandes = page.locator("[data-testid=galerie-commandes]");
     const chemises = ["kraft", "bleu-classeur", "vert-amande"];
+    const fondAttendu = {
+      light: {
+        kraft: "rgb(206, 154, 85)",
+        "bleu-classeur": "rgb(111, 162, 224)",
+        "vert-amande": "rgb(108, 191, 132)",
+        neutre: "rgb(42, 51, 55)",
+      },
+      dark: {
+        kraft: "rgb(110, 81, 40)",
+        "bleu-classeur": "rgb(47, 79, 122)",
+        "vert-amande": "rgb(46, 90, 61)",
+        neutre: "rgb(17, 23, 26)",
+      },
+    };
     for (const theme of ["light", "dark"]) {
-      await page.getByRole("button", { name: theme === "light" ? "Jour" : "Nuit", exact: true }).click();
-      await page.getByRole("button", { name: "Dossier", exact: true }).click();
+      await commandes.getByRole("button", { name: theme === "light" ? "Jour" : "Nuit", exact: true }).click();
+      await commandes.getByRole("button", { name: "Dossier", exact: true }).click();
       for (const chemise of chemises) {
         const label = chemise.replace(/-/g, " ");
-        await page.getByRole("button", { name: label, exact: true }).click();
+        await commandes.getByRole("button", { name: label, exact: true }).click();
         await page.waitForSelector(`[data-testid=ecran-dossier][data-chemise=${chemise}]`);
+        const cible = fondAttendu[theme][chemise];
+        await page.waitForFunction(
+          (attendu) => {
+            const el = document.querySelector("[data-testid=ecran-dossier]");
+            return el !== null && getComputedStyle(el).backgroundColor === attendu;
+          },
+          cible,
+          { timeout: 5_000 },
+        );
         const scene = page.locator("[data-testid=galerie-scene]");
         await scene.screenshot({
           path: join(outDir, `dossier-${chemise}-${theme === "light" ? "jour" : "nuit"}.png`),
         });
       }
-      await page.getByRole("button", { name: "La journée", exact: true }).click();
+      await commandes.getByRole("button", { name: "La journée", exact: true }).click();
       await page.waitForSelector("[data-testid=ecran-journee]");
+      const neutre = fondAttendu[theme].neutre;
+      await page.waitForFunction(
+        (attendu) => {
+          const el = document.querySelector("[data-testid=ecran-journee]");
+          return el !== null && getComputedStyle(el).backgroundColor === attendu;
+        },
+        neutre,
+        { timeout: 5_000 },
+      );
       await page.locator("[data-testid=galerie-scene]").screenshot({
         path: join(outDir, `journee-${theme === "light" ? "jour" : "nuit"}.png`),
       });

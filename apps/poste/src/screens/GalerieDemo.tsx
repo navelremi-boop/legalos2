@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { BarreHaut } from "@/coque/BarreHaut";
 import { DossierOuvert, DOSSIERS_DEMO } from "@/screens/DossierOuvert";
 import { Journee } from "@/screens/Journee";
 import type { ChemiseId } from "@/lib/chemise";
@@ -6,7 +7,7 @@ import { fr } from "@/lib/fr";
 
 /**
  * Galerie de démonstration — réservée au développement (`import.meta.env.DEV`).
- * Absente des builds distribués.
+ * Absente des builds distribués. Inclut la barre du haut pour comparer au prototype.
  */
 export function GalerieDemo() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -29,9 +30,23 @@ export function GalerieDemo() {
         }
       : { ...premier, chemise });
 
+  const onglets = useMemo(
+    () =>
+      DOSSIERS_DEMO.map((d) => ({
+        id: d.id,
+        reference: d.reference,
+        nom: d.nom,
+        chemise: d.chemise,
+      })),
+    [],
+  );
+
   return (
     <div className="min-h-screen bg-page p-6" data-testid="galerie-demo">
-      <header className="mb-4 flex flex-wrap items-center gap-3">
+      <header
+        className="mb-4 flex flex-wrap items-center gap-3"
+        data-testid="galerie-commandes"
+      >
         <h1 className="text-[length:var(--font-size-section)] font-extrabold text-encre">
           {fr("Galerie de démonstration")}
         </h1>
@@ -99,26 +114,39 @@ export function GalerieDemo() {
       </header>
 
       <div
-        className="mx-auto h-[800px] max-w-[1240px] overflow-hidden rounded-[14px]"
+        className="coque-app mx-auto h-[800px] max-w-[1240px] overflow-hidden rounded-[14px]"
         data-testid="galerie-scene"
         data-theme-capture={theme}
         data-chemise-capture={vue === "dossier" ? chemise : "neutre"}
       >
-        {vue === "dossier" ? (
-          <DossierOuvert
-            dossier={dossier}
-            onNouveauMail={() => undefined}
-            onSaisirTemps={() => undefined}
-            onFacturer={() => undefined}
-            onCalculerDelai={() => undefined}
-          />
-        ) : (
-          <Journee
-            onNouveauDossier={() => undefined}
-            onNouveauMail={() => undefined}
-            onSaisirTemps={() => undefined}
-          />
-        )}
+        <BarreHaut
+          actif={vue === "dossier" ? "dossier" : "journee"}
+          onNaviguer={() => undefined}
+          onglets={vue === "dossier" ? onglets : []}
+          ongletActifId={vue === "dossier" ? dossier.id : null}
+          sync={{ kind: "synchronise" }}
+          chronoLibelle={vue === "dossier" ? "0:12:04" : undefined}
+          onChrono={vue === "dossier" ? () => undefined : undefined}
+          onPalette={() => undefined}
+          mailsCompteur={3}
+        />
+        <div className="coque-workspace min-h-0 flex-1">
+          {vue === "dossier" ? (
+            <DossierOuvert
+              dossier={dossier}
+              onNouveauMail={() => undefined}
+              onSaisirTemps={() => undefined}
+              onFacturer={() => undefined}
+              onCalculerDelai={() => undefined}
+            />
+          ) : (
+            <Journee
+              onNouveauDossier={() => undefined}
+              onNouveauMail={() => undefined}
+              onSaisirTemps={() => undefined}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
