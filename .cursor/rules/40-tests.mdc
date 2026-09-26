@@ -1,6 +1,6 @@
 ---
 description: Écriture et intégrité des tests
-globs: tests/**, crates/**/tests/**, apps/poste/**/*.test.ts, apps/poste/**/*.test.tsx, apps/poste/e2e/**
+globs: tests/**, crates/**/tests/**
 alwaysApply: false
 ---
 
@@ -12,3 +12,4 @@ alwaysApply: false
 - **Données fictives** uniquement.
 - **Tout bug corrigé** reçoit un test de non-régression qui échouait avant la correction.
 - **Nommage** : le nom du test décrit le comportement attendu, en français si c'est une règle métier.
+
