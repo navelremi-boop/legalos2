@@ -17,6 +17,7 @@
   --color-definitif: var(--definitif);
   --color-synchro: var(--synchro);
   --color-sur-chemise: var(--sur-chemise);
+  --color-texte-sur-neutre: var(--texte-sur-neutre);
   --color-chemise-fond: var(--chemise-fond);
   --color-chemise-bande: var(--chemise-bande);
   --color-chemise-teinte: var(--chemise-teinte);
@@ -96,6 +97,8 @@
     align-items: flex-end;
     gap: 20px;
     padding: 0 18px;
+    min-width: 0;
+    overflow: hidden;
     background: var(--barre);
     -webkit-backdrop-filter: blur(20px) saturate(1.1);
     backdrop-filter: blur(20px) saturate(1.1);
@@ -151,9 +154,13 @@
   .onglet-dossier {
     position: relative;
     display: flex;
+    flex: 0 1 auto;
     align-items: center;
     gap: 8px;
-    padding: 0 18px;
+    min-width: 0;
+    max-width: 128px;
+    min-width: 48px;
+    padding: 0 10px;
     transition: background-color var(--duration-dossier) ease;
   }
 
@@ -179,11 +186,115 @@
 
   .onglet-dossier__pastille {
     display: block;
+    flex-shrink: 0;
     width: 8px;
     height: 8px;
     border-radius: 50%;
     background: var(--chemise-accent);
     box-shadow: var(--barre-pastille-anneau);
+  }
+
+  .onglet-dossier__nom {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--font-size-dense);
+  }
+
+  .onglet-dossier__fermer {
+    flex-shrink: 0;
+    opacity: 0.55;
+  }
+
+  .onglet-dossier__fermer:hover {
+    opacity: 1;
+  }
+
+  .onglets-piste {
+    position: relative;
+    min-width: 0;
+    flex: 1 1 0;
+    overflow: hidden;
+  }
+
+  .onglets-overflow {
+    position: relative;
+    flex-shrink: 0;
+    margin-bottom: 4px;
+  }
+
+  .onglets-overflow__btn {
+    display: flex;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    padding: 0 10px;
+    border-radius: 10px 10px 0 0;
+    background: var(--barre-surface);
+    box-shadow: var(--barre-onglet-inactif-bord);
+    color: var(--barre-texte);
+    letter-spacing: 0.08em;
+  }
+
+  .onglets-overflow__menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 40;
+    min-width: 220px;
+    padding: 6px;
+    border-radius: var(--radius-control);
+    background: var(--feuille);
+    color: var(--encre);
+    box-shadow: var(--ombre-carte);
+  }
+
+  .onglets-overflow__ligne {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .onglets-overflow__item {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: var(--radius-control);
+    text-align: left;
+  }
+
+  .onglets-overflow__item:hover {
+    background: var(--survol);
+  }
+
+  .ligne-journee {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-control);
+  }
+
+  .ligne-journee:hover {
+    background: var(--survol);
+  }
+
+  .ligne-journee--urgent .font-bold {
+    color: var(--echeance);
+  }
+
+  .ligne-journee__pastille {
+    margin-top: 5px;
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--chemise-accent);
   }
 
   .etiquette-dossier {
@@ -359,6 +470,12 @@
     font-size: var(--font-size-dense);
     white-space: nowrap;
     transition: background-color var(--duration-hover) ease;
+  }
+
+  .barre-actions__btn svg {
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
   }
 
   .barre-actions__btn:hover {

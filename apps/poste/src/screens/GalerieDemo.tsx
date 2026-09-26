@@ -125,7 +125,7 @@ export function GalerieDemo() {
           onglets={vue === "dossier" ? onglets : []}
           ongletActifId={vue === "dossier" ? dossier.id : null}
           sync={{ kind: "synchronise" }}
-          chronoLibelle={vue === "dossier" ? "0:12:04" : undefined}
+          chronoSecondes={vue === "dossier" ? 12 * 60 + 4 : undefined}
           onChrono={vue === "dossier" ? () => undefined : undefined}
           onPalette={() => undefined}
           mailsCompteur={3}
@@ -141,6 +141,7 @@ export function GalerieDemo() {
             />
           ) : (
             <Journee
+              donneesDemo
               onNouveauDossier={() => undefined}
               onNouveauMail={() => undefined}
               onSaisirTemps={() => undefined}

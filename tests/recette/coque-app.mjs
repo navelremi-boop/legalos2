@@ -207,6 +207,17 @@ async function runCaptures() {
           cible,
           { timeout: 5_000 },
         );
+        // Laisser les layout effects d’overflow des onglets se stabiliser (§ 7.4).
+        await page.waitForFunction(
+          () => {
+            const overflow = document.querySelector("[data-testid=onglets-overflow]");
+            const onglets = document.querySelectorAll(".onglet-dossier");
+            // Avec 4 dossiers démo, le menu doit apparaître à 1240px.
+            return overflow !== null || onglets.length <= 2;
+          },
+          { timeout: 3_000 },
+        ).catch(() => undefined);
+        await page.waitForTimeout(100);
         const scene = page.locator("[data-testid=galerie-scene]");
         await scene.screenshot({
           path: join(outDir, `dossier-${chemise}-${theme === "light" ? "jour" : "nuit"}.png`),

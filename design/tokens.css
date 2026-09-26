@@ -51,6 +51,8 @@
   --echeance-fond: #fbe9e7;
   --synchro: #7bd89a;
   --sur-chemise: #141a1c;
+  /* Texte posé sur fond neutre (§ 7.3) : toujours clair, y compris en jour */
+  --texte-sur-neutre: #f2f5f4;
   --focus: #141a1c;
 
   /* Chrome barre / dock (texte clair sur --barre) */
@@ -158,6 +160,7 @@
   --echeance-fond: #3a1f1c;
   --synchro: #7bd89a;
   --sur-chemise: #f2f5f4;
+  --texte-sur-neutre: #f2f5f4;
   --focus: #e8eeec;
 
   --barre-texte: #e6ecea;
@@ -231,6 +234,7 @@
     --echeance-fond: #3a1f1c;
     --synchro: #7bd89a;
     --sur-chemise: #f2f5f4;
+    --texte-sur-neutre: #f2f5f4;
     --focus: #e8eeec;
 
     --barre-texte: #e6ecea;
@@ -517,7 +521,7 @@
 /* Surfaces de coque */
 .fond-neutre {
   background-color: var(--neutre);
-  color: var(--sur-chemise);
+  color: var(--texte-sur-neutre);
   background-image: var(--lumiere), var(--grain);
 }
 

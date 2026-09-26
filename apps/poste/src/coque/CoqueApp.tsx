@@ -315,6 +315,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
           });
         }}
         sync={sync}
+        chronoSecondes={nav === "dossier" ? 12 * 60 + 4 : undefined}
         onChrono={() => {
           setPanneau("temps");
         }}

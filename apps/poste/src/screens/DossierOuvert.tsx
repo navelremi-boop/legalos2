@@ -132,4 +132,14 @@ export const DOSSIERS_DEMO: DossierDemo[] = [
     client: "SCI des Lilas",
     adversaire: "M. Durand",
   },
+  {
+    id: "demo-lilas",
+    reference: "2026-031",
+    nom: "Époux Bernard",
+    chemise: "lilas",
+    juridiction: "TJ Bordeaux",
+    numeroRg: "25/01102",
+    client: "Époux Bernard",
+    adversaire: "Banque Atlantique",
+  },
 ];

@@ -21,6 +21,7 @@ export function JaugeEcheance({
   const progression = Math.min(1, Math.max(0, partEcoulee));
   const trait = perimetre * (1 - progression);
   const couleur = urgent ? "var(--echeance)" : "var(--chemise-accent)";
+  const texteAnneau = urgent ? "var(--echeance)" : "var(--sur-chemise)";
 
   return (
     <div className="jauge-echeance" data-testid="jauge-echeance" role="status">
@@ -47,13 +48,23 @@ export function JaugeEcheance({
         />
         <text
           x="32"
-          y="36"
+          y="30"
           textAnchor="middle"
-          fontSize="15"
+          fontSize="16"
           fontWeight="800"
-          fill={urgent ? "var(--echeance)" : "var(--sur-chemise)"}
+          fill={texteAnneau}
         >
           {joursRestants}
+        </text>
+        <text
+          x="32"
+          y="42"
+          textAnchor="middle"
+          fontSize="9"
+          fontWeight="400"
+          fill={texteAnneau}
+        >
+          {fr("jours")}
         </text>
       </svg>
       <div className="text-[length:var(--font-size-dense)] leading-[1.35]">

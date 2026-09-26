@@ -15,6 +15,7 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 | Tailwind CSS | **4.3.3** | https://www.npmjs.com/package/tailwindcss |
 | @powersync/tauri-plugin | **0.0.6** | https://www.npmjs.com/package/@powersync/tauri-plugin — vérifié npm le 2026-09-25 |
 | @powersync/common | **2.0.0** | dépendance exacte de `@powersync/tauri-plugin` 0.0.6 (npm, 2026-09-25) |
+| @tabler/icons-react | **3.48.0** | https://www.npmjs.com/package/@tabler/icons-react — vérifié npm le 2026-09-26 (icônes contour § 7.3) |
 | tauri-plugin-powersync | **0.0.6** | https://crates.io/crates/tauri-plugin-powersync — vérifié le 2026-09-25 ; dépend de `powersync` ^0.0.7 |
 | powersync (crate Rust) | **0.0.7** | https://crates.io/crates/powersync — vérifié le 2026-09-25 |
 | SDK web `@powersync/web` | **écart** : utilisé à tort jusqu'au 2026-09-25 ; retiré (cahier § 2.1) | https://docs.powersync.com/client-sdks/reference/tauri |
@@ -27,7 +28,7 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 
 | Composant | Version figée | Source |
 |-----------|---------------|--------|
-| PowerSync Service (Open Edition) | **journeyapps/powersync-service:1.26.1** | https://hub.docker.com/r/journeyapps/powersync-service/tags — vérifié 2026-09-26 : tag `1.26.1` courant (≥ 1.26.1 requis pour Sync Streams). **Sync Streams** (`config.edition: 3`, `instance/powersync/sync-config.yaml`) : JOIN / CTE / sous-requêtes supportés — **décision en vigueur** (voir `docs/sync-streams.md`). Sync Rules (legacy) abandonnées. |
+| PowerSync Service (Open Edition) | **journeyapps/powersync-service:1.26.1** | https://hub.docker.com/r/journeyapps/powersync-service/tags — vérifié 2026-09-26 (≥ 1.26.1 requis). **Sync Streams** `config.edition: 3` (`instance/powersync/sync-config.yaml`). Avis **GHSA-q6wc-xx4m-92fj** / CVE-2026-30870 : en **1.20.0** avec édition 3, certains filtres d’autorisation par sous-requête (sans partitionnement des lignes) étaient ignorés ; corrigé en **1.20.1**. Correctif **1.23.3** : conditions OR des sous-requêtes Sync Streams. Dette : vérification **mensuelle** des avis PowerSync (ligne PLAN). |
 | PostgreSQL | **16.8-bookworm** | https://hub.docker.com/_/postgres |
 | Caddy | **2.10.0-alpine** | https://hub.docker.com/_/caddy |
 | Garage (S3) | **dxflrs/garage:v1.0.1** | https://hub.docker.com/r/dxflrs/garage |

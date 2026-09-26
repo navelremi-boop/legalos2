@@ -26,3 +26,15 @@ Consignes reçues et appliquées : gouvernance § 7 ; archivage du journal par p
 
 - Premier jalon non coché selon l’ordre architecte : **J8**. Dettes : sync PowerSync des temps et brouillons ; numéro nul jusqu’à validation ; rattachement à un dossier existant ; taux horaire paramètre (client, dossier, intervenant) ; fausse alerte conflit J3 avant fin de phase 2.
 - Délais : `node tests/recette/s8-delais.mjs` exit 0 après H8–H11.
+
+## 2026-09-26 — Coque : correction des écarts (avant validation)
+
+Lot poste-interface. Jalon Coque **non coché**. Sync Streams / J8 non touchés.
+
+- Onglets : réduction puis menu overflow (`BarreHaut`, `data-testid=onglets-overflow`).
+- Titre La journée : jeton `--texte-sur-neutre` (#F2F5F4 jour et nuit) sur `.fond-neutre`.
+- Chrono : `formatDuree` → « 0 h 12 » (§ 7.7).
+- Barre d’actions : `@tabler/icons-react` 3.48.0 (contour).
+- Jauge : « jours » sous le nombre.
+- La journée : `JOURNEE_DEMO` en DEV/galerie (4 sections).
+- Preuves : `node tests/recette/coque-app.mjs` exit 0 ; `--captures` exit 0 (`design/captures/journee-*.png` régénérées).

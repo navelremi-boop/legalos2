@@ -69,6 +69,7 @@ Ordre de l’architecte (2026-09-26) : **J8** → **Référence de dossier** →
 - [ ] **Référence de dossier** — § 3.4 : année + numéro remis à zéro chaque année, attribué par le serveur dans une transaction avec unicité ; « référence en attente » hors ligne ; jamais modifiée. Le classement des mails la cherche dans l'objet. Test : deux postes créent en même temps, sans doublon ni trou.
 - [ ] **Coque de l'app** — cahier § 7, version 5 (code déjà poussé sur `a24d0a2` / captures ; **non cochée** tant que le contrôleur n’a pas VALIDÉ après J8 et Référence selon l’ordre architecte)
   - `design/tokens.css` conforme au § 7.3 ; composants § 7.4 ; hors dossier fond `neutre` ; La journée § 7.6 ; fonctions existantes à leur place ; sync invisible ; galerie DEV seule ; recettes `data-testid` + captures jour/nuit.
+  - **Écarts captures** : corrigés 2026-09-26 (onglets overflow, `--texte-sur-neutre`, chrono FR, icônes Tabler, jauge « jours », démo journée B9) — jalon **toujours non coché**.
   - **Dette** (avant la fin de la Coque) : CORS — ajouter `tauri://localhost` ; `localhost:1420` accepté seulement en mode développement.
 - [ ] **Vue scindée** — chrono groupé par période, filtres, aperçu selon le type (mail, pièces, facture, audience, note), badges « définitif » (§ 7.4). Captures comparées au prototype.
 - [ ] **Intercalaires personnalisés** — § 7.4 : table synchronisée, droits du dossier ; rattacher un élément ne le retire pas du chrono ; retirer un intercalaire ne supprime pas son contenu ; les standards ne se retirent pas.
