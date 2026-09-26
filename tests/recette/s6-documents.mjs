@@ -1,11 +1,17 @@
 #!/usr/bin/env node
 /**
- * S6 — déposer, ouvrir, modifier : la nouvelle version est renvoyée et l'ancienne reste.
+ * S6 / J7 — déposer, ouvrir, modifier : la nouvelle version est renvoyée et l'ancienne reste.
+ * Critères rouverts (§ 5.2 + sync) : refus API d'une réécriture de version scellée ;
+ * métadonnées documents / document_versions dans les règles PowerSync (droits du dossier).
  * Garage réel. Ne journalise aucun secret (pas d'URL présignée complète).
  */
 import { createHash, randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { demoAccessToken } from "./lib/demo-auth.mjs";
 
+const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const instance = process.env.LEGALOS_INSTANCE_URL ?? "http://127.0.0.1:8088";
 const api = `${instance}/api`;
 const garageAttendu = process.env.LEGALOS_GARAGE_PUBLIC ?? "http://127.0.0.1:3900";
@@ -85,6 +91,37 @@ async function lire(url) {
   return Buffer.from(await reponse.arrayBuffer());
 }
 
+/** Contrôle statique : tables documents dans les buckets dossier (mêmes droits). */
+function verifierReglesSync() {
+  const yaml = readFileSync(join(root, "instance/powersync/sync-rules.yaml"), "utf8");
+  for (const bucket of ["dossiers_publics", "dossiers_restreints"]) {
+    if (!yaml.includes(`${bucket}:`)) fail(`bucket ${bucket} absent des règles PowerSync`);
+  }
+  const publics = yaml.split("dossiers_restreints:")[0] ?? "";
+  const restreints = yaml.includes("dossiers_restreints:")
+    ? yaml.slice(yaml.indexOf("dossiers_restreints:"))
+    : "";
+  for (const [nom, bloc] of [
+    ["dossiers_publics", publics],
+    ["dossiers_restreints", restreints],
+  ]) {
+    if (!/\bFROM dossiers\b/i.test(bloc)) fail(`${nom} : dossiers absents`);
+    if (!/\bFROM documents\b/i.test(bloc)) {
+      fail(`${nom} : documents absents (métadonnées non synchronisées)`);
+    }
+    if (!/\bFROM document_versions\b/i.test(bloc)) {
+      fail(`${nom} : document_versions absents (métadonnées non synchronisées)`);
+    }
+  }
+  const schema = readFileSync(join(root, "apps/poste/src/sync/AppSchema.ts"), "utf8");
+  if (!/\bdocuments\b/.test(schema) || !/\bdocument_versions\b/.test(schema)) {
+    fail("AppSchema : tables documents / document_versions absentes");
+  }
+  console.log("s6: règles PowerSync + AppSchema (documents, droits dossier)");
+}
+
+verifierReglesSync();
+
 const sante = await fetch(`${instance}/health`).catch(() => null);
 if (!sante?.ok) fail("instance injoignable");
 
@@ -147,9 +184,44 @@ const apresSceau = await statut("/documents", jeton, "POST", {
   id: documentId,
   dossier_id: dossierId,
   nom: "note-fictive.txt",
-  idempotence_cle: `${documentId}:creer`,
+  idempotence_cle: `${documentId}:creer-encore`,
 });
-if (apresSceau !== 409) fail(`version scellée réinscriptible (${apresSceau})`);
+if (apresSceau !== 409) {
+  fail(`version scellée réinscriptible via POST /documents (${apresSceau})`);
+}
+const rescellement = await fetch(
+  `${api}/documents/${documentId}/versions/1/sceller`,
+  {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${jeton}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      empreinte: empreinte(Buffer.from("contenu différent interdit")),
+      idempotence_cle: `${documentId}:v1-rescellement`,
+    }),
+  },
+);
+const corpsRescellement = rescellement.ok
+  ? await rescellement.json().catch(() => ({}))
+  : null;
+if (
+  corpsRescellement &&
+  typeof corpsRescellement.empreinte === "string" &&
+  corpsRescellement.empreinte !== empreinte(v1)
+) {
+  fail("sceau v1 réécrit avec une autre empreinte");
+}
+if (rescellement.status === 200 || rescellement.status === 201) {
+  /* idempotence acceptable si l'empreinte scellée reste celle de v1 */
+} else if (
+  rescellement.status !== 409 &&
+  rescellement.status !== 400 &&
+  rescellement.status !== 422
+) {
+  fail(`refus ou idempotence de rescellement attendu, reçu ${rescellement.status}`);
+}
 
 const lien1 = await json(`/documents/${documentId}/versions/1`, jeton, "GET");
 const cheminLecture1 = exigerGarage(lien1.url, "lecture v1");

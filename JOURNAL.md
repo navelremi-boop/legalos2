@@ -806,6 +806,7 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - `docs/cahier-des-charges.md` remplacé par la version 5 du 26 septembre 2026 (chemise ouverte, référence de dossier, intercalaires). Le prototype déjà dans `design/prototype-cabinet.html` correspond à cette version.
 - J7 décoché : réécrire un objet déjà scellé touchait l'invariant d'absence d'écrasement. L'API répond 409 si la version est scellée ou si l'objet est déjà visible. Garage 1.0.1 refuse `If-None-Match` et répond 403 à un `HeadObject` sur une clé absente : pas d'écriture conditionnelle possible sur ce service. Les métadonnées des documents sont dans les règles PowerSync, filtrées comme le dossier.
 - Le nœud Garage n'avait plus de rôle ni de clé. Layout, seau `legalos` et clé d'API recréés localement. Le secret n'est pas dans le dépôt.
-- `node tests/recette/s6-documents.mjs` : exit 0. J7 non coché : pas encore de nouveau verdict contrôleur ni de CI sur ce correctif.
-- Prochain jalon après J7 : Coque de l'app, avant le reste de la phase 2. La journée et les autres écrans hors prototype sont en B9.
+- `node tests/recette/s6-documents.mjs` : exit 0.
+- CI `5ff58b9` (run [36232407821](https://github.com/navelremi-boop/legalos2/actions/runs/36232407821)) : **verte**.
+- Contrôleur [J7](bf3aff8a-2345-41ad-8394-293bdcf65004) : **VALIDÉ** sur `5ff58b9`. Recette rejouée exit 0. Après dépôt et après scellement, un nouveau dépôt de la version 1 est refusé (409). Mineur : un `HeadObject` refusé est traité comme une clé absente. J7 coché. Prochain jalon : Coque de l'app.
 

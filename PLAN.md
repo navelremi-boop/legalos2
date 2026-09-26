@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-26 (cahier version 5 — J7 décoché, coque avant la suite de la phase 2).
+Dernière mise à jour : 2026-09-26 (J7 VALIDÉ — prochain jalon : Coque de l'app).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -57,10 +57,9 @@ Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénari
   - **Validation 2026-09-25** : contrôleur VALIDÉ sur `340ac42` (CI [36172577399](https://github.com/navelremi-boop/legalos2/actions/runs/36172577399)). `j5-poste-tauri.mjs` exit 0 : palette et absence du dossier restreint dans le SQLite du collaborateur.
 - [x] **J6** — Agenda et délais (S8, `docs/hypotheses-delais.md`)
   - **Validation 2026-09-25** : contrôleur VALIDÉ sur `bf3bfe3` (CI [36179592258](https://github.com/navelremi-boop/legalos2/actions/runs/36179592258)). `s8-delais.mjs` exit 0. Règles H1–H8 marquées « à valider par l'avocat ». Agenda complet hors périmètre.
-- [ ] **J7** — Documents et versions (S6)
-  - **Décoché 2026-09-26** : l'écart touche l'invariant § 5.2 (pas d'écrasement silencieux). Un second dépôt du même identifiant peut réécrire un objet déjà scellé. Les métadonnées ne descendent pas vers les postes.
-  - **Critères** : l'API refuse toute réécriture d'une version scellée ; écriture conditionnelle côté Garage si le service l'accepte ; métadonnées `documents` et `document_versions` dans les règles PowerSync, avec les mêmes droits que le dossier ; `node tests/recette/s6-documents.mjs` exit 0 ; contrôleur VALIDÉ ; CI verte.
-  - Ancien verdict, à reprendre : contrôleur VALIDÉ sur `2eb7266` (CI [36183981852](https://github.com/navelremi-boop/legalos2/actions/runs/36183981852)).
+- [x] **J7** — Documents et versions (S6)
+  - **Décoché puis repris 2026-09-26** : l'API refuse la réécriture d'une version scellée (409). Garage 1.0.1 ne permet pas l'écriture conditionnelle. Métadonnées dans les règles PowerSync, mêmes droits que le dossier.
+  - **Validation 2026-09-26** : contrôleur VALIDÉ sur `5ff58b9` (CI [36232407821](https://github.com/navelremi-boop/legalos2/actions/runs/36232407821)). `s6-documents.mjs` exit 0. Mineur : `PermissionDenied` sur une clé absente est traité comme « objet absent ».
 - [ ] **Coque de l'app** — avant la suite de la phase 2 (cahier § 7, version 5)
   - `design/tokens.css` conforme au § 7.3 : couleurs de base, huit chemises à quatre valeurs (fond, teinte, texte, accent), jour et nuit, fond `neutre`, tuile de grain embarquée ; thème shadcn réécrit à partir de ces jetons.
   - Composants du § 7.4 : barre du haut, étiquette avec référence, informations du dossier, jauge d'échéance, feuille, intercalaires standards, barre d'actions flottante. Jour et nuit.
