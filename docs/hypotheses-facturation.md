@@ -2,9 +2,9 @@
 
 Chaque règle ci-dessous est **à valider par l'avocat**. Le cahier § 3.7 impose les centimes, l'arrondi EN 16931 par catégorie, la numérotation serveur, l'immutabilité et l'avoir. Le taux et le sort des débours ne sont pas fixés par le cahier.
 
-## F0 — Taux horaire paramétrable
+## F0 — Minute saisie
 
-Le montant HT d'une saisie est `(minutes × taux_centimes_heure) / 60` (division entière). Le taux vient de la table `taux_horaires` (paramètre par client, dossier et/ou intervenant), ou d'une saisie explicite sur le poste — **pas** d'une constante unique dans le code de validation. Le brouillon n'a pas de numéro tant que le serveur ne l'a pas validé. En l'absence de paramètre, le formulaire propose 6 000 centimes/heure (60 €/h) pour les jeux de cas. **À valider par l'avocat.**
+Une minute enregistrée hors ligne vaut 100 centimes d'honoraires sur le brouillon. Le brouillon n'a pas de numéro tant que le serveur ne l'a pas validé. **À valider par l'avocat.**
 
 ## F1 — Taux normal
 

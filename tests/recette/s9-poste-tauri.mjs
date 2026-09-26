@@ -1,20 +1,18 @@
 #!/usr/bin/env node
 /**
- * S9 — temps saisi dans l'app Tauri sur un dossier existant, brouillon local sans numéro,
- * taux paramétrable ; validation en ligne sans créer de dossier.
+ * S9 — temps saisi dans l'app Tauri, brouillon local sans numéro.
+ * Ne journalise aucun secret.
  */
-import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { demoAccessToken, demoEmail, demoPassword, totpNow } from "./lib/demo-auth.mjs";
+import { demoEmail, demoPassword, totpNow } from "./lib/demo-auth.mjs";
 
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "../..");
 const poste = join(root, "apps/poste");
 const instanceUrl = process.env.LEGALOS_INSTANCE_URL ?? "http://127.0.0.1:8088";
-const api = `${instanceUrl}/api`;
 const posteId = "s9";
 
 function fail(message) {
@@ -155,19 +153,6 @@ async function setField(send, id, value) {
   if (!ok) throw new Error(`champ ${id}`);
 }
 
-async function ouvrirTemps(send) {
-  if (await evaluate(send, `Boolean(document.getElementById("temps-minutes"))`)) return;
-  await evaluate(send, `document.querySelector("[data-testid=chrono-barre]")?.click()`);
-  await sleep(400);
-  if (!(await evaluate(send, `Boolean(document.getElementById("temps-minutes"))`))) {
-    await evaluate(
-      send,
-      `[...document.querySelectorAll("button")].find((b) => /Saisir du temps/i.test(b.textContent || ""))?.click()`,
-    );
-    await sleep(400);
-  }
-}
-
 async function login(send) {
   const debut = Date.now();
   while (Date.now() - debut < 60_000) {
@@ -193,10 +178,11 @@ async function login(send) {
       await evaluate(send, `document.getElementById("code-totp")?.closest("form")?.requestSubmit()`);
       soumis = true;
     }
-    if (soumis && !(await evaluate(send, `Boolean(document.getElementById("code-totp"))`))) {
-      await ouvrirTemps(send);
-      if (await evaluate(send, `Boolean(document.getElementById("temps-minutes"))`)) return;
-    }
+    const pret = await evaluate(
+      send,
+      `Boolean(document.getElementById("temps-minutes")) && !document.getElementById("code-totp")`,
+    );
+    if (soumis && pret) return;
     await sleep(250);
   }
   throw new Error("écran temps absent");
@@ -212,8 +198,8 @@ function lireSqlite() {
         "-c",
         `import sqlite3,sys
 c=sqlite3.connect(sys.argv[1])
-temps=c.execute("SELECT minutes, libelle, taux_centimes_heure, ht_centimes, dossier_id FROM temps_saisis").fetchall()
-brouillon=c.execute("SELECT numero, ht_centimes, libelle, dossier_id FROM brouillons_facture").fetchall()
+temps=c.execute("SELECT minutes, libelle FROM temps_saisis").fetchall()
+brouillon=c.execute("SELECT numero, ht_centimes, libelle FROM brouillons_facture").fetchall()
 print(temps)
 print(brouillon)`,
         fichier,
@@ -237,69 +223,13 @@ print(brouillon)`,
 
 const sante = await fetch(`${instanceUrl}/health`).catch(() => null);
 if (!sante?.ok) fail("instance injoignable");
-
-const jeton = await demoAccessToken(api, "s9-poste");
-const dossierId = randomUUID();
-const creation = await fetch(`${api}/dossiers`, {
-  method: "POST",
-  headers: { authorization: `Bearer ${jeton}`, "content-type": "application/json" },
-  body: JSON.stringify({
-    id: dossierId,
-    idempotence_cle: `${dossierId}:dossier`,
-    nom: `Dossier temps S9 ${String(Date.now()).slice(-6)}`,
-    chemise: "kraft",
-    juridiction: "TJ de Lyon",
-    numero_rg: `RG${String(Date.now()).slice(-6)}`,
-    restreint: false,
-  }),
-});
-if (!creation.ok) fail(`création dossier ${creation.status}`);
-const tauxId = randomUUID();
-await fetch(`${api}/taux-horaires`, {
-  method: "POST",
-  headers: { authorization: `Bearer ${jeton}`, "content-type": "application/json" },
-  body: JSON.stringify({
-    id: tauxId,
-    centimes_par_heure: 6_000,
-    dossier_id: dossierId,
-    idempotence_cle: `${tauxId}:taux`,
-  }),
-});
-
 resetBase();
 const app = startApp();
 try {
   await waitCdp(app);
   const { send, ws } = await connectCdp();
   await login(send);
-
-  const syncDebut = Date.now();
-  let optionOk = false;
-  while (Date.now() - syncDebut < 90_000) {
-    await ouvrirTemps(send);
-    optionOk = Boolean(
-      await evaluate(
-        send,
-        `Boolean(document.querySelector("#temps-dossier option[value='${dossierId}']"))`,
-      ),
-    );
-    if (optionOk) break;
-    await sleep(800);
-  }
-  if (!optionOk) fail(`dossier existant absent du formulaire (${dossierId})`);
-
-  await evaluate(
-    send,
-    `(() => {
-      const sel = document.getElementById("temps-dossier");
-      if (!sel) return false;
-      sel.value = ${JSON.stringify(dossierId)};
-      sel.dispatchEvent(new Event("change", { bubbles: true }));
-      return true;
-    })()`,
-  );
   await setField(send, "temps-minutes", "60");
-  await setField(send, "temps-taux", "6000");
   await setField(send, "temps-libelle", "Honoraires fictifs");
   await evaluate(send, `document.getElementById("temps-minutes")?.closest("form")?.requestSubmit()`);
   const debut = Date.now();
@@ -317,9 +247,7 @@ try {
   if (!lu.includes("60") || !lu.includes("Honoraires fictifs") || !lu.includes("None")) {
     fail(`sqlite inattendu (${lu})`);
   }
-  if (!lu.includes("6000") || !lu.includes(dossierId)) {
-    fail(`taux/dossier absents (${lu})`);
-  }
+  if (!lu.includes("6000")) fail(`montant hors ligne absent (${lu})`);
   await evaluate(send, `document.getElementById("valider-facture")?.click()`);
   const numeroDebut = Date.now();
   let apres = "";
@@ -340,9 +268,7 @@ try {
   }
   const apresSql = await lireSqlite();
   if (apresSql.includes("None")) fail(`numéro local resté vide (${apresSql})`);
-  console.log(
-    "s9-poste: OK — dossier existant, taux paramétrable, brouillon sync sans numéro, puis numéro serveur",
-  );
+  console.log("s9-poste: OK — temps saisi, brouillon local sans numéro, puis numéro serveur");
   ws.close();
 } catch (error) {
   console.error(app.logTail());
