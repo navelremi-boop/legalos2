@@ -7,7 +7,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { demoAccessToken } from "./lib/demo-auth.mjs";
@@ -17,10 +17,40 @@ const instance = process.env.LEGALOS_INSTANCE_URL ?? "http://127.0.0.1:8088";
 const api = `${instance}/api`;
 const pa = process.env.LEGALOS_PA_URL ?? "http://127.0.0.1:8090";
 const posteRecette = join(root, "tests/recette/s9-poste-tauri.mjs");
+const s5Recette = join(root, "tests/recette/s9-s5-temps.mjs");
 
 function fail(message) {
   console.error(`s9: FAIL — ${message}`);
   process.exit(1);
+}
+
+/** Contrôle statique : temps / brouillons / taux dans Sync Streams (JOIN ≤ 2, S5 via dossier_acces). */
+function verifierSyncRules() {
+  const yaml = readFileSync(join(root, "instance/powersync/sync-config.yaml"), "utf8");
+  for (const flux of [
+    "temps_publics",
+    "temps_restreints",
+    "brouillons_publics",
+    "brouillons_restreints",
+    "taux_cabinet",
+    "taux_publics",
+    "taux_restreints",
+  ]) {
+    if (!new RegExp(`^  ${flux}:`, "m").test(yaml)) fail(`sync-config : flux ${flux} absent`);
+  }
+  for (const table of ["temps_saisis", "brouillons_facture", "taux_horaires"]) {
+    if (!new RegExp(`\\bFROM ${table}\\b`, "i").test(yaml)) {
+      fail(`sync-config : ${table} absente`);
+    }
+  }
+  if (!/INNER JOIN dossier_acces/i.test(yaml)) {
+    fail("sync-config : JOIN dossier_acces requis pour flux restreints (S5)");
+  }
+  const schema = readFileSync(join(root, "apps/poste/src/sync/AppSchema.ts"), "utf8");
+  for (const table of ["temps_saisis", "brouillons_facture", "taux_horaires"]) {
+    if (!schema.includes(table)) fail(`AppSchema : ${table} absente`);
+  }
+  console.log("s9: Sync Streams + AppSchema (temps, brouillons, taux)");
 }
 
 function sqlServeur(requete) {
@@ -78,6 +108,10 @@ if (!paSante?.ok) fail("simulateur injoignable");
 if (!existsSync(posteRecette)) {
   fail("s9-poste-tauri.mjs absent — preuve temps/brouillon hors ligne sur le poste requise");
 }
+if (!existsSync(s5Recette)) {
+  fail("s9-s5-temps.mjs absent — preuve S5 temps/brouillons requise");
+}
+verifierSyncRules();
 
 const jeton = await demoAccessToken(api, "s9-factures");
 const dossierId = randomUUID();
@@ -90,6 +124,54 @@ await json("/dossiers", jeton, "POST", {
   numero_rg: `RG${String(Date.now()).slice(-6)}`,
   restreint: false,
 });
+
+const absent = randomUUID();
+const refuse = await fetch(`${api}/factures`, {
+  method: "POST",
+  headers: { authorization: `Bearer ${jeton}`, "content-type": "application/json" },
+  body: JSON.stringify({
+    id: randomUUID(),
+    dossier_id: absent,
+    taux_tva_bp: 2000,
+    lignes: [{ libelle: "x", nature: "honoraires", montant_ht_centimes: 100 }],
+  }),
+});
+const refuseTexte = await refuse.text();
+if (refuse.status === 200 || !refuseTexte.includes("Dossier introuvable")) {
+  fail(`dossier absent accepté (${refuse.status} ${refuseTexte.slice(0, 120)})`);
+}
+console.log("s9: validation refuse un dossier absent (ne crée pas de dossier)");
+
+const tauxId = randomUUID();
+const taux = await json("/taux-horaires", jeton, "POST", {
+  id: tauxId,
+  centimes_par_heure: 12_000,
+  dossier_id: dossierId,
+  idempotence_cle: `${tauxId}:taux`,
+});
+if (taux.centimes_par_heure !== 12_000) fail("taux non enregistré");
+const tempsId = randomUUID();
+const temps = await json("/temps", jeton, "POST", {
+  id: tempsId,
+  dossier_id: dossierId,
+  minutes: 30,
+  libelle: "Temps fictif",
+  taux_centimes_heure: 12_000,
+  idempotence_cle: `${tempsId}:temps`,
+});
+if (temps.ht_centimes !== 6_000) fail(`HT temps ${temps.ht_centimes} (attendu 6000 = 30×12000/60)`);
+const brouillonTempsId = randomUUID();
+const brouillonTemps = await json("/brouillons-facture", jeton, "POST", {
+  id: brouillonTempsId,
+  dossier_id: dossierId,
+  temps_id: tempsId,
+  libelle: "Temps fictif",
+  ht_centimes: 6_000,
+  taux_centimes_heure: 12_000,
+  idempotence_cle: `${brouillonTempsId}:brouillon`,
+});
+if (brouillonTemps.numero !== null) fail("brouillon synchronisé a déjà un numéro");
+console.log("s9: taux paramétrable, HT calculé, numéro nul sur brouillon sync");
 
 async function brouillon(ht) {
   const id = randomUUID();
@@ -185,20 +267,21 @@ const py = spawnSync(
     "-c",
     `import sqlite3,sys
 c=sqlite3.connect(sys.argv[1])
-c.execute("CREATE TABLE temps (id TEXT PRIMARY KEY, minutes INTEGER NOT NULL, libelle TEXT NOT NULL)")
-c.execute("INSERT INTO temps VALUES ('t1', 60, 'Honoraires fictifs')")
-c.execute("CREATE TABLE brouillons (id TEXT PRIMARY KEY, numero INTEGER, ht_centimes INTEGER NOT NULL)")
-c.execute("INSERT INTO brouillons VALUES ('b1', NULL, 10000)")
+c.execute("CREATE TABLE temps_saisis (id TEXT PRIMARY KEY, dossier_id TEXT NOT NULL, minutes INTEGER NOT NULL, libelle TEXT NOT NULL, taux_centimes_heure INTEGER NOT NULL, ht_centimes INTEGER NOT NULL)")
+c.execute("INSERT INTO temps_saisis VALUES ('t1', 'd1', 30, 'Honoraires fictifs', 12000, 6000)")
+c.execute("CREATE TABLE brouillons_facture (id TEXT PRIMARY KEY, dossier_id TEXT NOT NULL, numero INTEGER, ht_centimes INTEGER NOT NULL)")
+c.execute("INSERT INTO brouillons_facture VALUES ('b1', 'd1', NULL, 6000)")
 c.commit()
-row=c.execute("SELECT minutes, libelle FROM temps").fetchone()
-brouillon=c.execute("SELECT numero, ht_centimes FROM brouillons").fetchone()
-assert row==(60,'Honoraires fictifs')
-assert brouillon[0] is None and brouillon[1]==10000
+row=c.execute("SELECT minutes, taux_centimes_heure, ht_centimes FROM temps_saisis").fetchone()
+brouillon=c.execute("SELECT numero, ht_centimes FROM brouillons_facture").fetchone()
+assert row==(30,12000,6000)
+assert brouillon[0] is None and brouillon[1]==6000
 print("ok")`,
     brouillonLocal,
   ],
   { encoding: "utf8" },
 );
 if (py.status !== 0) fail(py.stderr || "sqlite hors ligne");
-console.log("s9: modèle SQLite numéro nul (fumée) — preuve poste : s9-poste-tauri.mjs");
+console.log("s9: modèle SQLite numéro nul + taux (fumée) — preuve poste : s9-poste-tauri.mjs");
 console.log("s9: OK — chaîne facture, avoir et immutabilité");
+console.log("s9: lancer aussi node tests/recette/s9-s5-temps.mjs (S5 temps/brouillons)");

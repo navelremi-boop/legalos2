@@ -10,12 +10,12 @@ Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénari
 
 - [x] **J0** — Phase 0 complète (plan, journal, blocages, versions, dépôt, CI, contrats, validation contrôleur)
   - **Objectif** : fondations documentaires et contrats partagés avant tout lot parallèle.
-  - **Livrables** : `PLAN.md`, `JOURNAL.md`, `BLOCAGES.md`, `docs/versions.md`, workspace Rust + pnpm, `design/tokens.css`, migrations initiales, schéma PowerSync client, `docs/sync-streams.md`, `instance/docker-compose.yml`, squelette `xtask`, CI GitHub Actions.
+  - **Livrables** : `PLAN.md`, `JOURNAL.md`, `BLOCAGES.md`, `docs/versions.md`, workspace Rust + pnpm, `design/tokens.css`, migrations initiales, schéma PowerSync client, `docs/sync-rules.md`, `instance/docker-compose.yml`, squelette `xtask`, CI GitHub Actions.
   - **Critères d'acceptation (commandes)** :
     - `pnpm --filter @legal-os/poste typecheck` → exit 0
     - `pnpm --filter @legal-os/poste build` → exit 0
     - `cargo fmt --check` et `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 (poste avec rustup)
-    - Fichiers contrats présents : `crates/api/migrations/`, `apps/poste/src/sync/AppSchema.ts`, `docs/sync-streams.md`, `design/tokens.css`
+    - Fichiers contrats présents : `crates/api/migrations/`, `apps/poste/src/sync/AppSchema.ts`, `docs/sync-rules.md`, `design/tokens.css`
     - Verdict contrôleur **VALIDÉ** consigné dans `JOURNAL.md`
   - **Dépendances** : prérequis poste (voir `BLOCAGES.md` pour ce qui manque encore).
   - **Responsable** : état-major (+ `instance-backend`, `poste-interface` pour contrats).
@@ -65,7 +65,7 @@ Ordre de l’architecte (2026-09-26) : **J8** → **Référence de dossier** →
   - **Validation 2026-09-26** : contrôleur VALIDÉ sur `5ff58b9` (CI [36232407821](https://github.com/navelremi-boop/legalos2/actions/runs/36232407821)). `s6-documents.mjs` exit 0. Mineur : `PermissionDenied` sur une clé absente est traité comme « objet absent ».
 - [ ] **J8** — Temps et facturation électronique (S9) — **jalon en cours**
   - **Dette** (majeur, à solder avant la fin de la phase 2) : fausse alerte de conflit J3 sur une écriture séquentielle du même poste après reprise.
-  - **Dette sync / temps** (soldée côté code 2026-09-26, lot facturation — **ne pas cocher** sans contrôleur) : `temps_saisis` / `brouillons_facture` / `taux_horaires` via Sync Streams ; numéro nul jusqu’à validation ; dossier existant obligatoire ; taux paramétrable ; S5 `s9-s5-temps.mjs`.
+  - **Dette sync / temps** (soldée côté code 2026-09-26, lot facturation — **ne pas cocher** sans contrôleur) : `temps_saisis` / `brouillons_facture` / `taux_horaires` synchronisés ; numéro nul jusqu’à validation ; dossier existant obligatoire ; taux paramétrable ; S5 `s9-s5-temps.mjs`.
 - [ ] **Référence de dossier** — § 3.4 : année + numéro remis à zéro chaque année, attribué par le serveur dans une transaction avec unicité ; « référence en attente » hors ligne ; jamais modifiée. Le classement des mails la cherche dans l'objet. Test : deux postes créent en même temps, sans doublon ni trou.
 - [ ] **Coque de l'app** — cahier § 7, version 5 (code déjà poussé sur `a24d0a2` / captures ; **non cochée** tant que le contrôleur n’a pas VALIDÉ après J8 et Référence selon l’ordre architecte)
   - `design/tokens.css` conforme au § 7.3 ; composants § 7.4 ; hors dossier fond `neutre` ; La journée § 7.6 ; fonctions existantes à leur place ; sync invisible ; galerie DEV seule ; recettes `data-testid` + captures jour/nuit.

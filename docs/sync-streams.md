@@ -56,8 +56,7 @@ Fichier déployé : `instance/powersync/sync-config.yaml`, monté via `sync_conf
 | `dossiers` | Métadonnées dossier (chemise, flag restreint) |
 | `parties` | Parties du dossier |
 | `documents` / `document_versions` | Métadonnées ; `visibilite` en SELECT, auth via dossier |
-| `temps_saisis` / `brouillons_facture` | Temps et brouillons (J8) ; numéro nul jusqu’à validation ; auth via dossier |
-| `taux_horaires` | Taux paramétrables (cabinet / client / dossier / intervenant) |
+| `temps_saisis` / `brouillons_facture` / `taux_horaires` | J8 — flux publics / restreints (+ `taux_cabinet` sans dossier) |
 | `users` / `postes` | (schéma client ; flux à ajouter si réplication) |
 
 ---
@@ -77,12 +76,11 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 | `documents_restreints` | `documents` JOIN `dossier_acces` — **sans** filtre sur `documents.visibilite` |
 | `document_versions_publics` | idem JOIN `dossiers` |
 | `document_versions_restreints` | idem JOIN `dossier_acces` — **sans** filtre sur `document_versions.visibilite` |
-| `temps_publics` / `temps_restreints` | `temps_saisis` JOIN `dossiers` / `dossier_acces` |
-| `brouillons_publics` / `brouillons_restreints` | `brouillons_facture` JOIN `dossiers` / `dossier_acces` |
-| `taux_cabinet` | `taux_horaires` où `dossier_id IS NULL` + cabinet JWT |
-| `taux_publics` / `taux_restreints` | taux rattachés à un dossier, mêmes JOIN |
+| `temps_publics` / `brouillons_publics` / `taux_publics` | JOIN `dossiers` (visibilité publique + cabinet) |
+| `temps_restreints` / `brouillons_restreints` / `taux_restreints` | JOIN `dossier_acces` (`auth.user_id()`) — **sans** filtre sur la `visibilite` fille |
+| `taux_cabinet` | `taux_horaires` où `dossier_id IS NULL` et `cabinet_id` du JWT |
 
-**Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants (`parties`, `documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, `taux_horaires` liés) dans la SQLite locale.
+**Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants (`parties`, `documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, `taux_horaires` liés au dossier) dans la SQLite locale. Preuve : `tests/recette/s9-s5-temps.mjs` + `s5-sync-streams.mjs`.
 
 ---
 

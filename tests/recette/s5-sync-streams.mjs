@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * S5 — Sync Streams : contrôle statique des flux (dossiers, parties, documents, versions).
+ * S5 — Sync Streams : contrôle statique des flux (dossiers, parties, documents, versions, temps, brouillons, taux).
  * Invariant : un dossier restreint et ses enfants ne descendent que via dossier_acces + auth.user_id().
  * Usage : node tests/recette/s5-sync-streams.mjs
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -37,6 +37,13 @@ const fluxAttendus = [
   "documents_restreints",
   "document_versions_publics",
   "document_versions_restreints",
+  "temps_publics",
+  "temps_restreints",
+  "brouillons_publics",
+  "brouillons_restreints",
+  "taux_cabinet",
+  "taux_publics",
+  "taux_restreints",
 ];
 
 /** Extrait le bloc YAML d'un flux nommé (clés de flux : exactement 2 espaces). */
@@ -51,12 +58,6 @@ for (const nom of fluxAttendus) {
   if (!new RegExp(`^  ${nom}:`, "m").test(yaml)) fail(`flux ${nom} absent`);
   const bloc = blocFlux(nom);
   if (!/auto_subscribe:\s*true/.test(bloc)) fail(`${nom} : auto_subscribe: true requis`);
-}
-
-for (const interdit of ["temps_publics", "temps_restreints", "brouillons_", "taux_"]) {
-  if (new RegExp(`^  ${interdit}`, "m").test(yaml)) {
-    fail(`flux J8 (${interdit}*) hors périmètre de cette migration Sync Streams`);
-  }
 }
 
 const global = blocFlux("cabinet_global");
@@ -81,7 +82,14 @@ if (!/auth\.user_id\(\)/.test(dossiersRestreints)) {
   fail("dossiers_restreints : auth.user_id() requis");
 }
 
-for (const nom of ["parties_publics", "documents_publics", "document_versions_publics"]) {
+for (const nom of [
+  "parties_publics",
+  "documents_publics",
+  "document_versions_publics",
+  "temps_publics",
+  "brouillons_publics",
+  "taux_publics",
+]) {
   const bloc = blocFlux(nom);
   if (!/INNER JOIN dossiers/i.test(bloc) && !/IN\s*\(\s*SELECT[\s\S]*FROM dossiers/i.test(bloc)) {
     fail(`${nom} : JOIN ou sous-requête dossiers requis`);
@@ -89,21 +97,88 @@ for (const nom of ["parties_publics", "documents_publics", "document_versions_pu
   if (!/visibilite\s*=\s*'public'/.test(bloc)) fail(`${nom} : filtre dossiers publics requis`);
 }
 
-for (const nom of ["parties_restreints", "documents_restreints", "document_versions_restreints"]) {
+for (const nom of [
+  "parties_restreints",
+  "documents_restreints",
+  "document_versions_restreints",
+  "temps_restreints",
+  "brouillons_restreints",
+  "taux_restreints",
+]) {
   const bloc = blocFlux(nom);
   if (!/INNER JOIN dossier_acces/i.test(bloc)) fail(`${nom} : JOIN dossier_acces requis`);
   if (!/auth\.user_id\(\)/.test(bloc)) fail(`${nom} : auth.user_id() requis`);
-  if (/WHERE[\s\S]*\b(documents|document_versions|parties)\.visibilite\s*=/.test(bloc)) {
+  if (
+    /WHERE[\s\S]*\b(documents|document_versions|parties|temps_saisis|brouillons_facture|taux_horaires)\.visibilite\s*=/.test(
+      bloc,
+    )
+  ) {
     fail(`${nom} : filtre visibilite fille interdit (auth via dossier_acces)`);
   }
 }
 
+const tauxCabinet = blocFlux("taux_cabinet");
+if (!/dossier_id\s+IS\s+NULL/i.test(tauxCabinet)) fail("taux_cabinet : dossier_id IS NULL requis");
+if (!/auth\.parameter\('cabinet_id'\)/.test(tauxCabinet)) {
+  fail("taux_cabinet : auth.parameter('cabinet_id') requis");
+}
+
 const schema = readFileSync(join(root, "apps/poste/src/sync/AppSchema.ts"), "utf8");
-for (const table of ["dossiers", "parties", "documents", "document_versions"]) {
+for (const table of [
+  "dossiers",
+  "parties",
+  "documents",
+  "document_versions",
+  "temps_saisis",
+  "brouillons_facture",
+  "taux_horaires",
+]) {
   if (!new RegExp(`\\b${table}\\b`).test(schema)) fail(`AppSchema : table ${table} absente`);
 }
 
 const doc = readFileSync(join(root, "docs/sync-streams.md"), "utf8");
 if (!/edition:\s*3|édition 3/i.test(doc)) fail("docs/sync-streams.md : édition 3 absente");
 
-console.log("s5-sync-streams: OK — flux Sync Streams (dossiers, parties, documents, versions)");
+/** Compte les tables d'un FROM…JOIN (contrat ≤ 2 tables par requête). */
+function compterTables(sql) {
+  const from = [...sql.matchAll(/\bFROM\s+([a-z_][a-z0-9_]*)/gi)].map((m) => m[1].toLowerCase());
+  const joins = [...sql.matchAll(/\bJOIN\s+([a-z_][a-z0-9_]*)/gi)].map((m) => m[1].toLowerCase());
+  return new Set([...from, ...joins]).size;
+}
+
+const requetes = [...yaml.matchAll(/(?:^|\n)\s{4,}-\s*(SELECT[\s\S]*?)(?=\n\s{4}-\s*SELECT|\n\s{2}[a-z_]+:|\n*$)/gi)]
+  .map((m) => m[1])
+  .concat(
+    [...yaml.matchAll(/\bquery:\s*(?:\|\s*\n([\s\S]*?)(?=\n\s{2}[a-z_]+:|\n*$)|([^\n]+))/gi)].map(
+      (m) => (m[1] ?? m[2] ?? "").trim(),
+    ),
+  )
+  .filter((q) => /\bSELECT\b/i.test(q));
+
+if (requetes.length < 16) fail(`requêtes Sync Streams insuffisantes (${requetes.length})`);
+for (const sql of requetes) {
+  const n = compterTables(sql);
+  if (n > 2) fail(`requête > 2 tables (${n}) : ${sql.slice(0, 80).replace(/\s+/g, " ")}…`);
+}
+
+const versions = readFileSync(join(root, "docs/versions.md"), "utf8");
+if (!/powersync-service:1\.26\.1/.test(versions) && !/1\.26\.1/.test(compose)) {
+  fail("service PowerSync ≥ 1.26.1 absent (compose / versions.md)");
+}
+if (!/GHSA-q6wc-xx4m-92fj/.test(versions)) {
+  fail("docs/versions.md : avis GHSA-q6wc-xx4m-92fj requis (PLAN Migration Sync Streams)");
+}
+if (!/1\.23\.3/.test(versions)) {
+  fail("docs/versions.md : correctif 1.23.3 requis");
+}
+
+if (existsSync(join(root, "instance/powersync/sync-rules.yaml"))) {
+  fail("instance/powersync/sync-rules.yaml encore présent (legacy)");
+}
+if (existsSync(join(root, "docs/sync-rules.md"))) {
+  fail("docs/sync-rules.md encore présent (remplacé par sync-streams.md)");
+}
+
+console.log(
+  "s5-sync-streams: OK — flux Sync Streams (dossiers, parties, documents, versions, temps, brouillons, taux)",
+);

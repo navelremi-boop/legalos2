@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::auth::access::AuthAccess;
 use crate::error::ApiError;
 use crate::facturation::{cii_en16931, tva_centimes, FactureCii};
-use crate::routes::dossiers::dossier_visible;
+use crate::routes::temps::exiger_dossier_existant;
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -60,9 +60,8 @@ pub async fn creer_brouillon(
     AuthAccess(claims): AuthAccess,
     Json(body): Json<CreerFactureRequest>,
 ) -> Result<Json<FactureResponse>, ApiError> {
-    if !dossier_visible(&state, claims.cabinet_id, claims.sub, body.dossier_id).await? {
-        return Err(ApiError::unauthorized("Dossier non autorisé"));
-    }
+    // La validation ne crée jamais de dossier : refus si absent.
+    exiger_dossier_existant(&state, claims.cabinet_id, claims.sub, body.dossier_id).await?;
     let montants = montants(&body.lignes, body.taux_tva_bp)?;
     let mut tx = state
         .pool
@@ -152,6 +151,25 @@ pub async fn valider(
             .map_err(|_| ApiError::internal("commit"))?;
         return charger(&state, id).await.map(Json);
     }
+    let dossier_id = sqlx::query_as::<_, (Uuid,)>(
+        "SELECT dossier_id FROM factures WHERE id = $1",
+    )
+    .bind(id)
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(|_| ApiError::internal("dossier facture"))?
+    .0;
+    let dossier_ok = sqlx::query_as::<_, (Uuid,)>(
+        "SELECT id FROM dossiers WHERE id = $1 AND cabinet_id = $2",
+    )
+    .bind(dossier_id)
+    .bind(claims.cabinet_id)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(|_| ApiError::internal("lecture dossier"))?;
+    if dossier_ok.is_none() {
+        return Err(ApiError::bad_request("Dossier introuvable"));
+    }
     let numero = sqlx::query_as::<_, (i64,)>(
         r#"
         INSERT INTO sequences_factures (cabinet_id, prochain) VALUES ($1, 2)
@@ -171,6 +189,13 @@ pub async fn valider(
         .execute(&mut *tx)
         .await
         .map_err(|_| ApiError::internal("validation"))?;
+    // Numéro attribué uniquement à la validation ; copie sur le brouillon synchronisé.
+    sqlx::query("UPDATE brouillons_facture SET numero = $2 WHERE id = $1 AND numero IS NULL")
+        .bind(id)
+        .bind(numero)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| ApiError::internal("numéro brouillon"))?;
     tx.commit()
         .await
         .map_err(|_| ApiError::internal("commit validation"))?;
