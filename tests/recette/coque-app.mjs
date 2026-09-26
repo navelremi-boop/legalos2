@@ -105,8 +105,8 @@ ok("galerie réservée au DEV");
 if (!srcBlob.includes("libelleReferenceDossier")) {
   fail("référence dossier : libelleReferenceDossier absent");
 }
-if (!srcBlob.includes('REFERENCE_EN_ATTENTE = "en attente"')) {
-  fail("référence dossier : « en attente » absent");
+if (!srcBlob.includes('REFERENCE_EN_ATTENTE = "Référence en attente"')) {
+  fail("référence dossier : « Référence en attente » (cahier § 3.4) absent");
 }
 if (!/reference:\s*column\.text/u.test(srcBlob)) {
   fail("AppSchema : dossiers.reference absent");

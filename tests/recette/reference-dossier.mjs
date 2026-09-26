@@ -42,8 +42,12 @@ if (!/reference:\s*column\.text/u.test(schema)) {
 ok("AppSchema : colonne reference");
 
 const lib = readFileSync(libPath, "utf8");
-if (!lib.includes('REFERENCE_EN_ATTENTE = "en attente"')) {
-  fail("libellé « en attente » absent");
+// Cahier § 3.4 : « Un dossier créé hors ligne affiche « référence en attente » ».
+if (!lib.includes('REFERENCE_EN_ATTENTE = "Référence en attente"')) {
+  fail("libellé « Référence en attente » (cahier § 3.4) absent");
+}
+if (!/export function libelleEtiquetteReference/u.test(lib)) {
+  fail("libelleEtiquetteReference absent (étiquette « Dossier 2026-042 » / « Référence en attente »)");
 }
 if (!/libelleReferenceDossier/u.test(lib)) {
   fail("libelleReferenceDossier absent");
@@ -51,7 +55,16 @@ if (!/libelleReferenceDossier/u.test(lib)) {
 if (!/REFERENCE_SERVEUR_RE\s*=\s*\/\^\\d\{4\}-\\d\+\$\//u.test(lib)) {
   fail("motif YYYY-… absent");
 }
-ok("libelleReferenceDossier (« en attente », YYYY-…)");
+ok("libelleReferenceDossier (« Référence en attente », YYYY-…)");
+
+const etiquette = readFileSync(etiquettePath, "utf8");
+if (!/libelleEtiquetteReference\(reference\)/u.test(etiquette)) {
+  fail("EtiquetteDossier doit afficher libelleEtiquetteReference (pas « Dossier » + libellé en attente)");
+}
+if (/`Dossier \$\{/u.test(etiquette)) {
+  fail("EtiquetteDossier préfixe « Dossier » en dur : « Dossier Référence en attente » possible");
+}
+ok("étiquette : « Dossier 2026-042 » ou « Référence en attente »");
 
 const ecrire = readFileSync(ecrirePath, "utf8");
 if (/reference\s*[:=]\s*[`'"]?\d{4}-/u.test(ecrire)) {

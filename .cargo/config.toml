@@ -1,4 +1,4 @@
-﻿[alias]
+[alias]
 xtask = "run --package xtask --"
 
 [build]

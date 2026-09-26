@@ -7,7 +7,7 @@ import {
 } from "react";
 import { fr } from "@/lib/fr";
 import { formatDuree } from "@/lib/format";
-import { libelleReferenceDossier } from "@/lib/referenceDossier";
+import { libelleEtiquetteReference, libelleReferenceDossier } from "@/lib/referenceDossier";
 
 export type NavId =
   | "journee"
@@ -21,7 +21,7 @@ export type NavId =
 
 export type OngletDossier = {
   id: string;
-  /** Libellé affiché : référence serveur ou « en attente ». */
+  /** Libellé affiché : référence serveur ou « Référence en attente ». */
   reference: string;
   nom: string;
   chemise: string;
@@ -223,7 +223,7 @@ export function BarreHaut({
                 type="button"
                 role="tab"
                 aria-selected={actifOnglet}
-                aria-label={fr(`Dossier ${reference} — ${onglet.nom}`)}
+                aria-label={fr(`${libelleEtiquetteReference(onglet.reference)} — ${onglet.nom}`)}
                 className="onglet-dossier__corps"
                 onClick={() => {
                   onOngletActiver?.(onglet.id);

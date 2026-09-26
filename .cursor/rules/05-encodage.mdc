@@ -1,0 +1,10 @@
+---
+description: Encodage des fichiers texte du dépôt (UTF-8 sans BOM)
+alwaysApply: true
+---
+
+# Encodage
+
+- Fichiers texte en **UTF-8 sans BOM** ; fins de ligne LF (normalisées par `.gitattributes`).
+- Sous Windows PowerShell 5.1, ne jamais écrire un fichier du dépôt avec `Add-Content`, `Set-Content`, `Out-File` ou `>` : ces commandes écrivent en ANSI ou ajoutent un BOM. Utiliser les outils d'édition ou Node (`fs.writeFileSync(chemin, texte, "utf8")`).
+- Contrôle outillé : `node tests/recette/encodage-texte.mjs` (CI, job frontend).

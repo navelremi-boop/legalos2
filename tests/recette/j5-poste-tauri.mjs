@@ -284,6 +284,38 @@ function sqlServeur(requete) {
   });
 }
 
+/** Coupure réelle : `pause` gèle api + powersync (clé JWT éphémère conservée, contrairement à `stop`). */
+function compose(args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      "docker",
+      ["compose", "-f", "instance/docker-compose.yml", "--env-file", ".env", ...args],
+      { cwd: root, stdio: "ignore" },
+    );
+    child.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`compose ${args[0]}`))));
+  });
+}
+
+/** Référence affichée par la palette pour un dossier (relance la requête en alternant la saisie). */
+async function referencePalette(send, rg, dossierId, bascule) {
+  const ouverte = await evaluate(send, `Boolean(document.getElementById("palette-recherche"))`);
+  if (!ouverte) {
+    await evaluate(send, `document.getElementById("ouvrir-palette")?.click()`);
+    await sleep(300);
+  }
+  await setField(send, "palette-recherche", bascule ? `${rg} ` : rg);
+  const debut = Date.now();
+  while (Date.now() - debut < 5_000) {
+    const valeur = await evaluate(
+      send,
+      `document.querySelector('[data-testid=palette-resultat][data-dossier-id="${dossierId}"]')?.getAttribute("data-reference") ?? ""`,
+    );
+    if (valeur) return String(valeur);
+    await sleep(200);
+  }
+  return "";
+}
+
 function sqliteLocal(id, requete) {
   const roaming = process.env.APPDATA ?? join(homedir(), "AppData", "Roaming");
   const fichier = join(roaming, "fr.legalos.poste", `legalos-powersync-${id}.db`);
@@ -495,11 +527,10 @@ try {
   const colRefServeur = await sqlServeur(
     `SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'dossiers' AND column_name = 'reference'`,
   ).catch(() => "0");
-  if (colRefServeur === "0") {
-    console.log(
-      "j5-poste: colonne dossiers.reference absente côté serveur — sync YYYY-… reportée (backend parallèle)",
-    );
-  } else {
+  if (colRefServeur !== "1") {
+    fail(`colonne dossiers.reference absente côté serveur (migration 016) (${colRefServeur})`);
+  }
+  {
     const debutRef = Date.now();
     let refLocale = "";
     let refServeur = "";
@@ -525,11 +556,81 @@ try {
     console.log(`j5-poste: OK — référence serveur ${refServeur} présente en SQLite après sync`);
   }
 
+  // § 3.4 — dossier créé hors ligne : « Référence en attente » jusqu’à la synchronisation,
+  // puis référence serveur (SQLite + palette). Coupure réelle : api + powersync gelés.
+  const rgHorsLigne = `RG${marque}H`;
+  let idHorsLigne = "";
+  await compose(["pause", "api", "powersync"]);
+  try {
+    idHorsLigne = await creerDossier(send, {
+      nom: `Dossier hors ligne ${marque}`,
+      rg: rgHorsLigne,
+      restreint: false,
+      precedent: idPublic,
+    });
+    const refHorsLigne = await sqliteLocal(
+      "a",
+      `SELECT reference FROM dossiers WHERE id = '${idHorsLigne}'`,
+    );
+    if (refHorsLigne !== "[(None,)]") {
+      fail(`référence locale d’un dossier créé hors ligne (${refHorsLigne})`);
+    }
+    const libelleHorsLigne = await referencePalette(send, rgHorsLigne, idHorsLigne, false);
+    if (libelleHorsLigne !== "Référence en attente") {
+      fail(`palette hors ligne : « Référence en attente » attendu (${libelleHorsLigne || "vide"})`);
+    }
+    await sleep(3_000);
+    const toujoursNull = await sqliteLocal(
+      "a",
+      `SELECT reference FROM dossiers WHERE id = '${idHorsLigne}'`,
+    );
+    if (toujoursNull !== "[(None,)]") {
+      fail(`référence apparue sans serveur (${toujoursNull})`);
+    }
+    console.log("j5-poste: OK — dossier créé hors ligne : « Référence en attente » (SQLite NULL)");
+  } finally {
+    await compose(["unpause", "api", "powersync"]).catch(() => undefined);
+  }
+  {
+    const debutRetour = Date.now();
+    let refServeur = "";
+    let refLocale = "";
+    let libellePalette = "";
+    let bascule = true;
+    while (Date.now() - debutRetour < 120_000) {
+      refServeur = await sqlServeur(
+        `SELECT COALESCE(reference, '') FROM dossiers WHERE id = '${idHorsLigne}'`,
+      ).catch(() => "");
+      refLocale = await sqliteLocal(
+        "a",
+        `SELECT reference FROM dossiers WHERE id = '${idHorsLigne}'`,
+      ).catch(() => "");
+      if (/^\d{4}-\d+$/.test(refServeur) && refLocale.includes(refServeur)) {
+        libellePalette = await referencePalette(send, rgHorsLigne, idHorsLigne, bascule);
+        bascule = !bascule;
+        if (libellePalette === refServeur) break;
+      }
+      await sleep(1_000);
+    }
+    if (!/^\d{4}-\d+$/.test(refServeur)) {
+      fail(`référence serveur absente après retour du réseau (${refServeur || "vide"})`);
+    }
+    if (!refLocale.includes(refServeur)) {
+      fail(`référence locale absente après retour du réseau (serveur=${refServeur}, local=${refLocale})`);
+    }
+    if (libellePalette !== refServeur) {
+      fail(`palette sans la référence serveur (${libellePalette || "vide"}, attendu ${refServeur})`);
+    }
+    console.log(
+      `j5-poste: OK — référence ${refServeur} attribuée au retour du réseau (SQLite + palette)`,
+    );
+  }
+
   const idRestreint = await creerDossier(send, {
     nom: `Dossier restreint ${marque}`,
     rg: rgRestreint,
     restreint: true,
-    precedent: idPublic,
+    precedent: idHorsLigne,
   });
   const debutSql = Date.now();
   let serveur = "";

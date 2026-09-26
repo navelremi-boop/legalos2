@@ -62,14 +62,14 @@ Preuves (2026-09-26) :
 - `node tests/recette/s9-factures.mjs` → OK (PDF+CII API schematron+veraPDF ; débours ; e-reporting ; lignes avoir)
 - `node tests/recette/s9-facturx.mjs` → OK (6 cas schematron + PDF/A-3b)
 
-## 2026-09-26 � J8 VALID�
+## 2026-09-26 — J8 VALIDÉ
 
-- Contr�leur sur `e8eb6b2` (CI `36269667975`) : **VALID�**. Revue 31-facturation OK.
-- Correctifs majeurs sold�s (PDF/CII validation, CII d�bours, avoir+lignes, e-reporting).
+- Contrôleur sur `e8eb6b2` (CI `36269667975`) : **VALIDÉ**. Revue 31-facturation OK.
+- Correctifs majeurs soldés (PDF/CII validation, CII débours, avoir+lignes, e-reporting).
 
-## 2026-09-26 � R�f�rence de dossier (d�marrage)
+## 2026-09-26 — Référence de dossier (démarrage)
 
-- Jalon � 3.4 : ann�e + num�ro continu cabinet, serveur, unicit�, hors ligne � r�f�rence en attente �.
+- Jalon § 3.4 : année + numéro continu cabinet, serveur, unicité, hors ligne « référence en attente ».
 
 ## 2026-09-26 — Référence de dossier (poste)
 
@@ -100,3 +100,16 @@ Preuves (2026-09-26) :
   - `node tests/recette/reference-dossier-api.mjs` → OK (concurrentes 2026-001/002 ; unicité ; figée ; OpenAPI)
   - `node tests/recette/s5-sync-streams.mjs` → OK
 - PLAN non coché (contrôleur).
+
+## 2026-09-26 — Référence de dossier (état-major : libellé et preuve hors ligne)
+
+- **Libellé** aligné sur le cahier § 3.4 : « Référence en attente » (au lieu de « en attente ») ; étiquette « Dossier 2026-042 » ou « Référence en attente » (plus de « Dossier en attente ») ; toute valeur hors motif `YYYY-N` est traitée comme en attente.
+- **j5 strict** : la colonne serveur `dossiers.reference` est obligatoire (plus de report conditionnel).
+- **Coupure réelle** dans j5 : `docker compose pause api powersync`, création d’un dossier sur le poste → SQLite `reference` NULL, palette « Référence en attente », toujours NULL après 3 s ; `unpause` → référence serveur en SQLite et dans la palette.
+- **Encodage** : cinq lignes de ce journal écrites en ANSI par `Add-Content` (commit `c26b709`) réparées en UTF-8.
+- **Règle vivante** (deuxième incident d’encodage après le BOM Rust de `a00e56d`) : règle `.cursor/rules/05-encodage.mdc` (UTF-8 sans BOM ; pas d’écriture de fichier par `Add-Content`/`Set-Content`/`Out-File`/`>` sous PowerShell 5.1) ; contrôle `tests/recette/encodage-texte.mjs` en CI (job frontend). Premier passage : BOM retiré de `.cargo/config.toml` (présent depuis `3f8696b`) → 244 fichiers OK.
+- Preuves (2026-09-26) :
+  - `pnpm --filter @legal-os/poste typecheck` et `lint:ci` → OK
+  - `node tests/recette/reference-dossier.mjs` → OK ; `node tests/recette/coque-app.mjs` → OK
+  - `node tests/recette/reference-dossier-api.mjs` → OK (2026-003 / 2026-004 concurrentes, rejeu idempotent, unicité, figée)
+  - `node tests/recette/j5-poste-tauri.mjs` → exit 0 (63 s) : 2026-005 en ligne ; dossier hors ligne « Référence en attente » puis **2026-006** au retour du réseau ; S5 inchangé.
