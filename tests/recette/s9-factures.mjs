@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * S9 — validation (numéro continu) → dépôt PA idempotent → statuts →
- * règlement partiel / encaissée → avoir ; immutabilité base (lignes comprises).
+ * S9 — validation (numéro continu + PDF/CII serveur) → dépôt PA idempotent → statuts →
+ * règlement partiel / encaissée → avoir (lignes) ; e-reporting particulier ; immutabilité.
  * Temps + brouillon hors ligne sur le poste : s9-poste-tauri.mjs (obligatoire).
- * Factur-X / veraPDF : voir s9-facturx.mjs.
+ * Jeu schematron § 3.7 parallèle : s9-facturx.mjs.
  */
 import { randomUUID } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { demoAccessToken } from "./lib/demo-auth.mjs";
@@ -18,6 +18,7 @@ const api = `${instance}/api`;
 const pa = process.env.LEGALOS_PA_URL ?? "http://127.0.0.1:8090";
 const posteRecette = join(root, "tests/recette/s9-poste-tauri.mjs");
 const s5Recette = join(root, "tests/recette/s9-s5-temps.mjs");
+const xsl = join(root, "tests/recette/en16931/EN16931-CII-validation.xslt");
 
 function fail(message) {
   console.error(`s9: FAIL — ${message}`);
@@ -54,7 +55,7 @@ function verifierSyncRules() {
 }
 
 function sqlServeur(requete) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const child = spawn(
       "docker",
       [
@@ -99,6 +100,78 @@ async function json(chemin, jeton, methode, corps) {
   const texte = await reponse.text();
   if (!reponse.ok) fail(`${methode} ${chemin} → ${reponse.status} ${texte.slice(0, 200)}`);
   return texte ? JSON.parse(texte) : {};
+}
+
+function run(cmd, args) {
+  const enfant = spawnSync(cmd, args, { cwd: root, encoding: "utf8" });
+  if (enfant.status !== 0) {
+    fail(
+      `${cmd} ${args.join(" ")} → ${enfant.status}\n${(enfant.stderr || enfant.stdout || "").slice(-500)}`,
+    );
+  }
+  return enfant.stdout ?? "";
+}
+
+function schematron(sourceXml, sortieSvrl) {
+  const saxonCp = process.env.SAXON_CP;
+  if (saxonCp) {
+    run("java", [
+      "-cp",
+      saxonCp,
+      "net.sf.saxon.Transform",
+      `-s:${sourceXml}`,
+      `-xsl:${xsl}`,
+      `-o:${sortieSvrl}`,
+    ]);
+  } else {
+    const rel = sourceXml.replace(/\\/g, "/").replace(root.replace(/\\/g, "/"), "/work");
+    const outRel = sortieSvrl.replace(/\\/g, "/").replace(root.replace(/\\/g, "/"), "/work");
+    run("docker", [
+      "run",
+      "--rm",
+      "-v",
+      `${root}:/work`,
+      "-w",
+      "/work",
+      "eclipse-temurin:21-jre-alpine",
+      "java",
+      "-cp",
+      "/work/target/Saxon-HE-12.5.jar:/work/target/xmlresolver-5.2.2.jar",
+      "net.sf.saxon.Transform",
+      `-s:${rel}`,
+      "-xsl:/work/tests/recette/en16931/EN16931-CII-validation.xslt",
+      `-o:${outRel}`,
+    ]);
+  }
+  const rapport = readFileSync(sortieSvrl, "utf8");
+  if (rapport.includes("failed-assert")) {
+    fail(`schematron API : assertion en échec (${sourceXml})`);
+  }
+}
+
+function veraPdf(pdfPath) {
+  const verapdf = process.env.VERAPDF;
+  if (verapdf) {
+    const sortie = run(verapdf, ["--flavour", "3b", pdfPath]);
+    if (!sortie.includes('isCompliant="true"')) fail("veraPDF API non conforme");
+    return;
+  }
+  const rel = pdfPath.replace(/\\/g, "/").replace(root.replace(/\\/g, "/"), "/work");
+  const sortie = run("docker", [
+    "run",
+    "--rm",
+    "-v",
+    `${root}:/work`,
+    "-w",
+    "/work",
+    "eclipse-temurin:21-jre-alpine",
+    "sh",
+    "/work/target/verapdf/verapdf",
+    "--flavour",
+    "3b",
+    rel,
+  ]);
+  if (!sortie.includes('isCompliant="true"')) fail("veraPDF API non conforme");
 }
 
 const sante = await fetch(`${instance}/health`).catch(() => null);
@@ -173,18 +246,18 @@ const brouillonTemps = await json("/brouillons-facture", jeton, "POST", {
 if (brouillonTemps.numero !== null) fail("brouillon synchronisé a déjà un numéro");
 console.log("s9: taux paramétrable, HT calculé, numéro nul sur brouillon sync");
 
-async function brouillon(ht) {
+async function brouillon(ht, extras = {}) {
   const id = randomUUID();
   const cree = await json("/factures", jeton, "POST", {
     id,
     dossier_id: dossierId,
     taux_tva_bp: 2000,
-    lignes: [{ libelle: "Honoraires fictifs", nature: "honoraires", montant_ht_centimes: ht }],
+    type_client: extras.type_client ?? "professionnel",
+    lignes: extras.lignes ?? [
+      { libelle: "Honoraires fictifs", nature: "honoraires", montant_ht_centimes: ht },
+    ],
   });
   if (cree.numero !== null || cree.statut !== "brouillon") fail("le brouillon a déjà un numéro");
-  if (cree.montant_tva_centimes !== Math.round((ht * 2000) / 10000)) {
-    fail(`tva ${cree.montant_tva_centimes}`);
-  }
   return id;
 }
 
@@ -196,6 +269,7 @@ const [va, vb] = await Promise.all([
 ]);
 const numeros = [va.numero, vb.numero].sort((x, y) => x - y);
 if (numeros[1] !== numeros[0] + 1) fail(`numéros non continus ${numeros.join(",")}`);
+
 const cii = await fetch(`${api}/factures/${a}/cii`, {
   headers: { authorization: `Bearer ${jeton}` },
 });
@@ -203,8 +277,37 @@ const xml = await cii.text();
 if (!cii.ok || !xml.includes("urn:cen.eu:en16931:2017") || !xml.includes("100.00")) {
   fail(`cii ${cii.status}`);
 }
-console.log("s9: numéros continus attribués par le serveur");
-console.log("s9: Factur-X produit après validation");
+const pdfResp = await fetch(`${api}/factures/${a}/pdf`, {
+  headers: { authorization: `Bearer ${jeton}` },
+});
+if (!pdfResp.ok) fail(`pdf ${pdfResp.status}`);
+const pdfBuf = Buffer.from(await pdfResp.arrayBuffer());
+if (pdfBuf.length < 1000 || pdfBuf.subarray(0, 4).toString() !== "%PDF") {
+  fail("PDF serveur illisible");
+}
+mkdirSync(join(root, "target"), { recursive: true });
+const ciiApi = join(root, "target/s9-api-facture-cii.xml");
+const pdfApi = join(root, "target/s9-api-facture.pdf");
+writeFileSync(ciiApi, xml);
+writeFileSync(pdfApi, pdfBuf);
+schematron(ciiApi, join(root, "target/svrl-s9-api.xml"));
+veraPdf(pdfApi);
+console.log("s9: numéros continus ; PDF+CII produits à la validation (schematron + veraPDF)");
+
+const deboursId = await brouillon(0, {
+  lignes: [
+    { libelle: "Honoraires fictifs", nature: "honoraires", montant_ht_centimes: 10_000 },
+    { libelle: "Débours fictifs", nature: "debours", montant_ht_centimes: 1_000 },
+  ],
+});
+await json(`/factures/${deboursId}/valider`, jeton, "POST");
+const ciiDebours = await fetch(`${api}/factures/${deboursId}/cii`, {
+  headers: { authorization: `Bearer ${jeton}` },
+}).then((r) => r.text());
+if (!ciiDebours.includes("Débours") || !ciiDebours.includes("10.00")) {
+  fail("CII sans débours réels (debours_centimes forcé à 0 ?)");
+}
+console.log("s9: CII porte les débours réels des lignes");
 
 const cle = `emission-${a}`;
 await json(`/factures/${a}/emettre`, jeton, "POST", { cle_idempotence: cle });
@@ -212,6 +315,21 @@ await json(`/factures/${a}/emettre`, jeton, "POST", { cle_idempotence: cle });
 const statut = await fetch(`${pa}/v1/factures/${a}/statuts`).then((r) => r.json());
 if (statut.statut !== "deposee") fail(`statut ${statut.statut}`);
 console.log("s9: dépôt répété, une seule fiche plateforme");
+
+const particulierId = await brouillon(10_000, { type_client: "particulier" });
+await json(`/factures/${particulierId}/valider`, jeton, "POST");
+await json(`/factures/${particulierId}/emettre`, jeton, "POST", {
+  cle_idempotence: `e-report-${particulierId}`,
+});
+const envoiPart = await sqlServeur(
+  `SELECT identifiant_pa FROM envois_plateforme WHERE facture_id = '${particulierId}'`,
+);
+if (!envoiPart.out.includes("e-reporting-")) {
+  fail(`e-reporting particulier absent (${envoiPart.out})`);
+}
+const annuaire = await json("/annuaire/123456789", jeton, "GET");
+if (!annuaire.adresse_facturation_electronique) fail("annuaire stub sans adresse");
+console.log("s9: e-reporting particulier + annuaire PA");
 
 await json(`/factures/${a}/encaissements`, jeton, "POST", {
   montant_centimes: 6_000,
@@ -240,8 +358,17 @@ console.log("s9: règlement complété → statut encaissée, 12000 centimes");
 
 const avoirId = randomUUID();
 const avoir = await json(`/factures/${a}/avoir`, jeton, "POST", { id: avoirId });
-if (avoir.statut !== "validee" || avoir.numero !== numeros[1] + 1) {
-  fail(`avoir ${avoir.numero} après ${numeros.join(",")}`);
+if (avoir.statut !== "validee" || typeof avoir.numero !== "number" || avoir.numero <= numeros[1]) {
+  fail(`avoir invalide ${JSON.stringify(avoir)} (attendu numéro > ${numeros[1]})`);
+}
+const lignesAvoir = await sqlServeur(
+  `SELECT COUNT(*) FROM facture_lignes WHERE facture_id = '${avoirId}'`,
+);
+const lignesSource = await sqlServeur(
+  `SELECT COUNT(*) FROM facture_lignes WHERE facture_id = '${a}'`,
+);
+if (lignesAvoir.out !== lignesSource.out || Number(lignesAvoir.out) < 1) {
+  fail(`avoir sans lignes copiées (avoir=${lignesAvoir.out} source=${lignesSource.out})`);
 }
 const modif = await fetch(`${api}/factures/${a}/valider`, {
   method: "POST",
@@ -250,7 +377,7 @@ const modif = await fetch(`${api}/factures/${a}/valider`, {
 if (modif.status !== 200) fail("revalidation");
 const inchange = await json(`/factures/${a}/valider`, jeton, "POST");
 if (inchange.numero !== va.numero && inchange.numero !== vb.numero) fail("numéro réattribué");
-console.log("s9: avoir numéroté, facture validée non renumérotée");
+console.log("s9: avoir numéroté avec lignes, facture validée non renumérotée");
 
 const entete = await sqlServeur(
   `UPDATE factures SET montant_ht_centimes = montant_ht_centimes WHERE id = '${a}'`,

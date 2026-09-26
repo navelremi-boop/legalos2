@@ -122,10 +122,7 @@ impl PlateformeAgreee for HttpPlateformeAgreee {
         Ok(())
     }
 
-    async fn lire_statuts(
-        &self,
-        reference: &str,
-    ) -> Result<serde_json::Value, ErreurPlateforme> {
+    async fn lire_statuts(&self, reference: &str) -> Result<serde_json::Value, ErreurPlateforme> {
         let reponse = self
             .client
             .get(format!(

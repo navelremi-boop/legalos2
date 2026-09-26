@@ -12,8 +12,18 @@ COPY xtask ./xtask
 RUN cargo build --release -p legalos-api
 
 FROM debian:bookworm-slim AS runtime
+# Typst 0.14.0 — PDF/A-3b Factur-X à la validation (docs/versions.md, hypothèse F7).
+ARG TYPST_VERSION=0.14.0
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates wget libpq5 libssl3 \
+    && apt-get install -y --no-install-recommends ca-certificates wget libpq5 libssl3 xz-utils \
+    && wget -q "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz" \
+        -O /tmp/typst.tar.xz \
+    && tar -xJf /tmp/typst.tar.xz -C /tmp \
+    && mv /tmp/typst-x86_64-unknown-linux-musl/typst /usr/local/bin/typst \
+    && chmod 755 /usr/local/bin/typst \
+    && rm -rf /tmp/typst.tar.xz /tmp/typst-x86_64-unknown-linux-musl \
+    && apt-get purge -y xz-utils \
+    && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /src/target/release/legalos-api /usr/local/bin/legalos-api
 USER nobody

@@ -49,6 +49,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/factures/{id}/encaissements", post(factures::encaisser))
         .route("/factures/{id}/avoir", post(factures::avoir))
         .route("/factures/{id}/cii", get(factures::lire_cii))
+        .route("/factures/{id}/pdf", get(factures::lire_pdf))
+        .route("/annuaire/{siren}", get(factures::annuaire))
         .route("/temps", post(temps::creer_temps))
         .route("/brouillons-facture", post(temps::creer_brouillon_temps))
         .route("/taux-horaires", post(temps::creer_taux))

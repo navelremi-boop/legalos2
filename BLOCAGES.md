@@ -10,7 +10,7 @@
 | B7 | SUPER PDP réel | Simulateur dans `instance/` | Prod |
 | B8 | Boîtes mail réelles | GreenMail | Tests mail |
 | B9 | Écrans non maquettés (cahier § 7.6) | Valider, au premier passage, les captures jour et nuit de La journée, Dossiers, Mails, Agenda, Facturation et Réglages. Le prototype ne montre que la vue dossier. | Le reste continue en attendant |
-| B10 | Hypothèses juridiques à valider par le commandement | Valider : délais **H1–H8** (et points ouverts **H7** jours chômés locaux, **H10** appelant/intimé, **H12** renvoi art. 911-2 / 915-4) ; facturation **F0–F6** ; hypothèses d’**installation**. Voir `docs/hypotheses-delais.md` et `docs/hypotheses-facturation.md`. | Calculs délais et factures ; docs installation |
+| B10 | Hypothèses juridiques à valider par le commandement | Valider : délais **H1–H8** (et points ouverts **H7** jours chômés locaux, **H10** appelant/intimé, **H12** renvoi art. 911-2 / 915-4) ; facturation **F0–F8** ; hypothèses d’**installation**. Voir `docs/hypotheses-delais.md` et `docs/hypotheses-facturation.md`. | Calculs délais et factures ; docs installation |
 
 **Levé ou contourné** : Git 2.55, rustup, pnpm, Windows SDK, polices Atkinson, MSVC (B2/B2b), scripts `bootstrap-path.ps1` / `clippy.ps1`.
 

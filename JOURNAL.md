@@ -44,3 +44,20 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
   - `node tests/recette/s9-s5-temps.mjs` → OK
   - `node tests/recette/s9-poste-tauri.mjs` → OK (temps hors ligne → numéro serveur)
 - Conformité 31 : centimes ; numérotation transactionnelle ; immutabilité entête+lignes (012) ; Factur-X ; PA idempotente via trait ; débours/frais (F3) ; hypothèses F0–F6. J8 non coché (contrôleur).
+
+## 2026-09-26 — J8 recontrôle (écarts majeurs PDF/CII, lire_cii, avoir, e_reporter)
+
+Contrôleur REFUSÉ sur `7d45cef`. Correctifs majeurs :
+
+1. **PDF + Factur-X à la validation** : `assurer_artefacts` après `POST /factures/{id}/valider` (et avoir) génère le CII Rust, compile PDF/A-3b via binaire Typst (`spawn_blocking`), stocke dans `facture_artefacts` ; `GET /factures/{id}/cii` et `…/pdf`. Migration `015`. Typst 0.14.0 dans l'image API (F7).
+2. **`lire_cii`** : débours = somme des lignes `nature=debours` ; déjà payé = somme des encaissements ; HT taxable = total − débours ; artefact figé (plus de zéros forcés).
+3. **Avoir** : création en brouillon → copie des `facture_lignes` → validation + numéro (contourne le déclencheur d'immutabilité).
+4. **e_reporter** : `emettre` branche `particulier`/`etranger` sur `PlateformeAgreee::e_reporter` ; stub `GET /annuaire/{siren}` (F8).
+
+Recette `s9-factures.mjs` : télécharge PDF+CII API → schematron + veraPDF ; débours ; e-reporting ; lignes d'avoir.
+
+Preuves (2026-09-26) :
+- `cargo clippy -p legalos-api --all-targets -- -D warnings` → exit 0
+- `cargo test -p legalos-api --lib` → 11 ok
+- `node tests/recette/s9-factures.mjs` → OK (PDF+CII API schematron+veraPDF ; débours ; e-reporting ; lignes avoir)
+- `node tests/recette/s9-facturx.mjs` → OK (6 cas schematron + PDF/A-3b)
