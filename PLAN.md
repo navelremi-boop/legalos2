@@ -35,7 +35,7 @@ Ordre architecte (révisé 2026-09-26) : **Migration Sync Streams** → **J8** �
 - [ ] **Migration Sync Streams** — **jalon en cours**
   - `sync-config.yaml` édition 3 ; `sync_config.path` ; `auto_subscribe: true` ; JOIN `dossier_acces` ≤ 2 tables ; `visibilite` fille non lue pour l’auth.
   - Rejouer S5, J3, J5, J7 ; S5 par flux. Service ≥ 1.26.1. GHSA-q6wc-xx4m-92fj + 1.23.3 dans `docs/versions.md`.
-  - Contrat `docs/sync-streams.md`. Contrôleur **REFUSÉ** sur `5f46967` (GHSA absent du commit) — **revalider** sur HEAD courant (≥ `22d765e`).
+  - Contrat `docs/sync-streams.md`. Contrôleur **REFUSÉ** `5f46967` (GHSA) puis `a00e56d` (S5 SQLite) — correctif j5 + `s5-sqlite-par-flux` ; **revalider**.
 - [ ] **J8** — Temps et facturation (S9)
   - Dette conflit J3 (fin phase 2). Code sync temps (`c34a033`) présent — ne pas cocher sans Streams VALIDÉ puis contrôleur J8.
 - [ ] **Référence de dossier** — § 3.4

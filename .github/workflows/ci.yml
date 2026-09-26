@@ -32,6 +32,7 @@ jobs:
       - run: node tests/recette/garde-hooks.mjs
       - run: node tests/recette/cursor-rules-globs.mjs
       - run: node tests/recette/s5-sync-streams.mjs
+      - run: node tests/recette/s5-sqlite-par-flux.mjs
       - run: node tests/recette/garde-hooks.mjs
 
   rust:

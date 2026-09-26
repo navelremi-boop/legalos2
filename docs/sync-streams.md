@@ -80,7 +80,7 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 | `temps_restreints` / `brouillons_restreints` / `taux_restreints` | JOIN `dossier_acces` (`auth.user_id()`) — **sans** filtre sur la `visibilite` fille |
 | `taux_cabinet` | `taux_horaires` où `dossier_id IS NULL` et `cabinet_id` du JWT |
 
-**Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants (`parties`, `documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, `taux_horaires` liés au dossier) dans la SQLite locale. Preuve : `tests/recette/s9-s5-temps.mjs` + `s5-sync-streams.mjs`.
+**Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants (`parties`, `documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, `taux_horaires` liés au dossier) dans la SQLite locale. Preuve SQLite (fichier `legalos-powersync-*.db` du poste Tauri) : `tests/recette/j5-poste-tauri.mjs` ; couverture par flux : `tests/recette/s5-sqlite-par-flux.mjs` ; contrôle statique des flux : `tests/recette/s5-sync-streams.mjs`. Filtre JOIN Postgres (sans SQLite) : `tests/recette/s9-s5-temps.mjs`.
 
 ---
 
@@ -88,6 +88,8 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 
 - Toute modification de ce fichier ou de `sync-config.yaml` exige un test d’intégration **S5** pour **chaque nouvelle table / flux**.
 - Contrôle statique des flux : `node tests/recette/s5-sync-streams.mjs`.
+- Couverture des preuves SQLite par famille de flux : `node tests/recette/s5-sqlite-par-flux.mjs`.
+- Preuve SQLite bout-en-bout (poste Tauri collaborateur hors `dossier_acces`) : `node tests/recette/j5-poste-tauri.mjs`.
 - Le schéma client TypeScript reste la source des vues SQLite côté poste ; un test compare colonnes et tables avec les migrations Postgres.
 
 ---

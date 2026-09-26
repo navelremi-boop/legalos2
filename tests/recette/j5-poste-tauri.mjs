@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
- * J5 — S3 (dossier + palette) et S5 (dossier restreint absent du SQLite du collaborateur).
+ * J5 — S3 (dossier + palette) et S5 (dossier restreint + enfants absents du SQLite du collaborateur).
+ * Preuve SQLite poste B : dossiers, parties, documents, document_versions, temps_saisis, brouillons_facture.
  * Ne journalise aucun secret.
  */
+import { createHash, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -13,6 +15,7 @@ import { demoAccessToken, demoEmail, demoPassword, totpNow } from "./lib/demo-au
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "../..");
 const poste = join(root, "apps/poste");
 const instanceUrl = process.env.LEGALOS_INSTANCE_URL ?? "http://127.0.0.1:8088";
+const api = `${instanceUrl}/api`;
 const marque = String(Date.now()).slice(-6);
 const rgPublic = `RG${marque}A`;
 const rgRestreint = `RG${marque}R`;
@@ -310,6 +313,79 @@ function sqliteLocal(id, requete) {
   });
 }
 
+function empreinte(octets) {
+  return createHash("sha256").update(octets).digest("hex");
+}
+
+async function apiJson(chemin, jeton, methode, corps) {
+  const reponse = await fetch(`${api}${chemin}`, {
+    method: methode,
+    headers: { authorization: `Bearer ${jeton}`, "content-type": "application/json" },
+    body: corps === undefined ? undefined : JSON.stringify(corps),
+  });
+  const texte = await reponse.text();
+  if (!reponse.ok) {
+    throw new Error(`${methode} ${chemin} → ${reponse.status} ${texte.slice(0, 180)}`);
+  }
+  return texte ? JSON.parse(texte) : {};
+}
+
+async function deposerGarage(url, octets, entetes) {
+  const headers = {};
+  if (entetes && typeof entetes === "object") {
+    for (const [nom, valeur] of Object.entries(entetes)) {
+      if (typeof valeur === "string") headers[nom] = valeur;
+    }
+  }
+  const reponse = await fetch(url, { method: "PUT", body: octets, headers });
+  if (!reponse.ok) {
+    const texte = await reponse.text();
+    throw new Error(`dépôt S3 → ${reponse.status} ${texte.slice(0, 120)}`);
+  }
+}
+
+/** Pièce + temps + brouillon sur le dossier restreint — sans eux les SELECT S5 seraient vacueux. */
+async function peuplerDossierRestreint(jeton, dossierId) {
+  const documentId = randomUUID();
+  const contenu = Buffer.from(`piece-restreinte-j5-${marque}`);
+  const depot = await apiJson("/documents", jeton, "POST", {
+    id: documentId,
+    dossier_id: dossierId,
+    nom: `note-restreinte-${marque}.txt`,
+    idempotence_cle: `${documentId}:creer`,
+  });
+  if (depot.numero !== 1 || !depot.url) {
+    throw new Error("dépôt initial pièce restreinte inattendu");
+  }
+  await deposerGarage(depot.url, contenu, depot.entetes);
+  await apiJson(`/documents/${documentId}/versions/1/sceller`, jeton, "POST", {
+    empreinte: empreinte(contenu),
+    idempotence_cle: `${documentId}:v1`,
+  });
+
+  const tempsId = randomUUID();
+  await apiJson("/temps", jeton, "POST", {
+    id: tempsId,
+    dossier_id: dossierId,
+    minutes: 45,
+    libelle: `Temps restreint J5 ${marque}`,
+    taux_centimes_heure: 12_000,
+    idempotence_cle: `${tempsId}:temps`,
+  });
+  const brouillonId = randomUUID();
+  await apiJson("/brouillons-facture", jeton, "POST", {
+    id: brouillonId,
+    dossier_id: dossierId,
+    temps_id: tempsId,
+    libelle: `Brouillon restreint J5 ${marque}`,
+    ht_centimes: 9_000,
+    taux_centimes_heure: 12_000,
+    idempotence_cle: `${brouillonId}:brouillon`,
+  });
+
+  return { documentId, tempsId, brouillonId };
+}
+
 async function creerDossier(send, { nom, rg, restreint, precedent = "" }) {
   await setField(send, "dossier-nom", nom);
   await setField(send, "dossier-juridiction", "TJ de Lyon");
@@ -425,6 +501,26 @@ try {
   );
   if (accesEtranger !== "0") fail(`accès collab sur restreint (${accesEtranger})`);
   console.log("j5-poste: deux dossiers sur le serveur (chemise + cloisonnement)");
+
+  const { documentId, tempsId, brouillonId } = await peuplerDossierRestreint(jeton, idRestreint);
+  const docsServeur = await sqlServeur(
+    `SELECT COUNT(*) FROM documents WHERE id = '${documentId}' AND dossier_id = '${idRestreint}'`,
+  );
+  if (docsServeur !== "1") fail(`document restreint absent serveur (${docsServeur})`);
+  const versionsServeur = await sqlServeur(
+    `SELECT COUNT(*) FROM document_versions WHERE document_id = '${documentId}' AND dossier_id = '${idRestreint}' AND numero = 1`,
+  );
+  if (versionsServeur !== "1") fail(`version restreinte absente serveur (${versionsServeur})`);
+  const tempsServeur = await sqlServeur(
+    `SELECT COUNT(*) FROM temps_saisis WHERE id = '${tempsId}' AND dossier_id = '${idRestreint}'`,
+  );
+  if (tempsServeur !== "1") fail(`temps restreint absent serveur (${tempsServeur})`);
+  const brouillonsServeur = await sqlServeur(
+    `SELECT COUNT(*) FROM brouillons_facture WHERE id = '${brouillonId}' AND dossier_id = '${idRestreint}'`,
+  );
+  if (brouillonsServeur !== "1") fail(`brouillon restreint absent serveur (${brouillonsServeur})`);
+  console.log("j5-poste: pièce + temps + brouillon déposés sur le dossier restreint (API)");
+
   ws.close();
   await stopApp(posteA);
 
@@ -472,11 +568,27 @@ try {
     if (versionsLocales !== "[]") {
       fail(`document_versions du dossier restreint présents chez B (${versionsLocales})`);
     }
+    const tempsLocaux = await sqliteLocal(
+      "b",
+      `SELECT id FROM temps_saisis WHERE dossier_id = '${idRestreint}' OR id = '${tempsId}'`,
+    );
+    if (tempsLocaux !== "[]") {
+      fail(`temps_saisis du dossier restreint présents chez B (${tempsLocaux})`);
+    }
+    const brouillonsLocaux = await sqliteLocal(
+      "b",
+      `SELECT id FROM brouillons_facture WHERE dossier_id = '${idRestreint}' OR id = '${brouillonId}'`,
+    );
+    if (brouillonsLocaux !== "[]") {
+      fail(`brouillons_facture du dossier restreint présents chez B (${brouillonsLocaux})`);
+    }
     const tousLesRg = await sqliteLocal("b", `SELECT numero_rg FROM dossiers`);
     if (String(tousLesRg).includes(rgRestreint)) {
       fail(`RG restreint visible en scan complet chez B (${tousLesRg})`);
     }
-    console.log("j5-poste: OK — dossier restreint et enfants absents du SQLite de B");
+    console.log(
+      "j5-poste: OK — dossier restreint et enfants (docs, versions, temps, brouillons) absents du SQLite de B",
+    );
     sessionB.ws.close();
   } finally {
     await stopApp(posteB);
