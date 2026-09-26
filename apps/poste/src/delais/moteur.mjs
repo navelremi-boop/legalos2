@@ -1,7 +1,90 @@
 /**
- * Computation des délais (CPC 640 à 644) et jours fériés métropolitains.
+ * Computation des délais (CPC 640 à 645, 908, 915-4) et jours fériés métropolitains.
  * Chaque règle est reprise dans docs/hypotheses-delais.md, « à valider par l'avocat ».
  */
+
+/** @typedef {'metropole' | 'collectivite-644'} SiegeJuridiction */
+/** @typedef {'metropole' | 'outre-mer' | 'etranger'} LieuPartie */
+/** @typedef {'oui' | 'non' | 'regime-special'} AugmentationDistance */
+/** @typedef {'expediteur' | 'destinataire'} RolePartie */
+
+/**
+ * Bibliothèque minimale de délais (source : docs/hypotheses-delais.md).
+ * @type {readonly {
+ *   id: string,
+ *   label: string,
+ *   jours: number,
+ *   mois: number,
+ *   annees: number,
+ *   augmentationDistance: AugmentationDistance,
+ *   source: string,
+ * }[]}
+ */
+export const BIBLIOTHEQUE_DELAIS = Object.freeze([
+  {
+    id: "libre",
+    label: "Saisie libre",
+    jours: 0,
+    mois: 0,
+    annees: 0,
+    augmentationDistance: /** @type {AugmentationDistance} */ ("oui"),
+    source: "",
+  },
+  {
+    id: "appel-538",
+    label: "Appel (art. 538, 1 mois)",
+    jours: 0,
+    mois: 1,
+    annees: 0,
+    augmentationDistance: /** @type {AugmentationDistance} */ ("oui"),
+    source: "art. 538",
+  },
+  {
+    id: "conclusions-908",
+    label: "Conclusions d'appelant (art. 908, 3 mois)",
+    jours: 0,
+    mois: 3,
+    annees: 0,
+    augmentationDistance: /** @type {AugmentationDistance} */ ("regime-special"),
+    source: "art. 908, 915-4",
+  },
+  {
+    id: "opposition",
+    label: "Opposition (1 mois)",
+    jours: 0,
+    mois: 1,
+    annees: 0,
+    augmentationDistance: /** @type {AugmentationDistance} */ ("oui"),
+    source: "art. 538",
+  },
+  {
+    id: "quinze-jours",
+    label: "Délai de 15 jours",
+    jours: 15,
+    mois: 0,
+    annees: 0,
+    augmentationDistance: /** @type {AugmentationDistance} */ ("oui"),
+    source: "",
+  },
+  {
+    id: "deux-mois",
+    label: "Délai de 2 mois",
+    jours: 0,
+    mois: 2,
+    annees: 0,
+    augmentationDistance: /** @type {AugmentationDistance} */ ("oui"),
+    source: "",
+  },
+  {
+    id: "saisine-renvoi",
+    label: "Saisine après cassation (sans augmentation)",
+    jours: 0,
+    mois: 2,
+    annees: 0,
+    augmentationDistance: /** @type {AugmentationDistance} */ ("non"),
+    source: "Cass. 2e civ. 4 février 2021",
+  },
+]);
 
 /** @param {number} annee */
 export function dimancheDePaques(annee) {
@@ -72,6 +155,21 @@ export function ajouterMois(origine, mois) {
   return cible;
 }
 
+/**
+ * Art. 641 al. 3 : même quantième, sinon le dernier jour du mois.
+ * @param {Date} origine
+ * @param {number} annees
+ */
+export function ajouterAnnees(origine, annees) {
+  const annee = origine.getUTCFullYear() + annees;
+  const moisOrigine = origine.getUTCMonth();
+  const quantieme = origine.getUTCDate();
+  const cible = new Date(Date.UTC(annee, moisOrigine, 1));
+  const dernier = new Date(Date.UTC(cible.getUTCFullYear(), cible.getUTCMonth() + 1, 0)).getUTCDate();
+  cible.setUTCDate(Math.min(quantieme, dernier));
+  return cible;
+}
+
 /** @param {number} annee */
 export function joursFeriesMetropole(annee) {
   const paques = dimancheDePaques(annee);
@@ -108,23 +206,104 @@ export function prorogerAuJourOuvrable(date) {
 }
 
 /**
+ * Source textuelle de l'augmentation (H8 / H10).
+ * @param {AugmentationDistance} mode
+ * @param {SiegeJuridiction} siege
+ */
+function sourcePour(mode, siege) {
+  if (mode === "regime-special") return "art. 915-4";
+  if (siege === "collectivite-644") return "art. 644";
+  return "art. 643";
+}
+
+/**
+ * H8 / H10 — mois d'augmentation pour la distance.
  * @param {{
- *   origine: string,
- *   jours?: number,
- *   mois?: number,
- *   moisDistance?: number,
+ *   siegeJuridiction?: SiegeJuridiction,
+ *   departementSiege?: string,
+ *   lieuPartie?: LieuPartie,
+ *   departement?: string,
+ *   collectivite?: string,
+ *   augmentationDistance?: AugmentationDistance,
+ * }} saisie
+ * @returns {{ mois: number, source: string }}
+ */
+export function moisAugmentationDistance(saisie) {
+  const mode = saisie.augmentationDistance ?? "oui";
+  if (mode === "non") {
+    return { mois: 0, source: "" };
+  }
+
+  const siege = saisie.siegeJuridiction ?? "metropole";
+  const lieu = saisie.lieuPartie ?? "metropole";
+  const source = sourcePour(mode, siege);
+
+  if (lieu === "etranger") {
+    return { mois: 2, source };
+  }
+
+  if (siege === "metropole") {
+    if (lieu === "outre-mer") return { mois: 1, source };
+    return { mois: 0, source: "" };
+  }
+
+  // Siège dans une collectivité de l'art. 644 : +1 hors département du siège.
+  const depSiege = (saisie.departementSiege ?? "").trim();
+  const depPartie = (saisie.departement ?? "").trim();
+  if (lieu === "metropole") {
+    return { mois: 1, source };
+  }
+  if (lieu === "outre-mer") {
+    if (depSiege !== "" && depPartie !== "" && depSiege === depPartie) {
+      return { mois: 0, source: "" };
+    }
+    return { mois: 1, source };
+  }
+  return { mois: 0, source: "" };
+}
+
+/**
+ * H11 — date de notification selon la partie (art. 647-1).
+ * @param {{
+ *   origine?: string,
+ *   dateExpedition?: string,
+ *   dateRemise?: string,
+ *   rolePartie?: RolePartie,
  * }} saisie
  */
-export function calculerEcheance(saisie) {
-  const jours = saisie.jours ?? 0;
-  const mois = (saisie.mois ?? 0) + (saisie.moisDistance ?? 0);
-  if (jours < 0 || mois < 0) {
+export function dateOrigineNotification(saisie) {
+  const role = saisie.rolePartie;
+  if (role === "expediteur" && saisie.dateExpedition) {
+    return saisie.dateExpedition;
+  }
+  if (role === "destinataire" && saisie.dateRemise) {
+    return saisie.dateRemise;
+  }
+  if (!saisie.origine) {
+    throw new Error("origine manquante");
+  }
+  return saisie.origine;
+}
+
+/**
+ * Applique mois (dont augmentation), années, jours, puis report H6.
+ * @param {string} origineIso
+ * @param {{ jours?: number, mois?: number, annees?: number }} duree
+ */
+function appliquerDuree(origineIso, duree) {
+  const jours = duree.jours ?? 0;
+  const mois = duree.mois ?? 0;
+  const annees = duree.annees ?? 0;
+  if (jours < 0 || mois < 0 || annees < 0) {
     throw new Error("durée négative");
   }
-  if (jours === 0 && mois === 0) {
+  if (jours === 0 && mois === 0 && annees === 0) {
     throw new Error("durée vide");
   }
-  let date = lireDate(saisie.origine);
+  let date = lireDate(origineIso);
+  if (annees > 0) {
+    date = ajouterAnnees(date, annees);
+  }
   if (mois > 0) {
     date = ajouterMois(date, mois);
   }
@@ -132,4 +311,157 @@ export function calculerEcheance(saisie) {
     date = decalerJours(date, jours);
   }
   return ecrireDate(prorogerAuJourOuvrable(date));
+}
+
+/**
+ * Calcul complet : échéance + augmentation affichée (H8–H11).
+ * @param {{
+ *   origine?: string,
+ *   jours?: number,
+ *   mois?: number,
+ *   annees?: number,
+ *   moisDistance?: number,
+ *   siegeJuridiction?: SiegeJuridiction,
+ *   departementSiege?: string,
+ *   lieuPartie?: LieuPartie,
+ *   collectivite?: string,
+ *   departement?: string,
+ *   typeDelai?: {
+ *     jours?: number,
+ *     mois?: number,
+ *     annees?: number,
+ *     augmentationDistance?: AugmentationDistance,
+ *   },
+ *   dateExpedition?: string,
+ *   dateRemise?: string,
+ *   rolePartie?: RolePartie,
+ * }} saisie
+ * @returns {{ echeance: string, moisAugmentation: number, sourceAugmentation: string }}
+ */
+export function calculerDelaiComplet(saisie) {
+  const type = saisie.typeDelai ?? {};
+  const mode = type.augmentationDistance ?? "oui";
+
+  let moisAugmentation = 0;
+  let sourceAugmentation = "";
+
+  if (typeof saisie.moisDistance === "number") {
+    moisAugmentation = saisie.moisDistance;
+    sourceAugmentation = moisAugmentation > 0 ? "saisie manuelle (rétrocompat)" : "";
+  } else {
+    const aug = moisAugmentationDistance({
+      siegeJuridiction: saisie.siegeJuridiction,
+      departementSiege: saisie.departementSiege,
+      lieuPartie: saisie.lieuPartie,
+      departement: saisie.departement,
+      collectivite: saisie.collectivite,
+      augmentationDistance: mode,
+    });
+    moisAugmentation = aug.mois;
+    sourceAugmentation = aug.source;
+  }
+
+  const jours = saisie.jours ?? type.jours ?? 0;
+  const moisBase = saisie.mois ?? type.mois ?? 0;
+  const annees = saisie.annees ?? type.annees ?? 0;
+  const origine = dateOrigineNotification(saisie);
+
+  const echeance = appliquerDuree(origine, {
+    jours,
+    mois: moisBase + moisAugmentation,
+    annees,
+  });
+
+  return { echeance, moisAugmentation, sourceAugmentation };
+}
+
+/**
+ * H10 — enchaînement appel (art. 538 + 643/644) puis conclusions (art. 908 + 915-4).
+ * Si `dateDeclarationAppel` est omise, on suppose l'appel formé le dernier jour du délai.
+ * @param {{
+ *   origine: string,
+ *   siegeJuridiction?: SiegeJuridiction,
+ *   departementSiege?: string,
+ *   lieuPartie?: LieuPartie,
+ *   departement?: string,
+ *   collectivite?: string,
+ *   dateDeclarationAppel?: string,
+ *   dateExpedition?: string,
+ *   dateRemise?: string,
+ *   rolePartie?: RolePartie,
+ * }} saisie
+ */
+export function calculerChaineAppelConclusions(saisie) {
+  const commun = {
+    siegeJuridiction: saisie.siegeJuridiction,
+    departementSiege: saisie.departementSiege,
+    lieuPartie: saisie.lieuPartie,
+    departement: saisie.departement,
+    collectivite: saisie.collectivite,
+    dateExpedition: saisie.dateExpedition,
+    dateRemise: saisie.dateRemise,
+    rolePartie: saisie.rolePartie,
+  };
+
+  const appel = calculerDelaiComplet({
+    ...commun,
+    origine: saisie.origine,
+    mois: 1,
+    typeDelai: { augmentationDistance: "oui" },
+  });
+
+  const declaration = saisie.dateDeclarationAppel ?? appel.echeance;
+  const conclusions = calculerDelaiComplet({
+    ...commun,
+    origine: declaration,
+    mois: 3,
+    typeDelai: { augmentationDistance: "regime-special" },
+  });
+
+  return {
+    appel,
+    conclusions,
+    moisConclusions: 3 + conclusions.moisAugmentation,
+    dateDeclarationAppel: declaration,
+  };
+}
+
+/**
+ * @param {{
+ *   origine: string,
+ *   jours?: number,
+ *   mois?: number,
+ *   annees?: number,
+ *   moisDistance?: number,
+ *   siegeJuridiction?: SiegeJuridiction,
+ *   departementSiege?: string,
+ *   lieuPartie?: LieuPartie,
+ *   collectivite?: string,
+ *   departement?: string,
+ *   typeDelai?: {
+ *     jours?: number,
+ *     mois?: number,
+ *     annees?: number,
+ *     augmentationDistance?: AugmentationDistance,
+ *   },
+ *   dateExpedition?: string,
+ *   dateRemise?: string,
+ *   rolePartie?: RolePartie,
+ * }} saisie
+ * @returns {string}
+ */
+export function calculerEcheance(saisie) {
+  if (
+    saisie.siegeJuridiction !== undefined ||
+    saisie.lieuPartie !== undefined ||
+    saisie.typeDelai !== undefined ||
+    saisie.dateExpedition !== undefined ||
+    saisie.dateRemise !== undefined
+  ) {
+    return calculerDelaiComplet(saisie).echeance;
+  }
+  const jours = saisie.jours ?? 0;
+  const mois = (saisie.mois ?? 0) + (saisie.moisDistance ?? 0);
+  const annees = saisie.annees ?? 0;
+  return appliquerDuree(saisie.origine, { jours, mois, annees });
 }
