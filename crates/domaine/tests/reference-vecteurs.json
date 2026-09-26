@@ -1,0 +1,168 @@
+{
+  "commentaire": "Cas partagés entre le domaine (Rust) et le poste (TypeScript) : arbitrage R0 et docs/hypotheses-dossiers.md (R0-a à R0-f). Données fictives.",
+  "modeles": [
+    {
+      "modele": "{AAAA}/{N:3}",
+      "remise": "annuelle",
+      "texte": "{AAAA}/{N:3}",
+      "exemples": [
+        { "annee": 2026, "numero": 42, "initiales": "MD", "reference": "2026/042" },
+        { "annee": 2026, "numero": 1000, "initiales": "MD", "reference": "2026/1000" },
+        { "annee": 2027, "numero": 1, "initiales": "MD", "reference": "2027/001" }
+      ]
+    },
+    {
+      "modele": "RN/{AA}/{N:4}",
+      "remise": "annuelle",
+      "texte": "RN/{AA}/{N:4}",
+      "exemples": [
+        { "annee": 2026, "numero": 7, "initiales": "MD", "reference": "RN/26/0007" },
+        { "annee": 2030, "numero": 12345, "initiales": "MD", "reference": "RN/30/12345" }
+      ]
+    },
+    {
+      "modele": "{N}/{AAAA}",
+      "remise": "annuelle",
+      "texte": "{N}/{AAAA}",
+      "exemples": [
+        { "annee": 2026, "numero": 42, "initiales": "MD", "reference": "42/2026" },
+        { "annee": 2026, "numero": 1, "initiales": "MD", "reference": "1/2026" }
+      ]
+    },
+    {
+      "modele": "{AAAA}{N:4}",
+      "remise": "annuelle",
+      "texte": "{AAAA}{N:4}",
+      "exemples": [
+        { "annee": 2026, "numero": 42, "initiales": "MD", "reference": "20260042" }
+      ]
+    },
+    {
+      "modele": "{INI}{AA}{N:3}",
+      "remise": "annuelle",
+      "texte": "{INI}{AA}{N:3}",
+      "exemples": [
+        { "annee": 2026, "numero": 5, "initiales": "JPL", "reference": "JPL26005" }
+      ]
+    },
+    {
+      "modele": "{INI}/{AA}/{N:3}",
+      "remise": "annuelle",
+      "texte": "{INI}/{AA}/{N:3}",
+      "exemples": [
+        { "annee": 2026, "numero": 42, "initiales": "MD", "reference": "MD/26/042" }
+      ]
+    },
+    {
+      "modele": "{AAAA}-{N:3}",
+      "remise": "annuelle",
+      "texte": "{AAAA}-{N:3}",
+      "exemples": [
+        { "annee": 2026, "numero": 42, "initiales": "MD", "reference": "2026-042" },
+        { "annee": 2026, "numero": 1000, "initiales": "MD", "reference": "2026-1000" }
+      ]
+    },
+    {
+      "modele": "  {AAAA} {N:3}  ",
+      "remise": "annuelle",
+      "texte": "{AAAA} {N:3}",
+      "exemples": [
+        { "annee": 2026, "numero": 42, "initiales": "MD", "reference": "2026 042" }
+      ]
+    },
+    {
+      "modele": "Dossier {N:5}",
+      "remise": "jamais",
+      "texte": "Dossier {N:5}",
+      "exemples": [
+        { "annee": 2026, "numero": 42, "initiales": "MD", "reference": "Dossier 00042" }
+      ]
+    },
+    {
+      "modele": "RN-{N:3}",
+      "remise": "jamais",
+      "texte": "RN-{N:3}",
+      "exemples": [
+        { "annee": 2026, "numero": 42, "initiales": "MD", "reference": "RN-042" }
+      ]
+    },
+    {
+      "modele": "{AA}.{N}_{INI}",
+      "remise": "annuelle",
+      "texte": "{AA}.{N}_{INI}",
+      "exemples": [
+        { "annee": 2026, "numero": 42, "initiales": "MD", "reference": "26.42_MD" }
+      ]
+    }
+  ],
+  "invalides": [
+    { "modele": "", "remise": "annuelle", "erreur": "vide" },
+    { "modele": "   ", "remise": "annuelle", "erreur": "vide" },
+    { "modele": "{AAAA}-{N:3}-ABCDEFGHIJKLMNOPQRSTUVWXYZ-ABCDEFGH", "remise": "annuelle", "erreur": "trop_long" },
+    { "modele": "{AAAA}\t{N}", "remise": "annuelle", "erreur": "caractere_controle" },
+    { "modele": "{AAAA-{N}", "remise": "annuelle", "erreur": "accolade_non_fermee" },
+    { "modele": "{AAAA}-{N", "remise": "annuelle", "erreur": "accolade_non_fermee" },
+    { "modele": "{AAAA}}-{N}", "remise": "annuelle", "erreur": "accolade_isolee" },
+    { "modele": "{AAAA}-{X}-{N}", "remise": "annuelle", "erreur": "jeton_inconnu" },
+    { "modele": "{aaaa}-{N}", "remise": "annuelle", "erreur": "jeton_inconnu" },
+    { "modele": "{AAAA}-{N:x}", "remise": "annuelle", "erreur": "jeton_inconnu" },
+    { "modele": "{AAAA}-{N:}", "remise": "annuelle", "erreur": "jeton_inconnu" },
+    { "modele": "{AAAA}-{N:0}", "remise": "annuelle", "erreur": "chiffres_hors_bornes" },
+    { "modele": "{AAAA}-{N:10}", "remise": "annuelle", "erreur": "chiffres_hors_bornes" },
+    { "modele": "{AAAA}-{N:1000}", "remise": "annuelle", "erreur": "chiffres_hors_bornes" },
+    { "modele": "{AAAA}-DOSSIER", "remise": "annuelle", "erreur": "sans_numero" },
+    { "modele": "{N}-{N:3}-{AAAA}", "remise": "annuelle", "erreur": "plusieurs_numeros" },
+    { "modele": "RN-{N:3}", "remise": "annuelle", "erreur": "sans_annee" },
+    { "modele": "{INI}-{N}", "remise": "annuelle", "erreur": "sans_annee" }
+  ],
+  "normalisations": [
+    { "reference": "2026/042", "classement": "2026-042", "export": "2026-042" },
+    { "reference": "RN/26/0042", "classement": "RN-26-0042", "export": "RN-26-0042" },
+    { "reference": "2026 042", "classement": "2026-042", "export": "2026 042" },
+    { "reference": "26.42_MD", "classement": "26-42_MD", "export": "26.42_MD" },
+    { "reference": "A:B*C?D\"E<F>G|H\\I", "classement": "A-B-C-D-E-F-G-H-I", "export": "A-B-C-D-E-F-G-H-I" },
+    { "reference": "Réf+42", "classement": "R-f-42", "export": "Réf+42" },
+    { "reference": "42.", "classement": "42-", "export": "42-" },
+    { "reference": "COM1", "classement": "COM1", "export": "COM1-" },
+    { "reference": "nul.42", "classement": "nul-42", "export": "nul-.42" },
+    { "reference": "20260042", "classement": "20260042", "export": "20260042" }
+  ],
+  "citations": [
+    { "reference": "RN/26/0042", "texte": "Re: conclusions RN/26/0042", "citee": true },
+    { "reference": "RN/26/0042", "texte": "classement+rn-26-0042@cabinet.test", "citee": true },
+    { "reference": "2026-042", "texte": "Dossier 2026-0421", "citee": false },
+    { "reference": "2026-042", "texte": "X2026-042", "citee": false },
+    { "reference": "2026/042", "texte": "[2026/042] audience", "citee": true },
+    { "reference": "2026/042", "texte": "Réponse 2026-042", "citee": true },
+    { "reference": "MD/26/042", "texte": "md/26/042 relance", "citee": true }
+  ],
+  "collisions": [
+    { "modele": "{AAAA}-{N:3}", "remise": "annuelle", "annee": 2026, "prochain": 92, "reference": "2026-091", "redonnee": false },
+    { "modele": "{AAAA}-{N:3}", "remise": "annuelle", "annee": 2026, "prochain": 92, "reference": "2026-092", "redonnee": true },
+    { "modele": "{AAAA}-{N:3}", "remise": "annuelle", "annee": 2026, "prochain": 1, "reference": "2025-005", "redonnee": false },
+    { "modele": "{AAAA}-{N:3}", "remise": "annuelle", "annee": 2026, "prochain": 92, "reference": "2027-001", "redonnee": true },
+    { "modele": "{AAAA}-{N:3}", "remise": "annuelle", "annee": 2026, "prochain": 92, "reference": "2026/095", "redonnee": true },
+    { "modele": "{AAAA}/{N:3}", "remise": "annuelle", "annee": 2026, "prochain": 5, "reference": "2026-004", "redonnee": false },
+    { "modele": "{N:3}", "remise": "jamais", "annee": 2026, "prochain": 50, "reference": "049", "redonnee": false },
+    { "modele": "{N:3}", "remise": "jamais", "annee": 2026, "prochain": 50, "reference": "050", "redonnee": true },
+    { "modele": "{N:3}", "remise": "jamais", "annee": 2026, "prochain": 50, "reference": "1000", "redonnee": true },
+    { "modele": "{N}", "remise": "jamais", "annee": 2026, "prochain": 50, "reference": "2026-042", "redonnee": false },
+    { "modele": "{N}/{AAAA}", "remise": "annuelle", "annee": 2026, "prochain": 1, "reference": "2027/2026", "redonnee": true },
+    { "modele": "{INI}-{N:3}", "remise": "jamais", "annee": 2026, "prochain": 10, "reference": "MD-012", "redonnee": true },
+    { "modele": "{INI}-{N:3}", "remise": "jamais", "annee": 2026, "prochain": 10, "reference": "md-009", "redonnee": false },
+    { "modele": "{AA}{N:3}", "remise": "annuelle", "annee": 2026, "prochain": 1, "reference": "26042", "redonnee": true },
+    { "modele": "{AAAA}-{N:3}", "remise": "annuelle", "annee": 2026, "prochain": 1, "reference": "2026-000", "redonnee": false },
+    { "modele": "{AAAA}-{N:3}", "remise": "jamais", "annee": 2026, "prochain": 92, "reference": "2025-500", "redonnee": false },
+    { "modele": "{AAAA}-{N:3}", "remise": "jamais", "annee": 2026, "prochain": 92, "reference": "2026-500", "redonnee": true },
+    { "modele": "RN/{AA}/{N:4}", "remise": "annuelle", "annee": 2026, "prochain": 8, "reference": "RN/26/0007", "redonnee": false },
+    { "modele": "RN/{AA}/{N:4}", "remise": "annuelle", "annee": 2026, "prochain": 7, "reference": "RN/26/0007", "redonnee": true }
+  ],
+  "initiales": [
+    { "source": "marie.durand@cabinet.test", "initiales": "MD" },
+    { "source": "jean-pierre.lefevre@cabinet.test", "initiales": "JPL" },
+    { "source": "élodie_martin@cabinet.test", "initiales": "EM" },
+    { "source": "123@cabinet.test", "initiales": "X" },
+    { "source": "a.b.c.d.e@cabinet.test", "initiales": "ABCD" },
+    { "source": "Maître Émile Zola", "initiales": "MEZ" }
+  ]
+}
