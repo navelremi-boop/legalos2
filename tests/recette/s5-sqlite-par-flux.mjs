@@ -64,20 +64,37 @@ if (s9 && !/sqlite3\.connect|sqliteLocal|legalos-powersync-/i.test(s9.texte)) {
   }
 }
 
-// j5 : contrôles documents/versions sans dépôt de pièce sur le dossier restreint = vacuité.
+// j5 : SELECT sur enfants sans dépôt préalable = assertion vacueuse (refus contrôleur a00e56d).
 const j5 = fichiers.find((f) => f.nom === "j5-poste-tauri.mjs");
 if (j5) {
   const checkDocs = /FROM documents WHERE dossier_id = '\$\{idRestreint\}'/.test(j5.texte);
   const checkVersions = /FROM document_versions WHERE dossier_id = '\$\{idRestreint\}'/.test(
     j5.texte,
   );
+  const checkTemps = /FROM temps_saisis WHERE/.test(j5.texte);
+  const checkBrouillons = /FROM brouillons_facture WHERE/.test(j5.texte);
   const depotPiece =
-    /\/api\/documents|presign|empreinte|Garage|document_versions.*POST|POST[\s\S]{0,120}versions/i.test(
+    /\/documents"|\/documents'|\/documents`|presign|empreinte|Garage|deposerGarage|\/versions\/1\/sceller/i.test(
+      j5.texte,
+    );
+  const depotTemps = /\/temps"|\/temps'|POST[\s\S]{0,80}\/temps/i.test(j5.texte);
+  const depotBrouillon =
+    /\/brouillons-facture"|\/brouillons-facture'|brouillons_facture.*POST|POST[\s\S]{0,80}brouillons/i.test(
       j5.texte,
     );
   if ((checkDocs || checkVersions) && !depotPiece) {
     manques.push(
-      "j5-poste-tauri.mjs:461-474 — SELECT documents/versions sur dossier restreint sans dépôt de pièce → assertion vacueuse pour flux documents/versions",
+      "j5-poste-tauri.mjs — SELECT documents/versions sur dossier restreint sans dépôt de pièce → assertion vacueuse",
+    );
+  }
+  if (checkTemps && !depotTemps) {
+    manques.push(
+      "j5-poste-tauri.mjs — SELECT temps_saisis sans POST /temps sur dossier restreint → assertion vacueuse",
+    );
+  }
+  if (checkBrouillons && !depotBrouillon) {
+    manques.push(
+      "j5-poste-tauri.mjs — SELECT brouillons_facture sans POST /brouillons-facture → assertion vacueuse",
     );
   }
 }

@@ -2,11 +2,11 @@
 
 Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
-- **Phase 0–1** VALIDÉES ; **J5–J7** VALIDÉS. Coque corrigée (`22d765e`), non cochée.
-- **En cours** : **Migration Sync Streams** — contrôleur **REFUSÉ** sur `a00e56d` (S5 SQLite) ; correctif j5 + `s5-sqlite-par-flux` ; revalidation en cours.
-- **Ordre** : Migration Sync Streams → J8 → Référence → Coque → Vue scindée → Intercalaires → J9.
-- **Sync** : Streams édition 3, service 1.26.1. GHSA-q6wc-xx4m-92fj + 1.23.3 dans `docs/versions.md`. Dette mensuelle avis PowerSync.
-- **J8 code** déjà sur main (`c34a033`) mais **après** Sync Streams sans VALIDÉ contrôleur Streams — à traiter une fois Streams VALIDÉ.
+- **Phase 0–1** VALIDÉES ; **J5–J7** VALIDÉS ; **Migration Sync Streams** VALIDÉE `9f80388`.
+- **En cours** : **J8** — temps et facturation (S9) ; contrôleur + revue `31-facturation`.
+- **Ordre** : ~~Migration Sync Streams~~ → **J8** → Référence → Coque → Vue scindée → Intercalaires → J9.
+- **Sync** : Streams édition 3, service 1.26.1. GHSA-q6wc-xx4m-92fj + 1.23.3. Dette mensuelle avis PowerSync.
+- **Coque** corrigée (`22d765e`), non cochée (après Référence).
 
 ---
 
@@ -29,7 +29,9 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - Contrôleur sur `a00e56d` (CI verte `36262734653`) : **REFUSÉ** — S5 SQLite incomplet (temps/brouillons Postgres seul ; docs/versions vacueux ; doc trompeuse).
 - Correctif : j5 dépôt réel + SQLite B pour cinq flux ; `s5-sqlite-par-flux.mjs` en CI ; `docs/sync-streams.md` corrigé.
 - Preuves locales : `s5-sqlite-par-flux` OK ; `j5-poste-tauri` OK ; `s5-sync-streams` OK ; j3-liveness via CI.
+- Contrôleur sur `9f80388` (CI `36265441004`) : **VALIDÉ**.
 
-## 2026-09-26 — J8 sync temps (code poussé, hors ordre contrôleur Streams)
+## 2026-09-26 — J8 (repris après Streams VALIDÉ)
 
-- `c34a033` / `07a7ff7` : migration 014, flux temps/brouillons/taux, S5. À valider **après** VALIDÉ Migration Sync Streams.
+- Code déjà sur main (`c34a033` / `07a7ff7` / `a00e56d`) : migration 014, flux temps/brouillons/taux, S9.
+- Prochaine étape : recettes S9 + contrôleur J8 (dont revue règle `31-facturation`).

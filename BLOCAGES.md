@@ -22,7 +22,7 @@
 
 ## Décisions d'architecture en attente
 
-*(Aucune en attente au 2026-09-26.)* **Sync Streams** (`edition: 3`) : migration **engagée** — contrat `docs/sync-streams.md`, déploiement `instance/powersync/sync-config.yaml`. JOIN autorisés (contrat ≤ 2 tables). La copie `visibilite` sur les enfants reste additive ; l’auth des flux restreints passe par `dossier_acces` + `auth.user_id()`.
+*(Aucune en attente au 2026-09-26.)* **Sync Streams** (`edition: 3`) : **VALIDÉ** `9f80388`. Contrat `docs/sync-streams.md`, déploiement `instance/powersync/sync-config.yaml`. JOIN autorisés (contrat ≤ 2 tables). La copie `visibilite` sur les enfants reste additive ; l’auth des flux restreints passe par `dossier_acces` + `auth.user_id()`.
 
 ---
 
