@@ -28,6 +28,7 @@ jobs:
       - run: pnpm --filter @legal-os/poste build
       - run: node tests/recette/j0.mjs
       - run: node tests/recette/s8-delais.mjs
+      - run: node tests/recette/coque-app.mjs
 
   rust:
     runs-on: ubuntu-latest

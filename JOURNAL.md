@@ -810,3 +810,11 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - CI `5ff58b9` (run [36232407821](https://github.com/navelremi-boop/legalos2/actions/runs/36232407821)) : **verte**.
 - Contrôleur [J7](bf3aff8a-2345-41ad-8394-293bdcf65004) : **VALIDÉ** sur `5ff58b9`. Recette rejouée exit 0. Après dépôt et après scellement, un nouveau dépôt de la version 1 est refusé (409). Mineur : un `HeadObject` refusé est traité comme une clé absente. J7 coché. Prochain jalon : Coque de l'app.
 
+## 2026-09-26 — Coque de l'app
+
+- Jetons § 7.3 : huit chemises à quatre valeurs jour et nuit, fond `neutre`, tuile `design/grain.svg`, halos `--lumiere`.
+- Composants : barre du haut, étiquette avec référence, informations, jauge, feuille, intercalaires standards, barre d'actions. Écrans La journée (fond neutre, quatre sections), Dossier ouvert, Dossiers, Réglages ; stubs Mails, Agenda, Facturation. Galerie DEV (`?galerie=1`).
+- Fonctions branchées : nouveau dossier (palette et Dossiers), saisie de temps et calcul de délai depuis la barre d'actions, nom du cabinet et thème dans Réglages. Indicateur de sync (point + libellé), sans bascule en ligne / hors ligne.
+- `node tests/recette/coque-app.mjs` : exit 0. Captures jour et nuit (trois chemises + La journée) sous `design/captures/`, avec barre du haut, après stabilisation de la couleur de chemise.
+- Graisse 800 : ExtraBold absente, Bold déclarée pour `font-weight: 800`. Vue scindée hors périmètre (jalon suivant).
+
