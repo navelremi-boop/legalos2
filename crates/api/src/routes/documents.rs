@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use axum::{extract::State, Json};
@@ -25,6 +26,7 @@ pub struct DepotDocument {
     pub numero: i32,
     pub methode: &'static str,
     pub url: String,
+    pub entetes: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -65,8 +67,14 @@ pub async fn creer_document(
     if !dossier_visible(&state, claims.cabinet_id, claims.sub, body.dossier_id).await? {
         return Err(ApiError::unauthorized("Dossier non autorisé"));
     }
-    sqlx::query(
-        "INSERT INTO documents (id, cabinet_id, dossier_id, nom) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO NOTHING",
+    let insere = sqlx::query(
+        r#"
+        INSERT INTO documents (id, cabinet_id, dossier_id, nom, visibilite, dossier_texte)
+        SELECT $1, $2, dossiers.id, $4, dossiers.visibilite, dossiers.id::text
+        FROM dossiers
+        WHERE dossiers.id = $3 AND dossiers.cabinet_id = $2
+        ON CONFLICT (id) DO NOTHING
+        "#,
     )
     .bind(body.id)
     .bind(claims.cabinet_id)
@@ -75,6 +83,19 @@ pub async fn creer_document(
     .execute(&state.pool)
     .await
     .map_err(|_| ApiError::internal("création document"))?;
+    if insere.rows_affected() == 0 {
+        let deja = sqlx::query_as::<_, (Uuid,)>(
+            "SELECT id FROM documents WHERE id = $1 AND cabinet_id = $2",
+        )
+        .bind(body.id)
+        .bind(claims.cabinet_id)
+        .fetch_optional(&state.pool)
+        .await
+        .map_err(|_| ApiError::internal("lecture document"))?;
+        if deja.is_none() {
+            return Err(ApiError::bad_request("Dossier introuvable"));
+        }
+    }
     depot(&state, body.id, 1).await.map(Json)
 }
 
@@ -154,8 +175,11 @@ pub async fn sceller_version(
     sqlx::query(
         r#"
         INSERT INTO document_versions (
-            id, document_id, numero, empreinte, taille, auteur_id, cle_objet
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            id, document_id, numero, empreinte, taille, auteur_id, cle_objet,
+            cabinet_id, dossier_id, visibilite, dossier_texte
+        )
+        SELECT $1, $2, $3, $4, $5, $6, $7, cabinet_id, dossier_id, visibilite, dossier_texte
+        FROM documents WHERE id = $2
         "#,
     )
     .bind(Uuid::now_v7())
@@ -220,8 +244,27 @@ async fn depot(
         .stockage
         .as_ref()
         .ok_or_else(|| ApiError::internal("stockage absent"))?;
+    let cle = cle_objet(document_id, numero);
+    let scellee = sqlx::query_as::<_, (i32,)>(
+        "SELECT numero FROM document_versions WHERE document_id = $1 AND numero = $2",
+    )
+    .bind(document_id)
+    .bind(numero)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("lecture version"))?;
+    if scellee.is_some() {
+        return Err(ApiError::conflict("Version déjà scellée"));
+    }
+    if stockage
+        .existe(&cle)
+        .await
+        .map_err(|_| ApiError::internal("lecture stockage"))?
+    {
+        return Err(ApiError::conflict("Objet déjà présent"));
+    }
     let url = stockage
-        .url_depot(&cle_objet(document_id, numero))
+        .url_depot(&cle)
         .await
         .map_err(|_| ApiError::internal("lien de dépôt"))?;
     Ok(DepotDocument {
@@ -229,6 +272,7 @@ async fn depot(
         numero,
         methode: "PUT",
         url,
+        entetes: BTreeMap::new(),
     })
 }
 

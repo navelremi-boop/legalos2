@@ -66,6 +66,32 @@ const dossiers = new Table(
   { indexes: { cabinet: ["cabinet_id"], rg: ["numero_rg"] } },
 );
 
+const documents = new Table(
+  {
+    cabinet_id: column.text,
+    dossier_id: column.text,
+    nom: column.text,
+    visibilite: column.text,
+    cree_le: column.text,
+  },
+  { indexes: { dossier: ["dossier_id"] } },
+);
+
+const documentVersions = new Table(
+  {
+    document_id: column.text,
+    cabinet_id: column.text,
+    dossier_id: column.text,
+    numero: column.integer,
+    empreinte: column.text,
+    taille: column.integer,
+    auteur_id: column.text,
+    visibilite: column.text,
+    cree_le: column.text,
+  },
+  { indexes: { document: ["document_id"] } },
+);
+
 const parties = new Table(
   {
     dossier_id: column.text,
@@ -85,6 +111,8 @@ export const AppSchema = new Schema({
   postes,
   dossiers,
   parties,
+  documents,
+  document_versions: documentVersions,
 });
 
 export type Database = (typeof AppSchema)["types"];

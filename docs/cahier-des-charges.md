@@ -1,8 +1,10 @@
 # App de gestion de cabinet — Stack technique et cahier des charges
 
-*Version 4 du 24 septembre 2026. Document de référence, à fournir aussi comme contexte à Cursor.*
+*Version 5 du 26 septembre 2026. Document de référence, à fournir aussi comme contexte à Cursor.*
 
-**Changements depuis la version 3 :** ajout de la direction d'interface (§ 7) : concept de la chemise et de ses intercalaires, jetons de design jour et nuit, règles d'écriture et de typographie française, garde-fous contre le rendu générique ; prototype de référence.
+**Changements depuis la version 4 :** nouvelle direction d'interface (§ 7 entièrement réécrit) : la « chemise ouverte », traitée comme une interface système actuelle (grain fin, lumière douce, transparence, élévation), étiquette de dossier avec référence chiffrée, jauge d'échéance, intercalaires personnalisables, vue scindée chrono et aperçu, barre d'actions flottante, badges « définitif », mode nuit ; nouveau prototype de référence. Ajout de la référence de dossier attribuée par le serveur (§ 3.4) et des règles sur les intercalaires (§ 7.4).
+
+**Changements de la version 4 :** ajout de la direction d'interface (§ 7) : concept de la chemise et de ses intercalaires, jetons de design jour et nuit, règles d'écriture et de typographie française, garde-fous contre le rendu générique ; prototype de référence.
 
 **Changements de la version 3 :** Roundcube abandonné au profit d'un **client mail complet intégré à l'app** (moteur de synchronisation en Rust dans l'API, interface React, mails synchronisés comme le reste des données) ; périmètre mail élargi (tout l'historique, comptes multiples, boîtes partagées) ; plan de construction par étapes et de mise en service en parallèle d'Outlook.
 
@@ -18,7 +20,7 @@
 - **Chaque cabinet choisit ses prestataires** : stockage des fichiers, messagerie, plateforme agréée de facturation électronique. Les identifiants correspondants restent sur son instance.
 - **Distribution gratuite** entre confrères, sans commercialisation. Code publié sous licence libre avec exclusion de garantie.
 - **Code écrit par IA (Cursor)**, relu ligne par ligne sur les zones critiques (voir § 3.9).
-- **Interface identifiable au premier coup d'œil** : concept de la chemise et de ses intercalaires, sans aucun des codes visuels génériques (voir § 7).
+- **Interface identifiable au premier coup d'œil** : on travaille dans la chemise du dossier, avec le traitement visuel des interfaces système actuelles et sans les codes génériques (voir § 7).
 - **Hors périmètre définitif : RPVA.** Retirés du périmètre : contrôle des conflits d'intérêts, registre LCB-FT.
 
 ---
@@ -60,9 +62,9 @@
 |---|---|---|
 | Application | Tauri v2 | App macOS/Windows, binaire léger, webview native |
 | Interface | React + TypeScript strict + Vite, Tailwind v4 + shadcn/ui **entièrement rethémé** | UI et logique métier côté client ; direction visuelle au § 7 |
-| Jetons de design | `design/tokens.css` (variables CSS jour/nuit + couleurs de chemise) | Source unique des couleurs, typographie, rayons, espacements (§ 7.3) |
+| Jetons de design | `design/tokens.css` (variables CSS jour/nuit, huit chemises à quatre valeurs, fond neutre) + tuile de grain embarquée | Source unique des couleurs, matières, typographie, rayons, espacements (§ 7.3) |
 | Typographie | Atkinson Hyperlegible Next, fichiers woff2 **embarqués dans l'app** | Aucune requête vers un service de polices (hors ligne, confidentialité) |
-| Icônes | Tabler Icons (contour) | Usage rare, toujours avec un nom accessible (§ 7.3) |
+| Icônes | Tabler Icons (contour, trait fin) | Tuiles du chrono, barre d'actions, encarts, badges ; toujours avec un libellé ou un nom accessible (§ 7.3) |
 | Données locales et sync | SDK Tauri de PowerSync (`tauri-plugin-powersync` + `@powersync/tauri-plugin`) | SQLite natif géré en Rust, survit aux mises à jour |
 | Types Rust ↔ TS | tauri-specta | Commandes Tauri typées des deux côtés |
 | Secrets locaux | crate `keyring` | Jeton de rafraîchissement dans le Trousseau (macOS) / Gestionnaire d'identification (Windows) |
@@ -162,14 +164,8 @@ La CI bloque tout merge qui ne passe pas clippy, les tests, le typage, la valida
 - Migrations serveur : numérotées (sqlx), exécutées par l'API au démarrage, **après** une sauvegarde, **uniquement additives** (on ajoute d'abord, on supprime plusieurs versions plus tard).
 - Schéma client PowerSync : défini en TypeScript, appliqué sous forme de vues, sans migration locale → évolutif par mise à jour à chaud.
 - Écritures : file d'attente locale → API Rust → Postgres. L'API valide tout (droits, cohérence) ; le poste n'est jamais cru sur parole.
+- **Référence de dossier** (« Dossier 2026-042 ») : année + numéro continu propre au cabinet, remis à zéro chaque année, **attribuée par le serveur** dans une transaction avec contrainte d'unicité, jamais sur le poste. Un dossier créé hors ligne affiche « référence en attente » jusqu'à la synchronisation. Une référence attribuée ne change jamais.
 - Conflits : dernière écriture gagnante par champ par défaut, sauf données sensibles (factures validées, pièces communiquées, mails envoyés) qui sont **immuables** une fois validées.
-- Critères d'acceptation de la synchronisation (jalon J3, deux postes) :
-  1. Modification faite hors ligne sur le poste A : conservée à la fermeture et au redémarrage de l'app, envoyée au retour du réseau, visible sur le poste B.
-  2. Deux champs différents d'un même enregistrement modifiés hors ligne sur A et sur B : les deux modifications survivent. Seuls les champs modifiés sont envoyés ; un enregistrement n'est jamais remplacé en entier.
-  3. Même champ modifié des deux côtés : la dernière écriture gagne, mais pas en silence. Chaque modification porte la version sur laquelle elle a été faite ; le serveur détecte le conflit, conserve la valeur remplacée dans le journal des modifications et le conflit est signalé dans l'app.
-  4. Coupure réseau pendant l'envoi : ni perte, ni doublon.
-  5. Coupure réelle du réseau entre le poste et l'instance (service arrêté ou flux bloqué), pas une simulation interne à l'app.
-  Le scénario s'exécute sur l'application Tauri réelle (SDK Tauri de PowerSync, § 2.1), pas dans un navigateur, et sans option de recette qui modifie le comportement de la synchronisation.
 
 ### 3.5 Fichiers
 
@@ -256,7 +252,7 @@ Rappel : SMTP ne sert qu'à **envoyer**. La lecture passe par **IMAP**.
 - **Boîtes partagées** avec droits : qui les voit, qui y répond ; indication « traité par » / « assigné à » pour éviter les doubles réponses.
 
 **Spécifique avocat**
-- **Classement automatique** quand il est sûr : référence du dossier dans l'objet, ou correspondant lié à un seul dossier actif. Sinon, **suggestion** à valider d'un clic. Corbeille « À classer » pour le reste.
+- **Classement automatique** quand il est sûr : référence du dossier (« 2026-042 ») dans l'objet, ou correspondant lié à un seul dossier actif. Sinon, **suggestion** à valider d'un clic. Corbeille « À classer » pour le reste.
 - **Adresse de classement par dossier** (`classement+2026-042@cabinet.fr` si la messagerie gère les adresses « + », sinon référence dans l'objet), relevée par l'API : fonctionne depuis le téléphone ou n'importe quel client.
 - Onglet « Mails » dans chaque dossier, tous comptes confondus.
 - Nouveau mail depuis un dossier : destinataires suggérés (client, confrère adverse), références pré-remplies, copie classée automatiquement.
@@ -340,7 +336,7 @@ Chaque étape est utilisable seule et réutilise le code de la précédente.
   8. **moteur de synchronisation mail et file d'envoi** — la zone la plus sensible de l'app ;
   9. **nettoyage du HTML des mails et isolation de leur affichage**.
 - Interdit à l'agent : écrire du chiffrement, un mécanisme de synchronisation de données, un analyseur IMAP ou MIME, ou un éditeur de texte riche à la main.
-- **Design** : les jetons et la liste d'interdits du § 7.8 figurent dans les règles Cursor ; aucune couleur écrite en dur dans un composant ; toute modification d'écran est comparée aux captures de référence.
+- **Design** : les jetons et la liste d'interdits du § 7.9 figurent dans les règles Cursor ; aucune couleur écrite en dur dans un composant ; toute modification d'écran est comparée aux captures de référence.
 - **Clés hors dépôt** : clé de mise à jour Tauri, clé minisign, jeton du registre, clés d'API de test de la PA, identifiants des boîtes mail de test → secrets GitHub et trousseau. Fichiers sensibles dans `.cursorignore`.
 
 ---
@@ -368,7 +364,7 @@ Chaque étape est utilisable seule et réutilise le code de la précédente.
 
 | # | Fonctionnalité | Détail | Dans la stack |
 |---|---|---|---|
-| 1 | Dossiers | Client, adversaires, confrères adverses, juridiction, n° RG, type de dossier, étapes en kanban, dossiers liés | Postgres + PowerSync, UI React |
+| 1 | Dossiers | Référence attribuée par le serveur (§ 3.4), client, adversaires, confrères adverses, juridiction, n° RG, type de dossier, étape, dossiers liés ; intercalaires standards et personnalisés (§ 7.4) | Postgres + PowerSync, UI React |
 | 2 | Contacts | Personnes physiques et morales, rôle dans chaque dossier, historique ; données de facturation (SIREN, n° TVA, type de client) | Idem |
 | 3 | Droits par dossier | Accès restreint à certains collaborateurs | Règles de sync PowerSync (§ 3.1) |
 | 4 | Agenda et délais | Audiences, rendez-vous, tâches, rappels ; invitations reçues par mail ajoutées à l'agenda | SQLite local, notifications Tauri |
@@ -453,32 +449,35 @@ Aucune de ces deux fonctionnalités n'apparaît dans les fiches produits consult
 | Developer ID Apple | À prendre si les demandes du Trousseau gênent les confrères |
 | FTS5 dans le SDK Tauri | Vérifier la disponibilité avant de construire la recherche dessus |
 | Couleur des dossiers | Trancher : choix manuel à la création, ou couleur par type de matière paramétrée par le cabinet |
-| Raccourcis clavier | Valider la liste proposée (§ 7.7) avant de la coder, pour éviter les conflits avec le système |
+| Raccourcis clavier | Valider la liste proposée (§ 7.8) avant de la coder, pour éviter les conflits avec le système |
+| Référence de dossier | Format retenu : année + numéro remis à zéro chaque année (« 2026-042 ») ; à confirmer avant le premier dossier réel, car une séquence ne se corrige pas après coup |
+| Écrans non maquettés | La journée, Mails, Agenda, Facturation, Réglages : captures à valider par le commandement au premier passage (§ 7.6) |
 
 ---
 
 ## 7. Interface et design
 
-**Référence visuelle :** prototype publié (https://claude.ai/artifact/22TmtchR14w6DYQrvxp23L), à copier dans le dépôt sous `design/prototype-cabinet.html`. Données fictives.
+**Référence visuelle :** maquette publiée (https://claude.ai/artifact/7Vq3FG7N7dEcmbmdMiGnEV), à copier dans le dépôt sous `design/prototype-cabinet.html`, où elle remplace la version précédente. Données fictives. Elle montre la vue dossier en jour et en nuit, avec trois couleurs de chemise. Les autres écrans ne sont pas maquettés : ils se construisent avec les mêmes composants et les mêmes règles (§ 7.6).
 
-### 7.1 Concept : la chemise et ses intercalaires
+### 7.1 Concept : la chemise ouverte
 
-L'interface part d'un objet que l'avocat manipule chaque jour : la chemise cartonnée de couleur.
-
-- **Chaque dossier a sa couleur de chemise.** Elle marque son onglet ; à l'ouverture, toute la bande d'en-tête du dossier prend sa teinte. On sait dans quel dossier on se trouve sans lire, même avec plusieurs dossiers ouverts.
-- **Les sections du dossier sont des intercalaires** qui dépassent sur le bord droit : Chrono, Procédure, Pièces, Mails, Temps et factures, Notes.
-- **Le cœur du dossier est le chrono** : mails, pièces communiquées, audiences, temps passé, factures et notes dans un seul fil daté, filtrable.
-
-**Principe de retenue :** la chemise est le seul élément audacieux de l'interface. Tout le reste est calme : fond gris-vert neutre, pas d'ombres, pas de cartes, pas de dégradés.
+- **On travaille dans la chemise** : tout l'espace de travail prend la couleur du dossier ouvert.
+- **Le nom et la référence sont sur une étiquette**, posée sur la chemise.
+- **Le contenu est une feuille** (carte blanche en jour, anthracite en nuit), avec une seconde carte qui dépasse derrière.
+- **Les sections sont des intercalaires** qui sortent de sous la feuille, sur la droite.
+- **Le traitement est celui des interfaces système actuelles** (macOS, Windows 11) : grain fin, lumière douce, transparence floutée, élévation.
+- **Retenue** : un seul élément fort, la couleur de la chemise. Tout le reste est calme et lisible.
 
 ### 7.2 Ce qui est écarté, et pourquoi
 
 | Écarté | Pourquoi |
 |---|---|
-| Papier crème, titres en serif très contrasté, accent rouge brique, filets fins façon journal | Signature visuelle actuelle des interfaces générées par IA |
+| Papier crème, titres en serif très contrasté, accent rouge brique, filets façon journal | Signature visuelle actuelle des interfaces générées par IA |
 | Bleu marine, doré, balance de la justice | Cliché « cabinet d'avocats » |
-| Cartes arrondies identiques, ombres grises, dégradés, tableau de bord à quatre chiffres | Kit SaaS par défaut, notamment shadcn/ui non modifié |
-| Libellés en capitales, points médians comme séparateurs, flèches dans les boutons, police à chasse fixe pour les petites étiquettes | Tics de mise en page générée |
+| Éléments artisanaux : traits tracés à la main, tampons encrés, textures de papier | Contraire au rendu technologique voulu |
+| Frise ou étapes de procédure en tête de dossier | Surcharge l'écran |
+| Cadre ou pastille autour de chaque information | Surcharge ; les informations du dossier restent en texte simple |
+| Libellés en capitales, points médians comme séparateurs, flèches dans les boutons | Tics de mise en page générée |
 
 ### 7.3 Jetons
 
@@ -486,102 +485,176 @@ L'interface part d'un objet que l'avocat manipule chaque jour : la chemise carto
 
 | Jeton | Rôle | Jour | Nuit |
 |---|---|---|---|
-| `classeur` | Fond de l'app, barre d'onglets, rail de navigation | #E6EAE8 | #161B1D |
-| `feuille` | Surface de lecture | #F9FAF9 | #1E2427 |
-| `encre` | Texte principal | #1F2629 | #E4EAE8 |
+| `encre` | Texte principal | #141A1C | #E8EEEC |
 | `graphite` | Texte secondaire | #5A6569 | #9CA8AC |
-| `filet` | Séparateurs | #CDD4D1 | #323B3E |
+| `feuille` | Carte de travail, étiquette | #FFFFFF | #1A2023 |
+| `feuille-2` | Fonds secondaires (tuiles, filtres, chiffres, fichiers) | #F6F8F7 | #20272A |
+| `filet` | Séparateurs | #E8ECEB | #2B3438 |
+| `survol` | Survol des lignes | #F3F6F5 | #222A2D |
+| `barre` | Barre du haut, barre d'actions | rgba(16,21,23,.86) + flou | idem |
+| `neutre` | Espace de travail hors dossier (§ 7.6) | #2A3337 | #11171A |
+| `definitif` | Badges « définitif » (fond : même couleur à 9–10 %) | #43388A | #BDB4F5 |
 | `echeance` | Délais à 2 jours ouvrés ou moins, erreurs — **nulle part ailleurs** | #B42318 | #F07A6A |
-| `echeance-fond` | Fond d'une alerte | #FBE9E7 | #3A1F1C |
+| `synchro` | Point « Synchronisé » | #7BD89A | #7BD89A |
 
-Contrastes mesurés : encre sur feuille 14,7:1 (jour) et 12,9:1 (nuit) ; graphite sur feuille 5,7:1 et 6,4:1 ; échéance sur feuille 6,3:1 et 5,8:1.
+Texte posé directement sur une chemise ou sur le fond neutre : #141A1C en jour sur les chemises, #F2F5F4 en nuit et sur le fond neutre.
 
-**Couleurs de chemise** (bande = repère visuel ; teinte = fond ; texte = texte posé sur la teinte)
+Contrastes mesurés : encre sur feuille 17,6:1 (jour) et 14,0:1 (nuit) ; graphite sur feuille 6,0:1 et 6,8:1 ; badge définitif 8,5:1 et 7,7:1 ; échéance 6,6:1 et 6,0:1.
 
-| Chemise | Bande (jour) | Teinte (jour) | Texte (jour) | Bande (nuit) | Teinte (nuit) | Texte (nuit) |
-|---|---|---|---|---|---|---|
-| Kraft | #B98E57 | #F0E5D2 | #664A26 | #C9A06A | #3A3124 | #EBD3AE |
-| Bleu classeur | #6F95C4 | #DCE5F1 | #284C76 | #86A9D6 | #23324A | #C9DAF0 |
-| Vert amande | #7DAE8A | #DDEBE0 | #335C40 | #8DBE9A | #243A2C | #C6E3CE |
-| Jaune paille | #CDAE3C | #F3EBC7 | #5E4E0E | #D6BC57 | #3A3419 | #EEE0A8 |
-| Rose buvard | #D08AAB | #F4E0EA | #7E3A5C | #D99BB8 | #3D2632 | #F0CCDC |
-| Lilas | #9A8BC7 | #E7E2F2 | #4E4178 | #AA9CD6 | #2E2942 | #DCD4F2 |
-| Vert d'eau | #66AEA8 | #D9ECEA | #245C58 | #7CC0BA | #1F3836 | #C2E6E2 |
-| Gris perle | #98A3AB | #E4E8EB | #3F4A51 | #7D8990 | #262E32 | #D3DBDF |
+**Couleurs de chemise** : quatre valeurs par chemise.
+- **fond** : espace de travail, onglet actif, bouton principal de la barre d'actions ;
+- **teinte** : sélection dans le chrono, encarts ;
+- **texte** : texte posé sur la teinte, référence du dossier sur l'étiquette ;
+- **accent** : icônes, pastilles, indicateurs.
 
-Texte sur teinte : au moins 6,2:1 dans tous les cas (mesuré). La bande n'atteint pas 3:1 sur la feuille en mode jour : elle ne sert jamais seule à identifier un dossier (voir § 7.4).
+*Jour*
+
+| Chemise | Fond | Teinte | Texte | Accent |
+|---|---|---|---|---|
+| Kraft | #CE9A55 | #F6E7CE | #5A3F14 | #A9783A |
+| Bleu classeur | #6FA2E0 | #E1ECFA | #1C4273 | #3F72B8 |
+| Vert amande | #6CBF84 | #E1F3E7 | #1F5431 | #3E9158 |
+| Jaune paille | #D9B84A | #F7EFCB | #5A4A0C | #9C8420 |
+| Rose buvard | #D98BB0 | #F8E4EE | #7A2F55 | #B0557F |
+| Lilas | #A493D6 | #ECE7F8 | #45377A | #7462B5 |
+| Vert d'eau | #5FB8B0 | #DDF2F0 | #1D5550 | #2F8A82 |
+| Gris perle | #A3AEB6 | #E9EDF0 | #36424A | #6B7882 |
+
+*Nuit*
+
+| Chemise | Fond | Teinte | Texte | Accent |
+|---|---|---|---|---|
+| Kraft | #6E5128 | #3A2E1C | #F2D6AB | #D9A860 |
+| Bleu classeur | #2F4F7A | #1E2F48 | #D2E3F8 | #86B6F0 |
+| Vert amande | #2E5A3D | #1C3827 | #CFEDD8 | #86CF9C |
+| Jaune paille | #6B5A1C | #36301A | #F2E3A8 | #D9C25A |
+| Rose buvard | #6E3350 | #3A2130 | #F4CFE0 | #E39CBF |
+| Lilas | #4A3F78 | #2A2542 | #DDD5F5 | #B1A3E8 |
+| Vert d'eau | #245A56 | #183634 | #C6ECE8 | #7FCFC7 |
+| Gris perle | #45515A | #283034 | #D8DFE3 | #A9B5BD |
+
+Contrastes mesurés, minimum sur les huit chemises : texte sur le fond 6,5:1 (jour) et 6,2:1 (nuit) ; texte sur la teinte 7,3:1 ; référence sur l'étiquette 8,5:1 ; accent sur les fonds secondaires 3,4:1 (éléments non textuels).
+
+**Matière et lumière**
+- **Grain** : bruit fin et uniforme sur la chemise et l'onglet actif, opacité moyenne d'environ 4 %. Tuile fixe embarquée dans `design/`, jamais calculée en continu.
+- **Lumière** : deux halos radiaux très doux sur la chemise, clair en haut à gauche, sombre en bas à droite, plus discrets en nuit ; léger reflet en haut de l'onglet actif.
+- **Jamais** de dégradé multicolore ni de halo coloré.
+
+**Transparence floutée** : barre du haut, barre d'actions, jauge, intercalaires inactifs. Petites surfaces uniquement ; jamais sur la feuille, ni derrière un texte long.
+
+**Élévation** : étiquette, jauge, feuille, intercalaire actif, barre d'actions, menus et palette de commandes. Ombres douces et diffuses ; aucune ombre sur les lignes de liste.
 
 **Typographie**
-- Famille unique : **Atkinson Hyperlegible Next** (licence OFL), fichiers woff2 embarqués dans l'app.
+- Famille unique : **Atkinson Hyperlegible Next** (licence OFL), fichiers woff2 embarqués.
 - Chiffres tabulaires partout (`font-variant-numeric: tabular-nums`).
-- Deux graisses : 400 pour le texte, 700 pour les noms de dossiers, les titres et les éléments actifs.
-- Échelle : 12 px (métadonnées), 13 px (texte secondaire, listes denses), 14 px (base), 17 px (titres de section), 26 px (nom du dossier), 28 px (titre de « La journée »). Interligne 1,45.
-- Lecture d'un mail : 15 px, interligne 1,6, 72 caractères au plus par ligne.
+- Graisses : 400 (texte), 700 (libellés, éléments actifs), 800 (titres, nom du dossier).
+- Échelle : 11–12 px (compteurs, libellés des informations du dossier), 12,5–13 px (métadonnées, boutons), 14 px (texte courant), 17–18 px (titres de section, titre de l'aperçu), 26 px (nom du dossier).
+- Interligne 1,45 ; corps d'un mail : 1,6 et 62 caractères au plus par ligne.
 - Casse de phrase partout ; jamais de libellés en capitales.
 
-**Formes**
-- Rayons selon le rôle : onglets de dossier 8 px (coins hauts) ; intercalaires 7 px (côté extérieur) ; boutons et champs 5 px ; pastilles de chemise 2 px ; menus et palette de commandes 8 px ; zones de l'application sans arrondi.
-- Ombres : aucune, sauf pour les couches flottantes (menus, palette de commandes, dialogues), avec une seule ombre définie.
-- Séparation par la couleur des surfaces (classeur / feuille) et par des filets dans les listes ; jamais de cartes pour présenter une liste.
+**Formes** : onglets 12 px, avec raccords courbes vers la chemise ; feuille et carte arrière 18 px (coins hauts) ; étiquette, encarts et lignes de liste 12 px ; tuiles d'icône 9 px ; boutons 8 à 11 px ; pastilles et badges en arrondi complet.
 
-**Espacements** : grille de 4 px ; marges de page 32 px ; lignes de liste d'environ 44 px (densité compacte par défaut, densité confortable en option).
+**Espacements** : grille de 4 px ; chemise 28 px en haut et 42 px à gauche ; feuille 18 à 26 px.
 
 **Mouvement**
-- Instantané par défaut : changement d'onglet, filtres, navigation.
-- Un seul mouvement orchestré : le classement d'un mail. Le mail file vers l'onglet de son dossier (460 ms), puis l'onglet s'allume brièvement (700 ms).
-- Retours d'action discrets autorisés (150 ms au plus) à l'ouverture et à la fermeture des menus.
+- Survol et sélection : 150 ms.
+- Changement de dossier : transition de couleur de 300 ms.
+- Un seul mouvement orchestré : le classement d'un mail, qui file vers l'onglet de son dossier.
 - Le réglage système « réduire les animations » est respecté.
 
-**Icônes** : Tabler Icons en contour, trait fin ; usage rare ; jamais seules, sauf pour fermer, rechercher ou pièce jointe, et toujours avec un nom accessible.
+**Icônes** : un seul jeu à trait fin (Tabler Icons, contour), dans les tuiles du chrono, la barre d'actions, les encarts et les badges (cadenas). Toujours avec un libellé ou un nom accessible.
 
-### 7.4 Règles de la chemise
+### 7.4 Composants
 
-- **Choix de la couleur** à la création du dossier, avec une suggestion qui évite les couleurs des dossiers déjà ouverts. Option du cabinet : couleur attribuée par type de matière.
-- **Où elle apparaît** : onglet du dossier, bande d'en-tête, intercalaires, chronomètre, et pastille du dossier partout où il est cité (agenda, mails, factures, suggestions de classement).
-- **Où elle n'apparaît jamais** : statuts, alertes, boutons d'action génériques.
-- **Jamais seule** pour identifier un dossier : toujours accompagnée de son nom.
-- **Huit couleurs seulement.** Au-delà, les couleurs se répètent entre dossiers ; le nom lève l'ambiguïté.
+**Barre du haut**
+- Navigation : La journée, Dossiers, Mails (avec compteur), Agenda, Facturation. Temps et Réglages dans le menu du compte, à droite, et dans la palette de commandes.
+- Onglets des dossiers ouverts. L'onglet actif prend la couleur de la chemise, avec raccords courbes et croix de fermeture ; les inactifs sont discrets, avec la pastille de leur couleur. Quand la largeur manque, les onglets se réduisent, puis un menu liste les dossiers ouverts.
+- Indicateur de synchronisation : un point et « Synchronisé », ou « Hors ligne, 3 modifications en attente ».
+- Chronomètre, avec la pastille du dossier chronométré ; recherche et palette de commandes (Ctrl K).
 
-### 7.5 Écrans clés
+**Étiquette** : « Dossier 2026-042 » (12 px, gras, couleur *texte* de la chemise), puis le nom du dossier (26 px). Fond `feuille`, élévation légère, sans liseré.
 
-- **La journée (accueil)** : audiences et rendez-vous du jour, délais, mails à classer avec leur suggestion de dossier, temps non saisi. Pas de statistiques.
-- **Dossier** : bande d'en-tête (nom, étape, juridiction, n° RG, client, adversaire, prochaine échéance), chrono filtrable, intercalaires.
-- **Client mail** : trois volets (comptes et dossiers IMAP, liste, lecture). Chaque mail classé porte la pastille de son dossier ; un bandeau « Classer dans … » propose le dossier en tête du mail ; glisser un mail sur l'onglet d'un dossier le classe.
-- **Facturation** : liste des factures avec leur statut sur la plateforme agréée ; création depuis le dossier, avec les temps non facturés déjà repris.
-- **Palette de commandes** (⌘K sur Mac, Ctrl+K sur Windows) : aller à un dossier (par nom, client ou n° RG), créer (facture, mail, rendez-vous, temps), agir sur l'élément affiché.
-- **Barre de titre** : onglets des dossiers ouverts intégrés à la barre de titre de la fenêtre, chronomètre (avec la pastille du dossier en cours), recherche, bascule jour/nuit.
+**Informations du dossier** : juridiction, n° RG, client, adversaire (ou nature et notaire pour un dossier de conseil). Texte simple, sans cadre, aligné sur le texte de l'étiquette.
 
-### 7.6 Écriture et typographie française
+**Jauge d'échéance** : anneau indiquant les jours restants et la part du temps écoulé depuis l'étape précédente, avec l'intitulé et la date de l'échéance, sur verre dépoli. Délai de 2 jours ouvrés ou moins : anneau et nombre en `echeance`.
 
-- **Une fonction de mise en forme unique** (`fr()`) appliquée à tout texte d'interface : espaces fines insécables avant « : ; ? ! » et à l'intérieur des guillemets « », espace insécable avant « € », après « Me » et « n° ».
+**Feuille** : carte de travail avec une carte derrière ; elle affiche la vue de l'intercalaire actif.
+
+**Intercalaires**
+- Standards : Chrono, Procédure (Étapes pour un dossier de conseil), Pièces, Mails, Factures, avec leurs compteurs.
+- Personnalisés : bouton « + Intercalaire », saisie du nom ; croix pour retirer un intercalaire personnalisé.
+- Rendu : l'actif est blanc et attaché à la feuille ; les inactifs sont en verre dépoli, sans bord du côté de la feuille, comme s'ils sortaient de dessous.
+- **Règles** :
+  - les intercalaires standards ne peuvent pas être retirés ;
+  - un élément rangé dans un intercalaire reste visible dans le chrono : c'est un classement supplémentaire, pas un déplacement ;
+  - retirer un intercalaire ne supprime jamais son contenu ;
+  - les intercalaires personnalisés sont synchronisés et soumis aux droits du dossier.
+
+**Vue scindée (intercalaire Chrono)**
+- À gauche, la liste : groupée par période (Aujourd'hui, Cette semaine, Plus tôt), avec des filtres (Tout, Mails, Pièces, Factures). Chaque ligne : tuile d'icône, titre, métadonnées, puis l'heure ou un badge à droite. La sélection prend la *teinte* de la chemise.
+- À droite, l'aperçu, adapté au type d'élément :
+  - **mail** : expéditeur, texte, pièces jointes, encart expliquant le classement, avec un bouton « Changer » ;
+  - **pièces** : bordereau, liste des pièces, mention « définitif » ;
+  - **facture** : montant, encaissé, reste dû, barre de progression, statut sur la plateforme agréée ;
+  - **audience** : ajout à l'agenda ;
+  - **note** : texte et visibilité.
+
+**Badges « définitif »** : cadenas et libellé (Communiquées, Validée, Encaissée, Envoyé), en `definitif`. Réservés à ce qui ne peut plus être modifié.
+
+**Barre d'actions flottante** : Nouveau mail (bouton principal, à la couleur du dossier), Saisir du temps, Facturer, Calculer un délai, avec les raccourcis affichés. Hors dossier, elle propose les actions globales.
+
+### 7.5 Règles de la chemise
+
+- **Choix de la couleur** à la création du dossier, avec une suggestion qui évite les couleurs des onglets ouverts. Option du cabinet : couleur attribuée par type de matière.
+- **Où elle apparaît** : fond de l'espace de travail, onglet actif, pastille du dossier partout où il est cité, bouton principal de la barre d'actions ; sa *teinte* pour la sélection et les encarts ; son *accent* pour les icônes.
+- **Où elle n'apparaît jamais** : statuts, alertes, badges « définitif ».
+- **Jamais seule** : toujours accompagnée du nom du dossier et de sa référence.
+- **Huit couleurs seulement** : au-delà, les couleurs se répètent entre dossiers ; le nom lève l'ambiguïté.
+
+### 7.6 Écrans non maquettés
+
+La journée, Dossiers, Mails, Agenda, Facturation et Réglages suivent la même structure : barre du haut, espace de travail, feuille, barre d'actions.
+
+- **Hors dossier**, l'espace de travail prend la couleur `neutre`, sans étiquette de dossier.
+- **La journée** : une feuille en quatre sections (audiences et rendez-vous du jour, délais, mails à classer avec leur suggestion de dossier, temps à saisir). Chaque dossier cité porte sa pastille. Barre d'actions : Nouveau dossier, Nouveau mail, Saisir du temps.
+- **Mails** : une feuille en trois volets (comptes et dossiers IMAP, liste, lecture). Chaque mail classé porte la pastille de son dossier, et un bandeau « Classer dans … » s'affiche en tête d'un mail non classé.
+- **Agenda, Facturation, Réglages** : une feuille unique, construite avec les mêmes composants.
+- **Validation** : au premier passage, chaque nouvel écran fait l'objet de captures en jour et en nuit, revues par le contrôleur au regard du présent § 7, puis validées par le commandement.
+
+### 7.7 Écriture et typographie française
+
+- **Une fonction de mise en forme unique** (`fr()`) appliquée à tout texte affiché, y compris les objets et le texte des mails : espaces fines insécables avant « : ; ? ! » et à l'intérieur des guillemets « », espace insécable avant « € », après « Me » et « n° ».
 - **Nombres et montants** : `Intl.NumberFormat('fr-FR')`, soit « 2 400,00 € ».
 - **Dates et heures** : « 24 sept. », « jeudi 24 septembre » ; heures au format « 9 h 12 » (formateur maison : `Intl` produit « 09:12 ») ; durées « 1 h 30 ».
 - **Apostrophe typographique** (’) partout.
 - **Rédaction** : verbes d'action (« Classer dans Ferrand Métal », « Saisir »), casse de phrase, pas de points médians comme séparateurs, pas de flèches dans les boutons. Un message d'erreur dit ce qui s'est passé, puis quoi faire. Un état vide dit ce qu'on peut faire.
 
-### 7.7 Accessibilité et clavier
+### 7.8 Accessibilité et clavier
 
-- Contraste AA au minimum pour tout texte (voir mesures au § 7.3).
-- Focus visible partout ; toute action réalisable au clavier.
-- Raccourcis proposés (à valider) : ⌘K palette de commandes ; ⌘1 à ⌘9 onglets de dossiers ; J / K mail suivant / précédent ; E archiver ; C classer ; R répondre ; T saisir du temps.
+- Contraste AA au minimum pour tout texte (voir les mesures du § 7.3).
+- Focus visible partout : onglets, intercalaires, lignes du chrono, boutons de la barre d'actions. Toute action est réalisable au clavier.
+- Raccourcis proposés (à valider) : Ctrl K palette de commandes ; Ctrl 1 à Ctrl 9 onglets de dossiers ; J / K élément suivant / précédent ; E archiver ; C classer ; R répondre ; T saisir du temps. Sur macOS, ⌘ remplace Ctrl.
 - Zoom de l'interface réglable.
 
-### 7.8 Mise en œuvre et garde-fous
+### 7.9 Mise en œuvre et garde-fous
 
-- `design/tokens.css` : source unique des jetons, jour et nuit, y compris les huit chemises.
+- `design/tokens.css` : source unique des jetons, jour et nuit, y compris les huit chemises à quatre valeurs, le fond neutre et la tuile de grain.
 - Tailwind v4 lit ces jetons ; le thème shadcn/ui est entièrement réécrit à partir d'eux ; les composants shadcn copiés dans le dépôt sont adaptés (rayons, densité, graisses).
-- Police embarquée dans les ressources de l'app.
-- Galerie de composants (page réservée au développement) pour relire chaque composant en jour et en nuit.
+- Police et tuile de grain embarquées dans les ressources de l'app.
+- Galerie de composants (page réservée au développement), en jour et en nuit.
 - Prototype de référence dans `design/prototype-cabinet.html` : tout nouvel écran lui est comparé.
+- **Performance** : flou limité aux petites surfaces ; aucun filtre SVG calculé en continu ; ombres portées uniquement sur des éléments fixes.
 - **Interdits** (repris dans les règles Cursor) :
   - toute autre police (Inter, Geist, etc.) ;
-  - dégradés, ombres sur les blocs, cartes pour les listes ;
+  - dégradés multicolores, halos colorés ;
+  - flou sur de grandes surfaces ou derrière un texte long ;
+  - ombres sur les lignes de liste ; cadre ou pastille autour de chaque information ;
   - toute couleur hors jetons, et tout code couleur écrit en dur dans un composant ;
-  - rouge en dehors des délais et des erreurs ; couleurs de chemise pour des statuts ;
+  - rouge `echeance` en dehors des délais et des erreurs ; violet `definitif` en dehors de ce qui est définitif ; couleurs de chemise pour des statuts ;
   - libellés en capitales, points médians comme séparateurs, flèches dans les boutons ;
-  - icônes seules sans nom accessible ;
-  - animations d'entrée sur les listes et les pages ;
-  - illustrations et émojis.
+  - icône seule sans libellé ni nom accessible ;
+  - éléments artisanaux : traits à la main, tampons, textures de papier ;
+  - illustrations, émojis, animations d'entrée sur les listes et les pages.
 
 ---
 
@@ -600,7 +673,7 @@ Texte sur teinte : au moins 6,2:1 dans tous les cas (mesuré). La bande n'attein
 
 **Interface**
 - Atkinson Hyperlegible Next (Braille Institute, licence OFL) : https://www.brailleinstitute.org/freefont/
-- Prototype de référence : https://claude.ai/artifact/22TmtchR14w6DYQrvxp23L
+- Prototype de référence : https://claude.ai/artifact/7Vq3FG7N7dEcmbmdMiGnEV
 
 **Mail**
 - async-imap : https://github.com/async-email/async-imap

@@ -9,6 +9,7 @@
 | B6 | Compte Apple Developer | Non disponible | S14b ad hoc |
 | B7 | SUPER PDP réel | Simulateur dans `instance/` | Prod |
 | B8 | Boîtes mail réelles | GreenMail | Tests mail |
+| B9 | Écrans non maquettés (cahier § 7.6) | Valider, au premier passage, les captures jour et nuit de La journée, Dossiers, Mails, Agenda, Facturation et Réglages. Le prototype ne montre que la vue dossier. | Le reste continue en attendant |
 
 **Levé ou contourné** : Git 2.55, rustup, pnpm, Windows SDK 22621, polices Atkinson, scripts `bootstrap-path.ps1` / `clippy.ps1`.
 

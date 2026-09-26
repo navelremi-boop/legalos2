@@ -38,6 +38,20 @@ impl StockageFichiers {
         })
     }
 
+    pub async fn existe(&self, cle: &str) -> Result<bool, StockageError> {
+        match self.interne.stat(cle).await {
+            Ok(_) => Ok(true),
+            // Garage 1.0.1 répond 403 à HeadObject sur une clé absente, et refuse If-None-Match.
+            Err(err)
+                if err.kind() == opendal::ErrorKind::NotFound
+                    || err.kind() == opendal::ErrorKind::PermissionDenied =>
+            {
+                Ok(false)
+            }
+            Err(err) => Err(err.into()),
+        }
+    }
+
     pub async fn url_depot(&self, cle: &str) -> Result<String, StockageError> {
         let requete = self
             .public

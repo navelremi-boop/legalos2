@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-25 (état-major — J7 VALIDÉ).
+Dernière mise à jour : 2026-09-26 (cahier version 5 — J7 décoché, coque avant la suite de la phase 2).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -57,11 +57,26 @@ Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénari
   - **Validation 2026-09-25** : contrôleur VALIDÉ sur `340ac42` (CI [36172577399](https://github.com/navelremi-boop/legalos2/actions/runs/36172577399)). `j5-poste-tauri.mjs` exit 0 : palette et absence du dossier restreint dans le SQLite du collaborateur.
 - [x] **J6** — Agenda et délais (S8, `docs/hypotheses-delais.md`)
   - **Validation 2026-09-25** : contrôleur VALIDÉ sur `bf3bfe3` (CI [36179592258](https://github.com/navelremi-boop/legalos2/actions/runs/36179592258)). `s8-delais.mjs` exit 0. Règles H1–H8 marquées « à valider par l'avocat ». Agenda complet hors périmètre.
-- [x] **J7** — Documents et versions (S6)
-  - **Validation 2026-09-25** : contrôleur VALIDÉ sur `2eb7266` (CI [36183981852](https://github.com/navelremi-boop/legalos2/actions/runs/36183981852)). `s6-documents.mjs` exit 0 sur Garage. Écarts consignés : métadonnées pas encore dans les règles PowerSync ; un second dépôt du même id peut réécrire l'objet v1.
+- [ ] **J7** — Documents et versions (S6)
+  - **Décoché 2026-09-26** : l'écart touche l'invariant § 5.2 (pas d'écrasement silencieux). Un second dépôt du même identifiant peut réécrire un objet déjà scellé. Les métadonnées ne descendent pas vers les postes.
+  - **Critères** : l'API refuse toute réécriture d'une version scellée ; écriture conditionnelle côté Garage si le service l'accepte ; métadonnées `documents` et `document_versions` dans les règles PowerSync, avec les mêmes droits que le dossier ; `node tests/recette/s6-documents.mjs` exit 0 ; contrôleur VALIDÉ ; CI verte.
+  - Ancien verdict, à reprendre : contrôleur VALIDÉ sur `2eb7266` (CI [36183981852](https://github.com/navelremi-boop/legalos2/actions/runs/36183981852)).
+- [ ] **Coque de l'app** — avant la suite de la phase 2 (cahier § 7, version 5)
+  - `design/tokens.css` conforme au § 7.3 : couleurs de base, huit chemises à quatre valeurs (fond, teinte, texte, accent), jour et nuit, fond `neutre`, tuile de grain embarquée ; thème shadcn réécrit à partir de ces jetons.
+  - Composants du § 7.4 : barre du haut, étiquette avec référence, informations du dossier, jauge d'échéance, feuille, intercalaires standards, barre d'actions flottante. Jour et nuit.
+  - Hors dossier : fond `neutre`. La journée selon le § 7.6.
+  - Fonctions déjà présentes à leur place : nouveau dossier depuis la palette et la vue Dossiers ; saisie de temps rattachée à un dossier, depuis la barre d'actions et le chronomètre ; calcul de délai depuis la barre d'actions (type choisi dans la bibliothèque, lieu où demeure la partie : métropole, outre-mer, étranger) ; nom du cabinet et thème dans Réglages.
+  - Synchronisation invisible : aucun bouton « hors ligne » ou « en ligne ».
+  - Galerie de démonstration réservée au développement, absente des builds distribués.
+  - Recettes sur des `data-testid` stables. Captures jour et nuit de la vue dossier (trois couleurs de chemise) et de La journée, comparées au prototype par le contrôleur.
+- [ ] **Vue scindée** — chrono groupé par période, filtres, aperçu selon le type (mail, pièces, facture, audience, note), badges « définitif » (§ 7.4). Captures comparées au prototype.
+- [ ] **Référence de dossier** — § 3.4 : année + numéro remis à zéro chaque année, attribué par le serveur dans une transaction avec unicité ; « référence en attente » hors ligne ; jamais modifiée. Le classement des mails la cherche dans l'objet. Test : deux postes créent en même temps, sans doublon ni trou.
+- [ ] **Intercalaires personnalisés** — § 7.4 : table synchronisée, droits du dossier ; rattacher un élément ne le retire pas du chrono ; retirer un intercalaire ne supprime pas son contenu ; les standards ne se retirent pas.
 - [ ] **J8** — Temps et facturation électronique (S9)
+  - **Dette** (majeur, à solder avant la fin de la phase 2) : fausse alerte de conflit J3 sur une écriture séquentielle du même poste après reprise.
+  - **Dette** (à solder dans ce jalon) : `temps_saisis` et `brouillons_facture` sont des tables SQLite hors synchronisation ; la validation crée un dossier ; le taux horaire est une constante. Ils doivent se synchroniser, garder un numéro nul jusqu'à la validation, se rattacher à un dossier existant, et prendre le taux comme paramètre.
 - [ ] **J9** — Mail étapes 1–3 (S7 partiel)
-- [ ] **J10** — Écrans clés conformes au prototype (base)
+- [ ] **J10** — Écrans restants (Mails, Agenda, Facturation, Réglages) selon le § 7.6, après la coque
 
 Chaque jalon : critères = tests recette + clippy + contrôleur.
 

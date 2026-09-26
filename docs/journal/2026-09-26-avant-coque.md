@@ -801,11 +801,3 @@ Aucun écart **bloquant** ni **majeur** sur le périmètre J2 actuel.
 - Contrôleur [J8](80f27e83-84d3-488d-8a7f-cc1f2fc67ee2) : **REFUSÉ** sur `d7c274e`. Temps, brouillon hors ligne et jeu § 3.7 rejoués (exit 0). Bloquant : `UPDATE` des lignes d'une facture validée réussissait. La CI de ce commit n'existait pas encore.
 - Migration `012_lignes_immuables.sql` : insertion, modification et suppression des lignes refusées dès que la facture est validée. `node tests/recette/s9-factures.mjs` : `facture validée immuable (entête et lignes)`. J8 non coché.
 
-## 2026-09-26 — Cahier version 5, J7 rouvert
-
-- `docs/cahier-des-charges.md` remplacé par la version 5 du 26 septembre 2026 (chemise ouverte, référence de dossier, intercalaires). Le prototype déjà dans `design/prototype-cabinet.html` correspond à cette version.
-- J7 décoché : réécrire un objet déjà scellé touchait l'invariant d'absence d'écrasement. L'API répond 409 si la version est scellée ou si l'objet est déjà visible. Garage 1.0.1 refuse `If-None-Match` et répond 403 à un `HeadObject` sur une clé absente : pas d'écriture conditionnelle possible sur ce service. Les métadonnées des documents sont dans les règles PowerSync, filtrées comme le dossier.
-- Le nœud Garage n'avait plus de rôle ni de clé. Layout, seau `legalos` et clé d'API recréés localement. Le secret n'est pas dans le dépôt.
-- `node tests/recette/s6-documents.mjs` : exit 0. J7 non coché : pas encore de nouveau verdict contrôleur ni de CI sur ce correctif.
-- Prochain jalon après J7 : Coque de l'app, avant le reste de la phase 2. La journée et les autres écrans hors prototype sont en B9.
-

@@ -53,9 +53,30 @@ async function json(chemin, jeton, methode, corps) {
   return texte ? JSON.parse(texte) : {};
 }
 
-async function deposer(url, octets) {
-  const reponse = await fetch(url, { method: "PUT", body: octets });
-  if (!reponse.ok) fail(`dépôt S3 → ${reponse.status}`);
+async function deposer(url, octets, entetes) {
+  const headers = {};
+  if (entetes && typeof entetes === "object") {
+    for (const [nom, valeur] of Object.entries(entetes)) {
+      if (typeof valeur === "string") headers[nom] = valeur;
+    }
+  }
+  const reponse = await fetch(url, { method: "PUT", body: octets, headers });
+  if (!reponse.ok) {
+    const texte = await reponse.text();
+    fail(`dépôt S3 → ${reponse.status} ${texte.replace(/[A-Za-z0-9+/=]{20,}/g, "…").slice(0, 180)}`);
+  }
+}
+
+async function statut(chemin, jeton, methode, corps) {
+  const reponse = await fetch(`${api}${chemin}`, {
+    method: methode,
+    headers: {
+      authorization: `Bearer ${jeton}`,
+      "content-type": "application/json",
+    },
+    body: corps === undefined ? undefined : JSON.stringify(corps),
+  });
+  return reponse.status;
 }
 
 async function lire(url) {
@@ -92,13 +113,43 @@ const chemin1 = exigerGarage(depot1.url, "dépôt v1");
 if (!chemin1.includes(`/documents/${documentId}/v1`)) {
   fail("clé objet v1 absente du chemin de dépôt");
 }
-await deposer(depot1.url, v1);
+await deposer(depot1.url, v1, depot1.entetes);
+const avantSceau = await fetch(`${api}/documents`, {
+  method: "POST",
+  headers: { authorization: `Bearer ${jeton}`, "content-type": "application/json" },
+  body: JSON.stringify({
+    id: documentId,
+    dossier_id: dossierId,
+    nom: "note-fictive.txt",
+    idempotence_cle: `${documentId}:creer`,
+  }),
+});
+if (avantSceau.status === 409) {
+  /* l'API a vu l'objet */
+} else if (avantSceau.ok) {
+  const second = await avantSceau.json();
+  const ecrasement = await fetch(second.url, {
+    method: "PUT",
+    body: Buffer.from("ecrasement interdit"),
+    headers: second.entetes ?? {},
+  });
+  if (ecrasement.ok) fail("le stockage a réécrit l'objet v1");
+} else {
+  fail(`réécriture v1 : statut ${avantSceau.status}`);
+}
 const sceau1 = await json(`/documents/${documentId}/versions/1/sceller`, jeton, "POST", {
   empreinte: empreinte(v1),
   idempotence_cle: `${documentId}:v1`,
 });
 if (sceau1.taille !== v1.length) fail("taille v1");
 if (sceau1.empreinte !== empreinte(v1)) fail("empreinte v1");
+const apresSceau = await statut("/documents", jeton, "POST", {
+  id: documentId,
+  dossier_id: dossierId,
+  nom: "note-fictive.txt",
+  idempotence_cle: `${documentId}:creer`,
+});
+if (apresSceau !== 409) fail(`version scellée réinscriptible (${apresSceau})`);
 
 const lien1 = await json(`/documents/${documentId}/versions/1`, jeton, "GET");
 const cheminLecture1 = exigerGarage(lien1.url, "lecture v1");
@@ -115,7 +166,7 @@ if (!chemin2.includes(`/documents/${documentId}/v2`)) {
   fail("clé objet v2 absente du chemin de dépôt");
 }
 if (chemin2 === chemin1) fail("clé objet v2 identique à v1 (écrasement)");
-await deposer(depot2.url, v2);
+await deposer(depot2.url, v2, depot2.entetes);
 const sceau2 = await json(`/documents/${documentId}/versions/2/sceller`, jeton, "POST", {
   empreinte: empreinte(v2),
   idempotence_cle: `${documentId}:v2`,

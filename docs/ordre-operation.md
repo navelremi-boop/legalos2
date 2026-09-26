@@ -133,7 +133,9 @@ Un jalon n'est coché dans `PLAN.md` que si **tout** est vrai :
 5. documentation à jour ;
 6. commits sur `main`, CI verte.
 
-Preuves dans `JOURNAL.md`, pour chaque jalon : commandes lancées, résumé des résultats, date.
+Un écart qui touche un invariant du § 5 est toujours **bloquant** : le jalon reste décoché tant qu'il n'est pas corrigé. Tout autre écart classé majeur devient une ligne de dette dans `PLAN.md`, rattachée à un jalon précis, et ne peut pas rester ouvert au-delà de la fin de la phase en cours.
+
+Preuves dans `JOURNAL.md`, pour chaque jalon : commandes lancées, résumé des résultats, date. L'historique des phases terminées est dans `docs/journal/`. `JOURNAL.md` ne garde qu'une synthèse courte et le jalon en cours.
 
 ### 4.5 Conduite face aux obstacles
 
@@ -169,7 +171,7 @@ Tant que ce n'est pas le cas : ne jamais conclure, ne jamais demander « voulez-
 3. **Factures** : numérotation continue attribuée par le serveur ; facture validée immuable, correction par avoir.
 4. **Pas d'hébergement central** des données des cabinets.
 5. **Pas de code maison pour** : chiffrement, synchronisation de données, analyse IMAP ou MIME, éditeur de texte riche.
-6. **Design** : § 7 du cahier des charges ; interdits du § 7.8 ; aucune couleur en dur.
+6. **Design** : § 7 du cahier des charges (version 5) ; interdits du § 7.9 ; aucune couleur en dur.
 7. **Tests de l'app construite** : le serveur WebDriver embarqué n'existe que dans les builds de test (feature Cargo dédiée), jamais dans les builds distribués.
 8. **Secrets** : ne jamais lire ni écrire de secret réel ; clés de signature de test générées localement, jamais commitées.
 9. **Dépendances** : versions vérifiées dans la documentation officielle et consignées dans `docs/versions.md` avant tout ajout.
@@ -188,5 +190,5 @@ Tant que ce n'est pas le cas : ne jamais conclure, ne jamais demander « voulez-
 
 - **Ne me sollicite que pour** : un secret ou un compte ; une contradiction du cahier des charges touchant un invariant ; une règle juridique impossible à trancher. Dans ces trois cas, passe par `BLOCAGES.md` et continue le reste.
 - **État de la mission lisible à tout moment** : `PLAN.md` (jalons), `JOURNAL.md` (décisions et preuves), `BLOCAGES.md`.
-- **Reprise** : à chaque nouvelle session ou après compactage, relis ce document, `PLAN.md`, `JOURNAL.md` et `BLOCAGES.md` avant toute action.
+- **Reprise** : à chaque nouvelle session ou après compactage, relis ce document, `PLAN.md`, la synthèse de `JOURNAL.md` (pas l'archive `docs/journal/`) et `BLOCAGES.md` avant toute action.
 - **Arrêt d'urgence** : si le fichier `.mission/STOP` existe, termine l'action en cours proprement, mets à jour `JOURNAL.md` et arrête-toi.
