@@ -62,14 +62,14 @@ Preuves (2026-09-26) :
 - `node tests/recette/s9-factures.mjs` â†’ OK (PDF+CII API schematron+veraPDF ; dÃ©bours ; e-reporting ; lignes avoir)
 - `node tests/recette/s9-facturx.mjs` â†’ OK (6 cas schematron + PDF/A-3b)
 
-## 2026-09-26 — J8 VALIDÉ
+## 2026-09-26 ï¿½ J8 VALIDï¿½
 
-- Contrôleur sur `e8eb6b2` (CI `36269667975`) : **VALIDÉ**. Revue 31-facturation OK.
-- Correctifs majeurs soldés (PDF/CII validation, CII débours, avoir+lignes, e-reporting).
+- Contrï¿½leur sur `e8eb6b2` (CI `36269667975`) : **VALIDï¿½**. Revue 31-facturation OK.
+- Correctifs majeurs soldï¿½s (PDF/CII validation, CII dï¿½bours, avoir+lignes, e-reporting).
 
-## 2026-09-26 — Référence de dossier (démarrage)
+## 2026-09-26 ï¿½ Rï¿½fï¿½rence de dossier (dï¿½marrage)
 
-- Jalon § 3.4 : année + numéro continu cabinet, serveur, unicité, hors ligne « référence en attente ».
+- Jalon ï¿½ 3.4 : annï¿½e + numï¿½ro continu cabinet, serveur, unicitï¿½, hors ligne ï¿½ rï¿½fï¿½rence en attente ï¿½.
 
 ## 2026-09-26 â€” RÃ©fÃ©rence de dossier (poste)
 
@@ -84,3 +84,19 @@ Preuves (2026-09-26) :
   - `node tests/recette/reference-dossier.mjs` â†’ OK
   - `node tests/recette/coque-app.mjs` â†’ OK
 - PLAN non cochÃ© (jalon en cours ; attribution serveur cÃ´tÃ© instance-backend).
+
+## 2026-09-26 â€” RÃ©fÃ©rence de dossier (API / Postgres)
+
+- **Migration** `016_dossier_reference.sql` : `reference` / `reference_annee` / `reference_numero` nullable ; `sequences_dossiers (cabinet_id, annee)` ; UNIQUE partiels ; dÃ©clencheur d'immutabilitÃ©.
+- **Attribution** : `POST /dossiers` en transaction â€” annÃ©e civile Europe/Paris, `INSERT â€¦ ON CONFLICT DO UPDATE â€¦ RETURNING`, format `YYYY-NNN` (R0, `docs/hypotheses-dossiers.md`).
+- **OpenAPI** : `DossierResponse.reference: Option<String>`.
+- **Sync Streams** : `reference` dans SELECT `dossiers_publics` / `dossiers_restreints` ; `docs/sync-streams.md` + garde `s5-sync-streams.mjs`.
+- **Recette** : `tests/recette/reference-dossier-api.mjs`.
+- DÃ©cision : largeur minimale 3 chiffres (ex. `2026-042`) ; au-delÃ  de 999 sans tronquer â€” consignÃ©e en R0.
+- Preuves (2026-09-26) :
+  - `cargo clippy -p legalos-api --all-targets -- -D warnings` â†’ exit 0
+  - `cargo test -p legalos-api --lib -- routes::dossiers::tests` â†’ 2 ok
+  - rebuild `legalos/api:0.1.0` + migration appliquÃ©e
+  - `node tests/recette/reference-dossier-api.mjs` â†’ OK (concurrentes 2026-001/002 ; unicitÃ© ; figÃ©e ; OpenAPI)
+  - `node tests/recette/s5-sync-streams.mjs` â†’ OK
+- PLAN non cochÃ© (contrÃ´leur).

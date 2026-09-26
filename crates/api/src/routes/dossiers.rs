@@ -38,6 +38,8 @@ pub struct DossierResponse {
     pub id: Uuid,
     pub nom: String,
     pub restreint: bool,
+    /// Référence serveur `YYYY-NNN` (R0) ; `null` tant que non attribuée (hors ligne / en attente).
+    pub reference: Option<String>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -86,30 +88,66 @@ pub async fn creer_dossier(
         .begin()
         .await
         .map_err(|_| ApiError::internal("transaction"))?;
-    let existant = sqlx::query_as::<_, (Uuid, bool)>(
-        "SELECT cabinet_id, restreint FROM dossiers WHERE id = $1",
+    let existant = sqlx::query_as::<_, (Uuid, bool, Option<String>)>(
+        "SELECT cabinet_id, restreint, reference FROM dossiers WHERE id = $1",
     )
     .bind(body.id)
     .fetch_optional(&mut *tx)
     .await
     .map_err(|_| ApiError::internal("lecture dossier"))?;
-    if let Some((cabinet_id, restreint)) = existant {
+    if let Some((cabinet_id, restreint, reference)) = existant {
         if cabinet_id != claims.cabinet_id {
             return Err(ApiError::unauthorized("Dossier hors cabinet"));
         }
+        tx.commit()
+            .await
+            .map_err(|_| ApiError::internal("commit idempotent"))?;
         return Ok(Json(DossierResponse {
             id: body.id,
             nom,
             restreint,
+            reference,
         }));
     }
+
+    let annee = sqlx::query_as::<_, (i32,)>(
+        "SELECT EXTRACT(YEAR FROM (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Paris'))::integer",
+    )
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(|_| ApiError::internal("année civile"))?
+    .0;
+
+    let numero = sqlx::query_as::<_, (i64,)>(
+        r#"
+        INSERT INTO sequences_dossiers (cabinet_id, annee, prochain)
+        VALUES ($1, $2, 2)
+        ON CONFLICT (cabinet_id, annee) DO UPDATE
+            SET prochain = sequences_dossiers.prochain + 1
+        RETURNING prochain - 1
+        "#,
+    )
+    .bind(claims.cabinet_id)
+    .bind(annee)
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(|_| ApiError::internal("référence dossier"))?
+    .0;
+
+    let reference = formater_reference(annee, numero);
 
     sqlx::query(
         r#"
         INSERT INTO dossiers (
-            id, cabinet_id, nom, chemise, juridiction, numero_rg, restreint, visibilite, revision
+            id, cabinet_id, nom, chemise, juridiction, numero_rg,
+            reference, reference_annee, reference_numero,
+            restreint, visibilite, revision
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, CASE WHEN $7 THEN 'restreint' ELSE 'public' END, 1)
+        VALUES (
+            $1, $2, $3, $4, $5, $6,
+            $7, $8, $9,
+            $10, CASE WHEN $10 THEN 'restreint' ELSE 'public' END, 1
+        )
         "#,
     )
     .bind(body.id)
@@ -118,6 +156,9 @@ pub async fn creer_dossier(
     .bind(&body.chemise)
     .bind(&juridiction)
     .bind(&numero_rg)
+    .bind(&reference)
+    .bind(annee)
+    .bind(numero)
     .bind(body.restreint)
     .execute(&mut *tx)
     .await
@@ -145,6 +186,7 @@ pub async fn creer_dossier(
         id: body.id,
         nom,
         restreint: body.restreint,
+        reference: Some(reference),
     }))
 }
 
@@ -240,4 +282,25 @@ fn texte_requis(valeur: &str, message: &str) -> Result<String, ApiError> {
         return Err(ApiError::bad_request(message));
     }
     Ok(texte.to_owned())
+}
+
+/// Format affichable `YYYY-NNN` (zéros à gauche, largeur minimale 3 — hypothèse R0).
+pub(crate) fn formater_reference(annee: i32, numero: i64) -> String {
+    format!("{annee}-{numero:03}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::formater_reference;
+
+    #[test]
+    fn reference_trois_chiffres_avec_zeros() {
+        assert_eq!(formater_reference(2026, 42), "2026-042");
+        assert_eq!(formater_reference(2026, 1), "2026-001");
+    }
+
+    #[test]
+    fn reference_au_dela_de_999_sans_tronquer() {
+        assert_eq!(formater_reference(2026, 1000), "2026-1000");
+    }
 }

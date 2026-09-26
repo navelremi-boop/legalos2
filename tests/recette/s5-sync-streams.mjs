@@ -73,6 +73,9 @@ if (!/visibilite\s*=\s*'public'/.test(dossiersPublics)) fail("dossiers_publics :
 if (!/auth\.parameter\('cabinet_id'\)/.test(dossiersPublics)) {
   fail("dossiers_publics : auth.parameter('cabinet_id') requis");
 }
+if (!/\breference\b/.test(dossiersPublics)) {
+  fail("dossiers_publics : colonne reference requise (§ 3.4)");
+}
 
 const dossiersRestreints = blocFlux("dossiers_restreints");
 if (!/INNER JOIN dossier_acces/i.test(dossiersRestreints)) {
@@ -80,6 +83,9 @@ if (!/INNER JOIN dossier_acces/i.test(dossiersRestreints)) {
 }
 if (!/auth\.user_id\(\)/.test(dossiersRestreints)) {
   fail("dossiers_restreints : auth.user_id() requis");
+}
+if (!/\breference\b/.test(dossiersRestreints)) {
+  fail("dossiers_restreints : colonne reference requise (§ 3.4)");
 }
 
 for (const nom of [

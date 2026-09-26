@@ -53,7 +53,7 @@ Fichier déployé : `instance/powersync/sync-config.yaml`, monté via `sync_conf
 | Table client | Rôle |
 |--------------|------|
 | `cabinets` / `journal_modifications` | Flux `cabinet_global` |
-| `dossiers` | Métadonnées dossier (chemise, flag restreint) |
+| `dossiers` | Métadonnées dossier (chemise, `reference` nullable § 3.4, flag restreint) |
 | `parties` | Parties du dossier |
 | `documents` / `document_versions` | Métadonnées ; `visibilite` en SELECT, auth via dossier |
 | `temps_saisis` / `brouillons_facture` / `taux_horaires` | J8 — flux publics / restreints (+ `taux_cabinet` sans dossier) |
@@ -68,8 +68,8 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 | Flux | Filtre |
 |------|--------|
 | `cabinet_global` | `cabinets` et `journal_modifications` filtrés par `auth.parameter('cabinet_id')` |
-| `dossiers_publics` | `dossiers` où `visibilite = 'public'` et `cabinet_id` du JWT |
-| `dossiers_restreints` | `dossiers` JOIN `dossier_acces` où `utilisateur_texte = auth.user_id()` |
+| `dossiers_publics` | `dossiers` où `visibilite = 'public'` et `cabinet_id` du JWT — SELECT inclut `reference` |
+| `dossiers_restreints` | `dossiers` JOIN `dossier_acces` où `utilisateur_texte = auth.user_id()` — SELECT inclut `reference` |
 | `parties_publics` | `parties` JOIN `dossiers` (visibilité publique + cabinet) |
 | `parties_restreints` | `parties` JOIN `dossier_acces` (`auth.user_id()`) |
 | `documents_publics` | `documents` JOIN `dossiers` (visibilité publique + cabinet) |
