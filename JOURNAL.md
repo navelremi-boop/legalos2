@@ -70,3 +70,17 @@ Preuves (2026-09-26) :
 ## 2026-09-26 � R�f�rence de dossier (d�marrage)
 
 - Jalon � 3.4 : ann�e + num�ro continu cabinet, serveur, unicit�, hors ligne � r�f�rence en attente �.
+
+## 2026-09-26 — Référence de dossier (poste)
+
+- **Schéma** : `AppSchema` colonne `dossiers.reference` (text, nullable) ; index `reference`.
+- **UI** : `libelleReferenceDossier` → « en attente » si null/vide ; étiquette, onglets (`data-reference`), palette, liste.
+- **Écriture** : `ecrireDossier` INSERT `reference = NULL` — jamais générée côté poste.
+- **Sync UI** : `CoqueApp` poll SQLite toutes les 2 s pour remplacer « en attente » dès attribution serveur.
+- **Recettes** : `tests/recette/reference-dossier.mjs` ; extensions `coque-app.mjs` + `j5-poste-tauri.mjs` (NULL local ; YYYY-… si colonne serveur présente, sinon report backend parallèle).
+- Preuves :
+  - `pnpm --filter @legal-os/poste typecheck` → OK
+  - `pnpm --filter @legal-os/poste lint:ci` → OK
+  - `node tests/recette/reference-dossier.mjs` → OK
+  - `node tests/recette/coque-app.mjs` → OK
+- PLAN non coché (jalon en cours ; attribution serveur côté instance-backend).

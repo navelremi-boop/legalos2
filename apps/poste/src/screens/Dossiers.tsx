@@ -3,16 +3,23 @@ import { Feuille } from "@/coque/Feuille";
 import { FormulaireDossier } from "@/dossiers/FormulaireDossier";
 import { PaletteCommandes } from "@/dossiers/PaletteCommandes";
 import { fr } from "@/lib/fr";
+import { libelleReferenceDossier } from "@/lib/referenceDossier";
 import { getPowerSyncDatabase } from "@/sync/database";
 
 type LigneDossier = {
   id: string;
   nom: string;
   chemise: string;
+  reference: string | null;
 };
 
 type DossiersProps = {
-  onOuvrirDossier?: (id: string, nom: string, chemise: string) => void;
+  onOuvrirDossier?: (
+    id: string,
+    nom: string,
+    chemise: string,
+    reference?: string | null,
+  ) => void;
 };
 
 export function Dossiers({ onOuvrirDossier }: DossiersProps) {
@@ -23,7 +30,9 @@ export function Dossiers({ onOuvrirDossier }: DossiersProps) {
     const tick = () => {
       void getPowerSyncDatabase()
         .then((database) =>
-          database.getAll<LigneDossier>("SELECT id, nom, chemise FROM dossiers ORDER BY nom LIMIT 50"),
+          database.getAll<LigneDossier>(
+            "SELECT id, nom, chemise, reference FROM dossiers ORDER BY nom LIMIT 50",
+          ),
         )
         .then((rows) => {
           if (!stop) setLignes(rows);
@@ -57,24 +66,37 @@ export function Dossiers({ onOuvrirDossier }: DossiersProps) {
               <p className="text-graphite">{fr("Aucun dossier pour l’instant. Créez-en un ci-dessus.")}</p>
             ) : (
               <ul className="divide-y divide-filet">
-                {lignes.map((ligne) => (
-                  <li key={ligne.id}>
-                    <button
-                      type="button"
-                      className="flex h-11 w-full items-center gap-3 px-2 text-left hover:bg-survol"
-                      data-chemise={ligne.chemise}
-                      onClick={() => {
-                        onOuvrirDossier?.(ligne.id, ligne.nom, ligne.chemise);
-                      }}
-                    >
-                      <span
-                        className="h-[13px] w-[9px] shrink-0 rounded-[2px] bg-chemise-bande"
-                        aria-hidden
-                      />
-                      <span>{fr(ligne.nom)}</span>
-                    </button>
-                  </li>
-                ))}
+                {lignes.map((ligne) => {
+                  const reference = libelleReferenceDossier(ligne.reference);
+                  return (
+                    <li key={ligne.id}>
+                      <button
+                        type="button"
+                        className="flex h-11 w-full items-center gap-3 px-2 text-left hover:bg-survol"
+                        data-chemise={ligne.chemise}
+                        data-reference={reference}
+                        data-testid="liste-dossier"
+                        onClick={() => {
+                          onOuvrirDossier?.(ligne.id, ligne.nom, ligne.chemise, ligne.reference);
+                        }}
+                      >
+                        <span
+                          className="h-[13px] w-[9px] shrink-0 rounded-[2px] bg-chemise-bande"
+                          aria-hidden
+                        />
+                        <span className="min-w-0 flex-1 truncate">
+                          <span className="text-[length:var(--font-size-meta)] font-bold text-graphite">
+                            {fr(reference)}
+                          </span>
+                          <span className="mx-2 text-filet" aria-hidden>
+                            —
+                          </span>
+                          <span>{fr(ligne.nom)}</span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>

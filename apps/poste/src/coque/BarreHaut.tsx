@@ -7,6 +7,7 @@ import {
 } from "react";
 import { fr } from "@/lib/fr";
 import { formatDuree } from "@/lib/format";
+import { libelleReferenceDossier } from "@/lib/referenceDossier";
 
 export type NavId =
   | "journee"
@@ -20,6 +21,7 @@ export type NavId =
 
 export type OngletDossier = {
   id: string;
+  /** Libellé affiché : référence serveur ou « en attente ». */
   reference: string;
   nom: string;
   chemise: string;
@@ -203,10 +205,12 @@ export function BarreHaut({
       >
         {affiches.map((onglet) => {
           const actifOnglet = onglet.id === ongletActifId && actif === "dossier";
+          const reference = libelleReferenceDossier(onglet.reference);
           return (
             <div
               key={onglet.id}
               data-chemise={onglet.chemise}
+              data-reference={reference}
               className={
                 actifOnglet
                   ? "onglet-dossier onglet-dossier--actif"
@@ -219,12 +223,14 @@ export function BarreHaut({
                 type="button"
                 role="tab"
                 aria-selected={actifOnglet}
-                className="onglet-dossier__nom"
+                aria-label={fr(`Dossier ${reference} — ${onglet.nom}`)}
+                className="onglet-dossier__corps"
                 onClick={() => {
                   onOngletActiver?.(onglet.id);
                 }}
               >
-                {fr(onglet.nom)}
+                <span className="onglet-dossier__ref">{fr(reference)}</span>
+                <span className="onglet-dossier__nom">{fr(onglet.nom)}</span>
               </button>
               <button
                 type="button"
@@ -261,12 +267,15 @@ export function BarreHaut({
                 role="menu"
                 aria-label={fr("Dossiers ouverts")}
               >
-                {ongletsMenu.map((onglet) => (
+                {ongletsMenu.map((onglet) => {
+                  const reference = libelleReferenceDossier(onglet.reference);
+                  return (
                   <li key={onglet.id} role="none" className="onglets-overflow__ligne">
                     <button
                       type="button"
                       role="menuitem"
                       data-chemise={onglet.chemise}
+                      data-reference={reference}
                       className="onglets-overflow__item"
                       onClick={() => {
                         onOngletActiver?.(onglet.id);
@@ -274,7 +283,9 @@ export function BarreHaut({
                       }}
                     >
                       <span className="onglet-dossier__pastille" aria-hidden />
-                      <span className="min-w-0 flex-1 truncate">{fr(onglet.nom)}</span>
+                      <span className="min-w-0 flex-1 truncate">
+                        {fr(`${reference} — ${onglet.nom}`)}
+                      </span>
                     </button>
                     <button
                       type="button"
@@ -287,7 +298,8 @@ export function BarreHaut({
                       ×
                     </button>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             ) : null}
           </div>

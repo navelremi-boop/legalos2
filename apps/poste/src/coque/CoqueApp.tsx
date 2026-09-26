@@ -19,6 +19,9 @@ import { FormulaireDossier } from "@/dossiers/FormulaireDossier";
 import { PaletteCommandes } from "@/dossiers/PaletteCommandes";
 import { isChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
+import {
+  libelleReferenceDossier,
+} from "@/lib/referenceDossier";
 import { DossierOuvert, DOSSIERS_DEMO, type DossierDemo } from "@/screens/DossierOuvert";
 import { Dossiers } from "@/screens/Dossiers";
 import { EcranStub } from "@/screens/EcranStub";
@@ -119,6 +122,49 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
     };
   }, []);
 
+  /** Met à jour les références serveur dès qu’elles descendent en SQLite (§ 3.4). */
+  const ongletsIds = onglets.map((o) => o.id).join("|");
+  useEffect(() => {
+    const ids = ongletsIds.split("|").filter((id) => id.length > 0 && !id.startsWith("demo-"));
+    if (ids.length === 0) return;
+    let stop = false;
+    const tick = () => {
+      const placeholders = ids.map(() => "?").join(", ");
+      void getPowerSyncDatabase()
+        .then((database) =>
+          database.getAll<{ id: string; reference: string | null }>(
+            `SELECT id, reference FROM dossiers WHERE id IN (${placeholders})`,
+            ids,
+          ),
+        )
+        .then((rows) => {
+          if (stop) return;
+          setOnglets((prev) => {
+            const next = prev.map((onglet) => {
+              const row = rows.find((r) => r.id === onglet.id);
+              if (!row) return onglet;
+              const libelle = libelleReferenceDossier(row.reference);
+              if (libelle === onglet.reference) return onglet;
+              return { ...onglet, reference: libelle };
+            });
+            const changed = next.some(
+              (onglet, index) => onglet.reference !== prev[index]?.reference,
+            );
+            return changed ? next : prev;
+          });
+        })
+        .catch(() => {
+          /* base pas encore prête */
+        });
+    };
+    tick();
+    const timer = window.setInterval(tick, 2_000);
+    return () => {
+      stop = true;
+      window.clearInterval(timer);
+    };
+  }, [ongletsIds]);
+
   const sync: SyncEtat = useMemo(() => {
     if (horsLigne || enAttente > 0) {
       return { kind: "hors-ligne", enAttente };
@@ -144,14 +190,22 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
     };
   }, [ongletActifId, onglets]);
 
-  const ouvrirDossier = useCallback((id: string, nom: string, chemise: string) => {
-    setOnglets((prev) => {
-      if (prev.some((o) => o.id === id)) return prev;
-      return [...prev, { id, reference: "en attente", nom, chemise }];
-    });
-    setOngletActifId(id);
-    setNav("dossier");
-  }, []);
+  const ouvrirDossier = useCallback(
+    (id: string, nom: string, chemise: string, reference?: string | null) => {
+      const libelle = libelleReferenceDossier(reference);
+      setOnglets((prev) => {
+        if (prev.some((o) => o.id === id)) {
+          return prev.map((o) =>
+            o.id === id ? { ...o, nom, chemise, reference: libelle } : o,
+          );
+        }
+        return [...prev, { id, reference: libelle, nom, chemise }];
+      });
+      setOngletActifId(id);
+      setNav("dossier");
+    },
+    [],
+  );
 
   const naviguer = useCallback((id: NavId) => {
     setNav(id);

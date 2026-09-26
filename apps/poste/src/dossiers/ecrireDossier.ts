@@ -25,10 +25,11 @@ export async function ecrireDossier(saisie: NouveauDossier): Promise<string> {
   const partieId = crypto.randomUUID();
   const creeLe = new Date().toISOString();
   await database.writeTransaction(async (tx) => {
+    // `reference` reste NULL : attribution uniquement côté serveur (§ 3.4).
     await tx.execute(
       `INSERT INTO dossiers (
-        id, cabinet_id, nom, chemise, juridiction, numero_rg, restreint, revision, cree_le
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+        id, cabinet_id, reference, nom, chemise, juridiction, numero_rg, restreint, revision, cree_le
+      ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, 1, ?)`,
       [
         dossierId,
         cabinetId,

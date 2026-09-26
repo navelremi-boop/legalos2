@@ -194,12 +194,37 @@
     box-shadow: var(--barre-pastille-anneau);
   }
 
+  .onglet-dossier__corps {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0;
+    overflow: hidden;
+    text-align: left;
+  }
+
+  .onglet-dossier__ref {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--font-size-meta);
+    font-weight: 700;
+    line-height: 1.1;
+    opacity: 0.85;
+  }
+
   .onglet-dossier__nom {
     min-width: 0;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: var(--font-size-dense);
+    line-height: 1.15;
   }
 
   .onglet-dossier__fermer {

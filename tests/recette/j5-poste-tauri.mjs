@@ -463,7 +463,68 @@ try {
   if (!String(paletteIds).includes(idPublic)) {
     fail(`palette sans id public (${paletteIds})`);
   }
+  const paletteRefs = await evaluate(
+    send,
+    `JSON.stringify([...document.querySelectorAll("[data-testid=palette-resultat]")].map((n) => n.getAttribute("data-reference")))`,
+  );
+  if (!String(paletteRefs).includes("en attente") && !/\d{4}-\d+/.test(String(paletteRefs))) {
+    fail(`palette sans référence (« en attente » ou YYYY-…) (${paletteRefs})`);
+  }
   console.log("j5-poste: OK — dossier retrouvé par la palette");
+
+  // § 3.4 — avant attribution : référence locale NULL → UI « en attente »
+  const refLocaleDebut = await sqliteLocal(
+    "a",
+    `SELECT reference FROM dossiers WHERE id = '${idPublic}'`,
+  ).catch((err) => {
+    fail(`SQLite local sans colonne reference (${err instanceof Error ? err.message : err})`);
+  });
+  const refLocaleVide =
+    /None/i.test(refLocaleDebut) ||
+    /\[\('',\)\]/.test(refLocaleDebut) ||
+    /\[\("",\)\]/.test(refLocaleDebut) ||
+    refLocaleDebut === "[]";
+  if (refLocaleVide) {
+    console.log("j5-poste: OK — référence locale NULL avant attribution (« en attente »)");
+  } else if (/\d{4}-\d+/.test(refLocaleDebut)) {
+    console.log(`j5-poste: référence déjà présente en local (${refLocaleDebut})`);
+  } else {
+    fail(`référence locale initiale inattendue (${refLocaleDebut})`);
+  }
+
+  const colRefServeur = await sqlServeur(
+    `SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'dossiers' AND column_name = 'reference'`,
+  ).catch(() => "0");
+  if (colRefServeur === "0") {
+    console.log(
+      "j5-poste: colonne dossiers.reference absente côté serveur — sync YYYY-… reportée (backend parallèle)",
+    );
+  } else {
+    const debutRef = Date.now();
+    let refLocale = "";
+    let refServeur = "";
+    while (Date.now() - debutRef < 90_000) {
+      refServeur = await sqlServeur(
+        `SELECT COALESCE(reference, '') FROM dossiers WHERE id = '${idPublic}'`,
+      );
+      refLocale = await sqliteLocal(
+        "a",
+        `SELECT reference FROM dossiers WHERE id = '${idPublic}'`,
+      ).catch(() => "");
+      if (/^\d{4}-\d+$/.test(refServeur) && refLocale.includes(refServeur)) {
+        break;
+      }
+      await sleep(500);
+    }
+    if (!/^\d{4}-\d+$/.test(refServeur)) {
+      fail(`référence serveur absente après sync (${refServeur || "vide"})`);
+    }
+    if (!refLocale.includes(refServeur)) {
+      fail(`référence locale absente après sync (serveur=${refServeur}, local=${refLocale})`);
+    }
+    console.log(`j5-poste: OK — référence serveur ${refServeur} présente en SQLite après sync`);
+  }
+
   const idRestreint = await creerDossier(send, {
     nom: `Dossier restreint ${marque}`,
     rg: rgRestreint,

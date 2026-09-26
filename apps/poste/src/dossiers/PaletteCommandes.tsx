@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
 import { fr } from "@/lib/fr";
+import { libelleReferenceDossier } from "@/lib/referenceDossier";
 import { getPowerSyncDatabase } from "@/sync/database";
 
-type Resultat = { id: string; nom: string; numero_rg: string; juridiction: string };
+type Resultat = {
+  id: string;
+  nom: string;
+  numero_rg: string;
+  juridiction: string;
+  reference: string | null;
+};
 
 export function PaletteCommandes() {
   const [ouverte, setOuverte] = useState(false);
@@ -28,12 +35,13 @@ export function PaletteCommandes() {
     void getPowerSyncDatabase()
       .then((database) =>
         database.getAll<Resultat>(
-          `SELECT DISTINCT d.id, d.nom, d.numero_rg, d.juridiction
+          `SELECT DISTINCT d.id, d.nom, d.numero_rg, d.juridiction, d.reference
            FROM dossiers d
            LEFT JOIN parties p ON p.dossier_id = d.id
-           WHERE d.nom LIKE ? OR d.numero_rg LIKE ? OR d.juridiction LIKE ? OR p.nom LIKE ?
+           WHERE d.nom LIKE ? OR d.numero_rg LIKE ? OR d.juridiction LIKE ?
+              OR p.nom LIKE ? OR IFNULL(d.reference, '') LIKE ?
            LIMIT 8`,
-          [terme, terme, terme, terme],
+          [terme, terme, terme, terme, terme],
         ),
       )
       .then(setResultats)
@@ -71,11 +79,19 @@ export function PaletteCommandes() {
         }}
       />
       <ul>
-        {resultats.map((ligne) => (
-          <li key={ligne.id} data-testid="palette-resultat" data-dossier-id={ligne.id}>
-            {fr(`${ligne.nom} — ${ligne.numero_rg} — ${ligne.juridiction}`)}
-          </li>
-        ))}
+        {resultats.map((ligne) => {
+          const reference = libelleReferenceDossier(ligne.reference);
+          return (
+            <li
+              key={ligne.id}
+              data-testid="palette-resultat"
+              data-dossier-id={ligne.id}
+              data-reference={reference}
+            >
+              {fr(`${reference} — ${ligne.nom} — ${ligne.numero_rg} — ${ligne.juridiction}`)}
+            </li>
+          );
+        })}
       </ul>
       <button
         type="button"

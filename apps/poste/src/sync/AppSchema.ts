@@ -55,6 +55,8 @@ const postes = new Table(
 const dossiers = new Table(
   {
     cabinet_id: column.text,
+    /** Attribuée par le serveur (§ 3.4) ; null hors ligne jusqu’à sync. */
+    reference: column.text,
     nom: column.text,
     chemise: column.text,
     juridiction: column.text,
@@ -63,7 +65,7 @@ const dossiers = new Table(
     revision: column.integer,
     cree_le: column.text,
   },
-  { indexes: { cabinet: ["cabinet_id"], rg: ["numero_rg"] } },
+  { indexes: { cabinet: ["cabinet_id"], rg: ["numero_rg"], reference: ["reference"] } },
 );
 
 const documents = new Table(

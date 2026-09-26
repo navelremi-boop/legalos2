@@ -102,6 +102,17 @@ if (!srcBlob.includes("import.meta.env.DEV")) {
 if (!/GalerieDemo/u.test(srcBlob)) fail("GalerieDemo absente");
 ok("galerie réservée au DEV");
 
+if (!srcBlob.includes("libelleReferenceDossier")) {
+  fail("référence dossier : libelleReferenceDossier absent");
+}
+if (!srcBlob.includes('REFERENCE_EN_ATTENTE = "en attente"')) {
+  fail("référence dossier : « en attente » absent");
+}
+if (!/reference:\s*column\.text/u.test(srcBlob)) {
+  fail("AppSchema : dossiers.reference absent");
+}
+ok("référence de dossier (§ 3.4) branchée");
+
 const rType = spawnSync("pnpm", ["--filter", "@legal-os/poste", "typecheck"], {
   cwd: root,
   stdio: "inherit",
