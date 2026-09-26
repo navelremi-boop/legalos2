@@ -1,6 +1,6 @@
 ---
 description: Synchronisation PowerSync (Sync Streams) et schéma client
-globs: instance/powersync/**, apps/poste/src/**/schema*.ts, apps/poste/src/**/sync/**
+globs: instance/powersync/**, apps/poste/src/sync/**
 alwaysApply: false
 ---
 

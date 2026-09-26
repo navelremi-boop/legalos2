@@ -1,40 +1,27 @@
 # LEGAL OS — Journal (décisions et preuves)
 
-Synthèse (relire `docs/ordre-operation.md`, `PLAN.md`, `BLOCAGES.md` à chaque reprise). Archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`.
+Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
-- **Phase 0–1** : VALIDÉES (J0–J4). **Phase 2** : J5–J7 VALIDÉS. Coque livrée en code (`a24d0a2`) mais **non cochée** : l’architecte place J8 avant la Coque.
-- **En cours** : **J8** (dettes sync soldées côté lot facturation — en attente contrôleur ; fausse alerte conflit J3 avant fin de phase 2).
-- **Ordre déclaré** : J8 → Référence de dossier → Coque → Vue scindée → Intercalaires personnalisés → J9.
-- **Gouvernance** : consignes de l’architecte = autorité de commandement (§ 7 ordre). Décisions d’architecture hors cahier → `BLOCAGES.md` « Décisions d’architecture en attente ».
-- **Sync** : PowerSync Sync Streams édition 3 (`docs/sync-streams.md`, `sync-config.yaml`) ; JOIN ≤ 2 tables ; auth restreinte via `dossier_acces` + `auth.user_id()` ; tables enfants portent `dossier_id` + copie `visibilite`.
-- **Délais** : hypothèses révisées implémentées (`0fc0c17`) ; `s8-delais.mjs` exit 0. Points H7/H10/H12 ouverts → B10.
+- **Phase 0–1** VALIDÉES ; **J5–J7** VALIDÉS. Coque corrigée (`22d765e`), non cochée.
+- **En cours** : **Migration Sync Streams** — contrôleur à rejouer sur HEAD (≥ `22d765e`, GHSA consignés) ; puis J8.
+- **Ordre** : Migration Sync Streams → J8 → Référence → Coque → Vue scindée → Intercalaires → J9.
+- **Sync** : Streams édition 3, service 1.26.1. GHSA-q6wc-xx4m-92fj + 1.23.3 dans `docs/versions.md`. Dette mensuelle avis PowerSync.
+- **J8 code** déjà sur main (`c34a033`) mais **après** Sync Streams sans VALIDÉ contrôleur Streams — à traiter une fois Streams VALIDÉ.
 
 ---
 
-## 2026-09-26 — J8 dettes sync / taux (lot facturation)
+## 2026-09-26 — Consignes architecte (Sync Streams, règles, Coque)
 
-- `temps_saisis`, `brouillons_facture`, `taux_horaires` : migration `014`, Sync Streams (`temps_*` / `brouillons_*` / `taux_*`, JOIN ≤ 2), AppSchema, copie `visibilite` + trigger.
-- Numéro nul jusqu’à validation serveur ; validation refuse dossier absent (ne crée jamais de dossier).
-- Taux horaire paramétrable (`taux_horaires` + saisie poste) ; HT = minutes × taux / 60 (F0 révisée).
-- Recettes : `s5-sync-streams.mjs` exit 0 ; `s9-s5-temps.mjs` exit 0 ; `s9-factures.mjs` exit 0. Preuve poste Tauri : `s9-poste-tauri.mjs` (à rejouer par le contrôleur si besoin).
+1. Migration Sync Streams avant nouvelles tables J8 ; jalon dédié ; contrôleur avant reprise J8.
+2. Globs `31-facturation` corrigés (reste dans `crates/api`) ; CI `cursor-rules-globs.mjs` ; revue 31 au contrôleur.
+3. Écarts Coque corrigés (`22d765e`) : onglets overflow, titre `#F2F5F4`, chrono « 0 h 12 », icônes, jauge « jours », captures démo B9.
 
-## 2026-09-26 — Consignes du commandement (architecte)
+## 2026-09-26 — Migration Sync Streams
 
-Consignes reçues et appliquées : gouvernance § 7 ; archivage du journal par phase ; hygiène PLAN/BLOCAGES/versions ; réordonnancement (J8 d’abord) ; dettes antérieures dans `PLAN.md` ; sync sans JOIN ; F3 débours/frais ; délais H8–H11 + cinq cas s8. Gardes fail-closed + `tests/recette/garde-hooks.mjs`.
+- `60b9837` / `5f46967` : sync-config edition 3, docs/sync-streams.md.
+- Contrôleur sur `5f46967` : **REFUSÉ** — GHSA absent du commit (présent ensuite dans WT / `22d765e`).
+- Preuves techniques OK : s5, s6, j5, j3-liveness, CI verte.
 
-## 2026-09-26 — J8 en cours (reprise)
+## 2026-09-26 — J8 sync temps (code poussé, hors ordre contrôleur Streams)
 
-- Premier jalon non coché selon l’ordre architecte : **J8**. Dettes : sync PowerSync des temps et brouillons ; numéro nul jusqu’à validation ; rattachement à un dossier existant ; taux horaire paramètre (client, dossier, intervenant) ; fausse alerte conflit J3 avant fin de phase 2.
-- Délais : `node tests/recette/s8-delais.mjs` exit 0 après H8–H11.
-
-## 2026-09-26 — Coque : correction des écarts (avant validation)
-
-Lot poste-interface. Jalon Coque **non coché**. Sync Streams / J8 non touchés.
-
-- Onglets : réduction puis menu overflow (`BarreHaut`, `data-testid=onglets-overflow`).
-- Titre La journée : jeton `--texte-sur-neutre` (#F2F5F4 jour et nuit) sur `.fond-neutre`.
-- Chrono : `formatDuree` → « 0 h 12 » (§ 7.7).
-- Barre d’actions : `@tabler/icons-react` 3.48.0 (contour).
-- Jauge : « jours » sous le nombre.
-- La journée : `JOURNEE_DEMO` en DEV/galerie (4 sections).
-- Preuves : `node tests/recette/coque-app.mjs` exit 0 ; `--captures` exit 0 (`design/captures/journee-*.png` régénérées).
+- `c34a033` / `07a7ff7` : migration 014, flux temps/brouillons/taux, S5. À valider **après** VALIDÉ Migration Sync Streams.
