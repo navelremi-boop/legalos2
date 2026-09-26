@@ -11,6 +11,8 @@
 | B8 | Boîtes mail réelles | GreenMail | Tests mail |
 | B9 | Écrans non maquettés (cahier § 7.6) | Valider, au premier passage, les captures jour et nuit de La journée, Dossiers, Mails, Agenda, Facturation et Réglages. Le prototype ne montre que la vue dossier. | Le reste continue en attendant |
 | B10 | Hypothèses juridiques à valider par le commandement | Valider : délais **H1–H8** (et points ouverts **H7** jours chômés locaux, **H10** appelant/intimé, **H12** renvoi art. 911-2 / 915-4) ; facturation **F0–F8** ; hypothèses d’**installation**. Voir `docs/hypotheses-delais.md` et `docs/hypotheses-facturation.md`. | Calculs délais et factures ; docs installation |
+| B11 | Texte de l'arbitrage R0 (référence personnalisable) jamais reçu : ni dans le dépôt, ni dans l'historique git, ni dans les sessions ; seuls le complément du 27/09 et la consigne du 27/09 le citent | Transmettre le texte de l'arbitrage R0, en particulier les **politiques de remise à zéro** et le **numéro de départ** ; à défaut, valider l'interprétation R0-d à R0-f de `docs/hypotheses-dossiers.md` | Le jalon Référence avance sur cette interprétation ; écart à reprendre si l'arbitrage dit autre chose |
+| J9-J10 | Critères proposés le 27/09 (`PLAN.md`), rédigés d'après les § 3.8.6 et 7.6 | Valider ou modifier les critères de **J9** et **J10** | Aucun avant l'ouverture de J9 |
 
 **Levé ou contourné** : Git 2.55, rustup, pnpm, Windows SDK, polices Atkinson, MSVC (B2/B2b), scripts `bootstrap-path.ps1` / `clippy.ps1`.
 
@@ -28,6 +30,7 @@
 
 ## Historique
 
+- **2026-09-27 (état-major)** : B11 (texte de l'arbitrage R0) ; critères proposés de J9 et J10 à valider.
 - **2026-09-26 (architecte)** : B2/B2b levés ; B10 hypothèses juridiques ; section décisions d’architecture.
 - **2026-09-24 (soir, commandement)** : Docker message « virtualization support wasn’t detected » ; VS IDE inaccessible — B2b/B3 précisés.
 - **2026-09-24 (soir, agent)** : Git, SDK, Docker client installés ; moteur/WSL KO.

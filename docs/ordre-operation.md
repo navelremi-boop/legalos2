@@ -137,6 +137,8 @@ Un écart qui touche un invariant du § 5 est toujours **bloquant** : le jalon r
 
 Preuves dans `JOURNAL.md`, pour chaque jalon : commandes lancées, résumé des résultats, date. L'historique des phases terminées est dans `docs/journal/`. `JOURNAL.md` ne garde qu'une synthèse courte et le jalon en cours.
 
+**`PLAN.md`** (règle de l'architecte, 27 septembre 2026) : un jalon validé peut être résumé sur une ligne (verdict, commit, CI), son détail étant archivé dans `docs/journal/`. Les critères d'acceptation d'un jalon non validé, et les dettes ouvertes, ne peuvent être ni supprimés, ni affaiblis, ni remplacés par un simple renvoi au cahier des charges. Seul l'architecte peut les modifier. Chaque jalon non validé garde ses critères sous forme de commandes. Toute modification de `PLAN.md` fait l'objet d'un commit dédié préfixé « plan: ». Avant chaque verdict, le contrôleur vérifie par `git diff` que les critères du jalon n'ont pas été affaiblis depuis la dernière consigne.
+
 ### 4.5 Conduite face aux obstacles
 
 Un obstacle n'est **jamais** une raison de s'arrêter. Dans l'ordre :
