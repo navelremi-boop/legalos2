@@ -198,4 +198,13 @@ if (libelleReferenceDossier("RN/26/0007") !== "RN/26/0007") {
 }
 ok("libellés");
 
+const client = readFileSync(join(root, "apps/poste/src/lib/referenceCabinet.ts"), "utf8");
+if (!/objet\.prochain_numero/.test(client)) {
+  fail("GET : prochain_numero absent de referenceCabinet.ts");
+}
+if (!/idempotence_cle/.test(client)) {
+  fail("PUT : idempotence_cle absente de referenceCabinet.ts");
+}
+ok("contrat GET prochain_numero et PUT idempotence_cle");
+
 console.log("reference-modele-poste: OK");
