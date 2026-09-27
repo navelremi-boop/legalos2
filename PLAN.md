@@ -224,7 +224,7 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
       - synchronisation incrémentale, notification immédiate sur la boîte de réception, resynchronisation complète si le serveur l'impose ;
       - lu, déplacement, suppression, drapeau appliqués au serveur IMAP ; retour à l'état réel en cas de refus ;
       - HTML nettoyé (`ammonia`) avant stockage ; recherche hors ligne (FTS5) et sur tout l'historique côté serveur (index Postgres en français) ;
-      - boîte de test d'au moins 50 000 messages générés (ordre § 6) : durée de synchronisation mesurée et consignée.
+      - boîte de test d'au moins 50 000 messages générés (ordre § 6) : durée de synchronisation mesurée et consignée, une fois pour le chemin QRESYNC et une fois pour le repli par comparaison.
     - `node tests/recette/s7-poste-tauri.mjs` → exit 0 : S5, les mails d'un dossier restreint sont absents du SQLite du poste non autorisé ; un compte nominatif n'est visible que de son titulaire ; aucun identifiant de messagerie sur le poste.
     - `cargo test -p legalos-messagerie` (contre GreenMail) et `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ; ni protocole IMAP ni décodeur MIME écrit à la main (bibliothèques consignées dans `docs/versions.md`) ; contrôleur VALIDÉ ; CI verte.
 
