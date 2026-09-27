@@ -231,13 +231,26 @@ fn demo(root: &Path) -> Result<()> {
 fn install(root: &Path) -> Result<()> {
     let env_path = root.join(".env");
     if env_path.is_file() {
-        anyhow::bail!(".env existe déjà ; installation refusée");
+        let texte = std::fs::read_to_string(&env_path).context(".env")?;
+        if legalos_api::config::SECRETS_PUBLIES
+            .iter()
+            .any(|(_, valeur)| texte.contains(valeur))
+        {
+            anyhow::bail!(".env existe déjà et contient une valeur publiée ; installation refusée");
+        }
+    } else {
+        ecrire_env_production(root, &SecretsInstall::generer())?;
     }
-    let cle_brute = cle_aleatoire();
-    ecrire_env_production(root, &cle_brute)?;
     std::env::remove_var("LEGALOS_MODE");
-    std::env::set_var("SECRETS_CHIFFREMENT_KEY", &cle_brute);
+    let mut noms = std::collections::BTreeSet::new();
+    for (nom, _) in legalos_api::config::SECRETS_PUBLIES {
+        noms.insert(*nom);
+    }
+    for nom in noms {
+        std::env::remove_var(nom);
+    }
     charger_env(root);
+    let cle_brute = std::env::var("SECRETS_CHIFFREMENT_KEY").context("SECRETS_CHIFFREMENT_KEY")?;
     if std::env::var("LEGALOS_MODE").ok().as_deref() == Some("development") {
         anyhow::bail!("installation : le .env généré ne doit pas être en développement");
     }
@@ -253,7 +266,9 @@ fn install(root: &Path) -> Result<()> {
                 .await
         })
         .inspect_err(|_| {
-            let _ = std::fs::remove_file(&env_path);
+            eprintln!(
+                "les secrets sont dans .env ; démarrez l'instance avec ce fichier, puis relancez cargo xtask install"
+            );
         })?;
     let uri = legalos_api::install::uri_otpauth(&cree.email, &cree.secret_totp_base32);
     println!("administrateur créé (production, LEGALOS_MODE absent)");
@@ -264,18 +279,67 @@ fn install(root: &Path) -> Result<()> {
     Ok(())
 }
 
-fn ecrire_env_production(root: &Path, cle: &str) -> Result<()> {
+struct SecretsInstall {
+    chiffrement: String,
+    postgres: String,
+    garage_rpc: String,
+    garage_admin: String,
+    greenmail: String,
+}
+
+impl SecretsInstall {
+    fn generer() -> Self {
+        Self {
+            chiffrement: cle_aleatoire(),
+            postgres: mot_de_passe_aleatoire(),
+            garage_rpc: hex_aleatoire(32),
+            garage_admin: hex_aleatoire(32),
+            greenmail: mot_de_passe_aleatoire(),
+        }
+    }
+}
+
+fn ecrire_env_production(root: &Path, secrets: &SecretsInstall) -> Result<()> {
     let modele = std::fs::read_to_string(root.join(".env.example")).context(".env.example")?;
     let mut lignes = Vec::new();
     for ligne in modele.lines() {
-        if ligne.starts_with("LEGALOS_MODE=") || ligne.starts_with("SECRETS_CHIFFREMENT_KEY=") {
+        if ligne.starts_with("LEGALOS_MODE=") {
             continue;
         }
-        lignes.push(ligne.to_owned());
+        if let Some(valeur) = valeur_secrete_generee(ligne, secrets) {
+            let nom = ligne.split_once('=').context("affectation")?.0;
+            lignes.push(format!("{nom}={valeur}"));
+            continue;
+        }
+        lignes.push(ligne.replace(
+            "remplacer-mot-de-passe-fort-alphanumerique",
+            &secrets.postgres,
+        ));
     }
-    lignes.push(format!("SECRETS_CHIFFREMENT_KEY={cle}"));
     std::fs::write(root.join(".env"), lignes.join("\n") + "\n")?;
     Ok(())
+}
+
+fn valeur_secrete_generee<'a>(ligne: &str, secrets: &'a SecretsInstall) -> Option<&'a str> {
+    if ligne.starts_with("SECRETS_CHIFFREMENT_KEY=") {
+        Some(secrets.chiffrement.as_str())
+    } else if ligne.starts_with("POSTGRES_PASSWORD=") {
+        Some(secrets.postgres.as_str())
+    } else if ligne.starts_with("GARAGE_RPC_SECRET=") {
+        Some(secrets.garage_rpc.as_str())
+    } else if ligne.starts_with("GARAGE_ADMIN_TOKEN=") {
+        Some(secrets.garage_admin.as_str())
+    } else if ligne.starts_with("GREENMAIL_PASSWORD=") {
+        Some(secrets.greenmail.as_str())
+    } else {
+        None
+    }
+}
+
+fn hex_aleatoire(octets: usize) -> String {
+    let mut buf = vec![0u8; octets];
+    rand::RngCore::fill_bytes(&mut rand::rngs::OsRng, &mut buf);
+    buf.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 fn cle_aleatoire() -> String {
@@ -336,7 +400,7 @@ fn run() -> Result<()> {
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
-    use super::ecrire_env_production;
+    use super::{ecrire_env_production, SecretsInstall};
 
     #[test]
     fn env_installe_sans_mode_developpement() {
@@ -347,12 +411,37 @@ mod tests {
             tmp.join(".env.example"),
         )
         .expect("exemple");
-        let cle = "abcdefghijklmnopqrstuvwxyz012345";
-        ecrire_env_production(&tmp, cle).expect("écriture");
+        let secrets = SecretsInstall {
+            chiffrement: "abcdefghijklmnopqrstuvwxyz012345".into(),
+            postgres: "MotPostgresInstalle1234567890ab".into(),
+            garage_rpc: "ab".repeat(32),
+            garage_admin: "cd".repeat(32),
+            greenmail: "MotMailInstalle1234567890abcd".into(),
+        };
+        ecrire_env_production(&tmp, &secrets).expect("écriture");
         let texte = std::fs::read_to_string(tmp.join(".env")).expect("lecture");
         assert!(!texte.lines().any(|l| l.starts_with("LEGALOS_MODE=")));
-        assert!(texte.contains(&format!("SECRETS_CHIFFREMENT_KEY={cle}")));
-        assert!(!texte.contains("SECRETS_CHIFFREMENT_KEY=legalos_example_key_32_bytes!!!!"));
+        assert!(texte.contains(&format!("SECRETS_CHIFFREMENT_KEY={}", secrets.chiffrement)));
+        assert!(texte.contains(&format!("POSTGRES_PASSWORD={}", secrets.postgres)));
+        assert!(texte.contains(&format!("GARAGE_RPC_SECRET={}", secrets.garage_rpc)));
+        assert!(texte.contains(&format!("GARAGE_ADMIN_TOKEN={}", secrets.garage_admin)));
+        assert!(texte.contains(&format!("GREENMAIL_PASSWORD={}", secrets.greenmail)));
+        assert!(texte.contains(&format!(
+            "postgresql://legalos:{}@localhost:5432/legalos",
+            secrets.postgres
+        )));
+        for publie in [
+            "legalos_example_key_32_bytes!!!!",
+            "remplacer-mot-de-passe-fort-alphanumerique",
+            "remplacer-mot-de-passe-mail-test",
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+        ] {
+            assert!(
+                !texte.contains(publie),
+                "valeur publiée encore présente : {publie}"
+            );
+        }
         let _ = std::fs::remove_dir_all(tmp);
     }
 }

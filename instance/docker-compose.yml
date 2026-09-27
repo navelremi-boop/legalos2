@@ -42,6 +42,10 @@ services:
       API_BIND: 0.0.0.0:8080
       API_RUN_MIGRATIONS: "true"
       SECRETS_CHIFFREMENT_KEY: ${SECRETS_CHIFFREMENT_KEY}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN}
+      GREENMAIL_PASSWORD: ${GREENMAIL_PASSWORD}
       LEGALOS_MODE: ${LEGALOS_MODE:-}
       JWT_KEY_ID: ${JWT_KEY_ID:-legalos-dev-1}
       JWT_ISSUER: ${JWT_ISSUER:-legalos-api}
@@ -131,6 +135,9 @@ services:
   garage:
     image: dxflrs/garage:v1.0.1
     restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
     command: ["/garage", "-c", "/etc/garage.toml", "server"]
     environment:
       GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET}
@@ -156,6 +163,9 @@ services:
   greenmail:
     image: greenmail/standalone:2.1.0
     restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
     environment:
       GREENMAIL_OPTS: >-
         -Dgreenmail.setup.test.all

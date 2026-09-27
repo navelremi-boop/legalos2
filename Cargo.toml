@@ -4,6 +4,7 @@ members = [
     "crates/domaine",
     "crates/stockage",
     "crates/api",
+    "crates/messagerie",
     "xtask",
 ]
 default-members = ["crates/api"]

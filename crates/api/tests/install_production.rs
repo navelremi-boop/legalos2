@@ -4,7 +4,7 @@
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use legalos_api::config::CLES_CHIFFREMENT_CONNUES;
+use legalos_api::config::{mot_de_passe_dans_url, valeur_secrete_publiee, SECRETS_PUBLIES};
 use legalos_api::install::{creer_premier_administrateur, uri_otpauth, EMAIL_ADMIN};
 
 #[tokio::test]
@@ -56,29 +56,52 @@ async fn install_demarre_en_production_sans_demo() {
     pool.close().await;
 
     let port_ok = 30000 + (suffix % 10000) as u16;
-    for (indice, cle_connue) in CLES_CHIFFREMENT_CONNUES.iter().enumerate() {
+    let mut noms_vus = std::collections::BTreeSet::new();
+    for (indice, (nom, valeur)) in SECRETS_PUBLIES.iter().enumerate() {
+        if !noms_vus.insert(*nom) && *nom != "SECRETS_CHIFFREMENT_KEY" {
+            continue;
+        }
         let port_refus = 20000 + (suffix % 10000) as u16 + indice as u16;
-        let echec = Command::new(env!("CARGO_BIN_EXE_legalos-api"))
-            .env("DATABASE_URL", &vierge)
-            .env("SECRETS_CHIFFREMENT_KEY", cle_connue)
+        let mut commande = Command::new(env!("CARGO_BIN_EXE_legalos-api"));
+        isoler_secrets(&mut commande);
+        commande
+            .env(
+                "DATABASE_URL",
+                "postgresql://legalos:motdepasse-non-publie@127.0.0.1:1/aucune",
+            )
+            .env("SECRETS_CHIFFREMENT_KEY", cle_brute)
+            .env(nom, valeur)
             .env("API_BIND", format!("127.0.0.1:{port_refus}"))
-            .env_remove("LEGALOS_MODE")
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .expect("spawn refus");
-        assert!(!echec.success(), "clé connue acceptée en production");
+            .stderr(Stdio::null());
+        let echec = commande.status().expect("spawn refus");
+        assert!(!echec.success(), "{nom} publié accepté en production");
     }
 
-    let mut enfant = Command::new(env!("CARGO_BIN_EXE_legalos-api"))
+    let mot_url_publie = mot_de_passe_dans_url(&vierge)
+        .is_some_and(|mot| valeur_secrete_publiee("POSTGRES_PASSWORD", mot))
+        || valeur_secrete_publiee("DATABASE_URL", &vierge);
+    let mut enfant_cmd = Command::new(env!("CARGO_BIN_EXE_legalos-api"));
+    isoler_secrets(&mut enfant_cmd);
+    enfant_cmd
         .env("DATABASE_URL", &vierge)
         .env("SECRETS_CHIFFREMENT_KEY", cle_brute)
         .env("API_BIND", format!("127.0.0.1:{port_ok}"))
-        .env_remove("LEGALOS_MODE")
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("spawn api");
+        .stderr(Stdio::null());
+    if mot_url_publie {
+        let echec = enfant_cmd.status().expect("spawn url publiée");
+        assert!(
+            !echec.success(),
+            "DATABASE_URL au mot de passe publié acceptée en production"
+        );
+        sqlx::query(&format!("DROP DATABASE \"{name}\" WITH (FORCE)"))
+            .execute(&admin)
+            .await
+            .ok();
+        return;
+    }
+    let mut enfant = enfant_cmd.spawn().expect("spawn api");
     let url = format!("http://127.0.0.1:{port_ok}/health");
     let ok = tokio::task::spawn_blocking(move || attendre_sante(&url))
         .await
@@ -90,6 +113,17 @@ async fn install_demarre_en_production_sans_demo() {
         .await
         .ok();
     assert!(ok, "l'instance installée ne répond pas en production");
+}
+
+fn isoler_secrets(commande: &mut Command) {
+    commande.env_remove("LEGALOS_MODE");
+    let mut noms = std::collections::BTreeSet::new();
+    for (nom, _) in SECRETS_PUBLIES {
+        noms.insert(*nom);
+    }
+    for nom in noms {
+        commande.env_remove(nom);
+    }
 }
 
 fn attendre_sante(url: &str) -> bool {

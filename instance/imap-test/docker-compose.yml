@@ -1,0 +1,20 @@
+# Serveurs IMAP de test, hors de l'instance cabinet.
+# GreenMail 2.1.0 n'annonce pas QRESYNC. Dovecot couvre ce chemin.
+
+name: legalos-imap-test
+
+services:
+  greenmail:
+    image: greenmail/standalone:2.1.0
+    ports:
+      - "127.0.0.1:3143:3143"
+    environment:
+      GREENMAIL_OPTS: "-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.users=capa:MotDePasseCapa123!"
+
+  dovecot:
+    image: dovecot/dovecot:2.3.21.1
+    ports:
+      - "127.0.0.1:1143:143"
+    volumes:
+      - ./dovecot.conf:/etc/dovecot/dovecot.conf:ro
+    entrypoint: ["sh", "-c", "mkdir -p /tmp/mail/capa && chown -R dovecot:dovecot /tmp/mail && exec dovecot -F"]
