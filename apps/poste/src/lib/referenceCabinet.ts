@@ -1,9 +1,16 @@
 import { apiUrl } from "@/lib/auth/client";
 import {
+  erreurReferenceDepuisCorps,
+  type ErreurReferenceCabinet,
+} from "@/lib/erreurReferenceCabinet";
+import {
   MODELE_PAR_DEFAUT,
   type RemiseAZero,
 } from "@/lib/modeleReference";
 import { loadSessionTokens } from "@/lib/session/storage";
+
+export type { ErreurReferenceCabinet };
+export { erreurReferenceDepuisCorps };
 
 export type ApercuReference = {
   annee: number;
@@ -119,10 +126,13 @@ export async function enregistrerReferenceCabinet(
   instanceUrl: string,
   cabinetId: string,
   miseAJour: MiseAJourReferenceCabinet,
-): Promise<{ ok: true; etat: EtatReferenceCabinet } | { ok: false; message: string }> {
+): Promise<
+  | { ok: true; etat: EtatReferenceCabinet }
+  | { ok: false; message: string; numero_depart_minimal: number | null }
+> {
   const jeton = loadSessionTokens().accessToken;
   if (!jeton) {
-    return { ok: false, message: "Connexion requise." };
+    return { ok: false, message: "Connexion requise.", numero_depart_minimal: null };
   }
   try {
     const reponse = await fetch(apiUrl(instanceUrl, `/cabinets/${cabinetId}/reference`), {
@@ -143,10 +153,22 @@ export async function enregistrerReferenceCabinet(
     });
     const corps = await lireJson(reponse);
     if (!reponse.ok) {
-      return { ok: false, message: lireMessage(corps, `Erreur serveur (${String(reponse.status)}).`) };
+      const erreur = erreurReferenceDepuisCorps(
+        corps,
+        `Erreur serveur (${String(reponse.status)}).`,
+      );
+      return {
+        ok: false,
+        message: erreur.message,
+        numero_depart_minimal: erreur.numero_depart_minimal,
+      };
     }
     return { ok: true, etat: etatDepuisCorps(corps) };
   } catch {
-    return { ok: false, message: "Impossible de joindre l’instance. Vérifiez l’adresse et le réseau." };
+    return {
+      ok: false,
+      message: "Impossible de joindre l’instance. Vérifiez l’adresse et le réseau.",
+      numero_depart_minimal: null,
+    };
   }
 }

@@ -1,16 +1,66 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { SubmitEvent } from "react";
 import { CHEMISE_IDS } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
+import { loadSessionTokens } from "@/lib/session/storage";
+import { utilisateurIdDepuisJeton } from "@/lib/session/utilisateurCourant";
 import { ecrireDossier } from "@/dossiers/ecrireDossier";
+import { getPowerSyncDatabase } from "@/sync/database";
+
+type UtilisateurLocal = {
+  id: string;
+  display_name: string | null;
+  email: string | null;
+};
 
 function champ(form: FormData, nom: string): string {
   const valeur = form.get(nom);
   return typeof valeur === "string" ? valeur.trim() : "";
 }
 
+function libelleUtilisateur(utilisateur: UtilisateurLocal): string {
+  const nom = utilisateur.display_name?.trim() ?? "";
+  if (nom !== "") return nom;
+  const email = utilisateur.email?.trim() ?? "";
+  if (email !== "") return email;
+  return utilisateur.id;
+}
+
 export function FormulaireDossier() {
   const [message, setMessage] = useState("");
+  const [utilisateurs, setUtilisateurs] = useState<UtilisateurLocal[]>([]);
+  const [responsableId, setResponsableId] = useState("");
+  const moiId = utilisateurIdDepuisJeton(loadSessionTokens().accessToken);
+
+  useEffect(() => {
+    let stop = false;
+    void getPowerSyncDatabase()
+      .then((database) =>
+        database.getAll<UtilisateurLocal>(
+          "SELECT id, display_name, email FROM users ORDER BY display_name COLLATE NOCASE, email COLLATE NOCASE",
+        ),
+      )
+      .then((rows) => {
+        if (stop) return;
+        const moi = utilisateurIdDepuisJeton(loadSessionTokens().accessToken);
+        setUtilisateurs(rows);
+        const defaut =
+          moi !== null && rows.some((u) => u.id === moi)
+            ? moi
+            : (moi ?? rows[0]?.id ?? "");
+        setResponsableId(defaut);
+      })
+      .catch(() => {
+        if (!stop) {
+          const moi = utilisateurIdDepuisJeton(loadSessionTokens().accessToken);
+          setUtilisateurs([]);
+          setResponsableId(moi ?? "");
+        }
+      });
+    return () => {
+      stop = true;
+    };
+  }, []);
 
   async function soumettre(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -30,6 +80,13 @@ export function FormulaireDossier() {
       setMessage(fr("Choisissez une couleur de chemise."));
       return;
     }
+    const moi = utilisateurIdDepuisJeton(loadSessionTokens().accessToken);
+    const responsable =
+      champ(form, "responsable_id") || responsableId || moi || "";
+    if (responsable === "") {
+      setMessage(fr("Identifiant de l’utilisateur connecté introuvable."));
+      return;
+    }
     try {
       const id = await ecrireDossier({
         nom: champ(form, "nom"),
@@ -39,9 +96,11 @@ export function FormulaireDossier() {
         partieNom: champ(form, "partie"),
         partieRole: "client",
         restreint: form.get("restreint") === "on",
+        responsableId: responsable,
       });
       setMessage(id);
       formulaire.reset();
+      setResponsableId(responsable);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : fr("Enregistrement impossible."));
     }
@@ -75,6 +134,35 @@ export function FormulaireDossier() {
           </option>
         ))}
       </select>
+      {utilisateurs.length > 0 ? (
+        <>
+          <label
+            className="text-[length:var(--font-size-dense)] text-graphite"
+            htmlFor="dossier-responsable"
+          >
+            {fr("Responsable")}
+          </label>
+          <select
+            id="dossier-responsable"
+            name="responsable_id"
+            data-testid="dossier-responsable"
+            required
+            className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+            value={responsableId}
+            onChange={(event) => {
+              setResponsableId(event.target.value);
+            }}
+          >
+            {utilisateurs.map((utilisateur) => (
+              <option key={utilisateur.id} value={utilisateur.id}>
+                {fr(libelleUtilisateur(utilisateur))}
+              </option>
+            ))}
+          </select>
+        </>
+      ) : (
+        <input type="hidden" name="responsable_id" value={responsableId || moiId || ""} readOnly />
+      )}
       <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="dossier-juridiction">
         {fr("Juridiction")}
       </label>

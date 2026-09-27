@@ -9,11 +9,17 @@ export type NouveauDossier = {
   partieNom: string;
   partieRole: "client" | "adversaire" | "confrere";
   restreint: boolean;
+  /** UUID d’un utilisateur du cabinet ; défaut = créateur (session). */
+  responsableId: string;
 };
 
 export async function ecrireDossier(saisie: NouveauDossier): Promise<string> {
   if (!isChemiseId(saisie.chemise)) {
     throw new Error("Couleur de chemise inconnue");
+  }
+  const responsableId = saisie.responsableId.trim();
+  if (responsableId === "") {
+    throw new Error("Responsable du dossier requis");
   }
   const database = await getPowerSyncDatabase();
   const cabinets = await database.getAll<{ id: string }>("SELECT id FROM cabinets LIMIT 1");
@@ -28,11 +34,12 @@ export async function ecrireDossier(saisie: NouveauDossier): Promise<string> {
     // `reference` reste NULL : attribution uniquement côté serveur (§ 3.4).
     await tx.execute(
       `INSERT INTO dossiers (
-        id, cabinet_id, reference, nom, chemise, juridiction, numero_rg, restreint, revision, cree_le
-      ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, 1, ?)`,
+        id, cabinet_id, reference, responsable_id, nom, chemise, juridiction, numero_rg, restreint, revision, cree_le
+      ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, 1, ?)`,
       [
         dossierId,
         cabinetId,
+        responsableId,
         saisie.nom.trim(),
         saisie.chemise,
         saisie.juridiction.trim(),
