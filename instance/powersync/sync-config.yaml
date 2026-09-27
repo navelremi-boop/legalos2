@@ -12,12 +12,12 @@ streams:
 
   dossiers_publics:
     auto_subscribe: true
-    query: SELECT id, cabinet_id, nom, chemise, juridiction, numero_rg, reference, restreint, revision, cree_le::text AS cree_le FROM dossiers WHERE visibilite = 'public' AND cabinet_id::text = auth.parameter('cabinet_id')
+    query: SELECT id, cabinet_id, nom, chemise, juridiction, numero_rg, reference, restreint, revision, responsable_id, cree_le::text AS cree_le FROM dossiers WHERE visibilite = 'public' AND cabinet_id::text = auth.parameter('cabinet_id')
 
   dossiers_restreints:
     auto_subscribe: true
     query: |
-      SELECT dossiers.id, dossiers.cabinet_id, dossiers.nom, dossiers.chemise, dossiers.juridiction, dossiers.numero_rg, dossiers.reference, dossiers.restreint, dossiers.revision, dossiers.cree_le::text AS cree_le
+      SELECT dossiers.id, dossiers.cabinet_id, dossiers.nom, dossiers.chemise, dossiers.juridiction, dossiers.numero_rg, dossiers.reference, dossiers.restreint, dossiers.revision, dossiers.responsable_id, dossiers.cree_le::text AS cree_le
       FROM dossiers
       INNER JOIN dossier_acces ON dossiers.id = dossier_acces.dossier_id
       WHERE dossier_acces.utilisateur_texte = auth.user_id()

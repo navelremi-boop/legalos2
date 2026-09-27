@@ -33,6 +33,8 @@ pub struct CreerDossierRequest {
     pub juridiction: String,
     pub numero_rg: String,
     pub restreint: bool,
+    /// Avocat responsable (R0-b) ; défaut = créateur si omis.
+    pub responsable_id: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -152,11 +154,36 @@ pub async fn creer_dossier(
     let modele = ModeleReference::analyser_pour(&cabinet.0, remise)
         .map_err(|_| ApiError::internal("modèle de référence"))?;
 
+    let responsable_id = match body.responsable_id {
+        None => claims.sub,
+        Some(candidat) => {
+            let meme_cabinet = sqlx::query_scalar::<_, bool>(
+                r#"
+                SELECT EXISTS (
+                    SELECT 1 FROM utilisateurs
+                    WHERE id = $1 AND cabinet_id = $2 AND actif
+                )
+                "#,
+            )
+            .bind(candidat)
+            .bind(claims.cabinet_id)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|_| ApiError::internal("responsable"))?;
+            if !meme_cabinet {
+                return Err(ApiError::bad_request(
+                    "Le responsable doit être un utilisateur actif du même cabinet.",
+                ));
+            }
+            candidat
+        }
+    };
+
     let annee = annee_civile_paris(&mut tx).await?;
     let numero = attribuer_numero(&mut tx, claims.cabinet_id, remise, annee).await?;
     let numero_u64 =
         u64::try_from(numero).map_err(|_| ApiError::internal("numéro de référence"))?;
-    let initiales = initiales_utilisateur(&mut *tx, claims.sub).await?;
+    let initiales = initiales_utilisateur(&mut *tx, responsable_id).await?;
     let reference = modele.produire(annee, numero_u64, &initiales);
 
     sqlx::query(
@@ -164,12 +191,12 @@ pub async fn creer_dossier(
         INSERT INTO dossiers (
             id, cabinet_id, nom, chemise, juridiction, numero_rg,
             reference, reference_annee, reference_numero,
-            restreint, visibilite, revision
+            restreint, visibilite, revision, responsable_id
         )
         VALUES (
             $1, $2, $3, $4, $5, $6,
             $7, $8, $9,
-            $10, CASE WHEN $10 THEN 'restreint' ELSE 'public' END, 1
+            $10, CASE WHEN $10 THEN 'restreint' ELSE 'public' END, 1, $11
         )
         "#,
     )
@@ -183,6 +210,7 @@ pub async fn creer_dossier(
     .bind(annee)
     .bind(numero)
     .bind(body.restreint)
+    .bind(responsable_id)
     .execute(&mut *tx)
     .await
     .map_err(|_| ApiError::internal("création dossier"))?;

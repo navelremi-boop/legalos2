@@ -67,9 +67,9 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 
 | Flux | Filtre |
 |------|--------|
-| `cabinet_global` | `cabinets` (dont `reference_modele`, `reference_remise_a_zero`) et `journal_modifications` filtrés par `auth.parameter('cabinet_id')` |
-| `dossiers_publics` | `dossiers` où `visibilite = 'public'` et `cabinet_id` du JWT — SELECT inclut `reference` |
-| `dossiers_restreints` | `dossiers` JOIN `dossier_acces` où `utilisateur_texte = auth.user_id()` — SELECT inclut `reference` |
+| `cabinet_global` | `cabinets` (dont `reference_modele`, `reference_remise_a_zero`) et `journal_modifications` filtrés par `auth.parameter('cabinet_id')` — sans `auteur_id` (colonnes explicites) |
+| `dossiers_publics` | `dossiers` où `visibilite = 'public'` et `cabinet_id` du JWT — SELECT inclut `reference` et `responsable_id` |
+| `dossiers_restreints` | `dossiers` JOIN `dossier_acces` où `utilisateur_texte = auth.user_id()` — SELECT inclut `reference` et `responsable_id` |
 | `parties_publics` | `parties` JOIN `dossiers` (visibilité publique + cabinet) |
 | `parties_restreints` | `parties` JOIN `dossier_acces` (`auth.user_id()`) |
 | `documents_publics` | `documents` JOIN `dossiers` (visibilité publique + cabinet) |

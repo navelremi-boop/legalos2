@@ -8,7 +8,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { accessToken, demoAccessToken } from "./lib/demo-auth.mjs";
@@ -16,6 +16,9 @@ import { accessToken, demoAccessToken } from "./lib/demo-auth.mjs";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const instance = process.env.LEGALOS_INSTANCE_URL ?? "http://127.0.0.1:8088";
 const api = `${instance}/api`;
+const envFile = existsSync(join(root, ".env"))
+  ? join(root, ".env")
+  : join(root, "..", "..", ".env");
 
 function fail(message) {
   console.error(`reference-dossier-api: FAIL — ${message}`);
@@ -31,7 +34,7 @@ function sqlServeur(requete) {
         "-f",
         "instance/docker-compose.yml",
         "--env-file",
-        ".env",
+        envFile,
         "exec",
         "-T",
         "postgres",
