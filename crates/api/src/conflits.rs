@@ -51,7 +51,16 @@ pub async fn appliquer_champ_texte(
     }
     let conflit = detecter_conflit(tx, contexte, champ).await?;
     *revision += 1;
-    journaliser(tx, contexte, champ, Some(actuelle), nouvelle, *revision, conflit).await?;
+    journaliser(
+        tx,
+        contexte,
+        champ,
+        Some(actuelle),
+        nouvelle,
+        *revision,
+        conflit,
+    )
+    .await?;
     Ok(())
 }
 
