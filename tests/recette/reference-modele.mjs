@@ -600,32 +600,45 @@ async function executer() {
   console.log("reference-modele: (m) journal.auteur_id = utilisateur authentifié");
   await restaurerDefaut();
 
-  // (n) déclencheur 017 = forme de classement des vecteurs (majuscules ASCII)
+  // (n) expression du déclencheur 017 = forme de classement des vecteurs (majuscules ASCII).
+  // Pas d'INSERT de la référence du vecteur : sa forme peut déjà exister (2026/042 et 2026-042).
+  const expression = (refSql) =>
+    `SELECT upper(regexp_replace('${refSql}', '[^A-Za-z0-9_-]', '-', 'g'))`;
   for (const cas of vecteurs.normalisations) {
-    const id = randomUUID();
     const refSql = cas.reference.replace(/'/g, "''");
-    const insert = await sqlServeur(
-      `INSERT INTO dossiers (
-         id, cabinet_id, nom, chemise, juridiction, numero_rg,
-         reference, restreint, visibilite, revision
-       ) VALUES (
-         '${id}', '${cabinetId}', 'fictif classement vecteur', 'kraft', 'x', 'RG-${id.slice(0, 8)}',
-         '${refSql}', false, 'public', 1
-       )`,
-    );
-    if (insert.code !== 0) fail(`(n) insert ${cas.reference} : ${insert.err || insert.out}`);
-    const classement = await sqlServeur(
-      `SELECT reference_classement FROM dossiers WHERE id = '${id}'`,
-    );
+    const calcul = await sqlServeur(expression(refSql));
     const attendu = String(cas.classement).toUpperCase();
-    if (classement.out !== attendu) {
+    if (calcul.code !== 0 || calcul.out !== attendu) {
       fail(
-        `(n) ${cas.reference} → classement ${classement.out}, attendu ${attendu} (vecteur ${cas.classement})`,
+        `(n) ${cas.reference} → ${calcul.out || calcul.err}, attendu ${attendu} (vecteur ${cas.classement})`,
       );
     }
-    const del = await sqlServeur(`DELETE FROM dossiers WHERE id = '${id}'`);
-    if (del.code !== 0) fail(`(n) nettoyage ${id} : ${del.err || del.out}`);
   }
+  const idPreuve = randomUUID();
+  const preuve = `preuve${idPreuve.replace(/-/g, "")}`;
+  const insertPreuve = await sqlServeur(
+    `INSERT INTO dossiers (
+       id, cabinet_id, nom, chemise, juridiction, numero_rg,
+       reference, restreint, visibilite, revision
+     ) VALUES (
+       '${idPreuve}', '${cabinetId}', 'fictif classement vecteur', 'kraft', 'x', 'RG-${idPreuve.slice(0, 8)}',
+       '${preuve}', false, 'public', 1
+     )`,
+  );
+  if (insertPreuve.code !== 0) {
+    fail(`(n) insert preuve déclencheur : ${insertPreuve.err || insertPreuve.out}`);
+  }
+  const classementPreuve = await sqlServeur(
+    `SELECT reference_classement FROM dossiers WHERE id = '${idPreuve}'`,
+  );
+  const attenduPreuve = await sqlServeur(expression(preuve));
+  if (classementPreuve.out !== attenduPreuve.out) {
+    fail(
+      `(n) déclencheur ${classementPreuve.out} ≠ expression ${attenduPreuve.out}`,
+    );
+  }
+  const delPreuve = await sqlServeur(`DELETE FROM dossiers WHERE id = '${idPreuve}'`);
+  if (delPreuve.code !== 0) fail(`(n) nettoyage preuve : ${delPreuve.err || delPreuve.out}`);
   console.log(`reference-modele: (n) ${vecteurs.normalisations.length} formes de classement`);
 
   const openapi = await fetch(`${api}/openapi.json`, { signal: AbortSignal.timeout(15_000) });
