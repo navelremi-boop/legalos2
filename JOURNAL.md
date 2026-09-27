@@ -4,8 +4,9 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 - **Phase 0–1** VALIDÉES ; **J5–J7** VALIDÉS ; **Migration Sync Streams** VALIDÉE `9f80388` ; **J8** VALIDÉ `e8eb6b2`.
 - **Référence de dossier** : VALIDÉ `03ca364` (contrôleur, CI [36322383021](https://github.com/navelremi-boop/legalos2/actions/runs/36322383021)). Minutes des trois runs de clôture : **100** (durées de jobs arrondies à la minute supérieure ; le job macOS de [36319178833](https://github.com/navelremi-boop/legalos2/actions/runs/36319178833) compte dix fois).
-- **En cours** : **Conflits généralisés**. CI de la PR #5 verte sur `5c16e47` ([36355981017](https://github.com/navelremi-boop/legalos2/actions/runs/36355981017)). Contrôleur REFUSÉ : `conflits_integration` rejouait des clés d'idempotence fixes sur le Postgres partagé. Correctif en cours. Pas fusionné.
-- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → **Conflits généralisés** → Coque → Vue scindée → Intercalaires → Dossiers et contacts complets → Agenda → Documents, suite → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
+- **Conflits généralisés** : VALIDÉ `61e77c8` (contrôleur, CI [36357904754](https://github.com/navelremi-boop/legalos2/actions/runs/36357904754)). Quatre runs : **78** minutes (jobs arrondis à la minute supérieure). Dettes de preuve `fixerRevisionEdition` et injection `ps_crud` ouvertes jusqu'à la fin de la phase 2.
+- **En cours** : **Coque de l'app**.
+- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → **Coque** → Vue scindée → Intercalaires → Dossiers et contacts complets → Agenda → Documents, suite → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance).
 - **Sync** : Streams édition 3, service 1.26.1. Dette mensuelle avis PowerSync.
 - **Coque** corrigée (`22d765e`), non cochée : points médians de La journée (consigne 3), onglets de démonstration (dette). La journée est validée par l'architecte sous réserve des captures régénérées (consigne du 27/09, point 2).
@@ -18,7 +19,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 Contrôleur : **REFUSÉ**. `cargo test -p legalos-api --test conflits_integration` panique (`journal dossier: RowNotFound`) sur le Postgres de l'instance. Les clés locales (`d-nom-a1`, etc.) sont fixes et le poste de test est réutilisé : le rejeu d'idempotence répond 200 sans écrire le journal du nouveau dossier. Les recettes `s5-sync-streams`, `upload-contrat-poste`, `conflits-poste-tauri`, `j3-poste-tauri` et clippy étaient vertes. Critères du PLAN inchangés depuis `c47dc6b`.
 
-Correctif : une série d'identifiants par exécution ; le rejeu volontaire répète la même clé. La recette Tauri échoue si la migration 019 est absente, au lieu de sortir en SKIP. Dettes majeures (alignement forcé de `revision_edition`, insertion de secours dans `ps_crud`) inscrites au plan, à solder avant la fin de la phase 2.
+Correctif : une série d'identifiants par exécution ; le rejeu volontaire répète la même clé. La recette Tauri échoue si la migration 019 est absente, au lieu de sortir en SKIP. Recontrôle VALIDÉ sur `61e77c8`. CI de `main` [36357904754](https://github.com/navelremi-boop/legalos2/actions/runs/36357904754) verte. Jalon coché. Détail dans `docs/journal/phase-2.md`. Dettes majeures (alignement forcé de `revision_edition`, insertion de secours dans `ps_crud`) à solder avant la fin de la phase 2.
 
 ## 2026-09-27 — Conflits généralisés : lot poste réaligné sur main
 

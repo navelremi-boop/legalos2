@@ -142,3 +142,11 @@ Preuves (2026-09-26) :
 - **Coupure réelle** dans j5 : `docker compose pause api powersync`, création d’un dossier sur le poste → SQLite `reference` NULL, palette « Référence en attente », toujours NULL après 3 s ; `unpause` → référence serveur en SQLite et dans la palette.
 - **Encodage** : cinq lignes du journal écrites en ANSI par `Add-Content` (commit `c26b709`) réparées en UTF-8. **Règle vivante** `.cursor/rules/05-encodage.mdc` + contrôle `tests/recette/encodage-texte.mjs` en CI ; BOM retiré de `.cargo/config.toml`.
 - Preuves : typecheck, `lint:ci`, `reference-dossier.mjs`, `coque-app.mjs`, `reference-dossier-api.mjs` → OK ; `node tests/recette/j5-poste-tauri.mjs` → exit 0 (dossier hors ligne « Référence en attente » puis **2026-006** au retour du réseau).
+
+## 2026-09-28 — Conflits généralisés VALIDÉ
+
+- API déjà sur `main` (`5fbac31`) : journal en trois flux, PATCH par champ, immutabilité d'un temps référencé par un brouillon numéroté, `CHECK` restreint/visibilité.
+- Poste (`9f6e137`, puis drapeau de reconnexion `5c16e47`) : connecteur PUT/PATCH/DELETE, refus dans `refus_sync`, signal dans l'app. Recettes `conflits-poste-tauri.mjs` et `j3-poste-tauri.mjs` vertes.
+- Premier contrôle REFUSÉ : `conflits_integration` rejouait des clés fixes sur le Postgres partagé (`journal dossier: RowNotFound`). Correctif `ad83917` : série unique par exécution, rejeu volontaire de la même clé. Recontrôle : exit 0, 1 passed.
+- Critères du PLAN inchangés depuis `c47dc6b` jusqu'à la coche. CI de `main` [36357904754](https://github.com/navelremi-boop/legalos2/actions/runs/36357904754) verte. Minutes des quatre runs du lot (lint en échec, lint corrigé, clés, `main`) : **78**.
+- Dettes jusqu'à la fin de la phase 2 : `fixerRevisionEdition` pour la fausse alerte ; insertion de secours dans `ps_crud`.
