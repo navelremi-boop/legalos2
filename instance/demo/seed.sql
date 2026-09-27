@@ -20,3 +20,8 @@ VALUES (
 ON CONFLICT (cabinet_id, email) DO UPDATE SET
     password_hash = EXCLUDED.password_hash,
     totp_secret_chiffre = EXCLUDED.totp_secret_chiffre;
+
+-- Initiales du compte démo (R0-b) : première lettre de la partie locale, sans toucher au hash.
+UPDATE utilisateurs
+SET initiales = 'D'
+WHERE email = 'demo@cabinet-fictif.example';

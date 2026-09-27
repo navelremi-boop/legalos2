@@ -41,7 +41,13 @@ fn couche_cors() -> CorsLayer {
     ];
     CorsLayer::new()
         .allow_origin(ORIGINES.map(HeaderValue::from_static))
-        .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::OPTIONS])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::OPTIONS,
+        ])
         .allow_headers(Any)
 }
 

@@ -7,7 +7,7 @@ streams:
   cabinet_global:
     auto_subscribe: true
     queries:
-      - SELECT id, slug, nom, totp_obligatoire, cree_le::text AS cree_le, revision FROM cabinets WHERE id::text = auth.parameter('cabinet_id')
+      - SELECT id, slug, nom, totp_obligatoire, reference_modele, reference_remise_a_zero, cree_le::text AS cree_le, revision FROM cabinets WHERE id::text = auth.parameter('cabinet_id')
       - SELECT id, cabinet_id, table_cible, enregistrement_id, champ, valeur_remplacee, valeur_appliquee, revision_base, revision_appliquee, conflit, cree_le::text AS cree_le FROM journal_modifications WHERE cabinet_id::text = auth.parameter('cabinet_id')
 
   dossiers_publics:
