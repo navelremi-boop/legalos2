@@ -10,6 +10,10 @@ use utoipa::ToSchema;
 pub struct ApiErrorBody {
     pub code: &'static str,
     pub message: String,
+    /// Présent seulement pour un 409 `reference_existante` quand un numéro de départ
+    /// plus élevé rendrait le changement acceptable (R0-f).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub numero_depart_minimal: Option<i64>,
 }
 
 #[derive(Debug)]
@@ -17,6 +21,7 @@ pub struct ApiError {
     status: StatusCode,
     code: &'static str,
     message: String,
+    numero_depart_minimal: Option<i64>,
 }
 
 impl ApiError {
@@ -25,6 +30,7 @@ impl ApiError {
             status: StatusCode::NOT_IMPLEMENTED,
             code: "not_implemented",
             message: message.into(),
+            numero_depart_minimal: None,
         }
     }
 
@@ -33,6 +39,7 @@ impl ApiError {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             code: "internal_error",
             message: message.into(),
+            numero_depart_minimal: None,
         }
     }
 
@@ -41,6 +48,7 @@ impl ApiError {
             status: StatusCode::BAD_REQUEST,
             code: "bad_request",
             message: message.into(),
+            numero_depart_minimal: None,
         }
     }
 
@@ -49,6 +57,7 @@ impl ApiError {
             status: StatusCode::UNAUTHORIZED,
             code: "unauthorized",
             message: message.into(),
+            numero_depart_minimal: None,
         }
     }
 
@@ -57,6 +66,7 @@ impl ApiError {
             status: StatusCode::NOT_FOUND,
             code: "not_found",
             message: message.into(),
+            numero_depart_minimal: None,
         }
     }
 
@@ -65,6 +75,7 @@ impl ApiError {
             status: StatusCode::CONFLICT,
             code: "conflict",
             message: message.into(),
+            numero_depart_minimal: None,
         }
     }
 
@@ -74,6 +85,22 @@ impl ApiError {
             status,
             code,
             message: message.into(),
+            numero_depart_minimal: None,
+        }
+    }
+
+    /// Comme `with_code`, avec un numéro de départ minimal (409 `reference_existante`, R0-f).
+    pub fn with_code_et_numero_depart(
+        status: StatusCode,
+        code: &'static str,
+        message: impl Into<String>,
+        numero_depart_minimal: Option<i64>,
+    ) -> Self {
+        Self {
+            status,
+            code,
+            message: message.into(),
+            numero_depart_minimal,
         }
     }
 
@@ -87,6 +114,7 @@ impl IntoResponse for ApiError {
         let body = ApiErrorBody {
             code: self.code,
             message: self.message,
+            numero_depart_minimal: self.numero_depart_minimal,
         };
         (self.status, Json(body)).into_response()
     }

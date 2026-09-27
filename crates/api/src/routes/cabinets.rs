@@ -452,14 +452,30 @@ pub async fn ecrire_reference(
     .await
     .map_err(|_| ApiError::internal("références existantes"))?;
 
-    if existantes
+    let references: Vec<&str> = existantes.iter().map(|(r,)| r.as_str()).collect();
+    if references
         .iter()
-        .any(|(reference,)| modele.pourrait_redonner(remise, annee, prochain_u64, reference))
+        .any(|reference| modele.pourrait_redonner(remise, annee, prochain_u64, reference))
     {
-        return Err(ApiError::with_code(
+        let plancher = (dernier + 1).max(1);
+        let plancher_u64 =
+            u64::try_from(plancher).map_err(|_| ApiError::internal("numéro de départ"))?;
+        let numero_depart_minimal =
+            numero_depart_minimal_acceptable(&modele, remise, annee, plancher_u64, &references)
+                .and_then(|n| i64::try_from(n).ok());
+        let message = match numero_depart_minimal {
+            Some(n) => format!(
+                "Ce changement redonnerait une référence déjà attribuée. Un numéro de départ d'au moins {n} le rendrait acceptable."
+            ),
+            None => {
+                "Ce changement redonnerait une référence déjà attribuée.".to_owned()
+            }
+        };
+        return Err(ApiError::with_code_et_numero_depart(
             StatusCode::CONFLICT,
             "reference_existante",
-            "Ce changement redonnerait une référence déjà attribuée.",
+            message,
+            numero_depart_minimal,
         ));
     }
 
@@ -488,6 +504,7 @@ pub async fn ecrire_reference(
         &mut tx,
         cabinet_id,
         claims.poste_id,
+        claims.sub,
         courant.2,
         "reference_modele",
         &courant.0,
@@ -499,6 +516,7 @@ pub async fn ecrire_reference(
         &mut tx,
         cabinet_id,
         claims.poste_id,
+        claims.sub,
         courant.2,
         "reference_remise_a_zero",
         &courant.1,
@@ -511,6 +529,7 @@ pub async fn ecrire_reference(
             &mut tx,
             cabinet_id,
             claims.poste_id,
+            claims.sub,
             courant.2,
             "reference_numero_depart",
             &prochain_actuel.to_string(),
@@ -795,6 +814,7 @@ async fn journaliser_si_change(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     cabinet_id: Uuid,
     poste_id: Uuid,
+    auteur_id: Uuid,
     revision_base: i64,
     champ: &str,
     actuelle: &str,
@@ -810,9 +830,9 @@ async fn journaliser_si_change(
         INSERT INTO journal_modifications (
             id, cabinet_id, table_cible, enregistrement_id, champ,
             valeur_remplacee, valeur_appliquee, revision_base, revision_appliquee,
-            poste_id, conflit
+            poste_id, auteur_id, conflit
         )
-        VALUES ($1, $2, 'cabinets', $2, $3, $4, $5, $6, $7, $8, FALSE)
+        VALUES ($1, $2, 'cabinets', $2, $3, $4, $5, $6, $7, $8, $9, FALSE)
         "#,
     )
     .bind(Uuid::now_v7())
@@ -823,6 +843,7 @@ async fn journaliser_si_change(
     .bind(revision_base)
     .bind(*revision)
     .bind(poste_id)
+    .bind(auteur_id)
     .execute(
         tx.acquire()
             .await
@@ -831,6 +852,48 @@ async fn journaliser_si_change(
     .await
     .map_err(|_| ApiError::internal("Journal"))?;
     Ok(())
+}
+
+/// Plus petit numéro de départ (≥ `plancher`) tel qu'aucune référence existante ne serait
+/// redonnée. `None` s'il n'existe pas de tel numéro (ex. collision avec une année future
+/// sous politique annuelle).
+fn numero_depart_minimal_acceptable(
+    modele: &ModeleReference,
+    remise: RemiseAZero,
+    annee: i32,
+    plancher: u64,
+    references: &[&str],
+) -> Option<u64> {
+    const PLAFOND: u64 = 1_000_000_000;
+    if !references
+        .iter()
+        .any(|r| modele.pourrait_redonner(remise, annee, plancher, r))
+    {
+        return Some(plancher);
+    }
+    let mut hi = plancher.saturating_add(1).max(2);
+    while references
+        .iter()
+        .any(|r| modele.pourrait_redonner(remise, annee, hi, r))
+    {
+        if hi >= PLAFOND {
+            return None;
+        }
+        hi = hi.saturating_mul(2).min(PLAFOND);
+    }
+    let mut lo = plancher;
+    while lo < hi {
+        let mid = lo + (hi - lo) / 2;
+        if references
+            .iter()
+            .any(|r| modele.pourrait_redonner(remise, annee, mid, r))
+        {
+            lo = mid + 1;
+        } else {
+            hi = mid;
+        }
+    }
+    Some(lo)
 }
 
 fn remise_sql(remise: RemiseAZero) -> &'static str {

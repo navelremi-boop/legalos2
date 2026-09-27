@@ -11,6 +11,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { demoAccessToken } from "./lib/demo-auth.mjs";
@@ -18,6 +19,9 @@ import { demoAccessToken } from "./lib/demo-auth.mjs";
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "../..");
 const instance = process.env.LEGALOS_INSTANCE_URL ?? "http://127.0.0.1:8088";
 const api = `${instance}/api`;
+const envFile = existsSync(join(root, ".env"))
+  ? join(root, ".env")
+  : join(root, "..", "..", ".env");
 const MOTIF = /^(\d{4})-(\d{3,})$/;
 const SIMULTANES = 30;
 
@@ -45,7 +49,7 @@ function sql(requete) {
         "-f",
         "instance/docker-compose.yml",
         "--env-file",
-        ".env",
+        envFile,
         "exec",
         "-T",
         "postgres",
