@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-27 (jalon en cours : **Référence de dossier**, personnalisation comprise).
+Dernière mise à jour : 2026-09-27 (jalon en cours : **Conflits généralisés**).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -34,34 +34,9 @@ Ordre architecte (révisé 2026-09-27) : **Migration Sync Streams** → **J8** �
 - [x] **Migration Sync Streams** — VALIDÉ `9f80388` (CI [36265441004](https://github.com/navelremi-boop/legalos2/actions/runs/36265441004))
 - [x] **J8** — Temps et facturation électronique (S9) — VALIDÉ `e8eb6b2` (CI [36269667975](https://github.com/navelremi-boop/legalos2/actions/runs/36269667975))
 
-- [ ] **Référence de dossier** — § 3.4, arbitrage R0 (référence personnalisable) et son complément du 27/09 — **jalon en cours**
-  - **Validation partielle** : contrôleur VALIDÉ sur `6a1a050` (CI [36272379503](https://github.com/navelremi-boop/legalos2/actions/runs/36272379503)) pour l'attribution serveur au format fixe. La personnalisation n'est pas livrée : jalon non validé.
-  - **Critères d'acceptation (commandes)** :
-    - `node tests/recette/reference-dossier.mjs` → exit 0 : le poste n'écrit jamais de référence ; « Référence en attente » tant que le serveur n'a pas attribué la référence.
-    - `node tests/recette/reference-dossier-api.mjs` → exit 0 : attribution par le serveur dans une transaction, avec unicité ; créations concurrentes sans doublon ni trou ; rejeux, dont dix envois simultanés du même dossier ; dossier restreint refusé hors de `dossier_acces` ; référence jamais modifiée.
-    - `node tests/recette/reference-dossier-controleur.mjs` → exit 0 : immutabilité garantie en base ; remise à zéro annuelle ; séquence propre à chaque cabinet.
-    - `node tests/recette/reference-deux-postes-tauri.mjs` → exit 0 : deux postes Tauri créent des dossiers en même temps, dont hors ligne avec retour du réseau simultané ; références distinctes, sans doublon ni trou.
-    - `node tests/recette/j5-poste-tauri.mjs` → exit 0 : coupure réseau réelle ; « Référence en attente » puis référence attribuée par le serveur.
-    - `node tests/recette/reference-dossier-ecran.mjs` → exit 0 : étiquette « Dossier <référence> » et libellé d'attente à l'écran.
-    - `node tests/recette/reference-modele.mjs` → exit 0 (API, Postgres réel) :
-      - modèle propre au cabinet ; jetons `{AAAA}`, `{AA}`, `{N}`, `{N:k}`, `{INI}` ; « / » admis comme texte libre ;
-      - modèles `{AAAA}/{N:3}`, `RN/{AA}/{N:4}`, `{N}/{AAAA}` et un modèle sans aucun séparateur, attribués par l'API ; référence stockée et renvoyée avec ses « / » intacts ;
-      - chaque politique de remise à zéro ;
-      - numéro de départ ;
-      - refus des modèles invalides ;
-      - refus de tout changement (modèle, politique, numéro de départ) qui redonnerait une référence existante ; aucune référence déjà attribuée n'est régénérée ; le 409 `reference_existante` indique le numéro de départ minimal qui rendrait le changement acceptable, quand il existe ;
-      - un dossier créé par A avec B pour responsable, sous un modèle contenant `{INI}`, porte les initiales de B ; `responsable_id` (utilisateur du cabinet) est choisi à la création, vaut le créateur s'il est omis, est envoyé avec la création et synchronisé ; les initiales sont figées à l'attribution ;
-      - chaque changement de modèle, de politique ou de numéro de départ est journalisé avec son auteur ;
-      - pour chaque vecteur de `crates/domaine/tests/reference-vecteurs.json`, la forme de classement calculée par le déclencheur de la migration 017 est celle du domaine.
-    - `cargo test -p legalos-domaine reference` → exit 0 : formes normalisées, seulement pour l'adresse de classement (« / » et caractères mal acceptés par les messageries → « - ») et pour les noms de fichiers et de dossiers de l'export (`/ \ : * ? " < > |` → « - ») ; reconnaissance d'une référence sous sa forme d'origine comme sous sa forme normalisée.
-    - `node tests/recette/reference-modele-ecran.mjs` → exit 0 (app Tauri) :
-      - Réglages : modèle texte et constructeur visuel par blocs (Année, Numéro avec nombre de chiffres, Initiales, Texte) ; entre chaque bloc, séparateur « / », « - », « . », « _ », espace ou aucun ; aperçu en direct ; les deux vues restent synchronisées ;
-      - référence affichée et retrouvée par la palette avec ses « / » intacts ;
-      - Réglages affiche le numéro de départ minimal renvoyé avec le 409 `reference_existante`.
-    - `cargo clippy --workspace --all-targets -- -D warnings` et `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
-  - **Responsables** : instance-backend (API, domaine), poste-interface (Réglages, palette).
+- [x] **Référence de dossier** — VALIDÉ `03ca364` (contrôleur, CI [36322383021](https://github.com/navelremi-boop/legalos2/actions/runs/36322383021))
 
-- [ ] **Conflits généralisés** — § 3.4, invariant n° 2 (consignes architecte 1 et 2 du 26/09)
+- [ ] **Conflits généralisés** — § 3.4, invariant n° 2 (consignes architecte 1 et 2 du 26/09) — **jalon en cours**
   - **Critères d'acceptation (commandes)** :
     - `cargo test -p legalos-api --test conflits_integration` → exit 0 (Postgres réel), pour dossiers, parties, temps, brouillons de facture et taux horaires :
       - révision de base envoyée avec chaque modification ;
