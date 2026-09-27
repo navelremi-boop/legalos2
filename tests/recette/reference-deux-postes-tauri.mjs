@@ -6,7 +6,7 @@
  * Usage : node tests/recette/reference-deux-postes-tauri.mjs
  */
 import { spawn } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,7 +38,13 @@ function resetPostesLocaux() {
   }
 }
 
-function startApp(id) {
+function cheminBinairePoste() {
+  const target = process.env.CARGO_TARGET_DIR ?? join(poste, "src-tauri", "target");
+  return join(target, "debug", "legal-os-poste.exe");
+}
+
+/** Premier poste : `tauri dev` (Vite + compilation). */
+function startAppDev(id) {
   const port = id === "p" ? "9246" : "9247";
   const dir = join(tmpdir(), `legalos-webview-ref2-${id}-${marque}`);
   mkdirSync(dir, { recursive: true });
@@ -78,6 +84,43 @@ function startApp(id) {
   return child;
 }
 
+/**
+ * Second poste : copie du binaire déjà lancé (évite le verrou Windows sur legal-os-poste.exe)
+ * et même Vite (devUrl 1420). CDP via WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS.
+ */
+function startAppCopie(id) {
+  const port = id === "p" ? "9246" : "9247";
+  const src = cheminBinairePoste();
+  if (!existsSync(src)) throw new Error(`binaire absent (${src})`);
+  const dest = join(tmpdir(), `legal-os-poste-${id}-${marque}.exe`);
+  copyFileSync(src, dest);
+  const dir = join(tmpdir(), `legalos-webview-ref2-${id}-${marque}`);
+  mkdirSync(dir, { recursive: true });
+  const child = spawn(dest, [], {
+    cwd: poste,
+    env: {
+      ...process.env,
+      LEGALOS_POSTE_ID: id,
+      WEBVIEW2_USER_DATA_FOLDER: dir,
+      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port} --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`,
+      LIBCLANG_PATH: process.env.LIBCLANG_PATH ?? "C:\\Program Files\\LLVM\\bin",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+  });
+  let log = "";
+  const onData = (chunk) => {
+    log += chunk.toString();
+    if (log.length > 12000) log = log.slice(-12000);
+  };
+  child.stdout.on("data", onData);
+  child.stderr.on("data", onData);
+  child.port = port;
+  child.exeCopie = dest;
+  child.logTail = () => log.slice(-1500);
+  return child;
+}
+
 async function stopApp(child) {
   if (!child || child.exitCode !== null) return;
   await new Promise((resolve) => {
@@ -87,6 +130,16 @@ async function stopApp(child) {
     );
   });
   await sleep(800);
+  if (child.exeCopie) {
+    for (let i = 0; i < 8; i += 1) {
+      try {
+        rmSync(child.exeCopie, { force: true });
+        break;
+      } catch {
+        await sleep(400);
+      }
+    }
+  }
 }
 
 async function connectCdp(port) {
@@ -337,11 +390,14 @@ if (sonde.status === 404) {
 }
 
 resetPostesLocaux();
-const posteP = startApp("p");
-const posteQ = startApp("q");
+/** P via tauri dev ; Q = copie du binaire (un seul cargo, pas de conflit d'exe Windows). */
+const posteP = startAppDev("p");
+let posteQ;
 let enPause = false;
 try {
-  await Promise.all([waitCdp(posteP), waitCdp(posteQ)]);
+  await waitCdp(posteP);
+  posteQ = startAppCopie("q");
+  await waitCdp(posteQ);
   const a = await connectCdp(posteP.port);
   const b = await connectCdp(posteQ.port);
   await login(a.send, "Poste P référence");
@@ -400,7 +456,7 @@ try {
 } catch (err) {
   console.error(`reference-deux-postes: FAIL — ${err instanceof Error ? err.message : err}`);
   console.error(posteP.logTail());
-  console.error(posteQ.logTail());
+  console.error(posteQ?.logTail?.() ?? "");
   process.exitCode = 1;
 } finally {
   if (enPause) await compose(["unpause", "api", "powersync"]).catch(() => undefined);

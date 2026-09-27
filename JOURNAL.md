@@ -54,6 +54,11 @@ Traitement :
 - **Lots lancés** en parallèle, chacun dans son worktree : API (`.worktrees/reference-modele-api`, sous-agent instance-backend : migration 017, `GET` et `PUT /cabinets/{id}/reference`, attribution selon le modèle, recette `reference-modele.mjs`) ; poste (`.worktrees/reference-modele-poste`, sous-agent poste-interface : portage TypeScript vérifié sur les vecteurs, constructeur visuel dans Réglages, palette avec échappement de `LIKE`, recettes Tauri).
 - **Reprise du 27/09 (midi)** : les deux worktrees existaient sur `lot/reference-modele-*` au même HEAD que `main` (`7a50f3a`), sans aucun commit ni fichier de lot. Relance des deux sous-agents. Contrat API corrigé : migration 017 uniquement additive (`tests/recette/migrations-additives.mjs`) — table nouvelle `sequences_dossiers_continues`, pas de `DROP CONSTRAINT` sur `sequences_dossiers`.
 - **Fusion** (2026-09-27) : [PR #2](https://github.com/navelremi-boop/legalos2/pull/2) (API, CI [36313632037](https://github.com/navelremi-boop/legalos2/actions/runs/36313632037), 5 jobs verts dont `s1-instance` et `reference-modele.mjs`) puis [PR #1](https://github.com/navelremi-boop/legalos2/pull/1) (poste, CI [36313631528](https://github.com/navelremi-boop/legalos2/actions/runs/36313631528), frontend vert dont `reference-modele-poste.mjs`). `main` à `869baf4`. `reference_classement` tenue par un déclencheur (pas `GENERATED ALWAYS` : le `jsonb_populate_record` du contrôleur refuse 428C9). Worktrees retirés. Recettes Tauri encore à exécuter.
+- **Recettes Tauri** (poste-interface, après fusion) :
+  - Préalable : PowerSync `PSYNC_S2305` (limite 1000 paramètres) avec ~209 dossiers publics — purge des dossiers sans facture (reste 16) ; sync rétabli.
+  - `node tests/recette/reference-modele-ecran.mjs` → exit 0 ; référence écran et palette `2026/001` ; captures `target/controle-reference-modele/`.
+  - `node tests/recette/reference-deux-postes-tauri.mjs` → exit 0 ; références distinctes sans trou (ex. `2026/006`…`2026/009`) ; correctif : second poste = copie du binaire (verrou Windows sur l'exe) ; démarrage séquentiel.
+  - Cabinet démo remis à `{AAAA}-{N:3}` / `annuelle`.
 
 ## 2026-09-27 — La journée sans points médians (consigne 3)
 
