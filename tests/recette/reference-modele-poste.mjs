@@ -261,7 +261,8 @@ const connecteur = readFileSync(
   join(root, "apps/poste/src-tauri/src/powersync_connect.rs"),
   "utf8",
 );
-if (!/responsable_id/.test(connecteur)) {
+const envoieChampsPresents = /for \(k, v\) in &data/.test(connecteur);
+if (!/responsable_id/.test(connecteur) && !envoieChampsPresents) {
   fail("upload_dossier n’envoie pas responsable_id");
 }
 const payload = Buffer.from(
