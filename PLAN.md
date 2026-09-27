@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-27 (jalon en cours : **Conflits généralisés**).
+Dernière mise à jour : 2026-09-28 (jalon en cours : **Coque de l'app**).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -118,26 +118,7 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
 
 - [x] **Référence de dossier** — VALIDÉ `03ca364` (contrôleur, CI [36322383021](https://github.com/navelremi-boop/legalos2/actions/runs/36322383021))
 
-- [ ] **Conflits généralisés** — § 3.4, invariant n° 2 (consignes architecte 1 et 2 du 26/09) — **jalon en cours**
-  - **Critères d'acceptation (commandes)** :
-    - `cargo test -p legalos-api --test conflits_integration` → exit 0 (Postgres réel), pour dossiers, parties, temps, brouillons de facture et taux horaires :
-      - révision de base envoyée avec chaque modification ;
-      - dernière écriture gagnante par champ ;
-      - valeur remplacée journalisée, avec `dossier_id` (nul pour les enregistrements du cabinet) ;
-      - rejeu sans second effet ; donnée validée immuable ;
-      - un temps saisi devient immuable dès qu'un brouillon numéroté le référence ;
-      - `CHECK (restreint = (visibilite = 'restreint'))` sur `dossiers` : une écriture incohérente est refusée.
-    - `node tests/recette/s5-sync-streams.mjs` → exit 0 : journal en trois flux, cabinet (`dossier_id` nul), dossiers publics et dossiers restreints (mêmes jointures que les tables filles) ; plus de journal dans `cabinet_global`. Livré avant qu'une autre table que `cabinets` n'alimente le journal (bloquant).
-    - `node tests/recette/conflits-poste-tauri.mjs` → exit 0 (deux postes Tauri, coupure réseau réelle) :
-      - un conflit par table (dossiers, parties, temps, brouillons, taux), avec une modification hors ligne ;
-      - conflit signalé dans l'app ;
-      - S5 : conflit provoqué sur un dossier restreint ; l'entrée du journal est absente du SQLite du poste non autorisé ;
-      - dette J3 devenue critère, « fausse alerte de conflit » : une écriture séquentielle du même poste après reprise n'est pas journalisée comme conflit ;
-      - refus du serveur (400, 403, 404, 409) : l'entrée est consignée dans une table locale non synchronisée et retirée de la file, le message s'affiche, les écritures suivantes partent ; une modification refusée puis une modification valide, la seconde arrive sur l'autre poste ;
-      - aucune perte silencieuse : le connecteur traite explicitement PUT, PATCH et DELETE ; une modification d'un seul champ, pour chaque table ; une table inconnue est consignée comme refus, sans bloquer la file.
-    - `node tests/recette/j3-poste-tauri.mjs` → exit 0 (non-régression des cinq points du § 3.4).
-    - `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ; contrôleur VALIDÉ ; CI verte.
-  - **Responsables** : instance-backend (API, migration, flux), poste-interface (file d'envoi, signal dans l'app).
+- [x] **Conflits généralisés** — VALIDÉ `61e77c8` (contrôleur, CI [36357904754](https://github.com/navelremi-boop/legalos2/actions/runs/36357904754))
 
 - [ ] **Coque de l'app** — cahier § 7, version 5 (code sur `a24d0a2`, écarts de captures corrigés `22d765e`)
   - **Critères d'acceptation (commandes)** :
