@@ -5,10 +5,12 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use futures_lite::StreamExt;
 use powersync::error::PowerSyncError;
-use powersync::{BackendConnector, PowerSyncCredentials, PowerSyncDatabase, SyncOptions};
+use powersync::{
+    BackendConnector, CrudEntry, PowerSyncCredentials, PowerSyncDatabase, SyncOptions, UpdateType,
+};
 use reqwest::StatusCode;
 use serde::Serialize;
-use serde_json::{Map, Value};
+use serde_json::{Map, Value, json};
 use tauri::{AppHandle, Runtime};
 use tauri_plugin_powersync::PowerSyncExt;
 
@@ -36,16 +38,6 @@ fn upload_err(message: impl Into<String>) -> PowerSyncError {
 struct CabinetConnector {
     db: PowerSyncDatabase,
     session: Arc<Mutex<SessionSync>>,
-}
-
-#[derive(Serialize)]
-struct PatchBody<'a> {
-    base_revision: i64,
-    idempotence_cle: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    nom: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    slug: Option<&'a str>,
 }
 
 #[tauri::command]
@@ -107,35 +99,10 @@ impl BackendConnector for CabinetConnector {
         let mut transactions = self.db.crud_transactions();
         while let Some(mut tx) = transactions.try_next().await? {
             let crud = std::mem::take(&mut tx.crud);
-            let mut cabinets = Vec::new();
-            let mut dossiers = Vec::new();
-            let mut parties = Vec::new();
-            let mut temps = Vec::new();
-            let mut brouillons = Vec::new();
             for entry in crud {
-                match entry.table.as_str() {
-                    "cabinets" => cabinets.push(entry),
-                    "dossiers" => dossiers.push(entry),
-                    "parties" => parties.push(entry),
-                    "temps_saisis" => temps.push(entry),
-                    "brouillons_facture" => brouillons.push(entry),
-                    _ => return Err(upload_err("table hors périmètre")),
-                }
-            }
-            for entry in cabinets {
-                upload_cabinet(&self.session, &self.db, &entry.id, entry.data.as_ref()).await?;
-            }
-            for entry in dossiers {
-                upload_dossier(&self.session, &entry.id, entry.data.as_ref()).await?;
-            }
-            for entry in parties {
-                upload_partie(&self.session, &entry.id, entry.data.as_ref()).await?;
-            }
-            for entry in temps {
-                upload_temps(&self.session, &entry.id, entry.data.as_ref()).await?;
-            }
-            for entry in brouillons {
-                upload_brouillon(&self.session, &entry.id, entry.data.as_ref()).await?;
+                // Un refus (400/403/404/409, table inconnue, DELETE) est consigné et la file avance.
+                // Seules les erreurs transitoires (réseau, 5xx) bloquent pour réessai.
+                traiter_entree(&self.session, &self.db, &entry).await?;
             }
             tx.complete().await?;
         }
@@ -143,229 +110,212 @@ impl BackendConnector for CabinetConnector {
     }
 }
 
-async fn upload_cabinet(
+async fn traiter_entree(
     session: &Arc<Mutex<SessionSync>>,
     db: &PowerSyncDatabase,
-    id: &str,
-    data: Option<&Map<String, Value>>,
+    entry: &CrudEntry,
 ) -> Result<(), PowerSyncError> {
-    let Some(data) = data else {
-        return Ok(());
-    };
-    let nom = json_text(data.get("nom"));
-    let slug = json_text(data.get("slug"));
-    if nom.is_none() && slug.is_none() {
-        return Ok(());
+    match &entry.update_type {
+        UpdateType::Delete => {
+            consign_refus(
+                db,
+                &entry.table,
+                &entry.id,
+                "DELETE",
+                None,
+                "Les suppressions ne sont pas autorisées.",
+            )
+            .await?;
+            return Ok(());
+        }
+        UpdateType::Put | UpdateType::Patch => {}
     }
-    let base_revision = lire_revision(db, id).await?;
-    let (instance_url, token) = {
-        let session = session
-            .lock()
-            .map_err(|_| upload_err("session sync verrouillée"))?;
-        (session.instance_url.clone(), session.access_token.clone())
-    };
-    let idempotence_cle = format!(
-        "{id}:{base_revision}:{}:{}",
-        nom.unwrap_or(""),
-        slug.unwrap_or("")
-    );
-    let body = PatchBody {
-        base_revision,
-        idempotence_cle,
-        nom,
-        slug,
-    };
-    let url = format!("{}/api/cabinets/{id}", instance_url.trim_end_matches('/'));
-    let response = reqwest::Client::new()
-        .patch(url)
-        .bearer_auth(token)
-        .json(&body)
-        .send()
+
+    let Some(ressource) = ressource_connue(&entry.table) else {
+        consign_refus(
+            db,
+            &entry.table,
+            &entry.id,
+            op_label(&entry.update_type),
+            None,
+            &format!("Table inconnue : {}.", entry.table),
+        )
         .await?;
-    if response.status() != StatusCode::OK {
-        let status = response.status();
-        let corps = response.text().await.unwrap_or_default();
-        return Err(upload_err(format!(
-            "upload cabinet rejeté ({status}) {corps}"
-        )));
+        return Ok(());
+    };
+
+    match &entry.update_type {
+        UpdateType::Put => envoyer_put(session, db, ressource, entry).await,
+        UpdateType::Patch => envoyer_patch(session, db, ressource, entry).await,
+        UpdateType::Delete => Ok(()),
     }
-    Ok(())
 }
 
-#[derive(Serialize)]
-struct CreerDossierBody<'a> {
-    id: &'a str,
-    idempotence_cle: String,
-    nom: &'a str,
-    chemise: &'a str,
-    juridiction: &'a str,
-    numero_rg: &'a str,
-    restreint: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    responsable_id: Option<&'a str>,
+struct Ressource {
+    table: &'static str,
+    patch_chemin: fn(&str) -> String,
+    put_chemin: fn(&Map<String, Value>) -> Result<String, String>,
+    champs_modifiables: &'static [&'static str],
+    /// Champs numériques envoyés en entier JSON.
+    champs_entiers: &'static [&'static str],
 }
 
-#[derive(Serialize)]
-struct CreerPartieBody<'a> {
-    id: &'a str,
-    idempotence_cle: String,
-    role: &'a str,
-    nom: &'a str,
+fn ressource_connue(table: &str) -> Option<&'static Ressource> {
+    static CABINETS: Ressource = Ressource {
+        table: "cabinets",
+        patch_chemin: |id| format!("/api/cabinets/{id}"),
+        put_chemin: |_| Err("création de cabinet non prise en charge depuis le poste".into()),
+        champs_modifiables: &["nom", "slug"],
+        champs_entiers: &[],
+    };
+    static DOSSIERS: Ressource = Ressource {
+        table: "dossiers",
+        patch_chemin: |id| format!("/api/dossiers/{id}"),
+        put_chemin: |_| Ok("/api/dossiers".into()),
+        champs_modifiables: &["nom", "chemise", "juridiction", "numero_rg"],
+        champs_entiers: &[],
+    };
+    static PARTIES: Ressource = Ressource {
+        table: "parties",
+        patch_chemin: |id| format!("/api/parties/{id}"),
+        put_chemin: |data| {
+            let dossier_id = json_text(data.get("dossier_id"))
+                .ok_or_else(|| "dossier de la partie absent".to_string())?;
+            Ok(format!("/api/dossiers/{dossier_id}/parties"))
+        },
+        champs_modifiables: &["role", "nom"],
+        champs_entiers: &[],
+    };
+    static TEMPS: Ressource = Ressource {
+        table: "temps_saisis",
+        patch_chemin: |id| format!("/api/temps/{id}"),
+        put_chemin: |_| Ok("/api/temps".into()),
+        champs_modifiables: &["minutes", "libelle", "taux_centimes_heure"],
+        champs_entiers: &["minutes", "taux_centimes_heure"],
+    };
+    static BROUILLONS: Ressource = Ressource {
+        table: "brouillons_facture",
+        patch_chemin: |id| format!("/api/brouillons-facture/{id}"),
+        put_chemin: |_| Ok("/api/brouillons-facture".into()),
+        champs_modifiables: &["libelle", "taux_centimes_heure"],
+        champs_entiers: &["taux_centimes_heure", "ht_centimes"],
+    };
+    static TAUX: Ressource = Ressource {
+        table: "taux_horaires",
+        patch_chemin: |id| format!("/api/taux-horaires/{id}"),
+        put_chemin: |_| Ok("/api/taux-horaires".into()),
+        champs_modifiables: &["centimes_par_heure"],
+        champs_entiers: &["centimes_par_heure"],
+    };
+    match table {
+        "cabinets" => Some(&CABINETS),
+        "dossiers" => Some(&DOSSIERS),
+        "parties" => Some(&PARTIES),
+        "temps_saisis" => Some(&TEMPS),
+        "brouillons_facture" => Some(&BROUILLONS),
+        "taux_horaires" => Some(&TAUX),
+        _ => None,
+    }
 }
 
-async fn upload_dossier(
+fn op_label(op: &UpdateType) -> &'static str {
+    match op {
+        UpdateType::Put => "PUT",
+        UpdateType::Patch => "PATCH",
+        UpdateType::Delete => "DELETE",
+    }
+}
+
+async fn envoyer_patch(
     session: &Arc<Mutex<SessionSync>>,
-    id: &str,
-    data: Option<&Map<String, Value>>,
+    db: &PowerSyncDatabase,
+    ressource: &Ressource,
+    entry: &CrudEntry,
 ) -> Result<(), PowerSyncError> {
-    let Some(data) = data else {
-        return Ok(());
-    };
-    let Some(nom) = json_text(data.get("nom")) else {
-        return Ok(());
-    };
-    let Some(chemise) = json_text(data.get("chemise")) else {
-        return Err(upload_err("chemise absente"));
-    };
-    let Some(juridiction) = json_text(data.get("juridiction")) else {
-        return Err(upload_err("juridiction absente"));
-    };
-    let Some(numero_rg) = json_text(data.get("numero_rg")) else {
-        return Err(upload_err("numéro RG absent"));
-    };
-    let body = CreerDossierBody {
-        id,
-        idempotence_cle: format!("{id}:dossier"),
-        nom,
-        chemise,
-        juridiction,
-        numero_rg,
-        restreint: json_flag(data.get("restreint")),
-        responsable_id: json_text(data.get("responsable_id")),
-    };
-    envoyer(session, "/api/dossiers", &body).await
+    let data = entry.data.as_ref().cloned().unwrap_or_default();
+    let mut champs = Map::new();
+    for nom in ressource.champs_modifiables {
+        if let Some(valeur) = data.get(*nom) {
+            champs.insert((*nom).to_string(), valeur.clone());
+        }
+    }
+    // Une modification d'un seul champ part ; on n'exige aucun champ accompagnateur.
+    // S'il n'y a aucun champ métier, on envoie quand même la révision pour ne pas retirer
+    // silencieusement l'entrée : le serveur répondra 400 et le refus sera consigné.
+    let base_revision = lire_revision(db, ressource.table, &entry.id).await?;
+    let idempotence_cle = cle_idempotence(&entry.id, base_revision, &champs);
+    let mut body = Map::new();
+    body.insert("base_revision".into(), json!(base_revision));
+    body.insert("idempotence_cle".into(), json!(idempotence_cle));
+    for (k, v) in champs {
+        let normalisee = normaliser_valeur(ressource, &k, v);
+        body.insert(k, normalisee);
+    }
+    let chemin = (ressource.patch_chemin)(&entry.id);
+    envoyer_http(session, db, ressource.table, &entry.id, "PATCH", &chemin, &body).await
 }
 
-async fn upload_partie(
+async fn envoyer_put(
     session: &Arc<Mutex<SessionSync>>,
-    id: &str,
-    data: Option<&Map<String, Value>>,
+    db: &PowerSyncDatabase,
+    ressource: &Ressource,
+    entry: &CrudEntry,
 ) -> Result<(), PowerSyncError> {
-    let Some(data) = data else {
-        return Ok(());
+    let data = entry.data.as_ref().cloned().unwrap_or_default();
+    let chemin = match (ressource.put_chemin)(&data) {
+        Ok(c) => c,
+        Err(message) => {
+            consign_refus(db, ressource.table, &entry.id, "PUT", None, &message).await?;
+            return Ok(());
+        }
     };
-    let Some(dossier_id) = json_text(data.get("dossier_id")) else {
-        return Err(upload_err("dossier de la partie absent"));
-    };
-    let Some(role) = json_text(data.get("role")) else {
-        return Err(upload_err("rôle de partie absent"));
-    };
-    let Some(nom) = json_text(data.get("nom")) else {
-        return Err(upload_err("nom de partie absent"));
-    };
-    let body = CreerPartieBody {
-        id,
-        idempotence_cle: format!("{id}:partie"),
-        role,
-        nom,
-    };
-    envoyer(
-        session,
-        &format!("/api/dossiers/{dossier_id}/parties"),
-        &body,
-    )
-    .await
+    let mut body = Map::new();
+    body.insert("id".into(), json!(entry.id));
+    body.insert(
+        "idempotence_cle".into(),
+        json!(format!("{}:{}:put", entry.id, ressource.table)),
+    );
+    // Envoi de tous les champs présents (y compris un seul) — pas d'exigence d'accompagnateurs.
+    for (k, v) in &data {
+        if k == "id" {
+            continue;
+        }
+        body.insert(k.clone(), normaliser_valeur(ressource, k, v.clone()));
+    }
+    envoyer_http(session, db, ressource.table, &entry.id, "PUT", &chemin, &body).await
 }
 
-#[derive(Serialize)]
-struct CreerTempsBody<'a> {
-    id: &'a str,
-    dossier_id: &'a str,
-    minutes: i64,
-    libelle: &'a str,
-    taux_centimes_heure: i64,
-    idempotence_cle: String,
+fn normaliser_valeur(ressource: &Ressource, cle: &str, valeur: Value) -> Value {
+    if ressource.champs_entiers.contains(&cle) {
+        match &valeur {
+            Value::Number(_) => valeur,
+            Value::String(s) => s
+                .parse::<i64>()
+                .map(Value::from)
+                .unwrap_or(valeur),
+            Value::Bool(b) => Value::from(i64::from(*b)),
+            _ => valeur,
+        }
+    } else {
+        valeur
+    }
 }
 
-#[derive(Serialize)]
-struct CreerBrouillonBody<'a> {
-    id: &'a str,
-    dossier_id: &'a str,
-    temps_id: &'a str,
-    libelle: &'a str,
-    ht_centimes: i64,
-    taux_centimes_heure: i64,
-    idempotence_cle: String,
+fn cle_idempotence(id: &str, base_revision: i64, champs: &Map<String, Value>) -> String {
+    let mut parties: Vec<String> = champs
+        .iter()
+        .map(|(k, v)| format!("{k}={}", v))
+        .collect();
+    parties.sort();
+    format!("{id}:{base_revision}:{}", parties.join("|"))
 }
 
-async fn upload_temps(
+async fn envoyer_http(
     session: &Arc<Mutex<SessionSync>>,
+    db: &PowerSyncDatabase,
+    table: &str,
     id: &str,
-    data: Option<&Map<String, Value>>,
-) -> Result<(), PowerSyncError> {
-    let Some(data) = data else {
-        return Ok(());
-    };
-    let Some(dossier_id) = json_text(data.get("dossier_id")) else {
-        return Err(upload_err("dossier du temps absent"));
-    };
-    let Some(libelle) = json_text(data.get("libelle")) else {
-        return Err(upload_err("libellé du temps absent"));
-    };
-    let Some(minutes) = json_i64(data.get("minutes")) else {
-        return Err(upload_err("minutes absentes"));
-    };
-    let Some(taux) = json_i64(data.get("taux_centimes_heure")) else {
-        return Err(upload_err("taux horaire absent"));
-    };
-    let body = CreerTempsBody {
-        id,
-        dossier_id,
-        minutes,
-        libelle,
-        taux_centimes_heure: taux,
-        idempotence_cle: format!("{id}:temps"),
-    };
-    envoyer(session, "/api/temps", &body).await
-}
-
-async fn upload_brouillon(
-    session: &Arc<Mutex<SessionSync>>,
-    id: &str,
-    data: Option<&Map<String, Value>>,
-) -> Result<(), PowerSyncError> {
-    let Some(data) = data else {
-        return Ok(());
-    };
-    let Some(dossier_id) = json_text(data.get("dossier_id")) else {
-        return Err(upload_err("dossier du brouillon absent"));
-    };
-    let Some(temps_id) = json_text(data.get("temps_id")) else {
-        return Err(upload_err("temps du brouillon absent"));
-    };
-    let Some(libelle) = json_text(data.get("libelle")) else {
-        return Err(upload_err("libellé du brouillon absent"));
-    };
-    let Some(ht) = json_i64(data.get("ht_centimes")) else {
-        return Err(upload_err("montant HT absent"));
-    };
-    let Some(taux) = json_i64(data.get("taux_centimes_heure")) else {
-        return Err(upload_err("taux du brouillon absent"));
-    };
-    let body = CreerBrouillonBody {
-        id,
-        dossier_id,
-        temps_id,
-        libelle,
-        ht_centimes: ht,
-        taux_centimes_heure: taux,
-        idempotence_cle: format!("{id}:brouillon"),
-    };
-    envoyer(session, "/api/brouillons-facture", &body).await
-}
-
-async fn envoyer(
-    session: &Arc<Mutex<SessionSync>>,
+    operation: &str,
     chemin: &str,
     body: &impl Serialize,
 ) -> Result<(), PowerSyncError> {
@@ -376,41 +326,140 @@ async fn envoyer(
         (session.instance_url.clone(), session.access_token.clone())
     };
     let url = format!("{}{chemin}", instance_url.trim_end_matches('/'));
-    let response = reqwest::Client::new()
-        .post(url)
-        .bearer_auth(token)
-        .json(body)
-        .send()
-        .await?;
-    if response.status() != StatusCode::OK {
-        let status = response.status();
-        let corps = response.text().await.unwrap_or_default();
-        return Err(upload_err(format!("upload rejeté ({status}) {corps}")));
+    let client = reqwest::Client::new();
+    let request = match operation {
+        "PATCH" => client.patch(&url),
+        // PUT local → POST création côté API (idempotence_cle).
+        "PUT" => client.post(&url),
+        other => {
+            consign_refus(
+                db,
+                table,
+                id,
+                other,
+                None,
+                &format!("Opération non prise en charge : {other}."),
+            )
+            .await?;
+            return Ok(());
+        }
+    };
+    let response = request.bearer_auth(token).json(body).send().await?;
+    let status = response.status();
+    if status == StatusCode::OK || status == StatusCode::CREATED {
+        return Ok(());
     }
+    let corps = response.text().await.unwrap_or_default();
+    if est_refus_definitif(status) {
+        let message = message_refus(&corps, status);
+        consign_refus(db, table, id, operation, Some(status.as_u16()), &message).await?;
+        return Ok(());
+    }
+    Err(upload_err(format!(
+        "upload {table} rejeté ({status}) {corps}"
+    )))
+}
+
+fn est_refus_definitif(status: StatusCode) -> bool {
+    matches!(
+        status,
+        StatusCode::BAD_REQUEST
+            | StatusCode::FORBIDDEN
+            | StatusCode::NOT_FOUND
+            | StatusCode::CONFLICT
+    )
+}
+
+fn message_refus(corps: &str, status: StatusCode) -> String {
+    if let Ok(valeur) = serde_json::from_str::<Value>(corps) {
+        for cle in ["message", "erreur", "error", "detail"] {
+            if let Some(texte) = valeur.get(cle).and_then(Value::as_str) {
+                let t = texte.trim();
+                if !t.is_empty() {
+                    return t.to_string();
+                }
+            }
+        }
+    }
+    let brut = corps.trim();
+    if !brut.is_empty() {
+        return brut.chars().take(400).collect();
+    }
+    format!("Modification refusée ({status}).")
+}
+
+async fn consign_refus(
+    db: &PowerSyncDatabase,
+    table: &str,
+    enregistrement_id: &str,
+    operation: &str,
+    statut: Option<u16>,
+    message: &str,
+) -> Result<(), PowerSyncError> {
+    let conn = db.writer().await?;
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS refus_sync (
+            id TEXT PRIMARY KEY NOT NULL,
+            table_cible TEXT NOT NULL,
+            enregistrement_id TEXT NOT NULL,
+            operation TEXT NOT NULL,
+            statut INTEGER,
+            message TEXT NOT NULL,
+            cree_le TEXT NOT NULL
+        )",
+    )
+    .map_err(|err| upload_err(format!("création refus_sync : {err}")))?;
+    let id = format!(
+        "refus-{}-{}-{}",
+        table,
+        enregistrement_id,
+        chrono_compact()
+    );
+    let cree_le = chrono_iso();
+    conn.execute(
+        "INSERT INTO refus_sync (id, table_cible, enregistrement_id, operation, statut, message, cree_le)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        rusqlite::params![
+            id,
+            table,
+            enregistrement_id,
+            operation,
+            statut.map(i64::from),
+            message,
+            cree_le,
+        ],
+    )
+    .map_err(|err| upload_err(format!("écriture refus_sync : {err}")))?;
+    eprintln!("refus sync: {table}/{enregistrement_id} {operation} → {message}");
     Ok(())
 }
 
-fn json_flag(value: Option<&Value>) -> bool {
-    match value {
-        Some(Value::Bool(v)) => *v,
-        Some(Value::Number(n)) => n.as_i64().unwrap_or(0) != 0,
-        _ => false,
-    }
+fn chrono_iso() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    format!("{secs}")
 }
 
-fn json_i64(value: Option<&Value>) -> Option<i64> {
-    match value {
-        Some(Value::Number(n)) => n.as_i64(),
-        Some(Value::String(s)) => s.parse().ok(),
-        _ => None,
-    }
+fn chrono_compact() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis().to_string())
+        .unwrap_or_else(|_| "0".into())
 }
 
 fn json_text(value: Option<&Value>) -> Option<&str> {
     value.and_then(Value::as_str).filter(|s| !s.is_empty())
 }
 
-async fn lire_revision(db: &PowerSyncDatabase, id: &str) -> Result<i64, PowerSyncError> {
+async fn lire_revision(
+    db: &PowerSyncDatabase,
+    table: &str,
+    id: &str,
+) -> Result<i64, PowerSyncError> {
     let conn = db.reader().await?;
     if let Ok(revision) = conn.query_row(
         "SELECT revision FROM revision_edition WHERE id = ?1",
@@ -419,8 +468,59 @@ async fn lire_revision(db: &PowerSyncDatabase, id: &str) -> Result<i64, PowerSyn
     ) {
         return Ok(revision);
     }
-    let revision = conn.query_row("SELECT revision FROM cabinets WHERE id = ?1", [id], |row| {
-        row.get(0)
-    })?;
-    Ok(revision)
+    let sql = match table {
+        "cabinets" => "SELECT revision FROM cabinets WHERE id = ?1",
+        "dossiers" => "SELECT revision FROM dossiers WHERE id = ?1",
+        "parties" => "SELECT revision FROM parties WHERE id = ?1",
+        "temps_saisis" => "SELECT revision FROM temps_saisis WHERE id = ?1",
+        "brouillons_facture" => "SELECT revision FROM brouillons_facture WHERE id = ?1",
+        "taux_horaires" => "SELECT revision FROM taux_horaires WHERE id = ?1",
+        _ => return Ok(1),
+    };
+    match conn.query_row(sql, [id], |row| row.get::<_, i64>(0)) {
+        Ok(revision) => Ok(revision),
+        Err(_) => Ok(1),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn ressource_par_table() {
+        assert!(ressource_connue("cabinets").is_some());
+        assert!(ressource_connue("taux_horaires").is_some());
+        assert!(ressource_connue("inconnue").is_none());
+    }
+
+    #[test]
+    fn refus_http_definitifs() {
+        assert!(est_refus_definitif(StatusCode::BAD_REQUEST));
+        assert!(est_refus_definitif(StatusCode::FORBIDDEN));
+        assert!(est_refus_definitif(StatusCode::NOT_FOUND));
+        assert!(est_refus_definitif(StatusCode::CONFLICT));
+        assert!(!est_refus_definitif(StatusCode::INTERNAL_SERVER_ERROR));
+        assert!(!est_refus_definitif(StatusCode::SERVICE_UNAVAILABLE));
+    }
+
+    #[test]
+    fn cle_idempotence_stable() {
+        let mut a = Map::new();
+        a.insert("nom".into(), json!("A"));
+        a.insert("slug".into(), json!("s"));
+        let mut b = Map::new();
+        b.insert("slug".into(), json!("s"));
+        b.insert("nom".into(), json!("A"));
+        assert_eq!(cle_idempotence("id", 3, &a), cle_idempotence("id", 3, &b));
+    }
+
+    #[test]
+    fn message_depuis_json() {
+        assert_eq!(
+            message_refus(r#"{"message":"Donnée immuable."}"#, StatusCode::CONFLICT),
+            "Donnée immuable."
+        );
+    }
 }

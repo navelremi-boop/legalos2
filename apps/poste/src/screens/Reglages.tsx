@@ -47,6 +47,7 @@ export function Reglages({
   const [baseNom, setBaseNom] = useState("");
   const [baseSlug, setBaseSlug] = useState("");
   const [conflits, setConflits] = useState(0);
+  const [refusMessage, setRefusMessage] = useState<string | null>(null);
   const [modeleReference, setModeleReference] = useState(MODELE_PAR_DEFAUT);
   const [remiseAZero, setRemiseAZero] = useState<RemiseAZero>("annuelle");
   const [numeroDepart, setNumeroDepart] = useState("");
@@ -69,11 +70,15 @@ export function Reglages({
               "SELECT nom, slug FROM cabinets WHERE id = ? LIMIT 1",
               [DEMO_CABINET_ID],
             ),
+            database.getAll<{ message: string }>(
+              "SELECT message FROM refus_sync ORDER BY cree_le DESC LIMIT 1",
+            ),
           ]),
         )
-        .then(([conflitRows, cabinetRows]) => {
+        .then(([conflitRows, cabinetRows, refusRows]) => {
           if (stop) return;
           setConflits(conflitRows[0]?.n ?? 0);
+          setRefusMessage(refusRows[0]?.message ?? null);
           const cabinet = cabinetRows[0];
           if (!cabinet) return;
           const nomBase = baseNomRef.current;
@@ -86,7 +91,10 @@ export function Reglages({
           setBaseSlug(cabinet.slug);
         })
         .catch(() => {
-          if (!stop) setConflits(0);
+          if (!stop) {
+            setConflits(0);
+            setRefusMessage(null);
+          }
         });
     };
     tick();
@@ -393,6 +401,16 @@ export function Reglages({
               </p>
             ) : null}
           </section>
+
+          {refusMessage !== null ? (
+            <p
+              className="rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-4 py-3 text-encre"
+              role="status"
+              data-testid="refus-sync"
+            >
+              {fr(refusMessage)}
+            </p>
+          ) : null}
 
           {conflits > 0 ? (
             <p

@@ -2622,6 +2622,7 @@ dependencies = [
  "keyring",
  "powersync",
  "reqwest",
+ "rusqlite",
  "serde",
  "serde_json",
  "tauri",

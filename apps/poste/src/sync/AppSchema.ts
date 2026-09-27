@@ -20,6 +20,8 @@ const cabinets = new Table({
 const journalModifications = new Table(
   {
     cabinet_id: column.text,
+    /** Nul pour les enregistrements du cabinet ; sinon le dossier concerné (S5). */
+    dossier_id: column.text,
     table_cible: column.text,
     enregistrement_id: column.text,
     champ: column.text,
@@ -28,9 +30,23 @@ const journalModifications = new Table(
     revision_base: column.integer,
     revision_appliquee: column.integer,
     conflit: column.integer,
+    poste_id: column.text,
     cree_le: column.text,
   },
-  { indexes: { enregistrement: ["enregistrement_id"] } },
+  { indexes: { enregistrement: ["enregistrement_id"], dossier: ["dossier_id"] } },
+);
+
+/** Refus serveur (400/403/404/409) — local, hors synchronisation (docs/conflits.md § 5). */
+const refusSync = new Table(
+  {
+    table_cible: column.text,
+    enregistrement_id: column.text,
+    operation: column.text,
+    statut: column.integer,
+    message: column.text,
+    cree_le: column.text,
+  },
+  { localOnly: true },
 );
 
 const users = new Table(
@@ -68,6 +84,8 @@ const dossiers = new Table(
     juridiction: column.text,
     numero_rg: column.text,
     restreint: column.integer,
+    /** Aligné sur `restreint` (CHECK serveur) ; source de vérité partagée. */
+    visibilite: column.text,
     revision: column.integer,
     cree_le: column.text,
   },
@@ -121,6 +139,7 @@ const tempsSaisis = new Table(
     libelle: column.text,
     taux_centimes_heure: column.integer,
     ht_centimes: column.integer,
+    revision: column.integer,
     visibilite: column.text,
     cree_le: column.text,
   },
@@ -137,6 +156,7 @@ const brouillonsFacture = new Table(
     libelle: column.text,
     intervenant_id: column.text,
     taux_centimes_heure: column.integer,
+    revision: column.integer,
     visibilite: column.text,
     cree_le: column.text,
   },
@@ -150,6 +170,7 @@ const tauxHoraires = new Table(
     dossier_id: column.text,
     intervenant_id: column.text,
     centimes_par_heure: column.integer,
+    revision: column.integer,
     visibilite: column.text,
     cree_le: column.text,
   },
@@ -159,6 +180,7 @@ const tauxHoraires = new Table(
 export const AppSchema = new Schema({
   cabinets,
   journal_modifications: journalModifications,
+  refus_sync: refusSync,
   users,
   postes,
   dossiers,

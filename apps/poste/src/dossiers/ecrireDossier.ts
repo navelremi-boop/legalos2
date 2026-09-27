@@ -34,8 +34,8 @@ export async function ecrireDossier(saisie: NouveauDossier): Promise<string> {
     // `reference` reste NULL : attribution uniquement côté serveur (§ 3.4).
     await tx.execute(
       `INSERT INTO dossiers (
-        id, cabinet_id, reference, responsable_id, nom, chemise, juridiction, numero_rg, restreint, revision, cree_le
-      ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, 1, ?)`,
+        id, cabinet_id, reference, responsable_id, nom, chemise, juridiction, numero_rg, restreint, visibilite, revision, cree_le
+      ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
       [
         dossierId,
         cabinetId,
@@ -45,6 +45,7 @@ export async function ecrireDossier(saisie: NouveauDossier): Promise<string> {
         saisie.juridiction.trim(),
         saisie.numeroRg.trim(),
         saisie.restreint ? 1 : 0,
+        saisie.restreint ? "restreint" : "cabinet",
         creeLe,
       ],
     );
