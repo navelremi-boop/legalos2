@@ -66,11 +66,11 @@ function App() {
     if (!authenticated || !syncDone) return;
     const accessToken = loadSessionTokens().accessToken;
     if (accessToken === null || accessToken === "") return;
-    let annulé = false;
+    const arret = { courant: false };
     void (async () => {
       try {
         const database = await getPowerSyncDatabase();
-        if (annulé) return;
+        if (arret.courant) return;
         await invoke("connect_powersync", {
           handle: database.rustHandle,
           instanceUrl,
@@ -81,7 +81,7 @@ function App() {
       }
     })();
     return () => {
-      annulé = true;
+      arret.courant = true;
     };
   }, [authenticated, syncDone, instanceUrl]);
 
