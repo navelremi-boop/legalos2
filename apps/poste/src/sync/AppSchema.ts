@@ -11,6 +11,10 @@ const cabinets = new Table({
   totp_obligatoire: column.integer,
   cree_le: column.text,
   revision: column.integer,
+  /** Modèle de référence du cabinet (R0) ; lecture hors ligne. */
+  reference_modele: column.text,
+  /** Politique `annuelle` | `jamais` ; pas de séquence ni d'initiales en local. */
+  reference_remise_a_zero: column.text,
 });
 
 const journalModifications = new Table(

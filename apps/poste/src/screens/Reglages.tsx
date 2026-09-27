@@ -1,7 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { Feuille } from "@/coque/Feuille";
 import { fr } from "@/lib/fr";
+import {
+  analyserPour,
+  blocsDepuisTexte,
+  estErreurModele,
+  MODELE_PAR_DEFAUT,
+  type RemiseAZero,
+} from "@/lib/modeleReference";
+import {
+  apercuHorsLigne,
+  chargerReferenceCabinet,
+  enregistrerReferenceCabinet,
+  type ApercuReference,
+} from "@/lib/referenceCabinet";
 import { clearSession } from "@/lib/session/storage";
+import { ConstructeurReference } from "@/screens/ConstructeurReference";
 import { DEMO_CABINET_ID } from "@/sync/demoCabinet";
 import { getPowerSyncDatabase } from "@/sync/database";
 
@@ -12,19 +26,32 @@ type ReglagesProps = {
   onThemeChange: (mode: ThemeMode) => void;
   onResetSession?: () => void;
   onReconnect?: () => void;
+  instanceUrl: string;
+  horsLigne: boolean;
 };
+
+function estRemise(valeur: string): valeur is RemiseAZero {
+  return valeur === "annuelle" || valeur === "jamais";
+}
 
 export function Reglages({
   themeMode,
   onThemeChange,
   onResetSession,
   onReconnect,
+  instanceUrl,
+  horsLigne,
 }: ReglagesProps) {
   const [nom, setNom] = useState("");
   const [slug, setSlug] = useState("");
   const [baseNom, setBaseNom] = useState("");
   const [baseSlug, setBaseSlug] = useState("");
   const [conflits, setConflits] = useState(0);
+  const [modeleReference, setModeleReference] = useState(MODELE_PAR_DEFAUT);
+  const [remiseAZero, setRemiseAZero] = useState<RemiseAZero>("annuelle");
+  const [numeroDepart, setNumeroDepart] = useState("");
+  const [apercuValeurs, setApercuValeurs] = useState<ApercuReference>(apercuHorsLigne);
+  const [messageReference, setMessageReference] = useState("");
   const baseNomRef = useRef("");
   const baseSlugRef = useRef("");
 
@@ -73,8 +100,13 @@ export function Reglages({
     let stop = false;
     void getPowerSyncDatabase()
       .then((database) =>
-        database.getAll<{ nom: string; slug: string }>(
-          "SELECT nom, slug FROM cabinets WHERE id = ? LIMIT 1",
+        database.getAll<{
+          nom: string;
+          slug: string;
+          reference_modele: string | null;
+          reference_remise_a_zero: string | null;
+        }>(
+          "SELECT nom, slug, reference_modele, reference_remise_a_zero FROM cabinets WHERE id = ? LIMIT 1",
           [DEMO_CABINET_ID],
         ),
       )
@@ -88,12 +120,79 @@ export function Reglages({
         baseSlugRef.current = slugLu;
         setBaseNom(nomLu);
         setBaseSlug(slugLu);
+        const modeleLu = rows[0]?.reference_modele?.trim() ?? "";
+        if (modeleLu.length > 0) setModeleReference(modeleLu);
+        const remiseLue = rows[0]?.reference_remise_a_zero ?? "";
+        if (estRemise(remiseLue)) setRemiseAZero(remiseLue);
       })
       .catch(() => undefined);
     return () => {
       stop = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (horsLigne) return;
+    let stop = false;
+    void chargerReferenceCabinet(instanceUrl, DEMO_CABINET_ID).then((resultat) => {
+      if (stop) return;
+      if (resultat.ok) {
+        setModeleReference(resultat.etat.modele);
+        setRemiseAZero(resultat.etat.remise_a_zero);
+        setNumeroDepart(
+          resultat.etat.numero_depart === null ? "" : String(resultat.etat.numero_depart),
+        );
+        setApercuValeurs(resultat.etat.apercu);
+        setMessageReference("");
+      }
+    });
+    return () => {
+      stop = true;
+    };
+  }, [horsLigne, instanceUrl]);
+
+  const apercuActif = horsLigne ? apercuHorsLigne() : apercuValeurs;
+  let apercuTexte = "";
+  let erreurModele = "";
+  try {
+    const modele = analyserPour(modeleReference, remiseAZero);
+    apercuTexte = modele.produire(
+      apercuActif.annee,
+      apercuActif.prochain,
+      apercuActif.initiales,
+    );
+  } catch (err) {
+    erreurModele = estErreurModele(err) ? err.message : fr("Modèle invalide.");
+  }
+
+  async function enregistrerReference() {
+    if (horsLigne) {
+      setMessageReference(fr("Modification possible en ligne seulement."));
+      return;
+    }
+    const depart = numeroDepart.trim();
+    const numero = depart === "" ? null : Number(depart);
+    if (depart !== "" && (!Number.isInteger(numero) || (numero ?? 0) < 1)) {
+      setMessageReference(fr("Le numéro de départ doit être un entier supérieur ou égal à 1."));
+      return;
+    }
+    const resultat = await enregistrerReferenceCabinet(instanceUrl, DEMO_CABINET_ID, {
+      modele: modeleReference,
+      remise_a_zero: remiseAZero,
+      numero_depart: numero,
+    });
+    if (resultat.ok) {
+      setModeleReference(resultat.etat.modele);
+      setRemiseAZero(resultat.etat.remise_a_zero);
+      setNumeroDepart(
+        resultat.etat.numero_depart === null ? "" : String(resultat.etat.numero_depart),
+      );
+      setApercuValeurs(resultat.etat.apercu);
+      setMessageReference(fr("Modèle enregistré."));
+      return;
+    }
+    setMessageReference(resultat.message);
+  }
 
   return (
     <div className="fond-neutre relative flex h-full min-h-0 flex-col px-[42px] pt-[28px]" data-testid="ecran-reglages">
@@ -197,6 +296,89 @@ export function Reglages({
               {fr("Enregistrer")}
             </button>
           </form>
+
+          <section className="space-y-3">
+            <h2 className="text-[length:var(--font-size-section)] font-extrabold text-encre">
+              {fr("Référence des dossiers")}
+            </h2>
+            {horsLigne ? (
+              <p
+                className="rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-4 py-3 text-encre"
+                role="status"
+                data-testid="reglages-reference-hors-ligne"
+              >
+                {fr("Modification possible en ligne seulement.")}
+              </p>
+            ) : null}
+            <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="reference-modele">
+              {fr("Modèle")}
+            </label>
+            <input
+              id="reference-modele"
+              data-testid="reglages-reference-modele"
+              className="mt-1 mb-3 w-full max-w-md rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+              value={modeleReference}
+              onChange={(event) => {
+                setModeleReference(event.target.value);
+              }}
+            />
+            <ConstructeurReference
+              blocs={blocsDepuisTexte(modeleReference)}
+              onChange={setModeleReference}
+            />
+            <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="reference-politique">
+              {fr("Remise à zéro")}
+            </label>
+            <select
+              id="reference-politique"
+              data-testid="reglages-reference-politique"
+              className="mt-1 mb-3 w-full max-w-xs rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+              value={remiseAZero}
+              onChange={(event) => {
+                const valeur = event.target.value;
+                if (estRemise(valeur)) setRemiseAZero(valeur);
+              }}
+            >
+              <option value="annuelle">{fr("Chaque année")}</option>
+              <option value="jamais">{fr("Jamais")}</option>
+            </select>
+            <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="reference-numero-depart">
+              {fr("Numéro de départ")}
+            </label>
+            <input
+              id="reference-numero-depart"
+              data-testid="reglages-reference-numero-depart"
+              type="number"
+              min={1}
+              className="mt-1 mb-3 w-full max-w-xs rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+              value={numeroDepart}
+              onChange={(event) => {
+                setNumeroDepart(event.target.value);
+              }}
+            />
+            <p
+              className="text-[length:var(--font-size-meta)] font-bold text-encre"
+              data-testid="reglages-reference-apercu"
+            >
+              {erreurModele.length > 0 ? fr(erreurModele) : fr(`Aperçu : ${apercuTexte}`)}
+            </p>
+            <button
+              type="button"
+              data-testid="reglages-reference-enregistrer"
+              className="rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+              disabled={horsLigne}
+              onClick={() => {
+                void enregistrerReference();
+              }}
+            >
+              {fr("Enregistrer le modèle")}
+            </button>
+            {messageReference !== "" ? (
+              <p className="text-[length:var(--font-size-dense)] text-encre" role="status">
+                {fr(messageReference)}
+              </p>
+            ) : null}
+          </section>
 
           {conflits > 0 ? (
             <p
