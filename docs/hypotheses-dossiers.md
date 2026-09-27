@@ -51,3 +51,7 @@ Le texte de l'arbitrage R0 n'a pas été reçu (`BLOCAGES.md`, B11). R0-d à R0-
 
 - **Modèle invalide**, refusé par l'API (400, message en français) et signalé dans Réglages avant l'enregistrement : modèle vide ; jeton inconnu ou accolade non fermée ; aucun jeton de numéro, ou plusieurs ; `{N:k}` hors de 1 à 9 ; aucun jeton d'année avec `annuelle` ; caractère de contrôle ; plus de 40 caractères.
 - **Changement qui redonnerait une référence existante**, refusé par l'API (409, message en français) : avant d'enregistrer un nouveau modèle, une nouvelle politique ou un nouveau numéro de départ, le serveur vérifie qu'aucune référence déjà attribuée dans le cabinet ne pourrait être produite de nouveau (même année, numéro encore atteignable), à l'identique ou sous la même forme de classement, sans tenir compte des majuscules : l'adresse de classement doit désigner un seul dossier. La vérification a lieu dans la transaction qui enregistre le changement ; deux index d'unicité, sur la référence et sur sa forme de classement en majuscules, restent le dernier rempart.
+
+### R0-g — Qui peut modifier le modèle (à valider)
+
+Tout utilisateur du cabinet peut lire et modifier le modèle, la politique et le numéro de départ : le cahier ne définit aucun rôle. Les initiales restent celles de l'utilisateur qui crée le dossier (R0-b).
