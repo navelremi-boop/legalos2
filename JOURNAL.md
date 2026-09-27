@@ -4,13 +4,19 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 - **Phase 0–1** VALIDÉES ; **J5–J7** VALIDÉS ; **Migration Sync Streams** VALIDÉE `9f80388` ; **J8** VALIDÉ `e8eb6b2`.
 - **Référence de dossier** : VALIDÉ `03ca364` (contrôleur, CI [36322383021](https://github.com/navelremi-boop/legalos2/actions/runs/36322383021)). Minutes des trois runs de clôture : **100** (durées de jobs arrondies à la minute supérieure ; le job macOS de [36319178833](https://github.com/navelremi-boop/legalos2/actions/runs/36319178833) compte dix fois).
-- **En cours** : **Conflits généralisés**. Lot API fusionné (`5fbac31`). Lot poste (PR #5, `6b1a120`) non fusionné. B13 levé : dépôt public, runs relancés.
+- **En cours** : **Conflits généralisés**. Lot API fusionné (`5fbac31`). Lot poste : `main` intégré localement (`9484ab1`, puis recettes `07f30e1`, `e75cc55`), pas encore poussé ni fusionné. La CI de la PR #5 avait échoué seulement à cause de B14 (levé). Recette Tauri en cours dans le worktree.
 - **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → **Conflits généralisés** → Coque → Vue scindée → Intercalaires → Dossiers et contacts complets → Agenda → Documents, suite → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance).
 - **Sync** : Streams édition 3, service 1.26.1. Dette mensuelle avis PowerSync.
 - **Coque** corrigée (`22d765e`), non cochée : points médians de La journée (consigne 3), onglets de démonstration (dette). La journée est validée par l'architecte sous réserve des captures régénérées (consigne du 27/09, point 2).
 - **B11 levé**. Contrôleur d'abord REFUSÉ (affichage du numéro minimal). Recette `reference-modele-ecran.mjs` : exit 0, numéro `1000000000`. Second verdict **VALIDÉ** sur `03ca364`.
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
+
+---
+
+## 2026-09-27 — Conflits généralisés : lot poste réaligné sur main
+
+La PR #5 (`6b1a120`) était ouverte. Son dernier run ([36326938887](https://github.com/navelremi-boop/legalos2/actions/runs/36326938887)) n'a échoué que sur `s1-instance`, en 2 s, parce que la liste GitHub refusait encore `actions/checkout` (B14, levé ensuite). `main` a été fusionné dans `lot/conflits-poste` sans réécriture (`9484ab1`). La recette Tauri corrige deux assertions fausses (rôle de partie limité à client, adversaire, confrère ; taux vérifié par la valeur exacte) et lance Compose depuis le dépôt qui détient `.env`. PowerSync a été redémarré pour charger les trois flux du journal. Le jalon n'est pas coché.
 
 ---
 
