@@ -86,6 +86,61 @@ function analyser(texte) {
   return { jalons, dettesOuvertes, dettesCochees };
 }
 
+/** Chaque élément « détail → jalon » de la section Couverture V1. */
+function verifierCouverture(texte, nomsJalons) {
+  const trouves = [];
+  const lignes = texte.replace(/\r\n/g, "\n").split("\n");
+  let dans = false;
+  let numero = null;
+  let elements = 0;
+  const vus = new Set();
+  const fermer = () => {
+    if (numero !== null && elements === 0) {
+      trouves.push(`fonctionnalité V1 n° ${numero} sans élément de détail`);
+    }
+  };
+  for (const ligne of lignes) {
+    if (ligne.startsWith("## ")) {
+      if (dans) fermer();
+      dans = ligne.startsWith("## Couverture V1");
+      numero = null;
+      elements = 0;
+      continue;
+    }
+    if (!dans) continue;
+    const fonction = /^- \*\*(\d+)\s/.exec(ligne);
+    if (fonction) {
+      fermer();
+      numero = Number(fonction[1]);
+      vus.add(numero);
+      elements = 0;
+      continue;
+    }
+    const element = /^  - (.+?) → (.+)$/.exec(ligne);
+    if (!element) continue;
+    elements += 1;
+    const libelle = element[1].trim();
+    const cibles = element[2]
+      .split(";")
+      .map((nom) => nom.trim())
+      .filter(Boolean);
+    if (cibles.length === 0) {
+      trouves.push(`élément sans jalon : ${libelle}`);
+      continue;
+    }
+    if (!nomsJalons) continue;
+    for (const nom of cibles) {
+      if (!nomsJalons.has(nom)) trouves.push(`jalon inconnu « ${nom} » pour « ${libelle} »`);
+    }
+  }
+  if (dans) fermer();
+  if (!texte.includes("## Couverture V1")) trouves.push("section « Couverture V1 » absente");
+  for (let n = 1; n <= 14; n += 1) {
+    if (!vus.has(n)) trouves.push(`fonctionnalité V1 n° ${n} absente de la matrice`);
+  }
+  return trouves;
+}
+
 function verifierStructure(plan, origine) {
   for (const jalon of plan.jalons.values()) {
     if (jalon.coche || jalon.exempt) continue;
@@ -129,7 +184,19 @@ function plage() {
   }
 }
 
-verifierStructure(analyser(readFileSync(join(root, "PLAN.md"), "utf8")), "PLAN.md");
+const textePlan = readFileSync(join(root, "PLAN.md"), "utf8");
+const planCourant = analyser(textePlan);
+verifierStructure(planCourant, "PLAN.md");
+for (const e of verifierCouverture(textePlan, new Set(planCourant.jalons.keys()))) {
+  erreurs.push(`couverture : ${e}`);
+}
+const essaiNegatif = verifierCouverture(
+  ["## Couverture V1", "- **1 Dossiers**", "  - juridiction → Jalon absent", "- **3 Droits**"].join("\n"),
+  new Set(["J5"]),
+);
+if (!essaiNegatif.some((e) => e.includes("n° 2")) || !essaiNegatif.some((e) => e.includes("Jalon absent"))) {
+  erreurs.push("essai négatif de la couverture V1 muet");
+}
 
 const intervalle = plage();
 const base = intervalle?.split("..")[0] ?? "";
