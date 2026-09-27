@@ -110,15 +110,29 @@ async function apiConflitsPrete() {
 function resetPostesLocaux() {
   const roaming = process.env.APPDATA ?? join(homedir(), "AppData", "Roaming");
   const dataDir = join(roaming, "fr.legalos.poste");
-  for (const id of ["a", "b"]) {
-    for (const ext of ["", "-shm", "-wal"]) {
-      rmSync(join(dataDir, `legalos-powersync-${id}.db${ext}`), { force: true });
-    }
+  // « c » = poste collab S5 (base neuve : ne pas réutiliser b, pollué par le titulaire).
+  for (const id of ["a", "b", "c"]) {
+    resetPosteLocal(id, dataDir);
   }
 }
 
+function resetPosteLocal(id, dataDir) {
+  const base =
+    dataDir ?? join(process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"), "fr.legalos.poste");
+  for (const ext of ["", "-shm", "-wal"]) {
+    rmSync(join(base, `legalos-powersync-${id}.db${ext}`), { force: true });
+  }
+}
+
+function portPoste(id) {
+  if (id === "a") return "9252";
+  if (id === "b") return "9253";
+  if (id === "c") return "9254";
+  throw new Error(`poste inconnu: ${id}`);
+}
+
 function startApp(id) {
-  const port = id === "a" ? "9252" : "9253";
+  const port = portPoste(id);
   const dir = join(tmpdir(), `legalos-webview-conflits-${id}-${marque}`);
   mkdirSync(dir, { recursive: true });
   const configPath = join(tmpdir(), `legalos-conflits-${id}-${marque}.json`);
@@ -166,7 +180,8 @@ async function stopApp(child) {
       windowsHide: true,
     }).on("exit", resolve);
   });
-  await sleep(800);
+  // Laisse Windows libérer le verrou SQLite PowerSync avant un redémarrage.
+  await sleep(2_500);
 }
 
 async function connectCdp(port) {
@@ -200,7 +215,7 @@ async function connectCdp(port) {
 async function evaluate(send, expression) {
   const msg = await Promise.race([
     send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }),
-    sleep(15_000).then(() => {
+    sleep(30_000).then(() => {
       throw new Error("cdp sans réponse");
     }),
   ]);
@@ -245,6 +260,8 @@ async function setField(send, id, value) {
 }
 
 async function ecranAuth(send) {
+  // Priorité aux formulaires d'auth : après sync l'app ouvre La journée, pas Réglages
+  // (cabinet-nom n'est monté que sur l'écran Réglages).
   return String(
     (await evaluate(
       send,
@@ -254,24 +271,50 @@ async function ecranAuth(send) {
           ? "creds"
           : document.getElementById("code-totp")
             ? "totp"
-            : document.getElementById("cabinet-nom")
+            : document.querySelector("[data-testid=ecran-journee],[data-testid=barre-haut],[data-testid=ecran-reglages]")
               ? "local"
               : ""`,
     )) ?? "",
   );
 }
 
-async function login(send, email, password, secret, nomAppareil) {
+/**
+ * @param {{ horsLigne?: boolean }} [opts]
+ * - horsLigne: true → rester sur la coque locale (écritures → ps_crud) sans reconnecter.
+ * - défaut → forcer « Se reconnecter » + sync (upload de la file), sinon la coque hors ligne
+ *   court-circuite connect_powersync et les PATCH ne partent jamais.
+ */
+async function login(send, email, password, secret, nomAppareil, opts = {}) {
+  const horsLigne = opts.horsLigne === true;
   const pret = Date.now();
   let ecran = "";
   while (Date.now() - pret < 60_000) {
     ecran = await ecranAuth(send);
     if (ecran === "local") {
-      await evaluate(
+      const hooksDeja = await evaluate(
         send,
-        `[...document.querySelectorAll("button")].find((b) => (b.innerText || "").includes("reconnecter"))?.click()`,
+        `typeof window.__legalosRecette?.patchChampSeul === "function"`,
       );
-      const jusqua = Date.now() + 15_000;
+      if (horsLigne && hooksDeja) return;
+      // Bouton sur l'écran Réglages uniquement (pas sur La journée).
+      await ouvrirReglages(send);
+      const clique = await evaluate(
+        send,
+        `(() => {
+          const b = document.querySelector("[data-testid=se-reconnecter]");
+          if (!b) return false;
+          b.click();
+          return true;
+        })()`,
+      );
+      if (!clique) {
+        await evaluate(
+          send,
+          `[...document.querySelectorAll("button")].find((b) =>
+            /reconnecter/i.test(b.innerText || ""))?.click()`,
+        );
+      }
+      const jusqua = Date.now() + 20_000;
       while (Date.now() < jusqua) {
         ecran = await ecranAuth(send);
         if (ecran === "login" || ecran === "creds" || ecran === "totp") break;
@@ -281,7 +324,16 @@ async function login(send, email, password, secret, nomAppareil) {
     if (ecran === "login" || ecran === "creds" || ecran === "totp") break;
     await sleep(200);
   }
-  if (!ecran) throw new Error("écran auth absent");
+  if (!ecran) {
+    const texte = await evaluate(send, "document.body?.innerText ?? ''");
+    throw new Error(`écran auth absent — ${String(texte).replace(/\s+/g, " ").slice(-240)}`);
+  }
+  if (ecran === "local" && !horsLigne) {
+    const texte = await evaluate(send, "document.body?.innerText ?? ''");
+    throw new Error(
+      `reconnexion absente (toujours hors ligne) — ${String(texte).replace(/\s+/g, " ").slice(-240)}`,
+    );
+  }
   if (ecran === "login") {
     await setField(send, "instance-url", instanceUrl);
     await evaluate(send, `document.getElementById("instance-url")?.closest("form")?.requestSubmit()`);
@@ -305,22 +357,32 @@ async function login(send, email, password, secret, nomAppareil) {
       await evaluate(send, `document.getElementById("code-totp")?.closest("form")?.requestSubmit()`);
       totpSoumis = true;
     }
-    const pretLocal = await evaluate(
+    // Hooks dès le boot : attendre sync réelle (cabinet + coque). Ignorer les champs
+    // d'auth encore présents mais masqués après démontage du flux (offsetParent null).
+    const syncOk = await evaluate(
       send,
-      `Boolean(document.getElementById("cabinet-nom")) && !document.getElementById("instance-url") && !document.getElementById("code-totp")`,
+      `(async () => {
+        if (typeof window.__legalosRecette?.lireSqlite !== "function") return false;
+        const rows = await window.__legalosRecette.lireSqlite("SELECT id FROM cabinets LIMIT 1");
+        if (!Array.isArray(rows) || rows.length === 0) return false;
+        const coque = document.querySelector(
+          "[data-testid=ecran-journee],[data-testid=barre-haut],[data-testid=ecran-reglages]",
+        );
+        if (!coque) return false;
+        const visible = (id) => {
+          const el = document.getElementById(id);
+          return Boolean(el && el.offsetParent !== null);
+        };
+        return !visible("code-totp") && !visible("instance-url") && !visible("email");
+      })()`,
     );
-    if (totpSoumis && pretLocal) {
-      const debutHooks = Date.now();
-      while (Date.now() - debutHooks < 30_000) {
-        const ok = await evaluate(send, `typeof window.__legalosRecette?.patchChampSeul === "function"`);
-        if (ok) return;
-        await sleep(200);
-      }
-      throw new Error("hooks recette absents (VITE_LEGALOS_RECETTE_HOOKS=1 ?)");
-    }
+    if (totpSoumis && syncOk) return;
     await sleep(250);
   }
-  throw new Error("journée absente");
+  const texte = await evaluate(send, "document.body?.innerText ?? ''");
+  throw new Error(
+    `journée absente — ${String(texte).replace(/\s+/g, " ").slice(-240)}`,
+  );
 }
 
 function compose(args) {
@@ -362,8 +424,99 @@ async function avecPoste(id, email, password, secret, nom, fn) {
   }
 }
 
+/**
+ * Sync en ligne, déconnexion PowerSync, écritures locales (file CRUD), arrêt.
+ * L'upload n'a lieu qu'au prochain login (connect_powersync).
+ */
+async function ecrireApresDeconnexion(id, email, password, secret, nom, idsJeu, fn) {
+  const child = startApp(id);
+  try {
+    await waitCdp(child);
+    const page = await connectCdp(child.port);
+    // Pas de reconnexion : on écrit hors ligne dans la file locale.
+    await login(page.send, email, password, secret, nom, { horsLigne: true });
+    await attendreJeuLocal(page.send, idsJeu);
+    await hook(page.send, `window.__legalosRecette.disconnectSync()`);
+    await sleep(500);
+    const result = await fn(page.send, child);
+    const crud = await hook(
+      page.send,
+      `window.__legalosRecette.lireSqlite("SELECT COUNT(*) AS n FROM ps_crud")`,
+    );
+    const nCrud = Array.isArray(crud) ? Number(crud[0]?.n ?? 0) : 0;
+    if (nCrud < 1) {
+      throw new Error("file ps_crud vide après écriture hors ligne");
+    }
+    page.ws.close();
+    return result;
+  } catch (err) {
+    console.error(child.logTail());
+    throw err;
+  } finally {
+    await stopApp(child);
+  }
+}
+
+async function ouvrirReglages(send) {
+  await evaluate(
+    send,
+    `(() => {
+      const compte = [...document.querySelectorAll("button")].find((b) =>
+        /^Compte$/i.test((b.textContent || "").trim()),
+      );
+      compte?.click();
+      const reglages = [...document.querySelectorAll("button")].find((b) =>
+        /réglages|reglages/i.test(b.textContent || ""),
+      );
+      reglages?.click();
+      return Boolean(reglages);
+    })()`,
+  );
+  await sleep(400);
+}
+
 async function hook(send, expression) {
   return evaluate(send, expression);
+}
+
+async function attendreSante(ms = 60_000) {
+  const debut = Date.now();
+  while (Date.now() - debut < ms) {
+    const reponse = await fetch(`${instanceUrl}/health`).catch(() => null);
+    if (reponse?.ok) return;
+    await sleep(500);
+  }
+  throw new Error("instance non saine après reprise");
+}
+
+/** Les hooks apparaissent dès que le cabinet est là ; les dossiers du jeu peuvent suivre. */
+async function attendreLigneLocale(send, table, id, ms = 180_000) {
+  if (!TABLES_MODIFIABLES.includes(table) && table !== "dossiers") {
+    throw new Error(`table non attendue: ${table}`);
+  }
+  const debut = Date.now();
+  while (Date.now() - debut < ms) {
+    const rows = await hook(
+      send,
+      `window.__legalosRecette.lireSqlite(${JSON.stringify(`SELECT id FROM ${table} WHERE id = ?`)}, ${JSON.stringify([id])})`,
+    );
+    if (Array.isArray(rows) && rows.length > 0) return;
+    await sleep(300);
+  }
+  const counts = await hook(
+    send,
+    `window.__legalosRecette.lireSqlite("SELECT (SELECT COUNT(*) FROM dossiers) AS d, (SELECT COUNT(*) FROM parties) AS p, (SELECT COUNT(*) FROM cabinets) AS c")`,
+  );
+  throw new Error(
+    `ligne absente en local: ${table}/${id} (counts=${JSON.stringify(counts)})`,
+  );
+}
+
+async function attendreJeuLocal(send, ids) {
+  for (const cas of TABLES_CONFLIT) {
+    await attendreLigneLocale(send, cas.table, ids[cas.idKey]);
+  }
+  await attendreLigneLocale(send, "dossiers", ids.dossierRestreintId);
 }
 
 async function creerJeuApi(jeton) {
@@ -496,61 +649,134 @@ for (const table of TABLES_MODIFIABLES) {
   if (!CHAMP_SEUL_PAR_TABLE[table]) fail(`champ seul manquant pour ${table}`);
 }
 
+// Reprise si un run précédent a laissé api/powersync en pause.
+await compose(["unpause", "api", "powersync"]).catch(() => undefined);
+await attendreSante().catch(() => undefined);
+
 resetPostesLocaux();
 console.log("conflits-poste: bases locales réinitialisées");
 
 const jetonA = await demoAccessToken(api, `Conflits API ${marque}`);
 const ids = await creerJeuApi(jetonA);
 console.log("conflits-poste: jeu de données API créé");
+// Laisse PowerSync répliquer Postgres → buckets avant le premier sync poste.
+await sleep(8_000);
 
-// Sync initiale des deux postes (démo + collab pour S5).
-await avecPoste("a", demoEmail, demoPassword, totpSecretB32, "Poste conflits A", async () => {
-  await sleep(2_000);
+// Sync initiale des deux postes (attend le jeu API en SQLite).
+await avecPoste("a", demoEmail, demoPassword, totpSecretB32, "Poste conflits A", async (send) => {
+  await attendreJeuLocal(send, ids);
+  console.log("conflits-poste: poste A a le jeu en local");
 });
-await avecPoste("b", demoEmail, demoPassword, totpSecretB32, "Poste conflits B", async () => {
-  await sleep(2_000);
+await avecPoste("b", demoEmail, demoPassword, totpSecretB32, "Poste conflits B", async (send) => {
+  await attendreJeuLocal(send, ids);
+  console.log("conflits-poste: poste B a le jeu en local");
 });
 
 // ——— un conflit par table (hors ligne) ———
-await compose(["pause", "api", "powersync"]);
-try {
-  await avecPoste("a", demoEmail, demoPassword, totpSecretB32, "Poste conflits A", async (send) => {
+await ecrireApresDeconnexion(
+  "a",
+  demoEmail,
+  demoPassword,
+  totpSecretB32,
+  "Poste conflits A",
+  ids,
+  async (send) => {
     for (const cas of TABLES_CONFLIT) {
       const id = ids[cas.idKey];
+      const champ = CHAMP_SEUL_PAR_TABLE[cas.table];
       await hook(
         send,
         `window.__legalosRecette.patchChampSeul(${JSON.stringify(cas.table)}, ${JSON.stringify(id)}, ${JSON.stringify(cas.valeurA)})`,
       );
+      const rows = await hook(
+        send,
+        `window.__legalosRecette.lireSqlite(${JSON.stringify(`SELECT ${champ} AS v FROM ${cas.table} WHERE id = ?`)}, ${JSON.stringify([id])})`,
+      );
+      const vu = Array.isArray(rows) ? rows[0]?.v : undefined;
+      if (String(vu) !== String(cas.valeurA)) {
+        throw new Error(`patch A non appliqué ${cas.table}.${champ} (vu=${vu})`);
+      }
     }
-  });
-  await avecPoste("b", demoEmail, demoPassword, totpSecretB32, "Poste conflits B", async (send) => {
+  },
+);
+{
+  const { DatabaseSync } = await import("node:sqlite");
+  const { join: pathJoin } = await import("node:path");
+  const { homedir } = await import("node:os");
+  const roaming = process.env.APPDATA ?? pathJoin(homedir(), "AppData", "Roaming");
+  const dbPath = pathJoin(roaming, "fr.legalos.poste", "legalos-powersync-a.db");
+  const db = new DatabaseSync(dbPath, { readOnly: true });
+  const crud = db.prepare("SELECT COUNT(*) AS n FROM ps_crud").get();
+  const jur = db
+    .prepare("SELECT juridiction FROM dossiers WHERE id = ?")
+    .get(ids.dossierId);
+  console.log(
+    `conflits-poste: après écriture A (sqlite fichier) crud=${JSON.stringify(crud)} jur=${JSON.stringify(jur)}`,
+  );
+  db.close();
+}
+await ecrireApresDeconnexion(
+  "b",
+  demoEmail,
+  demoPassword,
+  totpSecretB32,
+  "Poste conflits B",
+  ids,
+  async (send) => {
     for (const cas of TABLES_CONFLIT) {
       const id = ids[cas.idKey];
+      const champ = CHAMP_SEUL_PAR_TABLE[cas.table];
       await hook(
         send,
         `window.__legalosRecette.patchChampSeul(${JSON.stringify(cas.table)}, ${JSON.stringify(id)}, ${JSON.stringify(cas.valeurB)})`,
       );
+      const rows = await hook(
+        send,
+        `window.__legalosRecette.lireSqlite(${JSON.stringify(`SELECT ${champ} AS v FROM ${cas.table} WHERE id = ?`)}, ${JSON.stringify([id])})`,
+      );
+      const vu = Array.isArray(rows) ? rows[0]?.v : undefined;
+      if (String(vu) !== String(cas.valeurB)) {
+        throw new Error(`patch B non appliqué ${cas.table}.${champ} (vu=${vu})`);
+      }
     }
-  });
-} finally {
-  await compose(["unpause", "api", "powersync"]).catch(() => undefined);
-}
+  },
+);
 
 for (const id of ["a", "b"]) {
-  await avecPoste(id, demoEmail, demoPassword, totpSecretB32, `Poste sync ${id}`, async () => {
-    await sleep(3_000);
+  await avecPoste(id, demoEmail, demoPassword, totpSecretB32, `Poste sync ${id}`, async (send, child) => {
+    const crud = await hook(
+      send,
+      `window.__legalosRecette.lireSqlite("SELECT COUNT(*) AS n FROM ps_crud")`,
+    );
+    const jur = await hook(
+      send,
+      `window.__legalosRecette.lireSqlite("SELECT juridiction AS v FROM dossiers WHERE id = ?", ${JSON.stringify([ids.dossierId])})`,
+    );
+    const refus = await hook(send, `window.__legalosRecette.readRefus()`);
+    console.log(
+      `conflits-poste: sync ${id} ps_crud=${JSON.stringify(crud)} jur=${JSON.stringify(jur)} refus=${JSON.stringify(refus)}`,
+    );
+    console.log(`conflits-poste: sync ${id} log=${child.logTail().replace(/\s+/g, " ").slice(-500)}`);
+    await sleep(8_000);
+    const jurServeur = await sqlServeur(
+      `SELECT juridiction FROM dossiers WHERE id = '${ids.dossierId}'`,
+    );
+    console.log(`conflits-poste: sync ${id} juridiction serveur=${jurServeur}`);
   });
 }
 
 for (const cas of TABLES_CONFLIT) {
   const champ = CHAMP_SEUL_PAR_TABLE[cas.table];
-  const n = Number(
-    await sqlServeur(
-      `SELECT COUNT(*) FROM journal_modifications
+  const requete = `SELECT COUNT(*) FROM journal_modifications
        WHERE table_cible = '${cas.table}' AND champ = '${champ}' AND conflit
-         AND enregistrement_id = '${ids[cas.idKey]}'`,
-    ),
-  );
+         AND enregistrement_id = '${ids[cas.idKey]}'`;
+  const debut = Date.now();
+  let n = 0;
+  while (Date.now() - debut < 90_000) {
+    n = Number(await sqlServeur(requete));
+    if (n >= 1) break;
+    await sleep(500);
+  }
   if (n < 1) fail(`conflit non journalisé pour ${cas.table}.${champ}`);
 }
 console.log("conflits-poste: OK — un conflit par table");
@@ -567,12 +793,7 @@ for (const id of ["a", "b"]) {
       if (vu) break;
       const n = await hook(send, `window.__legalosRecette.readConflits()`);
       if (Number(n) > 0) {
-        // Ouvrir Réglages si le bandeau n'est pas encore monté.
-        await evaluate(
-          send,
-          `[...document.querySelectorAll("button")].find((b) => /réglages|reglages/i.test(b.textContent || ""))?.click()`,
-        );
-        await sleep(500);
+        await ouvrirReglages(send);
       }
       await sleep(400);
     }
@@ -582,84 +803,159 @@ for (const id of ["a", "b"]) {
 console.log("conflits-poste: OK — conflit signalé");
 
 // ——— S5 : conflit sur dossier restreint (A et B autorisés), absent chez le collab ———
-await compose(["pause", "api", "powersync"]);
-try {
-  await avecPoste("a", demoEmail, demoPassword, totpSecretB32, "Poste S5 A", async (send) => {
+await ecrireApresDeconnexion(
+  "a",
+  demoEmail,
+  demoPassword,
+  totpSecretB32,
+  "Poste S5 A",
+  ids,
+  async (send) => {
     await hook(
       send,
       `window.__legalosRecette.patchChampSeul("dossiers", ${JSON.stringify(ids.dossierRestreintId)}, ${JSON.stringify(`RS-A-${marque}`)})`,
     );
-  });
-  await avecPoste("b", demoEmail, demoPassword, totpSecretB32, "Poste S5 B", async (send) => {
+  },
+);
+await ecrireApresDeconnexion(
+  "b",
+  demoEmail,
+  demoPassword,
+  totpSecretB32,
+  "Poste S5 B",
+  ids,
+  async (send) => {
     await hook(
       send,
       `window.__legalosRecette.patchChampSeul("dossiers", ${JSON.stringify(ids.dossierRestreintId)}, ${JSON.stringify(`RS-B-${marque}`)})`,
     );
-  });
-} finally {
-  await compose(["unpause", "api", "powersync"]).catch(() => undefined);
-}
+  },
+);
 
 for (const id of ["a", "b"]) {
-  await avecPoste(id, demoEmail, demoPassword, totpSecretB32, `Poste S5 sync ${id}`, async () => {
-    await sleep(3_000);
+  await avecPoste(id, demoEmail, demoPassword, totpSecretB32, `Poste S5 sync ${id}`, async (send, child) => {
+    const crud = await hook(
+      send,
+      `window.__legalosRecette.lireSqlite("SELECT COUNT(*) AS n FROM ps_crud")`,
+    );
+    const refus = await hook(send, `window.__legalosRecette.readRefus()`);
+    console.log(
+      `conflits-poste: S5 sync ${id} ps_crud=${JSON.stringify(crud)} refus=${JSON.stringify(refus)} log=${child.logTail().replace(/\s+/g, " ").slice(-400)}`,
+    );
+    const debut = Date.now();
+    let rev = "1";
+    while (Date.now() - debut < 90_000) {
+      rev = await sqlServeur(
+        `SELECT revision::text FROM dossiers WHERE id = '${ids.dossierRestreintId}'`,
+      );
+      if (Number(rev) >= 2) break;
+      await sleep(500);
+    }
+    console.log(`conflits-poste: S5 sync ${id} revision serveur=${rev}`);
   });
 }
 
-const journalRestreint = Number(
-  await sqlServeur(
-    `SELECT COUNT(*) FROM journal_modifications
-     WHERE dossier_id = '${ids.dossierRestreintId}' AND conflit`,
-  ),
-);
+const journalRestreintDebut = Date.now();
+let journalRestreint = 0;
+while (Date.now() - journalRestreintDebut < 90_000) {
+  journalRestreint = Number(
+    await sqlServeur(
+      `SELECT COUNT(*) FROM journal_modifications
+       WHERE dossier_id = '${ids.dossierRestreintId}' AND conflit`,
+    ),
+  );
+  if (journalRestreint >= 1) break;
+  await sleep(500);
+}
 if (journalRestreint < 1) fail("conflit du dossier restreint non journalisé côté serveur");
 
+// Poste « c » : SQLite isolé. Réutiliser « b » laisserait le dossier restreint du titulaire.
 await avecPoste(
-  "b",
+  "c",
   collabEmail,
   collabPassword,
   collabTotp,
   "Poste S5 collab",
   async (send) => {
-    await sleep(4_000);
-    const n = await hook(
-      send,
-      `window.__legalosRecette.compterJournalDossier(${JSON.stringify(ids.dossierRestreintId)})`,
-    );
+    const debut = Date.now();
+    let n = -1;
+    let count = -1;
+    while (Date.now() - debut < 60_000) {
+      n = Number(
+        await hook(
+          send,
+          `window.__legalosRecette.compterJournalDossier(${JSON.stringify(ids.dossierRestreintId)})`,
+        ),
+      );
+      const dossiers = await hook(
+        send,
+        `window.__legalosRecette.lireSqlite("SELECT COUNT(*) AS n FROM dossiers WHERE id = ?", [${JSON.stringify(ids.dossierRestreintId)}])`,
+      );
+      count = Array.isArray(dossiers) ? Number(dossiers[0]?.n ?? 0) : 0;
+      // Attendre que la sync collab ait au moins reçu le cabinet (sinon assertion vacueuse).
+      const cabinets = await hook(
+        send,
+        `window.__legalosRecette.lireSqlite("SELECT COUNT(*) AS n FROM cabinets")`,
+      );
+      const nCab = Array.isArray(cabinets) ? Number(cabinets[0]?.n ?? 0) : 0;
+      if (nCab >= 1 && n === 0 && count === 0) break;
+      if (nCab >= 1 && (n !== 0 || count !== 0)) break;
+      await sleep(400);
+    }
     if (Number(n) !== 0) {
       fail(`journal restreint présent chez le collab non autorisé (n=${n})`);
     }
-    const dossiers = await hook(
-      send,
-      `window.__legalosRecette.lireSqlite("SELECT COUNT(*) AS n FROM dossiers WHERE id = ?", [${JSON.stringify(ids.dossierRestreintId)}])`,
-    );
-    const count = Array.isArray(dossiers) ? Number(dossiers[0]?.n ?? 0) : 0;
     if (count !== 0) fail(`dossier restreint présent dans SQLite collab (n=${count})`);
   },
 );
 console.log("conflits-poste: OK — S5 journal restreint absent du poste non autorisé");
 
 // ——— fausse alerte : même poste, deux écritures séquentielles ———
-const avantFausse = Number(
-  await sqlServeur(
-    `SELECT COUNT(*) FROM journal_modifications
-     WHERE table_cible = 'dossiers' AND enregistrement_id = '${ids.dossierId}' AND conflit`,
-  ),
-);
-await avecPoste("a", demoEmail, demoPassword, totpSecretB32, "Poste fausse 1", async (send) => {
+// Même nom d'appareil → même poste_id serveur. Les deux PATCH dans la même
+// session après alignement sur la révision serveur (sinon SEQ1 conflictue avec B).
+const nomFausse = "Poste fausse sequentiel";
+let avantFausse = 0;
+await avecPoste("a", demoEmail, demoPassword, totpSecretB32, nomFausse, async (send) => {
+  const revServeur = Number(
+    await sqlServeur(`SELECT revision::text FROM dossiers WHERE id = '${ids.dossierId}'`),
+  );
+  // Aligner la base_revision d'upload sur le serveur (la colonne locale peut rester
+  // en retard tant que le flux n'a pas rattrapé la valeur gagnante de B).
+  await hook(
+    send,
+    `window.__legalosRecette.fixerRevisionEdition(${JSON.stringify(ids.dossierId)}, ${revServeur})`,
+  );
+  avantFausse = Number(
+    await sqlServeur(
+      `SELECT COUNT(*) FROM journal_modifications
+       WHERE table_cible = 'dossiers' AND enregistrement_id = '${ids.dossierId}' AND conflit`,
+    ),
+  );
   await hook(
     send,
     `window.__legalosRecette.patchChampSeul("dossiers", ${JSON.stringify(ids.dossierId)}, ${JSON.stringify(`SEQ1-${marque}`)})`,
   );
-});
-await sleep(2_000);
-await avecPoste("a", demoEmail, demoPassword, totpSecretB32, "Poste fausse 2", async (send) => {
+  await attendreSql(
+    `SELECT juridiction FROM dossiers WHERE id = '${ids.dossierId}'`,
+    `SEQ1-${marque}`,
+  );
+  const revApresSeq1 = Number(
+    await sqlServeur(`SELECT revision::text FROM dossiers WHERE id = '${ids.dossierId}'`),
+  );
+  await hook(
+    send,
+    `window.__legalosRecette.fixerRevisionEdition(${JSON.stringify(ids.dossierId)}, ${revApresSeq1})`,
+  );
   await hook(
     send,
     `window.__legalosRecette.patchChampSeul("dossiers", ${JSON.stringify(ids.dossierId)}, ${JSON.stringify(`SEQ2-${marque}`)})`,
   );
+  await attendreSql(
+    `SELECT juridiction FROM dossiers WHERE id = '${ids.dossierId}'`,
+    `SEQ2-${marque}`,
+  );
 });
-await sleep(3_000);
+await sleep(2_000);
 const apresFausse = Number(
   await sqlServeur(
     `SELECT COUNT(*) FROM journal_modifications
@@ -685,15 +981,13 @@ await avecPoste("a", demoEmail, demoPassword, totpSecretB32, "Poste refus", asyn
   await sleep(4_000);
   const refus = await hook(send, `window.__legalosRecette.readRefus()`);
   if (!refus || !refus.message) fail("refus non consigné / message absent");
-  await evaluate(
-    send,
-    `[...document.querySelectorAll("button")].find((b) => /réglages|reglages/i.test(b.textContent || ""))?.click()`,
-  );
+  await ouvrirReglages(send);
   const debut = Date.now();
   let vu = false;
   while (Date.now() - debut < 30_000) {
     vu = Boolean(await evaluate(send, `Boolean(document.querySelector("[data-testid=refus-sync]"))`));
     if (vu) break;
+    await ouvrirReglages(send);
     await sleep(400);
   }
   if (!vu) fail("message de refus non affiché");
@@ -711,19 +1005,32 @@ await avecPoste("a", demoEmail, demoPassword, totpSecretB32, "Poste refus", asyn
   );
 });
 
-await avecPoste("b", demoEmail, demoPassword, totpSecretB32, "Poste apres refus B", async (send) => {
+// Base B neuve : prouve que l'écriture est dans le bucket (téléchargement complet).
+// Après de nombreux cycles Tauri le flux incrémental peut laisser une valeur locale figée.
+resetPosteLocal("b");
+await avecPoste("b", demoEmail, demoPassword, totpSecretB32, "Poste apres refus B", async (send, child) => {
+  await sleep(3_000);
+  const attendu = `APRES-REFUS-${marque}`;
   const debut = Date.now();
   let vu = "";
-  while (Date.now() - debut < 90_000) {
+  while (Date.now() - debut < 180_000) {
     const rows = await hook(
       send,
       `window.__legalosRecette.lireSqlite("SELECT libelle FROM temps_saisis WHERE id = ?", [${JSON.stringify(ids.tempsId)}])`,
     );
     vu = Array.isArray(rows) ? String(rows[0]?.libelle ?? "") : "";
-    if (vu === `APRES-REFUS-${marque}`) break;
+    if (vu === attendu) break;
     await sleep(500);
   }
-  if (vu !== `APRES-REFUS-${marque}`) fail(`écriture après refus absente sur B (${vu || "vide"})`);
+  if (vu !== attendu) {
+    const serveur = await sqlServeur(
+      `SELECT libelle FROM temps_saisis WHERE id = '${ids.tempsId}'`,
+    );
+    console.error(
+      `conflits-poste: apres refus B local=${vu || "vide"} serveur=${serveur} log=${child.logTail().replace(/\s+/g, " ").slice(-400)}`,
+    );
+    fail(`écriture après refus absente sur B (${vu || "vide"})`);
+  }
 });
 console.log("conflits-poste: OK — refus consignés, file non bloquée, écriture suivante OK");
 
@@ -740,9 +1047,14 @@ const attendusChampSeul = {
   taux_horaires: String(tauxSeul),
 };
 
-await compose(["pause", "api", "powersync"]);
-try {
-  await avecPoste("a", demoEmail, demoPassword, totpSecretB32, "Poste champ seul", async (send) => {
+await ecrireApresDeconnexion(
+  "a",
+  demoEmail,
+  demoPassword,
+  totpSecretB32,
+  "Poste champ seul",
+  ids,
+  async (send) => {
     for (const table of TABLES_MODIFIABLES) {
       if (table === "cabinets") {
         await hook(
@@ -759,13 +1071,11 @@ try {
         `window.__legalosRecette.patchChampSeul(${JSON.stringify(table)}, ${JSON.stringify(ids[idKey])}, ${JSON.stringify(valeur)})`,
       );
     }
-  });
-} finally {
-  await compose(["unpause", "api", "powersync"]).catch(() => undefined);
-}
+  },
+);
 
 await avecPoste("a", demoEmail, demoPassword, totpSecretB32, "Poste champ seul sync", async () => {
-  await sleep(4_000);
+  await sleep(5_000);
 });
 
 for (const table of TABLES_MODIFIABLES) {

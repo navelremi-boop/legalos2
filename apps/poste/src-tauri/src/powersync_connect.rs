@@ -358,10 +358,17 @@ async fn envoyer_http(
     };
     let response = request.bearer_auth(token).json(body).send().await?;
     let status = response.status();
+    let corps = response.text().await.unwrap_or_default();
     if status == StatusCode::OK || status == StatusCode::CREATED {
+        // Aligner la révision locale sur la réponse : le PATCH local ne touche pas
+        // `revision`, et sans téléchargement immédiat la base_revision suivante serait périmée.
+        if let Ok(valeur) = serde_json::from_str::<Value>(&corps) {
+            if let Some(rev) = valeur.get("revision").and_then(Value::as_i64) {
+                let _ = appliquer_revision_locale(db, table, id, rev).await;
+            }
+        }
         return Ok(());
     }
-    let corps = response.text().await.unwrap_or_default();
     if est_refus_definitif(status) {
         let message = message_refus(&corps, status);
         consign_refus(db, table, id, operation, Some(status.as_u16()), &message).await?;
@@ -409,22 +416,21 @@ async fn consign_refus(
     message: &str,
 ) -> Result<(), PowerSyncError> {
     let conn = db.writer().await?;
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS refus_sync (
-            id TEXT PRIMARY KEY NOT NULL,
-            table_cible TEXT NOT NULL,
-            enregistrement_id TEXT NOT NULL,
-            operation TEXT NOT NULL,
-            statut INTEGER,
-            message TEXT NOT NULL,
-            cree_le TEXT NOT NULL
-        )",
-    )
-    .map_err(|err| upload_err(format!("création refus_sync : {err}")))?;
-    let id = format!("refus-{}-{}-{}", table, enregistrement_id, chrono_compact());
+    // Table locale PowerSync (`localOnly` dans AppSchema) : ne pas recréer un DDL parallèle.
+    // Id unique à chaque refus pour ne jamais bloquer la file (UNIQUE).
+    let id = format!(
+        "refus-{}-{}-{}-{}",
+        table,
+        enregistrement_id,
+        chrono_compact(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.subsec_nanos())
+            .unwrap_or(0)
+    );
     let cree_le = chrono_iso();
     conn.execute(
-        "INSERT INTO refus_sync (id, table_cible, enregistrement_id, operation, statut, message, cree_le)
+        "INSERT OR REPLACE INTO refus_sync (id, table_cible, enregistrement_id, operation, statut, message, cree_le)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         rusqlite::params![
             id,
@@ -488,6 +494,30 @@ async fn lire_revision(
         Ok(revision) => Ok(revision),
         Err(_) => Ok(1),
     }
+}
+
+async fn appliquer_revision_locale(
+    db: &PowerSyncDatabase,
+    table: &str,
+    id: &str,
+    revision: i64,
+) -> Result<(), PowerSyncError> {
+    let _ = table;
+    let conn = db.writer().await?;
+    // Uniquement la table locale : un UPDATE sur la ligne synchronisée créerait un
+    // PATCH sans champ métier → 400 « Aucun champ à appliquer » en boucle.
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS revision_edition (id TEXT PRIMARY KEY, revision INTEGER NOT NULL)",
+        [],
+    )
+    .map_err(|err| upload_err(format!("revision_edition : {err}")))?;
+    conn.execute(
+        "INSERT INTO revision_edition (id, revision) VALUES (?1, ?2)
+         ON CONFLICT(id) DO UPDATE SET revision = excluded.revision",
+        rusqlite::params![id, revision],
+    )
+    .map_err(|err| upload_err(format!("revision_edition upsert : {err}")))?;
+    Ok(())
 }
 
 #[cfg(test)]

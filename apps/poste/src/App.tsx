@@ -29,17 +29,22 @@ function App() {
   );
   const [localReady, setLocalReady] = useState(false);
   const [ecranPret, setEcranPret] = useState(false);
+  /** Demande explicite de reconnexion (sinon travail hors ligne sur données locales). */
+  const [forceLogin, setForceLogin] = useState(false);
 
   useEffect(() => {
     void (async () => {
-      const has = await invoke<boolean>("keyring_has_refresh").catch(() => false);
-      if (has) {
+      // Données locales suffisent pour le travail hors ligne ; le trousseau sert à la reprise API.
+      try {
         const database = await getPowerSyncDatabase();
         const rows = await database.getAll<{ id: string }>(
           "SELECT id FROM cabinets WHERE id = ? LIMIT 1",
           [DEMO_CABINET_ID],
         );
         if (rows.length > 0) setLocalReady(true);
+      } catch {
+        const has = await invoke<boolean>("keyring_has_refresh").catch(() => false);
+        if (has) setLocalReady(false);
       }
       setEcranPret(true);
     })();
@@ -50,14 +55,40 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (authenticated && syncDone) {
-      exposeRecetteHooksIfEnabled();
-    }
-  }, [authenticated, syncDone]);
+    // Toujours exposer en mode recette (y compris redémarrage hors ligne).
+    exposeRecetteHooksIfEnabled();
+  }, []);
+
+  // Après la sync initiale, reconnecter PowerSync dès qu'un jeton est en mémoire :
+  // sans cela un redémarrage « sync déjà faite » n'appelle jamais connect_powersync
+  // et la file ps_crud ne part pas (conflits hors ligne, S5, etc.).
+  useEffect(() => {
+    if (!authenticated || !syncDone) return;
+    const accessToken = loadSessionTokens().accessToken;
+    if (accessToken === null || accessToken === "") return;
+    let annulé = false;
+    void (async () => {
+      try {
+        const database = await getPowerSyncDatabase();
+        if (annulé) return;
+        await invoke("connect_powersync", {
+          handle: database.rustHandle,
+          instanceUrl,
+          accessToken,
+        });
+      } catch {
+        /* reconnexion : nouvel essai à la prochaine auth */
+      }
+    })();
+    return () => {
+      annulé = true;
+    };
+  }, [authenticated, syncDone, instanceUrl]);
 
   const handleFirstLaunchComplete = useCallback((result: { instanceUrl: string }) => {
     setInstanceUrl(result.instanceUrl);
     setAuthenticated(true);
+    setForceLogin(false);
     setSyncDone(false);
     localStorage.removeItem(STORAGE_SYNC_DONE);
   }, []);
@@ -77,13 +108,32 @@ function App() {
     localStorage.removeItem(STORAGE_SYNC_DONE);
     setSyncDone(false);
     setAuthenticated(false);
+    setForceLogin(true);
+  }, []);
+
+  const handleReconnect = useCallback(() => {
+    setForceLogin(true);
+    setAuthenticated(false);
   }, []);
 
   if (!ecranPret) {
     return null;
   }
 
-  if (!authenticated && localReady) {
+  // Données locales déjà présentes : travail hors ligne sans masquer la coque.
+  // (Ne pas exiger syncDone : un profil webview neuf avec SQLite déjà peuplée
+  // doit quand même exposer la coque + « Se reconnecter ».)
+  if (!authenticated && localReady && !forceLogin) {
+    return (
+      <CoqueApp
+        instanceUrl={instanceUrl}
+        onResetSession={handleResetSession}
+        onReconnect={handleReconnect}
+      />
+    );
+  }
+
+  if (!authenticated && localReady && forceLogin) {
     return (
       <>
         <CoqueApp instanceUrl={instanceUrl} />
@@ -111,7 +161,13 @@ function App() {
     );
   }
 
-  return <CoqueApp instanceUrl={instanceUrl} onResetSession={handleResetSession} />;
+  return (
+    <CoqueApp
+      instanceUrl={instanceUrl}
+      onResetSession={handleResetSession}
+      onReconnect={handleReconnect}
+    />
+  );
 }
 
 export default App;

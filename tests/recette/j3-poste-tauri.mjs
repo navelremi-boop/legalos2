@@ -3,7 +3,7 @@
  * Ne journalise aucun secret.
  */
 import { spawn } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +11,14 @@ import { demoEmail, demoPassword, totpNow } from "./lib/demo-auth.mjs";
 
 const poste = fileURLToPath(new URL("../../apps/poste/", import.meta.url));
 const root = fileURLToPath(new URL("../..", import.meta.url));
+/** `.env` est ignoré par git : un worktree n'en a pas. Compose cible le dépôt qui le détient. */
+function racineInstance() {
+  if (existsSync(join(root, ".env"))) return root;
+  const principal = join(root, "..", "..");
+  if (existsSync(join(principal, ".env"))) return principal;
+  return root;
+}
+const instanceRoot = racineInstance();
 const instanceUrl = process.env.LEGALOS_INSTANCE_URL ?? "http://127.0.0.1:8088";
 const marque = String(Date.now()).slice(-6);
 const nomHorsLigne = `Hors ligne ${marque}`;
@@ -176,8 +184,8 @@ async function setField(send, id, value) {
 }
 
 async function ecranAuth(send) {
-  // Priorité au formulaire d'instance : App peut monter JourneePreview + FirstLaunchFlow
-  // en parallèle (données locales sans jeton mémoire). cabinet-nom ne doit pas masquer login.
+  // Priorité au formulaire d'auth : après sync l'app ouvre La journée (pas Réglages /
+  // cabinet-nom). Coque = barre-haut ou écran journée / réglages.
   return String(
     (await evaluate(
       send,
@@ -187,10 +195,56 @@ async function ecranAuth(send) {
           ? "creds"
           : document.getElementById("code-totp")
             ? "totp"
-            : document.getElementById("cabinet-nom")
+            : document.querySelector("[data-testid=ecran-journee],[data-testid=barre-haut],[data-testid=ecran-reglages], #cabinet-nom")
               ? "local"
               : ""`,
     )) ?? "",
+  );
+}
+
+async function attendreCoque(send, ms = 60_000) {
+  const debut = Date.now();
+  while (Date.now() - debut < ms) {
+    const ok = await evaluate(
+      send,
+      `Boolean(document.querySelector("[data-testid=barre-haut],[data-testid=ecran-journee],[data-testid=ecran-reglages]"))`,
+    );
+    if (ok) return;
+    await sleep(200);
+  }
+  throw new Error("coque absente");
+}
+
+async function ouvrirReglages(send) {
+  for (let essai = 0; essai < 5; essai++) {
+    const pret = await evaluate(
+      send,
+      `Boolean(document.getElementById("cabinet-nom") || document.querySelector("[data-testid=ecran-reglages]"))`,
+    );
+    if (pret) return true;
+    await evaluate(
+      send,
+      `(() => {
+        const compte = [...document.querySelectorAll("button")].find((b) =>
+          /^Compte$/i.test((b.textContent || "").trim()),
+        );
+        compte?.click();
+      })()`,
+    );
+    await sleep(300);
+    await evaluate(
+      send,
+      `(() => {
+        const reglages = [...document.querySelectorAll("button")].find((b) =>
+          /^R[ée]glages$/i.test((b.textContent || "").trim()),
+        );
+        reglages?.click();
+      })()`,
+    );
+    await sleep(500);
+  }
+  return Boolean(
+    await evaluate(send, `Boolean(document.getElementById("cabinet-nom"))`),
   );
 }
 
@@ -214,14 +268,37 @@ async function login(send, nomAppareil) {
   while (Date.now() - pret < 60_000) {
     ecran = await ecranAuth(send);
     if (ecran === "local") {
-      await evaluate(
+      // Bouton « Se reconnecter » uniquement sur Réglages.
+      await ouvrirReglages(send);
+      const clique = await evaluate(
         send,
-        `[...document.querySelectorAll("button")].find((b) => (b.innerText || "").includes("reconnecter"))?.click()`,
+        `(() => {
+          const b = document.querySelector("[data-testid=se-reconnecter]");
+          if (!b) return false;
+          b.click();
+          return true;
+        })()`,
       );
-      const jusqua = Date.now() + 15_000;
+      if (!clique) {
+        await evaluate(
+          send,
+          `[...document.querySelectorAll("button")].find((b) =>
+            /reconnecter/i.test(b.innerText || ""))?.click()`,
+        );
+      }
+      const jusqua = Date.now() + 45_000;
+      let prochainEssai = Date.now();
       while (Date.now() < jusqua) {
         ecran = await ecranAuth(send);
         if (ecran === "login" || ecran === "creds" || ecran === "totp") break;
+        if (Date.now() >= prochainEssai) {
+          await ouvrirReglages(send);
+          await evaluate(
+            send,
+            `document.querySelector("[data-testid=se-reconnecter]")?.click()`,
+          );
+          prochainEssai = Date.now() + 5_000;
+        }
         await sleep(200);
       }
       if (ecran !== "login" && ecran !== "creds" && ecran !== "totp") {
@@ -236,6 +313,12 @@ async function login(send, nomAppareil) {
   if (!ecran) {
     const texte = await evaluate(send, "document.body?.innerText ?? ''");
     throw new Error(`écran auth absent — ${String(texte).replace(/\s+/g, " ").slice(-240)}`);
+  }
+  if (ecran === "local") {
+    const texte = await evaluate(send, "document.body?.innerText ?? ''");
+    throw new Error(
+      `reconnexion absente (toujours hors ligne) — ${String(texte).replace(/\s+/g, " ").slice(-240)}`,
+    );
   }
   if (ecran === "login") {
     await attendreChamp(send, "instance-url");
@@ -263,9 +346,19 @@ async function login(send, nomAppareil) {
       );
       totpSoumis = true;
     }
+    // cabinet-nom n'est monté que sur Réglages ; la coque suffit pour prouver la sync.
     const connecte = await evaluate(
       send,
-      `Boolean(document.getElementById("cabinet-nom")) && !document.getElementById("instance-url") && !document.getElementById("code-totp")`,
+      `(() => {
+        const visible = (id) => {
+          const el = document.getElementById(id);
+          return Boolean(el && el.offsetParent !== null);
+        };
+        const coque = document.querySelector(
+          "[data-testid=ecran-journee],[data-testid=barre-haut],[data-testid=ecran-reglages], #cabinet-nom",
+        );
+        return Boolean(coque) && !visible("instance-url") && !visible("code-totp") && !visible("email");
+      })()`,
     );
     if (totpSoumis && connecte) return;
     await sleep(250);
@@ -275,7 +368,17 @@ async function login(send, nomAppareil) {
 }
 
 async function nomAffiche(send) {
-  return String((await evaluate(send, `document.getElementById("cabinet-nom")?.value ?? ""`)) ?? "");
+  await ouvrirReglages(send);
+  const debut = Date.now();
+  while (Date.now() - debut < 30_000) {
+    const vu = String(
+      (await evaluate(send, `document.getElementById("cabinet-nom")?.value ?? ""`)) ?? "",
+    );
+    if (vu) return vu;
+    await ouvrirReglages(send);
+    await sleep(300);
+  }
+  return "";
 }
 
 function sqlServeur(requete) {
@@ -299,7 +402,7 @@ function sqlServeur(requete) {
         "-tAc",
         requete,
       ],
-      { cwd: root, stdio: ["ignore", "pipe", "ignore"] },
+      { cwd: instanceRoot, stdio: ["ignore", "pipe", "ignore"] },
     );
     let out = "";
     child.stdout.on("data", (chunk) => {
@@ -321,6 +424,10 @@ async function attendreSql(requete, attendu) {
 }
 
 async function editer(send, id, valeur) {
+  await attendreCoque(send);
+  if (!(await ouvrirReglages(send))) {
+    throw new Error(`réglages absents pour éditer ${id}`);
+  }
   const start = Date.now();
   while (Date.now() - start < 20_000) {
     if (await evaluate(send, `Boolean(document.getElementById(${JSON.stringify(id)}))`)) break;
@@ -336,7 +443,7 @@ function compose(args) {
     const child = spawn(
       "docker",
       ["compose", "-f", "instance/docker-compose.yml", "--env-file", ".env", ...args],
-      { cwd: root, stdio: "ignore" },
+      { cwd: instanceRoot, stdio: "ignore" },
     );
     child.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`compose ${args[0]}`))));
   });
@@ -359,6 +466,7 @@ try {
 
   await compose(["stop", "api", "powersync"]);
   const pageCut = await connectCdp(posteA.port);
+  await ouvrirReglages(pageCut.send);
   await setField(pageCut.send, "cabinet-nom", nomHorsLigne);
   await evaluate(pageCut.send, `document.querySelector("form")?.requestSubmit()`);
   await sleep(500);
@@ -429,7 +537,7 @@ try {
           "-tAc",
           "SELECT nom FROM cabinets LIMIT 1",
         ],
-        { cwd: root, stdio: ["ignore", "pipe", "ignore"] },
+        { cwd: instanceRoot, stdio: ["ignore", "pipe", "ignore"] },
       );
       let out = "";
       child.stdout.on("data", (chunk) => {
@@ -480,6 +588,7 @@ const fusionA = startApp("a");
 try {
   await waitCdp(fusionA);
   const page = await connectCdp(fusionA.port);
+  await attendreCoque(page.send);
   await editer(page.send, "cabinet-nom", nomFusion);
   page.ws.close();
 } finally {
@@ -489,6 +598,7 @@ const fusionB = startApp("b");
 try {
   await waitCdp(fusionB);
   const page = await connectCdp(fusionB.port);
+  await attendreCoque(page.send);
   await editer(page.send, "cabinet-slug", slugFusion);
   page.ws.close();
 } finally {
@@ -612,6 +722,7 @@ try {
   const debut = Date.now();
   let vu = false;
   while (Date.now() - debut < 90_000) {
+    await ouvrirReglages(page.send);
     vu = Boolean(await evaluate(page.send, `Boolean(document.querySelector("[data-testid=conflit-sync]"))`));
     if (vu) break;
     await sleep(500);

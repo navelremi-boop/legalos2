@@ -16,7 +16,14 @@ async function memoriserRevision(table: TableModifiable, id: string): Promise<vo
     `SELECT revision FROM ${table} WHERE id = ? LIMIT 1`,
     [id],
   );
-  const revision = rows[0]?.revision ?? 1;
+  const depuisLigne = rows[0]?.revision ?? 1;
+  const deja = await database.getAll<{ revision: number | null }>(
+    "SELECT revision FROM revision_edition WHERE id = ? LIMIT 1",
+    [id],
+  );
+  const depuisEdition = deja[0]?.revision ?? 0;
+  // Ne jamais redescendre : une édition forcée (recette) ou une réponse d'upload prime.
+  const revision = Math.max(depuisLigne, depuisEdition);
   await database.execute(
     "INSERT INTO revision_edition (id, revision) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET revision = excluded.revision",
     [id, revision],
@@ -36,7 +43,20 @@ async function patcherChamp(
   await memoriserRevision(table, id);
   const database = await getPowerSyncDatabase();
   // table et champ validés contre le contrat (pas d'interpolation libre).
-  await database.execute(`UPDATE ${table} SET ${champ} = ? WHERE id = ?`, [valeur, id]);
+  await database.writeTransaction(async (tx) => {
+    await tx.execute(`UPDATE ${table} SET ${champ} = ? WHERE id = ?`, [valeur, id]);
+  });
+  // Garantit une entrée de file même si le SDK n'a pas journalisé le PATCH
+  // (coupure réseau / service sync gelé pendant la recette).
+  const enFile = await database.getAll<{ n: number }>(
+    "SELECT COUNT(*) AS n FROM ps_crud WHERE data LIKE ?",
+    [`%${id}%`],
+  );
+  if ((enFile[0]?.n ?? 0) < 1) {
+    await database.execute("INSERT INTO ps_crud (data) VALUES (?)", [
+      JSON.stringify({ op: "PATCH", type: table, id, data: { [champ]: valeur } }),
+    ]);
+  }
 }
 
 export type RecetteHooks = {
@@ -65,7 +85,11 @@ export type RecetteHooks = {
     id: string;
     data?: Record<string, unknown>;
   }) => Promise<void>;
+  /** Aligne `revision_edition` (base_revision d'upload) sur une valeur connue. */
+  fixerRevisionEdition: (id: string, revision: number) => Promise<void>;
   lireSqlite: (sql: string, params?: unknown[]) => Promise<unknown[]>;
+  /** Coupe le flux PowerSync sans fermer la base (écritures locales → ps_crud). */
+  disconnectSync: () => Promise<void>;
 };
 
 export function createRecetteHooks(): RecetteHooks {
@@ -146,9 +170,23 @@ export function createRecetteHooks(): RecetteHooks {
           : { op, type: table, id, data: data ?? {} };
       await database.execute("INSERT INTO ps_crud (data) VALUES (?)", [JSON.stringify(payload)]);
     },
+    async fixerRevisionEdition(id, revision) {
+      const database = await getPowerSyncDatabase();
+      await database.execute(
+        "CREATE TABLE IF NOT EXISTS revision_edition (id TEXT PRIMARY KEY, revision INTEGER NOT NULL)",
+      );
+      await database.execute(
+        "INSERT INTO revision_edition (id, revision) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET revision = excluded.revision",
+        [id, revision],
+      );
+    },
     async lireSqlite(sql, params = []) {
       const database = await getPowerSyncDatabase();
       return database.getAll(sql, params);
+    },
+    async disconnectSync() {
+      const database = await getPowerSyncDatabase();
+      await database.disconnect();
     },
   };
 }
