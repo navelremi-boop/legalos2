@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const rulesDir = join(root, ".cursor/rules");
-const ALLOW_EMPTY = new Set(["30-messagerie.mdc"]);
+const ALLOW_EMPTY = new Set();
 
 function fail(msg) {
   console.error(`cursor-rules-globs: FAIL — ${msg}`);

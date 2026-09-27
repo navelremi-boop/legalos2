@@ -14,6 +14,12 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-09-27 — Consigne de l'architecte : bibliothèque IMAP et licences
+
+Texte reçu, avant l'ouverture de J9. `io-imap` `=0.6.1` remplace `async-imap`, qui n'est pas ajouté. `imap-codec` transitive figée à `2.0.0-alpha.8` (crates.io, vérifié le 2026-09-27 ; la 2.0.0-alpha.9 existe et n'est pas prise). Aucune mise à jour sans instruction ; une mise à jour autorisée repasse les tests mail. Les types restent derrière `FournisseurMail`. Boîte de réception : `ImapMailboxWatch` sur une connexion dédiée, lecture seule (IDLE, QRESYNC, repli). Autres dossiers : relève incrémentale. Actions de l'utilisateur : autre connexion. Changement d'UIDVALIDITY : resynchronisation complète. GreenMail 2.1.0 n'annonce pas QRESYNC (source `CapabilityCommand` de l'étiquette 2.1.0). Second serveur : Dovecot, `instance/imap-test/`. Mesure des 50 000 messages : les deux chemins, critère de J9. Licences à la racine et règle `.cursor/rules/32-licences.mdc`.
+
+---
+
 ## 2026-09-27 — Consigne de l'architecte : actions autorisées
 
 Texte reçu : GitHub Actions n'exécute plus que les actions créées par GitHub et la liste blanche `dtolnay/rust-toolchain`, `Swatinem/rust-cache`, `pnpm/action-setup`. Toute nouvelle action tierce passe par `BLOCAGES.md` (nom, version, justification) : le commandement l'ajoute. Aucun contournement (script téléchargé, copie de l'action dans le dépôt). Avant J14, épingler chaque action tierce sur un hash de commit complet plutôt que sur une étiquette.

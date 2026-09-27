@@ -92,7 +92,7 @@
 | PDF | Typst, utilisé comme bibliothèque | Factures en PDF/A-3b avec pièce jointe XML, bordereaux, courriers, export de mails en PDF |
 | Factur-X | XML CII profil EN 16931 généré en Rust (`quick-xml`) + post-traitement `lopdf` si besoin (métadonnées XMP Factur-X) | Facture électronique hybride |
 | Plateforme agréée | Connecteur HTTP (`reqwest`) derrière une interface Rust `PlateformeAgreee` ; première implémentation : SUPER PDP | Envoi, statuts, encaissements, e-reporting, annuaire |
-| Mail — protocole | `async-imap` (maintenu par l'équipe Delta Chat) derrière une interface Rust `FournisseurMail` | Synchronisation IMAP ; adaptateur Microsoft Graph possible plus tard |
+| Mail — protocole | io-imap (Pimalaya, sur imap-codec), version figée, derrière FournisseurMail | Synchronisation IMAP ; adaptateur Microsoft Graph possible plus tard |
 | Mail — lecture | `mail-parser` | Décodage MIME, encodages, pièces jointes |
 | Mail — sécurité HTML | `ammonia` | Nettoyage du HTML avant stockage et affichage |
 | Mail — envoi | `lettre` | SMTP de la messagerie du cabinet |
@@ -324,7 +324,7 @@ Chaque étape est utilisable seule et réutilise le code de la précédente.
 
 ### 3.9 Garde-fous pour le code écrit par IA (Cursor)
 
-- Fichier de règles Cursor avec **versions figées** et liens vers les docs (Tauri v2, Axum, sqlx, PowerSync, dont son index de documentation pour IA `llms.txt`, Typst, API SUPER PDP, `async-imap`, `mail-parser`, `lettre`, TipTap).
+- Fichier de règles Cursor avec **versions figées** et liens vers les docs (Tauri v2, Axum, sqlx, PowerSync, dont son index de documentation pour IA `llms.txt`, Typst, API SUPER PDP, `io-imap`, `mail-parser`, `lettre`, TipTap).
 - **Zones relues ligne par ligne**, tests écrits avant le code :
   1. authentification, jetons, double authentification ;
   2. règles de synchronisation (qui voit quel dossier, quelle boîte mail) ;
@@ -677,8 +677,8 @@ La journée, Dossiers, Mails, Agenda, Facturation et Réglages suivent la même 
 - Prototype de référence : https://claude.ai/artifact/7Vq3FG7N7dEcmbmdMiGnEV
 
 **Mail**
-- async-imap : https://github.com/async-email/async-imap
-- Utilisation d'async-imap par Delta Chat : https://github.com/deltachat/deltachat-core-rust
+- io-imap 0.6.1 (Pimalaya) : https://crates.io/crates/io-imap/0.6.1
+- imap-codec 2.0.0-alpha.8 : https://crates.io/crates/imap-codec/2.0.0-alpha.8
 - Microsoft 365, fin de l'authentification par mot de passe en SMTP : https://www.itelio.com/en/microsoft-message-center/MC786329
 - Clio Maildrop (adresse de classement par dossier) : https://help.clio.com/hc/en-us/articles/9289644630811-Mobile-App-Communications
 

@@ -75,6 +75,7 @@ jobs:
       - run: node tests/recette/encodage-texte.mjs
       - run: node tests/recette/workflows-valides.mjs
       - run: node tests/recette/secrets-publies.mjs
+      - run: node tests/recette/messagerie-figee.mjs
       - run: node tests/recette/points-medians.mjs
       - run: node tests/recette/migrations-additives.mjs
       - run: node tests/recette/reference-dossier.mjs
