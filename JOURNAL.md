@@ -4,7 +4,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 - **Phase 0–1** VALIDÉES ; **J5–J7** VALIDÉS ; **Migration Sync Streams** VALIDÉE `9f80388` ; **J8** VALIDÉ `e8eb6b2`.
 - **Référence de dossier** : VALIDÉ `03ca364` (contrôleur, CI [36322383021](https://github.com/navelremi-boop/legalos2/actions/runs/36322383021)). Minutes des trois runs de clôture : **100** (durées de jobs arrondies à la minute supérieure ; le job macOS de [36319178833](https://github.com/navelremi-boop/legalos2/actions/runs/36319178833) compte dix fois).
-- **En cours** : **Conflits généralisés**. Lot API fusionné (`5fbac31`). Lot poste : `main` intégré localement (`9484ab1`, puis recettes `07f30e1`, `e75cc55`), pas encore poussé ni fusionné. La CI de la PR #5 avait échoué seulement à cause de B14 (levé). Recette Tauri en cours dans le worktree.
+- **En cours** : **Conflits généralisés**. CI de la PR #5 verte sur `5c16e47` ([36355981017](https://github.com/navelremi-boop/legalos2/actions/runs/36355981017)). Contrôleur REFUSÉ : `conflits_integration` rejouait des clés d'idempotence fixes sur le Postgres partagé. Correctif en cours. Pas fusionné.
 - **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → **Conflits généralisés** → Coque → Vue scindée → Intercalaires → Dossiers et contacts complets → Agenda → Documents, suite → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance).
 - **Sync** : Streams édition 3, service 1.26.1. Dette mensuelle avis PowerSync.
@@ -13,6 +13,12 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---
+
+## 2026-09-28 — Conflits généralisés : refus du contrôleur
+
+Contrôleur : **REFUSÉ**. `cargo test -p legalos-api --test conflits_integration` panique (`journal dossier: RowNotFound`) sur le Postgres de l'instance. Les clés locales (`d-nom-a1`, etc.) sont fixes et le poste de test est réutilisé : le rejeu d'idempotence répond 200 sans écrire le journal du nouveau dossier. Les recettes `s5-sync-streams`, `upload-contrat-poste`, `conflits-poste-tauri`, `j3-poste-tauri` et clippy étaient vertes. Critères du PLAN inchangés depuis `c47dc6b`.
+
+Correctif : une série d'identifiants par exécution ; le rejeu volontaire répète la même clé. La recette Tauri échoue si la migration 019 est absente, au lieu de sortir en SKIP. Dettes majeures (alignement forcé de `revision_edition`, insertion de secours dans `ps_crud`) inscrites au plan, à solder avant la fin de la phase 2.
 
 ## 2026-09-27 — Conflits généralisés : lot poste réaligné sur main
 

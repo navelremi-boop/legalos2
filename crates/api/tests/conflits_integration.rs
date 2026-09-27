@@ -205,6 +205,11 @@ async fn conflits_par_table_et_immuabilite() {
     let cabinet_id = uuid_recette(DEMO_CABINET_ID);
     let token_a = access_token(&app, "conflits-poste-a").await;
     let token_b = access_token(&app, "conflits-poste-b").await;
+    // Le poste est réutilisé d'une exécution à l'autre sur le Postgres partagé.
+    // Une clé déjà réservée répond 200 sans journaliser (rejeu). Chaque série
+    // a donc ses clés ; le rejeu volontaire plus bas répète la même.
+    let serie = Uuid::now_v7();
+    let cle = |suffix: &str| format!("{serie}-{suffix}");
 
     let dossier_id = Uuid::now_v7();
     let (st, dossier) = json_auth(
@@ -233,7 +238,7 @@ async fn conflits_par_table_et_immuabilite() {
         &token_a,
         json!({
             "base_revision": 1,
-            "idempotence_cle": "d-nom-a1",
+            "idempotence_cle": cle("d-nom-a1"),
             "nom": "Nom A"
         }),
     )
@@ -247,7 +252,7 @@ async fn conflits_par_table_et_immuabilite() {
         &token_b,
         json!({
             "base_revision": 1,
-            "idempotence_cle": "d-nom-b1",
+            "idempotence_cle": cle("d-nom-b1"),
             "nom": "Nom B"
         }),
     )
@@ -285,7 +290,7 @@ async fn conflits_par_table_et_immuabilite() {
         &token_b,
         json!({
             "base_revision": rev,
-            "idempotence_cle": "d-nom-b2",
+            "idempotence_cle": cle("d-nom-b2"),
             "nom": "Nom B2"
         }),
     )
@@ -311,7 +316,7 @@ async fn conflits_par_table_et_immuabilite() {
         &token_b,
         json!({
             "base_revision": rev,
-            "idempotence_cle": "d-nom-b2",
+            "idempotence_cle": cle("d-nom-b2"),
             "nom": "Nom B2"
         }),
     )
@@ -352,7 +357,7 @@ async fn conflits_par_table_et_immuabilite() {
         &token_a,
         json!({
             "base_revision": 1,
-            "idempotence_cle": "p-nom-a",
+            "idempotence_cle": cle("p-nom-a"),
             "nom": "Client A bis"
         }),
     )
@@ -365,7 +370,7 @@ async fn conflits_par_table_et_immuabilite() {
         &token_b,
         json!({
             "base_revision": 1,
-            "idempotence_cle": "p-nom-b",
+            "idempotence_cle": cle("p-nom-b"),
             "nom": "Client B"
         }),
     )
@@ -412,7 +417,7 @@ async fn conflits_par_table_et_immuabilite() {
         &token_a,
         json!({
             "base_revision": 1,
-            "idempotence_cle": "t-lib-a",
+            "idempotence_cle": cle("t-lib-a"),
             "libelle": "Audience A"
         }),
     )
@@ -425,7 +430,7 @@ async fn conflits_par_table_et_immuabilite() {
         &token_b,
         json!({
             "base_revision": 1,
-            "idempotence_cle": "t-lib-b",
+            "idempotence_cle": cle("t-lib-b"),
             "libelle": "Audience B"
         }),
     )
@@ -469,7 +474,7 @@ async fn conflits_par_table_et_immuabilite() {
         &token_a,
         json!({
             "base_revision": 1,
-            "idempotence_cle": "br-lib-a",
+            "idempotence_cle": cle("br-lib-a"),
             "libelle": "Honoraires A"
         }),
     )
@@ -482,7 +487,7 @@ async fn conflits_par_table_et_immuabilite() {
         &token_b,
         json!({
             "base_revision": 1,
-            "idempotence_cle": "br-lib-b",
+            "idempotence_cle": cle("br-lib-b"),
             "libelle": "Honoraires B"
         }),
     )
@@ -514,7 +519,7 @@ async fn conflits_par_table_et_immuabilite() {
         &token_a,
         json!({
             "base_revision": 3,
-            "idempotence_cle": "br-immuable",
+            "idempotence_cle": cle("br-immuable"),
             "libelle": "Interdit"
         }),
     )
@@ -527,7 +532,7 @@ async fn conflits_par_table_et_immuabilite() {
         &token_a,
         json!({
             "base_revision": 3,
-            "idempotence_cle": "t-immuable",
+            "idempotence_cle": cle("t-immuable"),
             "libelle": "Interdit"
         }),
     )
@@ -556,7 +561,7 @@ async fn conflits_par_table_et_immuabilite() {
         &token_a,
         json!({
             "base_revision": 1,
-            "idempotence_cle": "tx-a",
+            "idempotence_cle": cle("tx-a"),
             "centimes_par_heure": 26000
         }),
     )
@@ -569,7 +574,7 @@ async fn conflits_par_table_et_immuabilite() {
         &token_b,
         json!({
             "base_revision": 1,
-            "idempotence_cle": "tx-b",
+            "idempotence_cle": cle("tx-b"),
             "centimes_par_heure": 27000
         }),
     )

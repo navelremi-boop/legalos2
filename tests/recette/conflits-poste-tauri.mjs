@@ -10,9 +10,7 @@
  * - refus 400/403/404/409 : table locale, file débloquée, message affiché, écriture suivante OK ;
  * - un champ seul par table ; table inconnue consignée sans bloquer ; PUT/PATCH/DELETE explicites.
  *
- * Ne pas lancer tant que le lot API (lot/conflits-api) n'est pas fusionné :
- * le script s'arrête en SKIP si `temps_saisis.revision` est absent.
- * Forcer : LEGALOS_CONFLITS_API=1
+ * L'API doit exposer `temps_saisis.revision` (migration 019). Sinon le script échoue.
  *
  * Usage : node tests/recette/conflits-poste-tauri.mjs
  * Ne journalise aucun secret.
@@ -95,7 +93,6 @@ function sqlServeur(requete) {
 }
 
 async function apiConflitsPrete() {
-  if (process.env.LEGALOS_CONFLITS_API === "1") return true;
   try {
     const colonne = await sqlServeur(
       `SELECT 1 FROM information_schema.columns
@@ -636,13 +633,7 @@ const sante = await fetch(`${instanceUrl}/health`).catch(() => null);
 if (!sante?.ok) fail("instance injoignable");
 
 if (!(await apiConflitsPrete())) {
-  console.log(
-    "conflits-poste-tauri: SKIP — API du lot parallèle non déployée (temps_saisis.revision absente).",
-  );
-  console.log(
-    "Relancer après fusion de lot/conflits-api, ou avec LEGALOS_CONFLITS_API=1 si l'API est déjà en place.",
-  );
-  process.exit(0);
+  fail("API des conflits absente (colonne temps_saisis.revision, migration 019)");
 }
 
 for (const table of TABLES_MODIFIABLES) {
