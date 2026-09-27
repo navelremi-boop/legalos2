@@ -68,6 +68,15 @@ impl ApiError {
         }
     }
 
+    /// Erreur HTTP avec un code métier libre (`modele_invalide`, `reference_existante`…).
+    pub fn with_code(status: StatusCode, code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status,
+            code,
+            message: message.into(),
+        }
+    }
+
     pub fn status(&self) -> StatusCode {
         self.status
     }

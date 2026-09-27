@@ -4,7 +4,10 @@ use crate::error::ApiErrorBody;
 use crate::routes::auth::{
     ConnexionRequest, ConnexionResponse, TotpVerifyRequest, TotpVerifyResponse,
 };
-use crate::routes::cabinets::{CabinetResponse, PatchCabinetRequest};
+use crate::routes::cabinets::{
+    CabinetResponse, PatchCabinetRequest, PutReferenceRequest, ReferenceCabinetResponse,
+    RemiseAZeroApi,
+};
 use crate::routes::collaborateurs::{CollaborateurResponse, CreerCollaborateurRequest};
 use crate::routes::documents::{
     CreerDocumentRequest, DepotDocument, LectureDocument, ScellerVersionRequest, VersionScellee,
@@ -28,6 +31,8 @@ use crate::routes::health::HealthResponse;
         crate::routes::auth::jwks,
         crate::routes::cabinets::cabinet_me,
         crate::routes::cabinets::patch_cabinet,
+        crate::routes::cabinets::lire_reference,
+        crate::routes::cabinets::ecrire_reference,
         crate::routes::dossiers::creer_dossier,
         crate::routes::dossiers::creer_partie,
         crate::routes::collaborateurs::creer_collaborateur,
@@ -44,6 +49,9 @@ use crate::routes::health::HealthResponse;
         TotpVerifyResponse,
         CabinetResponse,
         PatchCabinetRequest,
+        ReferenceCabinetResponse,
+        PutReferenceRequest,
+        RemiseAZeroApi,
         CreerDossierRequest,
         DossierResponse,
         CreerPartieRequest,

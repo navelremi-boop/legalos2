@@ -24,6 +24,10 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/auth/jwks", get(auth::jwks))
         .route("/cabinets/me", get(cabinets::cabinet_me))
         .route("/cabinets/{cabinet_id}", patch(cabinets::patch_cabinet))
+        .route(
+            "/cabinets/{cabinet_id}/reference",
+            get(cabinets::lire_reference).put(cabinets::ecrire_reference),
+        )
         .route("/dossiers", post(dossiers::creer_dossier))
         .route(
             "/dossiers/{dossier_id}/parties",

@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
 use axum::{extract::State, Json};
+use legalos_domaine::ModeleReference;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::auth::access::AuthAccess;
 use crate::error::ApiError;
+use crate::routes::cabinets::{annee_civile_paris, initiales_utilisateur, remise_depuis_sql};
 use crate::state::AppState;
 
 const CHEMISES: &[&str] = &[
@@ -133,31 +135,29 @@ pub async fn creer_dossier(
         }));
     }
 
-    let annee = sqlx::query_as::<_, (i32,)>(
-        "SELECT EXTRACT(YEAR FROM (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Paris'))::integer",
-    )
-    .fetch_one(&mut *tx)
-    .await
-    .map_err(|_| ApiError::internal("année civile"))?
-    .0;
-
-    let numero = sqlx::query_as::<_, (i64,)>(
+    let cabinet = sqlx::query_as::<_, (String, String)>(
         r#"
-        INSERT INTO sequences_dossiers (cabinet_id, annee, prochain)
-        VALUES ($1, $2, 2)
-        ON CONFLICT (cabinet_id, annee) DO UPDATE
-            SET prochain = sequences_dossiers.prochain + 1
-        RETURNING prochain - 1
+        SELECT reference_modele, reference_remise_a_zero
+        FROM cabinets
+        WHERE id = $1
+        FOR SHARE
         "#,
     )
     .bind(claims.cabinet_id)
-    .bind(annee)
-    .fetch_one(&mut *tx)
+    .fetch_optional(&mut *tx)
     .await
-    .map_err(|_| ApiError::internal("référence dossier"))?
-    .0;
+    .map_err(|_| ApiError::internal("lecture cabinet"))?
+    .ok_or_else(|| ApiError::bad_request("Cabinet introuvable"))?;
+    let remise = remise_depuis_sql(&cabinet.1)?;
+    let modele = ModeleReference::analyser_pour(&cabinet.0, remise)
+        .map_err(|_| ApiError::internal("modèle de référence"))?;
 
-    let reference = formater_reference(annee, numero);
+    let annee = annee_civile_paris(&mut tx).await?;
+    let numero = attribuer_numero(&mut tx, claims.cabinet_id, remise, annee).await?;
+    let numero_u64 =
+        u64::try_from(numero).map_err(|_| ApiError::internal("numéro de référence"))?;
+    let initiales = initiales_utilisateur(&mut *tx, claims.sub).await?;
+    let reference = modele.produire(annee, numero_u64, &initiales);
 
     sqlx::query(
         r#"
@@ -307,23 +307,69 @@ fn texte_requis(valeur: &str, message: &str) -> Result<String, ApiError> {
     Ok(texte.to_owned())
 }
 
-/// Format affichable `YYYY-NNN` (zéros à gauche, largeur minimale 3 — hypothèse R0).
-pub(crate) fn formater_reference(annee: i32, numero: i64) -> String {
-    format!("{annee}-{numero:03}")
+async fn attribuer_numero(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    cabinet_id: Uuid,
+    remise: legalos_domaine::RemiseAZero,
+    annee: i32,
+) -> Result<i64, ApiError> {
+    let numero = match remise {
+        legalos_domaine::RemiseAZero::Annuelle => {
+            sqlx::query_as::<_, (i64,)>(
+                r#"
+                INSERT INTO sequences_dossiers (cabinet_id, annee, prochain)
+                VALUES ($1, $2, 2)
+                ON CONFLICT (cabinet_id, annee) DO UPDATE
+                    SET prochain = sequences_dossiers.prochain + 1
+                RETURNING prochain - 1
+                "#,
+            )
+            .bind(cabinet_id)
+            .bind(annee)
+            .fetch_one(&mut **tx)
+            .await
+        }
+        legalos_domaine::RemiseAZero::Jamais => {
+            sqlx::query_as::<_, (i64,)>(
+                r#"
+                INSERT INTO sequences_dossiers_continues (cabinet_id, prochain)
+                VALUES ($1, 2)
+                ON CONFLICT (cabinet_id) DO UPDATE
+                    SET prochain = sequences_dossiers_continues.prochain + 1
+                RETURNING prochain - 1
+                "#,
+            )
+            .bind(cabinet_id)
+            .fetch_one(&mut **tx)
+            .await
+        }
+    }
+    .map_err(|_| ApiError::internal("référence dossier"))?
+    .0;
+    Ok(numero)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::formater_reference;
+    use legalos_domaine::reference::MODELE_PAR_DEFAUT;
+    use legalos_domaine::{ModeleReference, RemiseAZero};
 
-    #[test]
-    fn reference_trois_chiffres_avec_zeros() {
-        assert_eq!(formater_reference(2026, 42), "2026-042");
-        assert_eq!(formater_reference(2026, 1), "2026-001");
+    fn formater_defaut(annee: i32, numero: u64) -> Result<String, String> {
+        ModeleReference::analyser_pour(MODELE_PAR_DEFAUT, RemiseAZero::Annuelle)
+            .map(|modele| modele.produire(annee, numero, ""))
+            .map_err(|e| e.to_string())
     }
 
     #[test]
-    fn reference_au_dela_de_999_sans_tronquer() {
-        assert_eq!(formater_reference(2026, 1000), "2026-1000");
+    fn reference_trois_chiffres_avec_zeros() -> Result<(), String> {
+        assert_eq!(formater_defaut(2026, 42)?, "2026-042");
+        assert_eq!(formater_defaut(2026, 1)?, "2026-001");
+        Ok(())
+    }
+
+    #[test]
+    fn reference_au_dela_de_999_sans_tronquer() -> Result<(), String> {
+        assert_eq!(formater_defaut(2026, 1000)?, "2026-1000");
+        Ok(())
     }
 }
