@@ -49,11 +49,15 @@ Ordre architecte (révisé 2026-09-27) : **Migration Sync Streams** → **J8** �
       - chaque politique de remise à zéro ;
       - numéro de départ ;
       - refus des modèles invalides ;
-      - refus de tout changement (modèle, politique, numéro de départ) qui redonnerait une référence existante ; aucune référence déjà attribuée n'est régénérée.
+      - refus de tout changement (modèle, politique, numéro de départ) qui redonnerait une référence existante ; aucune référence déjà attribuée n'est régénérée ; le 409 `reference_existante` indique le numéro de départ minimal qui rendrait le changement acceptable, quand il existe ;
+      - un dossier créé par A avec B pour responsable, sous un modèle contenant `{INI}`, porte les initiales de B ; `responsable_id` (utilisateur du cabinet) est choisi à la création, vaut le créateur s'il est omis, est envoyé avec la création et synchronisé ; les initiales sont figées à l'attribution ;
+      - chaque changement de modèle, de politique ou de numéro de départ est journalisé avec son auteur ;
+      - pour chaque vecteur de `crates/domaine/tests/reference-vecteurs.json`, la forme de classement calculée par le déclencheur de la migration 017 est celle du domaine.
     - `cargo test -p legalos-domaine reference` → exit 0 : formes normalisées, seulement pour l'adresse de classement (« / » et caractères mal acceptés par les messageries → « - ») et pour les noms de fichiers et de dossiers de l'export (`/ \ : * ? " < > |` → « - ») ; reconnaissance d'une référence sous sa forme d'origine comme sous sa forme normalisée.
     - `node tests/recette/reference-modele-ecran.mjs` → exit 0 (app Tauri) :
       - Réglages : modèle texte et constructeur visuel par blocs (Année, Numéro avec nombre de chiffres, Initiales, Texte) ; entre chaque bloc, séparateur « / », « - », « . », « _ », espace ou aucun ; aperçu en direct ; les deux vues restent synchronisées ;
-      - référence affichée et retrouvée par la palette avec ses « / » intacts.
+      - référence affichée et retrouvée par la palette avec ses « / » intacts ;
+      - Réglages affiche le numéro de départ minimal renvoyé avec le 409 `reference_existante`.
     - `cargo clippy --workspace --all-targets -- -D warnings` et `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
   - **Responsables** : instance-backend (API, domaine), poste-interface (Réglages, palette).
 
@@ -63,13 +67,17 @@ Ordre architecte (révisé 2026-09-27) : **Migration Sync Streams** → **J8** �
       - révision de base envoyée avec chaque modification ;
       - dernière écriture gagnante par champ ;
       - valeur remplacée journalisée, avec `dossier_id` (nul pour les enregistrements du cabinet) ;
-      - rejeu sans second effet ; donnée validée immuable.
+      - rejeu sans second effet ; donnée validée immuable ;
+      - un temps saisi devient immuable dès qu'un brouillon numéroté le référence ;
+      - `CHECK (restreint = (visibilite = 'restreint'))` sur `dossiers` : une écriture incohérente est refusée.
     - `node tests/recette/s5-sync-streams.mjs` → exit 0 : journal en trois flux, cabinet (`dossier_id` nul), dossiers publics et dossiers restreints (mêmes jointures que les tables filles) ; plus de journal dans `cabinet_global`. Livré avant qu'une autre table que `cabinets` n'alimente le journal (bloquant).
     - `node tests/recette/conflits-poste-tauri.mjs` → exit 0 (deux postes Tauri, coupure réseau réelle) :
       - un conflit par table (dossiers, parties, temps, brouillons, taux), avec une modification hors ligne ;
       - conflit signalé dans l'app ;
       - S5 : conflit provoqué sur un dossier restreint ; l'entrée du journal est absente du SQLite du poste non autorisé ;
-      - dette J3 devenue critère, « fausse alerte de conflit » : une écriture séquentielle du même poste après reprise n'est pas journalisée comme conflit.
+      - dette J3 devenue critère, « fausse alerte de conflit » : une écriture séquentielle du même poste après reprise n'est pas journalisée comme conflit ;
+      - refus du serveur (400, 403, 404, 409) : l'entrée est consignée dans une table locale non synchronisée et retirée de la file, le message s'affiche, les écritures suivantes partent ; une modification refusée puis une modification valide, la seconde arrive sur l'autre poste ;
+      - aucune perte silencieuse : le connecteur traite explicitement PUT, PATCH et DELETE ; une modification d'un seul champ, pour chaque table ; une table inconnue est consignée comme refus, sans bloquer la file.
     - `node tests/recette/j3-poste-tauri.mjs` → exit 0 (non-régression des cinq points du § 3.4).
     - `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ; contrôleur VALIDÉ ; CI verte.
   - **Responsables** : instance-backend (API, migration, flux), poste-interface (file d'envoi, signal dans l'app).
@@ -83,7 +91,7 @@ Ordre architecte (révisé 2026-09-27) : **Migration Sync Streams** → **J8** �
       - recettes sur des `data-testid` stables.
     - `node tests/recette/points-medians.mjs` → exit 0, en CI : aucun « · » dans un texte d'interface (La journée : « TJ Nanterre, 9 h 30 » ; « échéance le 3 oct., dans 5 jours »).
     - `node tests/recette/coque-fonctions-tauri.mjs` → exit 0 (app Tauri) :
-      - fonctions à leur place définitive : nouveau dossier depuis la palette et la vue Dossiers ; saisie de temps rattachée à un dossier, depuis la barre d'actions et le chronomètre ; calcul de délai depuis la barre d'actions (type choisi dans la bibliothèque, lieu où demeure la partie : métropole, outre-mer, étranger) ; nom du cabinet et thème dans Réglages ;
+      - fonctions à leur place définitive : nouveau dossier depuis la palette et la vue Dossiers ; saisie de temps rattachée à un dossier, depuis la barre d'actions et le chronomètre ; calcul de délai depuis la barre d'actions (type choisi dans la bibliothèque, lieu où demeure la partie : métropole, outre-mer, étranger) ; l'écran rappelle que le calcul ne prend pas en compte les jours chômés locaux (H7) ; nom du cabinet et thème dans Réglages ;
       - synchronisation invisible : aucun bouton « hors ligne » ou « en ligne » ; pendant une coupure réelle, « Hors ligne, N modifications en attente », puis « Synchronisé ».
     - `node tests/recette/galerie-absente.mjs` → exit 0 : galerie de démonstration réservée au développement, absente du build distribué (vérifiée sur le build).
     - `node tests/recette/coque-app.mjs --captures` : captures jour et nuit de la vue dossier (trois couleurs de chemise) et de La journée, comparées au prototype par le contrôleur.
@@ -113,12 +121,13 @@ Ordre architecte (révisé 2026-09-27) : **Migration Sync Streams** → **J8** �
     - `node tests/recette/s5-sqlite-par-flux.mjs` et `node tests/recette/j5-poste-tauri.mjs` → exit 0 : S5 pour la table des intercalaires ; l'intercalaire d'un dossier restreint est absent du SQLite du poste non autorisé.
     - `node tests/recette/s5-sync-streams.mjs` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
-- [ ] **J9** — Mail, étapes 1 à 3 du § 3.8.6 (S7) — critères proposés le 27/09 d'après les § 3.8.1 à 3.8.6, **à valider par l'architecte**
-  - **Critères proposés (commandes)** :
+- [ ] **J9** — Mail, étapes 1 à 3 du § 3.8.6 (S7) — critères validés par l'architecte le 27/09/2026
+  - **Critères d'acceptation (commandes)** :
     - Étape 1, boîte de classement : `node tests/recette/s7-classement.mjs` → exit 0 (serveur de test GreenMail) :
       - un mail adressé à l'adresse de classement d'un dossier (forme normalisée de la référence) est rattaché à ce dossier ;
-      - un mail portant la référence dans l'objet, sous sa forme d'origine ou normalisée, est classé automatiquement ; de même pour un correspondant lié à un seul dossier actif ;
+      - un mail portant la référence dans l'objet, sous sa forme d'origine ou normalisée, est classé automatiquement ; de même pour un correspondant lié à un seul dossier actif ; la reconnaissance couvre les références produites par tous les modèles utilisés par le cabinet (deux modèles successifs) ;
       - sinon, suggestion à valider d'un clic, puis corbeille « À classer » ;
+      - une relève de la boîte de classement interrompue puis reprise ne perd aucun message et n'en crée aucun doublon ;
       - mail classé visible dans le chrono du dossier, sur le poste.
     - Étape 2, envoi depuis un dossier : `node tests/recette/s7-envoi.mjs` → exit 0 :
       - cycle de vie du § 3.8.3 visible dans l'app : brouillon, en attente (annulable), envoyé, copie dans « Envoyés » confirmée, échec avec nouvelle tentative ;
@@ -132,15 +141,15 @@ Ordre architecte (révisé 2026-09-27) : **Migration Sync Streams** → **J8** �
     - `node tests/recette/s7-poste-tauri.mjs` → exit 0 : S5, les mails d'un dossier restreint sont absents du SQLite du poste non autorisé ; un compte nominatif n'est visible que de son titulaire ; aucun identifiant de messagerie sur le poste.
     - `cargo test -p legalos-messagerie` (contre GreenMail) et `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ; ni protocole IMAP ni décodeur MIME écrit à la main (bibliothèques consignées dans `docs/versions.md`) ; contrôleur VALIDÉ ; CI verte.
 
-- [ ] **J10** — Écrans restants du § 7.6, après la Coque — critères proposés le 27/09 d'après le § 7.6, **à valider par l'architecte**
-  - **Critères proposés (commandes)** :
+- [ ] **J10** — Écrans restants du § 7.6, après la Coque — critères validés par l'architecte le 27/09/2026
+  - **Critères d'acceptation (commandes)** :
     - `node tests/recette/j10-ecrans-tauri.mjs` → exit 0 (app Tauri) :
       - La journée, Dossiers, Mails, Agenda, Facturation et Réglages : barre du haut, espace de travail, feuille, barre d'actions ; hors dossier, fond `neutre` sans étiquette de dossier ;
       - La journée : feuille en quatre sections (audiences et rendez-vous du jour, délais, mails à classer avec leur suggestion de dossier, temps à saisir) ; pastille sur chaque dossier cité ; barre d'actions Nouveau dossier, Nouveau mail, Saisir du temps ;
       - Mails : feuille en trois volets (comptes et dossiers IMAP, liste, lecture) ; pastille du dossier sur chaque mail classé ; bandeau « Classer dans … » en tête d'un mail non classé ;
       - Agenda, Facturation, Réglages : feuille unique, construite avec les mêmes composants.
     - `node tests/recette/points-medians.mjs` et `pnpm --filter @legal-os/poste lint:ci` → exit 0.
-    - `node tests/recette/coque-app.mjs --captures` : captures jour et nuit de chaque nouvel écran, revues par le contrôleur au regard du § 7, puis validées par le commandement (B9).
+    - `node tests/recette/coque-app.mjs --captures` : captures jour et nuit de chaque nouvel écran, revues par le contrôleur au regard du § 7, validées par l'architecte ; le commandement garde son veto (B9).
     - Contrôleur VALIDÉ ; CI verte.
 
 ### Dettes transverses (§ 4.4)
@@ -150,6 +159,7 @@ Ordre architecte (révisé 2026-09-27) : **Migration Sync Streams** → **J8** �
 - [ ] **Avant la fin de la Coque** : CORS — ajouter `tauri://localhost` ; `localhost:1420` accepté seulement en mode développement.
 - [ ] **Avant la fin de la Coque** : onglets de démonstration aux références écrites en dur (`CoqueApp.tsx:56`, majeur 2 du contrôle Référence) ; onglets à 800 px (réduction, puis menu des dossiers ouverts) ; indicateur « Synchronisé » affiché pendant une coupure ; contenu de démonstration dans la vue d'un vrai dossier.
 - [ ] **Avant J14** : feature `test-webdriver` réalisée (WebDriver embarqué, WebdriverIO) pour les scénarios de l'app, aussi en CI macOS.
+- [ ] **Avant J17** : revue juridique par l'avocat avant toute mise en service réelle (délais H1–H13, facturation F0–F8, installation) — `RAPPORT.md`, section du même nom.
 - [ ] **Avant J14** : build distribué sans outils de développement ni débogage distant, vérifié par un test.
 - [ ] **Avant la fin de la phase 2** : `cargo-deny` (ou `cargo-audit`) en CI sur les deux workspaces ; signalement préparé pour PowerSync / dépendance `time` 0.2.
 - [ ] **Avant la fin de la phase 2** : moteur de délais en TypeScript strict ; licence OFL livrée avec les polices.
