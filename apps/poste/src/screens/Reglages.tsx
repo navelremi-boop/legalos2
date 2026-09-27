@@ -52,6 +52,7 @@ export function Reglages({
   const [numeroDepart, setNumeroDepart] = useState("");
   const [apercuValeurs, setApercuValeurs] = useState<ApercuReference>(apercuHorsLigne);
   const [messageReference, setMessageReference] = useState("");
+  const [numeroDepartMinimal, setNumeroDepartMinimal] = useState<number | null>(null);
   const baseNomRef = useRef("");
   const baseSlugRef = useRef("");
 
@@ -168,12 +169,14 @@ export function Reglages({
   async function enregistrerReference() {
     if (horsLigne) {
       setMessageReference(fr("Modification possible en ligne seulement."));
+      setNumeroDepartMinimal(null);
       return;
     }
     const depart = numeroDepart.trim();
     const numero = depart === "" ? null : Number(depart);
     if (depart !== "" && (!Number.isInteger(numero) || (numero ?? 0) < 1)) {
       setMessageReference(fr("Le numéro de départ doit être un entier supérieur ou égal à 1."));
+      setNumeroDepartMinimal(null);
       return;
     }
     const resultat = await enregistrerReferenceCabinet(instanceUrl, DEMO_CABINET_ID, {
@@ -189,9 +192,11 @@ export function Reglages({
       );
       setApercuValeurs(resultat.etat.apercu);
       setMessageReference(fr("Modèle enregistré."));
+      setNumeroDepartMinimal(null);
       return;
     }
     setMessageReference(resultat.message);
+    setNumeroDepartMinimal(resultat.numero_depart_minimal);
   }
 
   return (
@@ -376,6 +381,15 @@ export function Reglages({
             {messageReference !== "" ? (
               <p className="text-[length:var(--font-size-dense)] text-encre" role="status">
                 {fr(messageReference)}
+              </p>
+            ) : null}
+            {numeroDepartMinimal !== null ? (
+              <p
+                className="text-[length:var(--font-size-dense)] text-encre"
+                data-testid="reglages-reference-numero-minimal"
+                role="status"
+              >
+                {String(numeroDepartMinimal)}
               </p>
             ) : null}
           </section>

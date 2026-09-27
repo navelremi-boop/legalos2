@@ -201,6 +201,8 @@ struct CreerDossierBody<'a> {
     juridiction: &'a str,
     numero_rg: &'a str,
     restreint: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    responsable_id: Option<&'a str>,
 }
 
 #[derive(Serialize)]
@@ -239,6 +241,7 @@ async fn upload_dossier(
         juridiction,
         numero_rg,
         restreint: json_flag(data.get("restreint")),
+        responsable_id: json_text(data.get("responsable_id")),
     };
     envoyer(session, "/api/dossiers", &body).await
 }

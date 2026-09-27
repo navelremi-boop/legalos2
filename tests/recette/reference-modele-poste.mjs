@@ -24,6 +24,8 @@ import {
   libelleReferenceDossier,
   REFERENCE_EN_ATTENTE,
 } from "../../apps/poste/src/lib/referenceDossier.ts";
+import { erreurReferenceDepuisCorps } from "../../apps/poste/src/lib/erreurReferenceCabinet.ts";
+import { utilisateurIdDepuisJeton } from "../../apps/poste/src/lib/session/utilisateurCourant.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const vecteurs = JSON.parse(
@@ -205,6 +207,79 @@ if (!/objet\.prochain_numero/.test(client)) {
 if (!/idempotence_cle/.test(client)) {
   fail("PUT : idempotence_cle absente de referenceCabinet.ts");
 }
+const parseurSource = readFileSync(
+  join(root, "apps/poste/src/lib/erreurReferenceCabinet.ts"),
+  "utf8",
+);
+if (!/numero_depart_minimal/.test(parseurSource) || !/erreurReferenceDepuisCorps/.test(parseurSource)) {
+  fail("409 : parseur numero_depart_minimal absent de erreurReferenceCabinet.ts");
+}
+if (!/erreurReferenceDepuisCorps/.test(client)) {
+  fail("enregistrerReferenceCabinet n’utilise pas erreurReferenceDepuisCorps");
+}
 ok("contrat GET prochain_numero et PUT idempotence_cle");
+
+const collision = erreurReferenceDepuisCorps(
+  {
+    code: "reference_existante",
+    message: "Ce modèle redonnerait une référence déjà attribuée.",
+    numero_depart_minimal: 42,
+  },
+  "repli",
+);
+if (collision.message !== "Ce modèle redonnerait une référence déjà attribuée.") {
+  fail(`parseur message : ${collision.message}`);
+}
+if (collision.numero_depart_minimal !== 42) {
+  fail(`parseur numero_depart_minimal : ${String(collision.numero_depart_minimal)}`);
+}
+const sansMinimal = erreurReferenceDepuisCorps(
+  { code: "reference_existante", message: "Collision." },
+  "repli",
+);
+if (sansMinimal.numero_depart_minimal !== null) {
+  fail("parseur sans numero_depart_minimal doit renvoyer null");
+}
+const repli = erreurReferenceDepuisCorps(null, "Erreur serveur (409).");
+if (repli.message !== "Erreur serveur (409)." || repli.numero_depart_minimal !== null) {
+  fail("parseur repli");
+}
+ok("parseur 409 numero_depart_minimal");
+
+const schema = readFileSync(join(root, "apps/poste/src/sync/AppSchema.ts"), "utf8");
+if (!/responsable_id:\s*column\.text/.test(schema)) {
+  fail("AppSchema dossiers.responsable_id (column.text) absent");
+}
+const ecrire = readFileSync(join(root, "apps/poste/src/dossiers/ecrireDossier.ts"), "utf8");
+if (!/responsableId/.test(ecrire) || !/responsable_id/.test(ecrire)) {
+  fail("ecrireDossier n’envoie pas responsable_id");
+}
+if (/reference\s*[:=]\s*[`'"]?\d{4}-/.test(ecrire)) {
+  fail("ecrireDossier génère une référence côté poste");
+}
+const connecteur = readFileSync(
+  join(root, "apps/poste/src-tauri/src/powersync_connect.rs"),
+  "utf8",
+);
+if (!/responsable_id/.test(connecteur)) {
+  fail("upload_dossier n’envoie pas responsable_id");
+}
+const payload = Buffer.from(
+  JSON.stringify({ sub: "11111111-1111-1111-1111-111111111111", typ: "access" }),
+).toString("base64url");
+const jeton = `hdr.${payload}.sig`;
+if (utilisateurIdDepuisJeton(jeton) !== "11111111-1111-1111-1111-111111111111") {
+  fail(`utilisateurIdDepuisJeton : ${utilisateurIdDepuisJeton(jeton)}`);
+}
+if (utilisateurIdDepuisJeton(null) !== null || utilisateurIdDepuisJeton("pas-un-jwt") !== null) {
+  fail("utilisateurIdDepuisJeton accepte un jeton invalide");
+}
+ok("responsable_id (schéma, écriture, upload, session)");
+
+const reglages = readFileSync(join(root, "apps/poste/src/screens/Reglages.tsx"), "utf8");
+if (!/reglages-reference-numero-minimal/.test(reglages)) {
+  fail("Réglages : data-testid reglages-reference-numero-minimal absent");
+}
+ok("Réglages affiche numero_depart_minimal");
 
 console.log("reference-modele-poste: OK");

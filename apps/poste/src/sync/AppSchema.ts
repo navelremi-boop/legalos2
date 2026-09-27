@@ -61,6 +61,8 @@ const dossiers = new Table(
     cabinet_id: column.text,
     /** Attribuée par le serveur (§ 3.4) ; null hors ligne jusqu’à sync. */
     reference: column.text,
+    /** Avocat responsable (UUID) ; initiales de la référence figées à l’attribution. */
+    responsable_id: column.text,
     nom: column.text,
     chemise: column.text,
     juridiction: column.text,
