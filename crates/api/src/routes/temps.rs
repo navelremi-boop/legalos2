@@ -453,22 +453,23 @@ pub async fn patch_brouillon(
             .map(Json);
     }
 
-    let courant = sqlx::query_as::<_, (Uuid, Uuid, Option<Uuid>, Option<i64>, i64, String, i64, i64)>(
-        r#"
+    let courant =
+        sqlx::query_as::<_, (Uuid, Uuid, Option<Uuid>, Option<i64>, i64, String, i64, i64)>(
+            r#"
         SELECT cabinet_id, dossier_id, temps_id, numero, ht_centimes, libelle,
                taux_centimes_heure, revision
         FROM brouillons_facture WHERE id = $1 FOR UPDATE
         "#,
-    )
-    .bind(brouillon_id)
-    .fetch_optional(
-        tx.acquire()
-            .await
-            .map_err(|_| ApiError::internal("Transaction"))?,
-    )
-    .await
-    .map_err(|_| ApiError::internal("lecture brouillon"))?
-    .ok_or_else(|| ApiError::not_found("Brouillon introuvable"))?;
+        )
+        .bind(brouillon_id)
+        .fetch_optional(
+            tx.acquire()
+                .await
+                .map_err(|_| ApiError::internal("Transaction"))?,
+        )
+        .await
+        .map_err(|_| ApiError::internal("lecture brouillon"))?
+        .ok_or_else(|| ApiError::not_found("Brouillon introuvable"))?;
 
     if courant.0 != claims.cabinet_id {
         return Err(ApiError::forbidden("Brouillon hors cabinet"));
@@ -515,16 +516,17 @@ pub async fn patch_brouillon(
     let libelle_f = libelle.as_deref().unwrap_or(&courant.5);
     let taux_f = body.taux_centimes_heure.unwrap_or(courant.6);
     let ht = if let Some(temps_id) = courant.2 {
-        let minutes = sqlx::query_scalar::<_, i32>("SELECT minutes FROM temps_saisis WHERE id = $1")
-            .bind(temps_id)
-            .fetch_optional(
-                tx.acquire()
-                    .await
-                    .map_err(|_| ApiError::internal("Transaction"))?,
-            )
-            .await
-            .map_err(|_| ApiError::internal("lecture temps lié"))?
-            .ok_or_else(|| ApiError::bad_request("Temps lié introuvable"))?;
+        let minutes =
+            sqlx::query_scalar::<_, i32>("SELECT minutes FROM temps_saisis WHERE id = $1")
+                .bind(temps_id)
+                .fetch_optional(
+                    tx.acquire()
+                        .await
+                        .map_err(|_| ApiError::internal("Transaction"))?,
+                )
+                .await
+                .map_err(|_| ApiError::internal("lecture temps lié"))?
+                .ok_or_else(|| ApiError::bad_request("Temps lié introuvable"))?;
         ht_temps_centimes(minutes, taux_f)
             .ok_or_else(|| ApiError::bad_request("Minutes ou taux invalides"))?
     } else {

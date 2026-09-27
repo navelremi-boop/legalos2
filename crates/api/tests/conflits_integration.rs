@@ -591,12 +591,11 @@ async fn conflits_par_table_et_immuabilite() {
     assert!(d_id.is_none(), "taux cabinet : dossier_id nul");
 
     // CHECK restreint / visibilite
-    let incoherent = sqlx::query(
-        "UPDATE dossiers SET restreint = TRUE, visibilite = 'public' WHERE id = $1",
-    )
-    .bind(dossier_id)
-    .execute(&pool)
-    .await;
+    let incoherent =
+        sqlx::query("UPDATE dossiers SET restreint = TRUE, visibilite = 'public' WHERE id = $1")
+            .bind(dossier_id)
+            .execute(&pool)
+            .await;
     assert!(
         incoherent.is_err(),
         "écriture incohérente restreint/visibilité doit être refusée"

@@ -392,7 +392,19 @@ pub async fn patch_dossier(
             .map(Json);
     }
 
-    let courant = sqlx::query_as::<_, (Uuid, String, String, String, String, bool, Option<String>, i64)>(
+    let courant = sqlx::query_as::<
+        _,
+        (
+            Uuid,
+            String,
+            String,
+            String,
+            String,
+            bool,
+            Option<String>,
+            i64,
+        ),
+    >(
         r#"
         SELECT cabinet_id, nom, chemise, juridiction, numero_rg, restreint, reference, revision
         FROM dossiers WHERE id = $1 FOR UPDATE
@@ -426,8 +438,15 @@ pub async fn patch_dossier(
         table_cible: "dossiers",
         dossier_id: Some(dossier_id),
     };
-    appliquer_champ_texte(&mut tx, &contexte, "nom", nom.as_deref(), &courant.1, &mut revision)
-        .await?;
+    appliquer_champ_texte(
+        &mut tx,
+        &contexte,
+        "nom",
+        nom.as_deref(),
+        &courant.1,
+        &mut revision,
+    )
+    .await?;
     appliquer_champ_texte(
         &mut tx,
         &contexte,
@@ -584,10 +603,24 @@ pub async fn patch_partie(
         table_cible: "parties",
         dossier_id: Some(courant.1),
     };
-    appliquer_champ_texte(&mut tx, &contexte, "role", role.as_deref(), &courant.2, &mut revision)
-        .await?;
-    appliquer_champ_texte(&mut tx, &contexte, "nom", nom.as_deref(), &courant.3, &mut revision)
-        .await?;
+    appliquer_champ_texte(
+        &mut tx,
+        &contexte,
+        "role",
+        role.as_deref(),
+        &courant.2,
+        &mut revision,
+    )
+    .await?;
+    appliquer_champ_texte(
+        &mut tx,
+        &contexte,
+        "nom",
+        nom.as_deref(),
+        &courant.3,
+        &mut revision,
+    )
+    .await?;
 
     let role_f = role.as_deref().unwrap_or(&courant.2);
     let nom_f = nom.as_deref().unwrap_or(&courant.3);
