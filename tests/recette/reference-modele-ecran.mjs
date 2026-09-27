@@ -5,8 +5,9 @@
  * Patron : tests/recette/reference-dossier-ecran.mjs
  * Usage : node tests/recette/reference-modele-ecran.mjs
  */
+import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +19,44 @@ const poste = join(root, "apps/poste");
 const instanceUrl = process.env.LEGALOS_INSTANCE_URL ?? "http://127.0.0.1:8088";
 const api = `${instanceUrl}/api`;
 const marque = String(Date.now()).slice(-6);
+const envFile = existsSync(join(root, ".env")) ? join(root, ".env") : join(root, "..", "..", ".env");
+
+function sqlServeur(requete) {
+  return new Promise((resolve) => {
+    const child = spawn(
+      "docker",
+      [
+        "compose",
+        "-f",
+        "instance/docker-compose.yml",
+        "--env-file",
+        envFile,
+        "exec",
+        "-T",
+        "postgres",
+        "psql",
+        "-U",
+        "legalos",
+        "-d",
+        "legalos",
+        "-tAc",
+        requete,
+      ],
+      { cwd: root, stdio: ["ignore", "pipe", "pipe"] },
+    );
+    let out = "";
+    let err = "";
+    child.stdout.on("data", (chunk) => {
+      out += chunk.toString();
+    });
+    child.stderr.on("data", (chunk) => {
+      err += chunk.toString();
+    });
+    child.on("exit", (code) => {
+      resolve({ code: code ?? 1, out: out.trim(), err: err.trim() });
+    });
+  });
+}
 const posteId = "m";
 const port = "9244";
 const captures = join(root, "target", "controle-reference-modele");
@@ -291,11 +330,22 @@ try {
     5_000,
     "constructeur",
   );
-  await setTestId(send, "reglages-reference-modele", MODELE);
-  await sleep(300);
-  const texte = String(
-    await evaluate(send, `document.querySelector("[data-testid=reglages-reference-modele]")?.value ?? ""`),
+  await attendre(
+    send,
+    `String(document.querySelector("[data-testid=reglages-reference-modele]")?.value || "").length > 0`,
+    10_000,
+    "modèle initial",
   );
+  await sleep(600);
+  let texte = "";
+  for (let essai = 0; essai < 5; essai += 1) {
+    await setTestId(send, "reglages-reference-modele", MODELE);
+    await sleep(200);
+    texte = String(
+      await evaluate(send, `document.querySelector("[data-testid=reglages-reference-modele]")?.value ?? ""`),
+    );
+    if (texte === MODELE) break;
+  }
   if (texte !== MODELE) fail(`champ modèle : ${texte}`);
   const seps = Number(
     await evaluate(send, `document.querySelectorAll("[data-testid=reglages-reference-separateur]").length`),
@@ -392,6 +442,76 @@ try {
   if (!paletteRef.includes("/")) fail(`palette sans « / » (${paletteRef})`);
   await capture(send, "2-palette-reference-slash");
   console.log(`reference-modele-ecran: OK — palette « ${paletteRef} »`);
+
+  const idCollision = randomUUID();
+  await sqlServeur(
+    `DELETE FROM dossiers WHERE cabinet_id = '${DEMO_CABINET_ID}' AND reference = '999999999'`,
+  );
+  const insertCollision = await sqlServeur(
+    `INSERT INTO dossiers (
+       id, cabinet_id, nom, chemise, juridiction, numero_rg,
+       reference, reference_annee, reference_numero, restreint, visibilite, revision
+     ) VALUES (
+       '${idCollision}', '${DEMO_CABINET_ID}', 'fictif collision ecran', 'kraft', 'x', 'RG-ECRAN',
+       '999999999', 2019, 999999999, false, 'public', 1
+     )`,
+  );
+  if (insertCollision.code !== 0) {
+    fail(`référence 999999999 : ${insertCollision.err || insertCollision.out}`);
+  }
+  console.log("reference-modele-ecran: référence nombre 999999999");
+
+  await ouvrirReglages(send);
+  await attendre(
+    send,
+    `String(document.querySelector("[data-testid=reglages-reference-modele]")?.value || "").includes("AAAA")`,
+    10_000,
+    "modèle chargé",
+  );
+  await sleep(500);
+  const pose = await evaluate(
+    send,
+    `(() => {
+      const politique = document.querySelector("[data-testid=reglages-reference-politique]");
+      const modele = document.querySelector("[data-testid=reglages-reference-modele]");
+      if (!politique || !modele) return "champs absents";
+      const selectProto = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value");
+      selectProto.set.call(politique, "jamais");
+      politique.dispatchEvent(new Event("change", { bubbles: true }));
+      const inputProto = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value");
+      if (modele._valueTracker) modele._valueTracker.setValue("");
+      inputProto.set.call(modele, "{N}");
+      modele.dispatchEvent(new Event("input", { bubbles: true }));
+      return politique.value + "|" + modele.value;
+    })()`,
+  );
+  await sleep(400);
+  if (pose !== "jamais|{N}") fail(`préparation du 409 : ${pose}`);
+  await evaluate(send, `document.querySelector("[data-testid=reglages-reference-enregistrer]")?.click()`);
+  const debutMinimal = Date.now();
+  let minimal = "";
+  let message409 = "";
+  while (Date.now() - debutMinimal < 15_000) {
+    minimal = String(
+      await evaluate(
+        send,
+        `(document.querySelector("[data-testid=reglages-reference-numero-minimal]")?.textContent || "").trim()`,
+      ),
+    );
+    if (/^\d+$/.test(minimal)) break;
+    message409 = String(
+      await evaluate(
+        send,
+        `document.querySelector("[data-testid=ecran-reglages] [role=status]")?.textContent || ""`,
+      ),
+    );
+    await sleep(250);
+  }
+  if (!/^\d+$/.test(minimal) || Number(minimal) < 1) {
+    fail(`numero_depart_minimal affiché : ${minimal || "vide"} ; message : ${message409}`);
+  }
+  await capture(send, "3-reglages-numero-minimal");
+  console.log(`reference-modele-ecran: OK — numéro de départ minimal ${minimal}`);
   ws.close();
   console.log("reference-modele-ecran: OK");
 } catch (err) {
@@ -402,4 +522,32 @@ try {
   }
 } finally {
   await stopApp(app);
+  try {
+    const etat = await fetch(`${api}/cabinets/${DEMO_CABINET_ID}/reference`, {
+      headers: { authorization: `Bearer ${jeton}`, accept: "application/json" },
+    });
+    const corps = await etat.json();
+    const depart = Number(corps.prochain_numero);
+    await sqlServeur(
+      `DELETE FROM dossiers WHERE cabinet_id = '${DEMO_CABINET_ID}' AND reference = '999999999'`,
+    );
+    if (Number.isInteger(depart) && depart >= 1) {
+      await fetch(`${api}/cabinets/${DEMO_CABINET_ID}/reference`, {
+        method: "PUT",
+        headers: {
+          authorization: `Bearer ${jeton}`,
+          accept: "application/json",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          idempotence_cle: `restaurer-ecran-${marque}`,
+          modele: "{AAAA}-{N:3}",
+          remise_a_zero: "annuelle",
+          numero_depart: depart,
+        }),
+      });
+    }
+  } catch {
+    console.error("reference-modele-ecran: restauration du modèle par défaut non confirmée");
+  }
 }

@@ -9,7 +9,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance).
 - **Sync** : Streams édition 3, service 1.26.1. Dette mensuelle avis PowerSync.
 - **Coque** corrigée (`22d765e`), non cochée : points médians de La journée (consigne 3), onglets de démonstration (dette). La journée est validée par l'architecte sous réserve des captures régénérées (consigne du 27/09, point 2).
-- **B11 levé** (arbitrage R0 du 26/09 reçu le 27/09) : R0-a, R0-c, R0-d et R0-e confirmés. Écarts traités dans le jalon en cours (`dfed55c`) : responsable, 409 avec numéro minimal, auteur au journal. Contrôleur en cours. CI de `main` en attente.
+- **B11 levé** (arbitrage R0 du 26/09 reçu le 27/09) : R0-a, R0-c, R0-d et R0-e confirmés. Écarts dans `dfed55c`. CI de cette fusion verte ([36319178833](https://github.com/navelremi-boop/legalos2/actions/runs/36319178833)). Contrôleur REFUSÉ : l'affichage du numéro minimal n'était pas prouvé à l'écran. Recette complétée : `reference-modele-ecran.mjs` affiche `1000000000`.
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---

@@ -282,4 +282,12 @@ if (!/reglages-reference-numero-minimal/.test(reglages)) {
 }
 ok("Réglages affiche numero_depart_minimal");
 
+const ecranModele = readFileSync(join(root, "tests/recette/reference-modele-ecran.mjs"), "utf8");
+if (!/reglages-reference-numero-minimal/.test(ecranModele)) {
+  fail(
+    "référence-modele-ecran.mjs ne contrôle pas l’affichage du numero_depart_minimal (critère PLAN / consigne 27/09)",
+  );
+}
+ok("recette Tauri numero_depart_minimal branchée");
+
 console.log("reference-modele-poste: OK");
