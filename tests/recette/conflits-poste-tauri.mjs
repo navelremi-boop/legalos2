@@ -720,20 +720,32 @@ await avecPoste("b", demoEmail, demoPassword, totpSecretB32, "Poste apres refus 
 console.log("conflits-poste: OK — refus consignés, file non bloquée, écriture suivante OK");
 
 // ——— un champ seul (cabinets inclus) ———
+// parties.role n'accepte que client | adversaire | confrere (le conflit laisse l'un des deux derniers).
+// Le taux est un entier : la preuve compare la valeur journalisée, pas un motif contenant la marque.
+const tauxSeul = 33000 + Number(marque.slice(-3));
+const attendusChampSeul = {
+  cabinets: `Seul ${marque}`,
+  dossiers: `SEUL-dossiers-${marque}`,
+  parties: "client",
+  temps_saisis: `SEUL-temps_saisis-${marque}`,
+  brouillons_facture: `SEUL-brouillons_facture-${marque}`,
+  taux_horaires: String(tauxSeul),
+};
+
 await compose(["pause", "api", "powersync"]);
 try {
   await avecPoste("a", demoEmail, demoPassword, totpSecretB32, "Poste champ seul", async (send) => {
     for (const table of TABLES_MODIFIABLES) {
       if (table === "cabinets") {
-        await hook(send, `window.__legalosRecette.patchCabinetNom(${JSON.stringify(`Seul ${marque}`)})`);
+        await hook(
+          send,
+          `window.__legalosRecette.patchCabinetNom(${JSON.stringify(attendusChampSeul.cabinets)})`,
+        );
         continue;
       }
       const idKey = TABLES_CONFLIT.find((c) => c.table === table)?.idKey;
       if (!idKey) continue;
-      const valeur =
-        typeof TABLES_CONFLIT.find((c) => c.table === table)?.valeurA === "number"
-          ? 33000 + Number(marque.slice(-3))
-          : `SEUL-${table}-${marque}`;
+      const valeur = table === "taux_horaires" ? tauxSeul : attendusChampSeul[table];
       await hook(
         send,
         `window.__legalosRecette.patchChampSeul(${JSON.stringify(table)}, ${JSON.stringify(ids[idKey])}, ${JSON.stringify(valeur)})`,
@@ -750,15 +762,16 @@ await avecPoste("a", demoEmail, demoPassword, totpSecretB32, "Poste champ seul s
 
 for (const table of TABLES_MODIFIABLES) {
   const champ = CHAMP_SEUL_PAR_TABLE[table];
+  const attendu = attendusChampSeul[table].replaceAll("'", "''");
   const n = Number(
     await sqlServeur(
       `SELECT COUNT(*) FROM journal_modifications
        WHERE table_cible = '${table}'
          AND champ = '${champ}'
-         AND valeur_appliquee LIKE '%${marque}%'`,
+         AND valeur_appliquee = '${attendu}'`,
     ),
   );
-  if (n < 1) fail(`écriture d'un seul champ absente pour ${table}.${champ}`);
+  if (n < 1) fail(`écriture d'un seul champ absente pour ${table}.${champ} (attendu ${attendu})`);
 }
 console.log("conflits-poste: OK — un champ seul par table");
 
