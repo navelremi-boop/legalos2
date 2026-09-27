@@ -18,7 +18,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 Texte reçu : GitHub Actions n'exécute plus que les actions créées par GitHub et la liste blanche `dtolnay/rust-toolchain`, `Swatinem/rust-cache`, `pnpm/action-setup`. Toute nouvelle action tierce passe par `BLOCAGES.md` (nom, version, justification) : le commandement l'ajoute. Aucun contournement (script téléchargé, copie de l'action dans le dépôt). Avant J14, épingler chaque action tierce sur un hash de commit complet plutôt que sur une étiquette.
 
-Traitement : le tableau est dans `BLOCAGES.md`. `workflows-valides.mjs` refuse une action hors `actions/` et `github/` qui n'y figure pas à la version indiquée, ainsi qu'une action locale ou une image Docker. Dette « Avant J14 » dans `PLAN.md` pour l'épinglage par hash. Les trois actions du workflow sont déjà celles de la liste.
+Traitement : le tableau est dans `BLOCAGES.md`. `workflows-valides.mjs` refuse une action hors `actions/` et `github/` qui n'y figure pas à la version indiquée, ainsi qu'une action locale ou une image Docker. Dette « Avant J14 » dans `PLAN.md` pour l'épinglage par hash. Les trois actions du workflow sont déjà celles de la liste. Le réglage GitHub, lui, refuse `actions/checkout`, `actions/setup-node` et `actions/setup-java` (B14) : la CI de `7799606` ne démarre pas.
 
 ---
 
