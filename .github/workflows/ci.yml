@@ -121,6 +121,8 @@ jobs:
         run: node tests/recette/reference-dossier-api.mjs
       - name: Référence de dossier — acceptation contrôleur (API + Postgres)
         run: node tests/recette/reference-dossier-controleur.mjs
+      - name: Modèle de référence personnalisable (API + Postgres)
+        run: node tests/recette/reference-modele.mjs
 
   facturx:
     runs-on: ubuntu-latest
