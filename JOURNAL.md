@@ -4,13 +4,21 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 - **Phase 0–1** VALIDÉES ; **J5–J7** VALIDÉS ; **Migration Sync Streams** VALIDÉE `9f80388` ; **J8** VALIDÉ `e8eb6b2`.
 - **Référence de dossier** : VALIDÉ `03ca364` (contrôleur, CI [36322383021](https://github.com/navelremi-boop/legalos2/actions/runs/36322383021)). Minutes des trois runs de clôture : **100** (durées de jobs arrondies à la minute supérieure ; le job macOS de [36319178833](https://github.com/navelremi-boop/legalos2/actions/runs/36319178833) compte dix fois).
-- **En cours** : **Conflits généralisés**.
+- **En cours** : **Conflits généralisés**. Couverture V1 : matrice en tête de `PLAN.md` ; jalons manquants proposés, à valider par l'architecte.
 - **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → **Conflits généralisés** → Coque → Vue scindée → Intercalaires → J9 → J10.
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance).
 - **Sync** : Streams édition 3, service 1.26.1. Dette mensuelle avis PowerSync.
 - **Coque** corrigée (`22d765e`), non cochée : points médians de La journée (consigne 3), onglets de démonstration (dette). La journée est validée par l'architecte sous réserve des captures régénérées (consigne du 27/09, point 2).
 - **B11 levé**. Contrôleur d'abord REFUSÉ (affichage du numéro minimal). Recette `reference-modele-ecran.mjs` : exit 0, numéro `1000000000`. Second verdict **VALIDÉ** sur `03ca364`.
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
+
+---
+
+## 2026-09-27 — Consigne de l'architecte : couverture de la V1
+
+Texte reçu : la mission est la V1 du § 4.2 (fonctionnalités n° 1 à 14). `PLAN.md` ne couvrait que les scénarios S1 à S14. Ajouter en tête une matrice de couverture, contrôlée par `plan-gouvernance.mjs`. Nouveaux jalons, critères en commandes, marqués « à valider par l'architecte » : en phase 2, après les intercalaires et avant J9, Dossiers et contacts complets (n° 1 et 2), Agenda (n° 4, invitations mail en J11), Documents, suite (n° 6) ; en phase 3, avant J14, Modèles et fusion (n° 7), Facturation, suite (n° 10), Conventions d'honoraires (n° 12), Tableau de bord (n° 13). Ce que J5, J7 et J8 n'ont pas livré va dans ces jalons, jamais dans un jalon déjà coché.
+
+Traitement : matrice et jalons dans un commit `plan:` citant cette consigne. Le contrôle échoue sans la section, sans un n° 1 à 14, sans élément, ou si le jalon cité n'existe pas. Essai négatif dans `plan-gouvernance.mjs`.
 
 ---
 

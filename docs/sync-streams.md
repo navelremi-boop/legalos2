@@ -52,7 +52,8 @@ Fichier déployé : `instance/powersync/sync-config.yaml`, monté via `sync_conf
 
 | Table client | Rôle |
 |--------------|------|
-| `cabinets` / `journal_modifications` | Flux `cabinet_global` — `cabinets` porte aussi `reference_modele` et `reference_remise_a_zero` (R0) ; pas les séquences ni les initiales |
+| `cabinets` | Flux `cabinet_global` — porte aussi `reference_modele` et `reference_remise_a_zero` (R0) ; pas les séquences ni les initiales |
+| `journal_modifications` | Trois flux : `journal_cabinet` (`dossier_id` nul), `journal_publics`, `journal_restreints` |
 | `dossiers` | Métadonnées dossier (chemise, `reference` nullable § 3.4, flag restreint) |
 | `parties` | Parties du dossier |
 | `documents` / `document_versions` | Métadonnées ; `visibilite` en SELECT, auth via dossier |
@@ -67,7 +68,10 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 
 | Flux | Filtre |
 |------|--------|
-| `cabinet_global` | `cabinets` (dont `reference_modele`, `reference_remise_a_zero`) et `journal_modifications` filtrés par `auth.parameter('cabinet_id')` — sans `auteur_id` (colonnes explicites) |
+| `cabinet_global` | `cabinets` seulement (dont `reference_modele`, `reference_remise_a_zero`) — plus de journal |
+| `journal_cabinet` | `journal_modifications` où `dossier_id IS NULL` et cabinet du jeton |
+| `journal_publics` | `journal_modifications` JOIN `dossiers` (visibilité publique + cabinet) |
+| `journal_restreints` | `journal_modifications` JOIN `dossier_acces` (`auth.user_id()`) |
 | `dossiers_publics` | `dossiers` où `visibilite = 'public'` et `cabinet_id` du JWT — SELECT inclut `reference` et `responsable_id` |
 | `dossiers_restreints` | `dossiers` JOIN `dossier_acces` où `utilisateur_texte = auth.user_id()` — SELECT inclut `reference` et `responsable_id` |
 | `parties_publics` | `parties` JOIN `dossiers` (visibilité publique + cabinet) |

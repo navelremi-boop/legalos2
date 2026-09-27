@@ -20,7 +20,7 @@ const cabinets = new Table({
 const journalModifications = new Table(
   {
     cabinet_id: column.text,
-    /** Nul pour les enregistrements du cabinet ; sinon le dossier concerné (S5). */
+    /** Nul pour les enregistrements du cabinet ; sinon id du dossier. */
     dossier_id: column.text,
     table_cible: column.text,
     enregistrement_id: column.text,
@@ -139,8 +139,8 @@ const tempsSaisis = new Table(
     libelle: column.text,
     taux_centimes_heure: column.integer,
     ht_centimes: column.integer,
-    revision: column.integer,
     visibilite: column.text,
+    revision: column.integer,
     cree_le: column.text,
   },
   { indexes: { dossier: ["dossier_id"] } },
@@ -156,8 +156,8 @@ const brouillonsFacture = new Table(
     libelle: column.text,
     intervenant_id: column.text,
     taux_centimes_heure: column.integer,
-    revision: column.integer,
     visibilite: column.text,
+    revision: column.integer,
     cree_le: column.text,
   },
   { indexes: { dossier: ["dossier_id"] } },
@@ -170,8 +170,8 @@ const tauxHoraires = new Table(
     dossier_id: column.text,
     intervenant_id: column.text,
     centimes_par_heure: column.integer,
-    revision: column.integer,
     visibilite: column.text,
+    revision: column.integer,
     cree_le: column.text,
   },
   { indexes: { cabinet: ["cabinet_id"], dossier: ["dossier_id"] } },

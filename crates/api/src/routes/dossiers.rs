@@ -3,10 +3,15 @@ use std::sync::Arc;
 use axum::{extract::State, Json};
 use legalos_domaine::ModeleReference;
 use serde::{Deserialize, Serialize};
+use sqlx::Acquire;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::auth::access::AuthAccess;
+use crate::conflits::{
+    appliquer_champ_texte, cle_idempotence, reserver_idempotence, valider_base_revision,
+    ContexteChamp,
+};
 use crate::error::ApiError;
 use crate::routes::cabinets::{annee_civile_paris, initiales_utilisateur, remise_depuis_sql};
 use crate::state::AppState;
@@ -59,6 +64,45 @@ pub struct PartieResponse {
     pub id: Uuid,
     pub dossier_id: Uuid,
     pub nom: String,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct PatchDossierRequest {
+    pub base_revision: i64,
+    pub idempotence_cle: String,
+    pub nom: Option<String>,
+    pub chemise: Option<String>,
+    pub juridiction: Option<String>,
+    pub numero_rg: Option<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct DossierDetailResponse {
+    pub id: Uuid,
+    pub nom: String,
+    pub chemise: String,
+    pub juridiction: String,
+    pub numero_rg: String,
+    pub restreint: bool,
+    pub reference: Option<String>,
+    pub revision: i64,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct PatchPartieRequest {
+    pub base_revision: i64,
+    pub idempotence_cle: String,
+    pub role: Option<String>,
+    pub nom: Option<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct PartieDetailResponse {
+    pub id: Uuid,
+    pub dossier_id: Uuid,
+    pub role: String,
+    pub nom: String,
+    pub revision: i64,
 }
 
 #[utoipa::path(
@@ -294,6 +338,425 @@ pub async fn creer_partie(
         dossier_id,
         nom,
     }))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/dossiers/{dossier_id}",
+    tag = "dossiers",
+    security(("bearer_auth" = [])),
+    request_body = PatchDossierRequest,
+    responses(
+        (status = 200, description = "Dossier mis à jour", body = DossierDetailResponse),
+        (status = 400, description = "Requête invalide", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 403, description = "Dossier non autorisé", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Dossier introuvable", body = crate::error::ApiErrorBody),
+    )
+)]
+pub async fn patch_dossier(
+    State(state): State<Arc<AppState>>,
+    AuthAccess(claims): AuthAccess,
+    axum::extract::Path(dossier_id): axum::extract::Path<Uuid>,
+    Json(body): Json<PatchDossierRequest>,
+) -> Result<Json<DossierDetailResponse>, ApiError> {
+    if body.idempotence_cle.trim().is_empty() {
+        return Err(ApiError::bad_request("Clé d'idempotence requise"));
+    }
+    let nom = champ_texte_optionnel(body.nom)?;
+    let chemise = champ_texte_optionnel(body.chemise)?;
+    let juridiction = champ_texte_optionnel(body.juridiction)?;
+    let numero_rg = champ_texte_optionnel(body.numero_rg)?;
+    if nom.is_none() && chemise.is_none() && juridiction.is_none() && numero_rg.is_none() {
+        return Err(ApiError::bad_request("Aucun champ à appliquer"));
+    }
+    if let Some(ref c) = chemise {
+        if !CHEMISES.contains(&c.as_str()) {
+            return Err(ApiError::bad_request("Couleur de chemise inconnue"));
+        }
+    }
+
+    let mut tx = state
+        .pool
+        .begin()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+
+    let cle = cle_idempotence(claims.poste_id, &body.idempotence_cle);
+    if !reserver_idempotence(&mut tx, &cle).await? {
+        tx.commit()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?;
+        return charger_dossier(&state, claims.cabinet_id, claims.sub, dossier_id)
+            .await
+            .map(Json);
+    }
+
+    let courant = sqlx::query_as::<
+        _,
+        (
+            Uuid,
+            String,
+            String,
+            String,
+            String,
+            bool,
+            Option<String>,
+            i64,
+        ),
+    >(
+        r#"
+        SELECT cabinet_id, nom, chemise, juridiction, numero_rg, restreint, reference, revision
+        FROM dossiers WHERE id = $1 FOR UPDATE
+        "#,
+    )
+    .bind(dossier_id)
+    .fetch_optional(
+        tx.acquire()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?,
+    )
+    .await
+    .map_err(|_| ApiError::internal("lecture dossier"))?
+    .ok_or_else(|| ApiError::not_found("Dossier introuvable"))?;
+
+    if courant.0 != claims.cabinet_id {
+        return Err(ApiError::forbidden("Dossier hors cabinet"));
+    }
+    if !dossier_visible_tx(&mut tx, claims.cabinet_id, claims.sub, dossier_id).await? {
+        return Err(ApiError::forbidden("Dossier non autorisé"));
+    }
+    valider_base_revision(body.base_revision, courant.7)?;
+
+    let mut revision = courant.7;
+    let contexte = ContexteChamp {
+        cabinet_id: claims.cabinet_id,
+        poste_id: claims.poste_id,
+        auteur_id: claims.sub,
+        base_revision: body.base_revision,
+        enregistrement_id: dossier_id,
+        table_cible: "dossiers",
+        dossier_id: Some(dossier_id),
+    };
+    appliquer_champ_texte(
+        &mut tx,
+        &contexte,
+        "nom",
+        nom.as_deref(),
+        &courant.1,
+        &mut revision,
+    )
+    .await?;
+    appliquer_champ_texte(
+        &mut tx,
+        &contexte,
+        "chemise",
+        chemise.as_deref(),
+        &courant.2,
+        &mut revision,
+    )
+    .await?;
+    appliquer_champ_texte(
+        &mut tx,
+        &contexte,
+        "juridiction",
+        juridiction.as_deref(),
+        &courant.3,
+        &mut revision,
+    )
+    .await?;
+    appliquer_champ_texte(
+        &mut tx,
+        &contexte,
+        "numero_rg",
+        numero_rg.as_deref(),
+        &courant.4,
+        &mut revision,
+    )
+    .await?;
+
+    let nom_f = nom.as_deref().unwrap_or(&courant.1);
+    let chemise_f = chemise.as_deref().unwrap_or(&courant.2);
+    let juridiction_f = juridiction.as_deref().unwrap_or(&courant.3);
+    let numero_rg_f = numero_rg.as_deref().unwrap_or(&courant.4);
+
+    if revision != courant.7 {
+        sqlx::query(
+            r#"
+            UPDATE dossiers
+            SET nom = $1, chemise = $2, juridiction = $3, numero_rg = $4, revision = $5
+            WHERE id = $6
+            "#,
+        )
+        .bind(nom_f)
+        .bind(chemise_f)
+        .bind(juridiction_f)
+        .bind(numero_rg_f)
+        .bind(revision)
+        .bind(dossier_id)
+        .execute(
+            tx.acquire()
+                .await
+                .map_err(|_| ApiError::internal("Transaction"))?,
+        )
+        .await
+        .map_err(|_| ApiError::internal("mise à jour dossier"))?;
+    }
+
+    tx.commit()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+
+    Ok(Json(DossierDetailResponse {
+        id: dossier_id,
+        nom: nom_f.to_owned(),
+        chemise: chemise_f.to_owned(),
+        juridiction: juridiction_f.to_owned(),
+        numero_rg: numero_rg_f.to_owned(),
+        restreint: courant.5,
+        reference: courant.6,
+        revision,
+    }))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/parties/{partie_id}",
+    tag = "dossiers",
+    security(("bearer_auth" = [])),
+    request_body = PatchPartieRequest,
+    responses(
+        (status = 200, description = "Partie mise à jour", body = PartieDetailResponse),
+        (status = 400, description = "Requête invalide", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 403, description = "Dossier non autorisé", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Partie introuvable", body = crate::error::ApiErrorBody),
+    )
+)]
+pub async fn patch_partie(
+    State(state): State<Arc<AppState>>,
+    AuthAccess(claims): AuthAccess,
+    axum::extract::Path(partie_id): axum::extract::Path<Uuid>,
+    Json(body): Json<PatchPartieRequest>,
+) -> Result<Json<PartieDetailResponse>, ApiError> {
+    if body.idempotence_cle.trim().is_empty() {
+        return Err(ApiError::bad_request("Clé d'idempotence requise"));
+    }
+    let role = champ_texte_optionnel(body.role)?;
+    let nom = champ_texte_optionnel(body.nom)?;
+    if role.is_none() && nom.is_none() {
+        return Err(ApiError::bad_request("Aucun champ à appliquer"));
+    }
+    if let Some(ref r) = role {
+        if !ROLES_PARTIE.contains(&r.as_str()) {
+            return Err(ApiError::bad_request("Rôle de partie inconnu"));
+        }
+    }
+
+    let mut tx = state
+        .pool
+        .begin()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+
+    let cle = cle_idempotence(claims.poste_id, &body.idempotence_cle);
+    if !reserver_idempotence(&mut tx, &cle).await? {
+        tx.commit()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?;
+        return charger_partie(&state, claims.cabinet_id, claims.sub, partie_id)
+            .await
+            .map(Json);
+    }
+
+    let courant = sqlx::query_as::<_, (Uuid, Uuid, String, String, i64)>(
+        r#"
+        SELECT cabinet_id, dossier_id, role, nom, revision
+        FROM parties WHERE id = $1 FOR UPDATE
+        "#,
+    )
+    .bind(partie_id)
+    .fetch_optional(
+        tx.acquire()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?,
+    )
+    .await
+    .map_err(|_| ApiError::internal("lecture partie"))?
+    .ok_or_else(|| ApiError::not_found("Partie introuvable"))?;
+
+    if courant.0 != claims.cabinet_id {
+        return Err(ApiError::forbidden("Partie hors cabinet"));
+    }
+    if !dossier_visible_tx(&mut tx, claims.cabinet_id, claims.sub, courant.1).await? {
+        return Err(ApiError::forbidden("Dossier non autorisé"));
+    }
+    valider_base_revision(body.base_revision, courant.4)?;
+
+    let mut revision = courant.4;
+    let contexte = ContexteChamp {
+        cabinet_id: claims.cabinet_id,
+        poste_id: claims.poste_id,
+        auteur_id: claims.sub,
+        base_revision: body.base_revision,
+        enregistrement_id: partie_id,
+        table_cible: "parties",
+        dossier_id: Some(courant.1),
+    };
+    appliquer_champ_texte(
+        &mut tx,
+        &contexte,
+        "role",
+        role.as_deref(),
+        &courant.2,
+        &mut revision,
+    )
+    .await?;
+    appliquer_champ_texte(
+        &mut tx,
+        &contexte,
+        "nom",
+        nom.as_deref(),
+        &courant.3,
+        &mut revision,
+    )
+    .await?;
+
+    let role_f = role.as_deref().unwrap_or(&courant.2);
+    let nom_f = nom.as_deref().unwrap_or(&courant.3);
+
+    if revision != courant.4 {
+        sqlx::query(r#"UPDATE parties SET role = $1, nom = $2, revision = $3 WHERE id = $4"#)
+            .bind(role_f)
+            .bind(nom_f)
+            .bind(revision)
+            .bind(partie_id)
+            .execute(
+                tx.acquire()
+                    .await
+                    .map_err(|_| ApiError::internal("Transaction"))?,
+            )
+            .await
+            .map_err(|_| ApiError::internal("mise à jour partie"))?;
+    }
+
+    tx.commit()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+
+    Ok(Json(PartieDetailResponse {
+        id: partie_id,
+        dossier_id: courant.1,
+        role: role_f.to_owned(),
+        nom: nom_f.to_owned(),
+        revision,
+    }))
+}
+
+async fn charger_dossier(
+    state: &AppState,
+    cabinet_id: Uuid,
+    utilisateur_id: Uuid,
+    dossier_id: Uuid,
+) -> Result<DossierDetailResponse, ApiError> {
+    if !dossier_visible(state, cabinet_id, utilisateur_id, dossier_id).await? {
+        return Err(ApiError::forbidden("Dossier non autorisé"));
+    }
+    let row = sqlx::query_as::<_, (String, String, String, String, bool, Option<String>, i64)>(
+        r#"
+        SELECT nom, chemise, juridiction, numero_rg, restreint, reference, revision
+        FROM dossiers WHERE id = $1 AND cabinet_id = $2
+        "#,
+    )
+    .bind(dossier_id)
+    .bind(cabinet_id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("lecture dossier"))?
+    .ok_or_else(|| ApiError::not_found("Dossier introuvable"))?;
+    Ok(DossierDetailResponse {
+        id: dossier_id,
+        nom: row.0,
+        chemise: row.1,
+        juridiction: row.2,
+        numero_rg: row.3,
+        restreint: row.4,
+        reference: row.5,
+        revision: row.6,
+    })
+}
+
+async fn charger_partie(
+    state: &AppState,
+    cabinet_id: Uuid,
+    utilisateur_id: Uuid,
+    partie_id: Uuid,
+) -> Result<PartieDetailResponse, ApiError> {
+    let row = sqlx::query_as::<_, (Uuid, String, String, i64)>(
+        r#"SELECT dossier_id, role, nom, revision FROM parties WHERE id = $1 AND cabinet_id = $2"#,
+    )
+    .bind(partie_id)
+    .bind(cabinet_id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("lecture partie"))?
+    .ok_or_else(|| ApiError::not_found("Partie introuvable"))?;
+    if !dossier_visible(state, cabinet_id, utilisateur_id, row.0).await? {
+        return Err(ApiError::forbidden("Dossier non autorisé"));
+    }
+    Ok(PartieDetailResponse {
+        id: partie_id,
+        dossier_id: row.0,
+        role: row.1,
+        nom: row.2,
+        revision: row.3,
+    })
+}
+
+async fn dossier_visible_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    cabinet_id: Uuid,
+    utilisateur_id: Uuid,
+    dossier_id: Uuid,
+) -> Result<bool, ApiError> {
+    let row = sqlx::query_as::<_, (bool,)>(
+        r#"
+        SELECT (
+            d.cabinet_id = $2
+            AND (
+                d.restreint = FALSE
+                OR EXISTS (
+                    SELECT 1 FROM dossier_acces a
+                    WHERE a.dossier_id = d.id AND a.utilisateur_id = $3
+                )
+            )
+        )
+        FROM dossiers d
+        WHERE d.id = $1
+        "#,
+    )
+    .bind(dossier_id)
+    .bind(cabinet_id)
+    .bind(utilisateur_id)
+    .fetch_optional(
+        tx.acquire()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?,
+    )
+    .await
+    .map_err(|_| ApiError::internal("lecture droit dossier"))?;
+    Ok(row.is_some_and(|v| v.0))
+}
+
+fn champ_texte_optionnel(valeur: Option<String>) -> Result<Option<String>, ApiError> {
+    let Some(valeur) = valeur else {
+        return Ok(None);
+    };
+    let valeur = valeur.trim().to_owned();
+    if valeur.is_empty() {
+        return Err(ApiError::bad_request("Champ vide"));
+    }
+    Ok(Some(valeur))
 }
 
 pub(crate) async fn dossier_visible(

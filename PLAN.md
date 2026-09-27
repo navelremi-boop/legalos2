@@ -8,6 +8,88 @@ Règle (ordre d'opération § 4.4) : les critères d'un jalon non validé et les
 
 ---
 
+## Couverture V1
+
+Chaque fonctionnalité n° 1 à 14 du § 4.2, et chaque élément de sa colonne « Détail », est rattaché à un jalon. Un élément sans jalon, ou rattaché à un jalon absent de ce plan, fait échouer `node tests/recette/plan-gouvernance.mjs`.
+
+- **1 Dossiers**
+  - Référence attribuée par le serveur → Référence de dossier
+  - client → Dossiers et contacts complets
+  - adversaires → Dossiers et contacts complets
+  - confrères adverses → Dossiers et contacts complets
+  - juridiction → J5
+  - n° RG → J5
+  - type de dossier → Dossiers et contacts complets
+  - étape → Dossiers et contacts complets
+  - dossiers liés → Dossiers et contacts complets
+  - intercalaires standards → Coque de l'app
+  - intercalaires personnalisés → Intercalaires personnalisés
+- **2 Contacts**
+  - personnes physiques et morales → Dossiers et contacts complets
+  - rôle dans chaque dossier → Dossiers et contacts complets
+  - historique → Dossiers et contacts complets
+  - SIREN → Dossiers et contacts complets
+  - n° TVA → Dossiers et contacts complets
+  - type de client → Dossiers et contacts complets
+- **3 Droits par dossier**
+  - accès restreint à certains collaborateurs → J5
+- **4 Agenda et délais**
+  - audiences → Agenda
+  - rendez-vous → Agenda
+  - tâches → Agenda
+  - rappels → Agenda
+  - invitations reçues par mail → J11
+- **5 Calcul des délais de procédure**
+  - computation selon le CPC art. 640 à 642 → J6
+  - augmentation pour distance art. 643-644 → J6
+  - bibliothèque de délais usuels → J6
+- **6 Documents**
+  - arborescence par dossier → Documents, suite
+  - versions → J7
+  - ouverture dans Word avec renvoi automatique → Documents, suite
+  - recherche → Documents, suite
+- **7 Modèles et fusion**
+  - courriers, conventions et actes générés depuis les données du dossier → Modèles et fusion
+- **8 Client mail intégré**
+  - client complet remplaçant Outlook → J9 ; J10 ; J11
+  - classement dans les dossiers → J9
+  - construit en 5 étapes → J9 ; J11
+- **9 Temps**
+  - chronomètre → Coque de l'app
+  - saisie manuelle → J8
+  - rattachement au dossier et à l'intervenant → J8
+- **10 Facturation**
+  - au temps → J8
+  - au forfait → Facturation, suite
+  - au résultat → Facturation, suite
+  - provisions → Facturation, suite
+  - débours → J8
+  - conditions tarifaires par client, dossier et intervenant → Facturation, suite
+  - avoirs → J8
+  - relances → Facturation, suite
+  - encours et impayés → Facturation, suite
+- **11 Facturation électronique**
+  - PDF et Factur-X → J8
+  - dépôt sur la plateforme agréée → J8
+  - e-reporting → J8
+  - suivi des statuts → J8
+  - statut encaissée → J8
+- **12 Conventions d'honoraires**
+  - modèle → Conventions d'honoraires
+  - rattachement au dossier → Conventions d'honoraires
+  - alerte si dossier sans convention signée → Conventions d'honoraires
+- **13 Tableau de bord**
+  - chiffre d'affaires → Tableau de bord
+  - encours → Tableau de bord
+  - temps non facturé → Tableau de bord
+  - rentabilité par dossier et par client → Tableau de bord
+  - factures en erreur ou en attente sur la plateforme agréée → Tableau de bord
+  - mails à classer → Tableau de bord
+- **14 Révocation des postes**
+  - révocation et effacement à distance → J12
+
+---
+
 ## Phase 0 — Reconnaissance et planification
 
 - [x] **J0** — Phase 0 complète — VALIDÉ (contrôleur, détail dans `docs/journal/phase-0.md`)
@@ -26,7 +108,7 @@ Règle (ordre d'opération § 4.4) : les critères d'un jalon non validé et les
 
 ## Phase 2 — Lots parallèles
 
-Ordre architecte (révisé 2026-09-27) : **Migration Sync Streams** → **J8** → **Référence de dossier** (personnalisation comprise) → **Conflits généralisés** → **Coque** → **Vue scindée** → **Intercalaires personnalisés** → **J9** → **J10**.
+Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams** → **J8** → **Référence de dossier** → **Conflits généralisés** → **Coque** → **Vue scindée** → **Intercalaires personnalisés** → **Dossiers et contacts complets** → **Agenda** → **Documents, suite** → **J9** → **J10**. Phase 3, avant J14 : **Modèles et fusion** → **Facturation, suite** → **Conventions d'honoraires** → **Tableau de bord**.
 
 - [x] **J5** — Dossiers, contacts, droits — VALIDÉ `340ac42` (CI [36172577399](https://github.com/navelremi-boop/legalos2/actions/runs/36172577399))
 - [x] **J6** — Agenda et délais — VALIDÉ `bf3bfe3` (CI [36179592258](https://github.com/navelremi-boop/legalos2/actions/runs/36179592258)) ; reprise H1–H13 `0fc0c17` ; H7/H10/H12 → B10
@@ -96,6 +178,36 @@ Ordre architecte (révisé 2026-09-27) : **Migration Sync Streams** → **J8** �
     - `node tests/recette/s5-sqlite-par-flux.mjs` et `node tests/recette/j5-poste-tauri.mjs` → exit 0 : S5 pour la table des intercalaires ; l'intercalaire d'un dossier restreint est absent du SQLite du poste non autorisé.
     - `node tests/recette/s5-sync-streams.mjs` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
+- [ ] **Dossiers et contacts complets** — § 4.2 n° 1 et 2, ce que J5 n'a pas livré — critères proposés le 27/09, **à valider par l'architecte**
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/dossiers-contacts.mjs` → exit 0 (API, Postgres réel, puis app Tauri) :
+      - le dossier porte un client, des adversaires et des confrères adverses, une juridiction, un n° RG, un type et une étape ;
+      - des dossiers liés se retrouvent dans les deux sens ;
+      - un contact est une personne physique ou morale, avec un rôle dans chaque dossier et un historique ;
+      - données de facturation : SIREN, n° TVA, type de client (professionnel, particulier, étranger), celles qu'utilise F8.
+    - `node tests/recette/s5-sync-streams.mjs` et `node tests/recette/dossiers-contacts-conflits.mjs` → exit 0 : S5 sur ces tables ; conflits par champ (révision de base, journal, signal dans l'app), comme les autres tables.
+    - `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+
+- [ ] **Agenda** — § 4.2 n° 4, ce que J6 n'a pas livré — critères proposés le 27/09, **à valider par l'architecte**
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/agenda-tauri.mjs` → exit 0 (app Tauri, deux postes) :
+      - audiences, rendez-vous et tâches rattachés à un dossier, avec rappels ;
+      - une notification Tauri est émise pour un rappel échu ;
+      - une échéance calculée par le moteur de délais s'inscrit à l'agenda ;
+      - les invitations reçues par mail restent au jalon J11.
+    - `node tests/recette/s5-sync-streams.mjs` → exit 0 : un élément d'agenda d'un dossier restreint est absent du SQLite du poste non autorisé.
+    - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+
+- [ ] **Documents, suite** — § 4.2 n° 6, ce que J7 n'a pas livré — critères proposés le 27/09, **à valider par l'architecte**
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/documents-suite.mjs` → exit 0 (app Tauri, S4) :
+      - arborescence par dossier ;
+      - ouverture dans Word et renvoi automatique de la nouvelle version ;
+      - recherche dans les documents du dossier ;
+      - modification concurrente hors ligne : les deux versions sont conservées et signalées, aucun écrasement silencieux.
+    - `node tests/recette/s6-documents.mjs` → exit 0 (non-régression des versions).
+    - `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+
 - [ ] **J9** — Mail, étapes 1 à 3 du § 3.8.6 (S7) — critères validés par l'architecte le 27/09/2026
   - **Critères d'acceptation (commandes)** :
     - Étape 1, boîte de classement : `node tests/recette/s7-classement.mjs` → exit 0 (serveur de test GreenMail) :
@@ -145,6 +257,32 @@ Chaque jalon : recettes + clippy + contrôleur.
 ---
 
 ## Phase 3 — Intégration avancée
+
+- [ ] **Modèles et fusion** — § 4.2 n° 7 — critères proposés le 27/09, **à valider par l'architecte**
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/modeles-fusion.mjs` → exit 0 (app Tauri) : un courrier, une convention et un acte sont générés depuis les données du dossier (docxtemplater) ; le modèle est modifiable sans recompiler le binaire.
+    - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+
+- [ ] **Facturation, suite** — § 4.2 n° 10, ce que J8 n'a pas livré — critères proposés le 27/09, **à valider par l'architecte**
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/facturation-suite.mjs` → exit 0 (API, Postgres réel, puis app) :
+      - facture au forfait et au résultat ;
+      - provisions ;
+      - conditions tarifaires par client, par dossier et par intervenant ;
+      - relances ;
+      - encours et impayés.
+    - `node tests/recette/s9-factures.mjs` → exit 0 (non-régression du temps, des débours, des avoirs et de la facturation électronique).
+    - `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+
+- [ ] **Conventions d'honoraires** — § 4.2 n° 12 — critères proposés le 27/09, **à valider par l'architecte**
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/conventions-honoraires.mjs` → exit 0 (app Tauri) : une convention est produite depuis un modèle, rattachée au dossier ; l'ouverture d'un dossier sans convention signée affiche une alerte.
+    - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+
+- [ ] **Tableau de bord** — § 4.2 n° 13 — critères proposés le 27/09, **à valider par l'architecte**
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/tableau-de-bord.mjs` → exit 0 (app Tauri, requêtes locales) : chiffre d'affaires, encours, temps non facturé, rentabilité par dossier et par client, factures en erreur ou en attente sur la plateforme agréée, mails à classer.
+    - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
 Critères de chaque jalon à proposer à l'architecte avant l'ouverture de la phase 3.
 
