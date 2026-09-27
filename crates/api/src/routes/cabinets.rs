@@ -10,6 +10,10 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::auth::access::AuthAccess;
+use crate::conflits::{
+    appliquer_champ_texte, cle_idempotence, reserver_idempotence, valider_base_revision,
+    ContexteChamp,
+};
 use crate::error::ApiError;
 use crate::state::AppState;
 
@@ -70,9 +74,6 @@ pub async fn patch_cabinet(
     if body.idempotence_cle.trim().is_empty() {
         return Err(ApiError::bad_request("Clé d'idempotence requise"));
     }
-    if body.base_revision < 1 {
-        return Err(ApiError::bad_request("Version de base invalide"));
-    }
     let nom = champ_optionnel(body.nom)?;
     let slug = champ_optionnel(body.slug)?;
     if nom.is_none() && slug.is_none() {
@@ -85,19 +86,8 @@ pub async fn patch_cabinet(
         .await
         .map_err(|_| ApiError::internal("Transaction"))?;
 
-    let inserted = sqlx::query(
-        r#"INSERT INTO upload_idempotence (cle) VALUES ($1) ON CONFLICT (cle) DO NOTHING"#,
-    )
-    .bind(body.idempotence_cle.trim())
-    .execute(
-        tx.acquire()
-            .await
-            .map_err(|_| ApiError::internal("Transaction"))?,
-    )
-    .await
-    .map_err(|_| ApiError::internal("Idempotence"))?;
-
-    if inserted.rows_affected() == 0 {
+    let cle = cle_idempotence(claims.poste_id, &body.idempotence_cle);
+    if !reserver_idempotence(&mut tx, &cle).await? {
         tx.commit()
             .await
             .map_err(|_| ApiError::internal("Transaction"))?;
@@ -115,21 +105,23 @@ pub async fn patch_cabinet(
     )
     .await
     .map_err(|_| ApiError::internal("Base de données"))?
-    .ok_or_else(|| ApiError::bad_request("Cabinet introuvable"))?;
+    .ok_or_else(|| ApiError::not_found("Cabinet introuvable"))?;
 
-    if body.base_revision > courant.0 {
-        return Err(ApiError::bad_request(
-            "Version de base postérieure au serveur",
-        ));
-    }
+    valider_base_revision(body.base_revision, courant.0)?;
 
     let mut revision = courant.0;
     let contexte = ContexteChamp {
         cabinet_id,
         poste_id: claims.poste_id,
+        auteur_id: claims.sub,
         base_revision: body.base_revision,
+        enregistrement_id: cabinet_id,
+        table_cible: "cabinets",
+        dossier_id: None,
     };
-    appliquer_champ(
+    let nom_final = nom.as_deref().unwrap_or(courant.1.as_str());
+    let slug_final = slug.as_deref().unwrap_or(courant.2.as_str());
+    appliquer_champ_texte(
         &mut tx,
         &contexte,
         "nom",
@@ -138,7 +130,7 @@ pub async fn patch_cabinet(
         &mut revision,
     )
     .await?;
-    appliquer_champ(
+    appliquer_champ_texte(
         &mut tx,
         &contexte,
         "slug",
@@ -149,7 +141,9 @@ pub async fn patch_cabinet(
     .await?;
 
     if revision != courant.0 {
-        sqlx::query(r#"UPDATE cabinets SET revision = $1 WHERE id = $2"#)
+        sqlx::query(r#"UPDATE cabinets SET nom = $1, slug = $2, revision = $3 WHERE id = $4"#)
+            .bind(nom_final)
+            .bind(slug_final)
             .bind(revision)
             .bind(cabinet_id)
             .execute(
@@ -176,89 +170,6 @@ fn champ_optionnel(valeur: Option<String>) -> Result<Option<String>, ApiError> {
         return Err(ApiError::bad_request("Champ vide"));
     }
     Ok(Some(valeur))
-}
-
-struct ContexteChamp {
-    cabinet_id: Uuid,
-    poste_id: Uuid,
-    base_revision: i64,
-}
-
-async fn appliquer_champ(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    contexte: &ContexteChamp,
-    champ: &str,
-    nouvelle: Option<&str>,
-    actuelle: &str,
-    revision: &mut i64,
-) -> Result<(), ApiError> {
-    let Some(nouvelle) = nouvelle else {
-        return Ok(());
-    };
-    let conflit = sqlx::query_scalar::<_, bool>(
-        r#"
-        SELECT EXISTS (
-            SELECT 1 FROM journal_modifications
-            WHERE enregistrement_id = $1 AND champ = $2 AND revision_appliquee > $3
-        )
-        "#,
-    )
-    .bind(contexte.cabinet_id)
-    .bind(champ)
-    .bind(contexte.base_revision)
-    .fetch_one(
-        tx.acquire()
-            .await
-            .map_err(|_| ApiError::internal("Transaction"))?,
-    )
-    .await
-    .map_err(|_| ApiError::internal("Journal"))?;
-
-    let colonne = match champ {
-        "nom" => "nom",
-        "slug" => "slug",
-        _ => return Err(ApiError::bad_request("Champ non autorisé")),
-    };
-    let sql = format!("UPDATE cabinets SET {colonne} = $1 WHERE id = $2");
-    sqlx::query(&sql)
-        .bind(nouvelle)
-        .bind(contexte.cabinet_id)
-        .execute(
-            tx.acquire()
-                .await
-                .map_err(|_| ApiError::internal("Transaction"))?,
-        )
-        .await
-        .map_err(|_| ApiError::bad_request("Champ refusé"))?;
-
-    *revision += 1;
-    sqlx::query(
-        r#"
-        INSERT INTO journal_modifications (
-            id, cabinet_id, table_cible, enregistrement_id, champ,
-            valeur_remplacee, valeur_appliquee, revision_base, revision_appliquee,
-            poste_id, conflit
-        )
-        VALUES ($1, $2, 'cabinets', $2, $3, $4, $5, $6, $7, $8, $9)
-        "#,
-    )
-    .bind(Uuid::now_v7())
-    .bind(contexte.cabinet_id)
-    .bind(champ)
-    .bind(actuelle)
-    .bind(nouvelle)
-    .bind(contexte.base_revision)
-    .bind(*revision)
-    .bind(contexte.poste_id)
-    .bind(conflit)
-    .execute(
-        tx.acquire()
-            .await
-            .map_err(|_| ApiError::internal("Transaction"))?,
-    )
-    .await
-    .map_err(|_| ApiError::internal("Journal"))?;
-    Ok(())
 }
 
 async fn charger_cabinet(state: &AppState, cabinet_id: Uuid) -> Result<CabinetResponse, ApiError> {
@@ -828,11 +739,11 @@ async fn journaliser_si_change(
     sqlx::query(
         r#"
         INSERT INTO journal_modifications (
-            id, cabinet_id, table_cible, enregistrement_id, champ,
+            id, cabinet_id, dossier_id, table_cible, enregistrement_id, champ,
             valeur_remplacee, valeur_appliquee, revision_base, revision_appliquee,
             poste_id, auteur_id, conflit
         )
-        VALUES ($1, $2, 'cabinets', $2, $3, $4, $5, $6, $7, $8, $9, FALSE)
+        VALUES ($1, $2, NULL, 'cabinets', $2, $3, $4, $5, $6, $7, $8, $9, FALSE)
         "#,
     )
     .bind(Uuid::now_v7())
