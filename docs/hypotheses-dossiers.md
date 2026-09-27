@@ -26,6 +26,8 @@ Le cahier § 3.4 impose la référence attribuée par le serveur (année + numé
 
 Les initiales sont celles de l'utilisateur qui crée le dossier : le modèle de données n'a pas encore d'avocat responsable du dossier. Si un avocat responsable est ajouté, ses initiales remplaceront celles du créateur pour les dossiers créés ensuite.
 
+Source : les initiales enregistrées pour l'utilisateur (une à quatre majuscules) ; à défaut, celles tirées de son adresse : première lettre, sans accent, de chaque segment de la partie avant « @ » (segments séparés par « . », « - », « _ » ou « + »), quatre au plus, « X » si aucune lettre. La base ne connaît pas encore le nom des utilisateurs.
+
 ### R0-c — Changement de modèle (à valider)
 
 Un nouveau modèle s'applique aux dossiers créés ensuite. Une référence attribuée ne change jamais, et la séquence de l'année continue sans remise à zéro. À faire valider avant le premier dossier réel (même principe que la numérotation des factures, cahier § 6 « Points ouverts » : une séquence ne se corrige pas après coup).
@@ -43,8 +45,9 @@ Le texte de l'arbitrage R0 n'a pas été reçu (`BLOCAGES.md`, B11). R0-d à R0-
 - Numéro attribué au prochain dossier de la période en cours (l'année avec `annuelle`, toute la vie du cabinet avec `jamais`) : un cabinet qui arrive d'un autre logiciel continue sa numérotation.
 - Entier supérieur ou égal à 1, et strictement supérieur au dernier numéro déjà attribué dans la période : sinon, le serveur pourrait redonner une référence existante.
 - Avec `annuelle`, il ne vaut que pour l'année en cours ; l'année suivante repart à 1.
+- Sans numéro de départ, un changement de modèle ou de politique ne fait jamais reculer la numérotation. Avec `annuelle`, le prochain numéro est le plus grand entre celui de la séquence de l'année et le dernier numéro attribué dans l'année plus un. Avec `jamais`, le compteur continu prend aussi part au maximum : au premier passage à `jamais`, le compte de l'année en cours se poursuit.
 
 ### R0-f — Refus (à valider)
 
 - **Modèle invalide**, refusé par l'API (400, message en français) et signalé dans Réglages avant l'enregistrement : modèle vide ; jeton inconnu ou accolade non fermée ; aucun jeton de numéro, ou plusieurs ; `{N:k}` hors de 1 à 9 ; aucun jeton d'année avec `annuelle` ; caractère de contrôle ; plus de 40 caractères.
-- **Changement qui redonnerait une référence existante**, refusé par l'API (409, message en français) : avant d'enregistrer un nouveau modèle, une nouvelle politique ou un nouveau numéro de départ, le serveur vérifie qu'aucune référence déjà attribuée dans le cabinet ne pourrait être produite de nouveau (même année, numéro encore atteignable). La vérification a lieu dans la transaction qui enregistre le changement ; l'index d'unicité reste le dernier rempart.
+- **Changement qui redonnerait une référence existante**, refusé par l'API (409, message en français) : avant d'enregistrer un nouveau modèle, une nouvelle politique ou un nouveau numéro de départ, le serveur vérifie qu'aucune référence déjà attribuée dans le cabinet ne pourrait être produite de nouveau (même année, numéro encore atteignable), à l'identique ou sous la même forme de classement, sans tenir compte des majuscules : l'adresse de classement doit désigner un seul dossier. La vérification a lieu dans la transaction qui enregistre le changement ; deux index d'unicité, sur la référence et sur sa forme de classement en majuscules, restent le dernier rempart.
