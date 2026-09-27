@@ -242,6 +242,8 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
         onThemeChange={setThemeMode}
         onResetSession={onResetSession}
         onReconnect={onReconnect}
+        instanceUrl={instanceUrl}
+        horsLigne={horsLigne}
       />
     );
   } else if (nav === "dossier" && dossierActif) {

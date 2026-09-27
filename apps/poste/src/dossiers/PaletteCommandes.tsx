@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { echapperMotifLike } from "@/lib/echapperMotifLike";
 import { fr } from "@/lib/fr";
 import { libelleReferenceDossier } from "@/lib/referenceDossier";
 import { getPowerSyncDatabase } from "@/sync/database";
@@ -31,15 +32,16 @@ export function PaletteCommandes() {
 
   useEffect(() => {
     if (!ouverte) return;
-    const terme = `%${requete.trim()}%`;
+    const terme = `%${echapperMotifLike(requete.trim())}%`;
     void getPowerSyncDatabase()
       .then((database) =>
         database.getAll<Resultat>(
           `SELECT DISTINCT d.id, d.nom, d.numero_rg, d.juridiction, d.reference
            FROM dossiers d
            LEFT JOIN parties p ON p.dossier_id = d.id
-           WHERE d.nom LIKE ? OR d.numero_rg LIKE ? OR d.juridiction LIKE ?
-              OR p.nom LIKE ? OR IFNULL(d.reference, '') LIKE ?
+           WHERE d.nom LIKE ? ESCAPE '\\' OR d.numero_rg LIKE ? ESCAPE '\\'
+              OR d.juridiction LIKE ? ESCAPE '\\' OR p.nom LIKE ? ESCAPE '\\'
+              OR IFNULL(d.reference, '') LIKE ? ESCAPE '\\'
            LIMIT 8`,
           [terme, terme, terme, terme, terme],
         ),

@@ -12,14 +12,14 @@ export function estReferenceServeur(reference: string | null | undefined): boole
   return REFERENCE_SERVEUR_RE.test(reference?.trim() ?? "");
 }
 
-/** Référence seule (onglets, palette, liste) : « 2026-042 » ou « Référence en attente ». */
+/** Référence attribuée (tout format cabinet, « / » intact) ou « Référence en attente ». */
 export function libelleReferenceDossier(reference: string | null | undefined): string {
   const texte = reference?.trim() ?? "";
-  return estReferenceServeur(texte) ? texte : REFERENCE_EN_ATTENTE;
+  return texte.length > 0 ? texte : REFERENCE_EN_ATTENTE;
 }
 
-/** Ligne de l’étiquette : « Dossier 2026-042 » ou « Référence en attente ». */
+/** Ligne de l’étiquette : « Dossier 2026/042 » ou « Référence en attente ». */
 export function libelleEtiquetteReference(reference: string | null | undefined): string {
   const texte = reference?.trim() ?? "";
-  return estReferenceServeur(texte) ? `Dossier ${texte}` : REFERENCE_EN_ATTENTE;
+  return texte.length > 0 ? `Dossier ${texte}` : REFERENCE_EN_ATTENTE;
 }
