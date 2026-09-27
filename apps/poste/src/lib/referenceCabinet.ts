@@ -81,7 +81,10 @@ export function etatDepuisCorps(corps: unknown): EtatReferenceCabinet {
     numero_depart: entierPositif(objet.numero_depart),
     apercu: {
       annee: entierPositif(objet.annee) ?? horsLigne.annee,
-      prochain: entierPositif(objet.prochain) ?? horsLigne.prochain,
+      prochain:
+        entierPositif(objet.prochain_numero) ??
+        entierPositif(objet.prochain) ??
+        horsLigne.prochain,
       initiales:
         typeof objet.initiales === "string" && objet.initiales.trim() !== ""
           ? objet.initiales
@@ -129,7 +132,14 @@ export async function enregistrerReferenceCabinet(
         accept: "application/json",
         "content-type": "application/json",
       },
-      body: JSON.stringify(miseAJour),
+      body: JSON.stringify({
+        idempotence_cle: crypto.randomUUID(),
+        modele: miseAJour.modele,
+        remise_a_zero: miseAJour.remise_a_zero,
+        ...(miseAJour.numero_depart === null
+          ? {}
+          : { numero_depart: miseAJour.numero_depart }),
+      }),
     });
     const corps = await lireJson(reponse);
     if (!reponse.ok) {
