@@ -10,7 +10,7 @@ use powersync::{
 };
 use reqwest::StatusCode;
 use serde::Serialize;
-use serde_json::{Map, Value, json};
+use serde_json::{json, Map, Value};
 use tauri::{AppHandle, Runtime};
 use tauri_plugin_powersync::PowerSyncExt;
 
@@ -252,7 +252,16 @@ async fn envoyer_patch(
         body.insert(k, normalisee);
     }
     let chemin = (ressource.patch_chemin)(&entry.id);
-    envoyer_http(session, db, ressource.table, &entry.id, "PATCH", &chemin, &body).await
+    envoyer_http(
+        session,
+        db,
+        ressource.table,
+        &entry.id,
+        "PATCH",
+        &chemin,
+        &body,
+    )
+    .await
 }
 
 async fn envoyer_put(
@@ -282,17 +291,23 @@ async fn envoyer_put(
         }
         body.insert(k.clone(), normaliser_valeur(ressource, k, v.clone()));
     }
-    envoyer_http(session, db, ressource.table, &entry.id, "PUT", &chemin, &body).await
+    envoyer_http(
+        session,
+        db,
+        ressource.table,
+        &entry.id,
+        "PUT",
+        &chemin,
+        &body,
+    )
+    .await
 }
 
 fn normaliser_valeur(ressource: &Ressource, cle: &str, valeur: Value) -> Value {
     if ressource.champs_entiers.contains(&cle) {
         match &valeur {
             Value::Number(_) => valeur,
-            Value::String(s) => s
-                .parse::<i64>()
-                .map(Value::from)
-                .unwrap_or(valeur),
+            Value::String(s) => s.parse::<i64>().map(Value::from).unwrap_or(valeur),
             Value::Bool(b) => Value::from(i64::from(*b)),
             _ => valeur,
         }
@@ -302,10 +317,7 @@ fn normaliser_valeur(ressource: &Ressource, cle: &str, valeur: Value) -> Value {
 }
 
 fn cle_idempotence(id: &str, base_revision: i64, champs: &Map<String, Value>) -> String {
-    let mut parties: Vec<String> = champs
-        .iter()
-        .map(|(k, v)| format!("{k}={}", v))
-        .collect();
+    let mut parties: Vec<String> = champs.iter().map(|(k, v)| format!("{k}={}", v)).collect();
     parties.sort();
     format!("{id}:{base_revision}:{}", parties.join("|"))
 }
@@ -409,12 +421,7 @@ async fn consign_refus(
         )",
     )
     .map_err(|err| upload_err(format!("création refus_sync : {err}")))?;
-    let id = format!(
-        "refus-{}-{}-{}",
-        table,
-        enregistrement_id,
-        chrono_compact()
-    );
+    let id = format!("refus-{}-{}-{}", table, enregistrement_id, chrono_compact());
     let cree_le = chrono_iso();
     conn.execute(
         "INSERT INTO refus_sync (id, table_cible, enregistrement_id, operation, statut, message, cree_le)
