@@ -29,10 +29,12 @@ pub fn router(state: Arc<AppState>) -> Router {
             get(cabinets::lire_reference).put(cabinets::ecrire_reference),
         )
         .route("/dossiers", post(dossiers::creer_dossier))
+        .route("/dossiers/{dossier_id}", patch(dossiers::patch_dossier))
         .route(
             "/dossiers/{dossier_id}/parties",
             post(dossiers::creer_partie),
         )
+        .route("/parties/{partie_id}", patch(dossiers::patch_partie))
         .route("/collaborateurs", post(collaborateurs::creer_collaborateur))
         .route("/documents", post(documents::creer_document))
         .route(
@@ -56,7 +58,13 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/factures/{id}/pdf", get(factures::lire_pdf))
         .route("/annuaire/{siren}", get(factures::annuaire))
         .route("/temps", post(temps::creer_temps))
+        .route("/temps/{temps_id}", patch(temps::patch_temps))
         .route("/brouillons-facture", post(temps::creer_brouillon_temps))
+        .route(
+            "/brouillons-facture/{brouillon_id}",
+            patch(temps::patch_brouillon),
+        )
         .route("/taux-horaires", post(temps::creer_taux))
+        .route("/taux-horaires/{taux_id}", patch(temps::patch_taux))
         .with_state(state)
 }

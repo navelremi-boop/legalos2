@@ -8,7 +8,26 @@ streams:
     auto_subscribe: true
     queries:
       - SELECT id, slug, nom, totp_obligatoire, reference_modele, reference_remise_a_zero, cree_le::text AS cree_le, revision FROM cabinets WHERE id::text = auth.parameter('cabinet_id')
-      - SELECT id, cabinet_id, table_cible, enregistrement_id, champ, valeur_remplacee, valeur_appliquee, revision_base, revision_appliquee, conflit, cree_le::text AS cree_le FROM journal_modifications WHERE cabinet_id::text = auth.parameter('cabinet_id')
+
+  journal_cabinet:
+    auto_subscribe: true
+    query: SELECT id, cabinet_id, dossier_id, table_cible, enregistrement_id, champ, valeur_remplacee, valeur_appliquee, revision_base, revision_appliquee, conflit, cree_le::text AS cree_le FROM journal_modifications WHERE dossier_id IS NULL AND cabinet_id::text = auth.parameter('cabinet_id')
+
+  journal_publics:
+    auto_subscribe: true
+    query: |
+      SELECT journal_modifications.id, journal_modifications.cabinet_id, journal_modifications.dossier_id, journal_modifications.table_cible, journal_modifications.enregistrement_id, journal_modifications.champ, journal_modifications.valeur_remplacee, journal_modifications.valeur_appliquee, journal_modifications.revision_base, journal_modifications.revision_appliquee, journal_modifications.conflit, journal_modifications.cree_le::text AS cree_le
+      FROM journal_modifications
+      INNER JOIN dossiers ON journal_modifications.dossier_id = dossiers.id
+      WHERE dossiers.visibilite = 'public' AND dossiers.cabinet_id::text = auth.parameter('cabinet_id')
+
+  journal_restreints:
+    auto_subscribe: true
+    query: |
+      SELECT journal_modifications.id, journal_modifications.cabinet_id, journal_modifications.dossier_id, journal_modifications.table_cible, journal_modifications.enregistrement_id, journal_modifications.champ, journal_modifications.valeur_remplacee, journal_modifications.valeur_appliquee, journal_modifications.revision_base, journal_modifications.revision_appliquee, journal_modifications.conflit, journal_modifications.cree_le::text AS cree_le
+      FROM journal_modifications
+      INNER JOIN dossier_acces ON journal_modifications.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
 
   dossiers_publics:
     auto_subscribe: true
@@ -73,7 +92,7 @@ streams:
   temps_publics:
     auto_subscribe: true
     query: |
-      SELECT temps_saisis.id, temps_saisis.cabinet_id, temps_saisis.dossier_id, temps_saisis.intervenant_id, temps_saisis.minutes, temps_saisis.libelle, temps_saisis.taux_centimes_heure, temps_saisis.ht_centimes, temps_saisis.visibilite, temps_saisis.cree_le::text AS cree_le
+      SELECT temps_saisis.id, temps_saisis.cabinet_id, temps_saisis.dossier_id, temps_saisis.intervenant_id, temps_saisis.minutes, temps_saisis.libelle, temps_saisis.taux_centimes_heure, temps_saisis.ht_centimes, temps_saisis.visibilite, temps_saisis.revision, temps_saisis.cree_le::text AS cree_le
       FROM temps_saisis
       INNER JOIN dossiers ON temps_saisis.dossier_id = dossiers.id
       WHERE dossiers.visibilite = 'public' AND dossiers.cabinet_id::text = auth.parameter('cabinet_id')
@@ -81,7 +100,7 @@ streams:
   temps_restreints:
     auto_subscribe: true
     query: |
-      SELECT temps_saisis.id, temps_saisis.cabinet_id, temps_saisis.dossier_id, temps_saisis.intervenant_id, temps_saisis.minutes, temps_saisis.libelle, temps_saisis.taux_centimes_heure, temps_saisis.ht_centimes, temps_saisis.visibilite, temps_saisis.cree_le::text AS cree_le
+      SELECT temps_saisis.id, temps_saisis.cabinet_id, temps_saisis.dossier_id, temps_saisis.intervenant_id, temps_saisis.minutes, temps_saisis.libelle, temps_saisis.taux_centimes_heure, temps_saisis.ht_centimes, temps_saisis.visibilite, temps_saisis.revision, temps_saisis.cree_le::text AS cree_le
       FROM temps_saisis
       INNER JOIN dossier_acces ON temps_saisis.dossier_id = dossier_acces.dossier_id
       WHERE dossier_acces.utilisateur_texte = auth.user_id()
@@ -89,7 +108,7 @@ streams:
   brouillons_publics:
     auto_subscribe: true
     query: |
-      SELECT brouillons_facture.id, brouillons_facture.cabinet_id, brouillons_facture.dossier_id, brouillons_facture.temps_id, brouillons_facture.numero, brouillons_facture.ht_centimes, brouillons_facture.libelle, brouillons_facture.intervenant_id, brouillons_facture.taux_centimes_heure, brouillons_facture.visibilite, brouillons_facture.cree_le::text AS cree_le
+      SELECT brouillons_facture.id, brouillons_facture.cabinet_id, brouillons_facture.dossier_id, brouillons_facture.temps_id, brouillons_facture.numero, brouillons_facture.ht_centimes, brouillons_facture.libelle, brouillons_facture.intervenant_id, brouillons_facture.taux_centimes_heure, brouillons_facture.visibilite, brouillons_facture.revision, brouillons_facture.cree_le::text AS cree_le
       FROM brouillons_facture
       INNER JOIN dossiers ON brouillons_facture.dossier_id = dossiers.id
       WHERE dossiers.visibilite = 'public' AND dossiers.cabinet_id::text = auth.parameter('cabinet_id')
@@ -97,7 +116,7 @@ streams:
   brouillons_restreints:
     auto_subscribe: true
     query: |
-      SELECT brouillons_facture.id, brouillons_facture.cabinet_id, brouillons_facture.dossier_id, brouillons_facture.temps_id, brouillons_facture.numero, brouillons_facture.ht_centimes, brouillons_facture.libelle, brouillons_facture.intervenant_id, brouillons_facture.taux_centimes_heure, brouillons_facture.visibilite, brouillons_facture.cree_le::text AS cree_le
+      SELECT brouillons_facture.id, brouillons_facture.cabinet_id, brouillons_facture.dossier_id, brouillons_facture.temps_id, brouillons_facture.numero, brouillons_facture.ht_centimes, brouillons_facture.libelle, brouillons_facture.intervenant_id, brouillons_facture.taux_centimes_heure, brouillons_facture.visibilite, brouillons_facture.revision, brouillons_facture.cree_le::text AS cree_le
       FROM brouillons_facture
       INNER JOIN dossier_acces ON brouillons_facture.dossier_id = dossier_acces.dossier_id
       WHERE dossier_acces.utilisateur_texte = auth.user_id()
@@ -105,14 +124,14 @@ streams:
   taux_cabinet:
     auto_subscribe: true
     query: |
-      SELECT id, cabinet_id, client_partie_id, dossier_id, intervenant_id, centimes_par_heure, visibilite, cree_le::text AS cree_le
+      SELECT id, cabinet_id, client_partie_id, dossier_id, intervenant_id, centimes_par_heure, visibilite, revision, cree_le::text AS cree_le
       FROM taux_horaires
       WHERE dossier_id IS NULL AND cabinet_id::text = auth.parameter('cabinet_id')
 
   taux_publics:
     auto_subscribe: true
     query: |
-      SELECT taux_horaires.id, taux_horaires.cabinet_id, taux_horaires.client_partie_id, taux_horaires.dossier_id, taux_horaires.intervenant_id, taux_horaires.centimes_par_heure, taux_horaires.visibilite, taux_horaires.cree_le::text AS cree_le
+      SELECT taux_horaires.id, taux_horaires.cabinet_id, taux_horaires.client_partie_id, taux_horaires.dossier_id, taux_horaires.intervenant_id, taux_horaires.centimes_par_heure, taux_horaires.visibilite, taux_horaires.revision, taux_horaires.cree_le::text AS cree_le
       FROM taux_horaires
       INNER JOIN dossiers ON taux_horaires.dossier_id = dossiers.id
       WHERE dossiers.visibilite = 'public' AND dossiers.cabinet_id::text = auth.parameter('cabinet_id')
@@ -120,7 +139,7 @@ streams:
   taux_restreints:
     auto_subscribe: true
     query: |
-      SELECT taux_horaires.id, taux_horaires.cabinet_id, taux_horaires.client_partie_id, taux_horaires.dossier_id, taux_horaires.intervenant_id, taux_horaires.centimes_par_heure, taux_horaires.visibilite, taux_horaires.cree_le::text AS cree_le
+      SELECT taux_horaires.id, taux_horaires.cabinet_id, taux_horaires.client_partie_id, taux_horaires.dossier_id, taux_horaires.intervenant_id, taux_horaires.centimes_par_heure, taux_horaires.visibilite, taux_horaires.revision, taux_horaires.cree_le::text AS cree_le
       FROM taux_horaires
       INNER JOIN dossier_acces ON taux_horaires.dossier_id = dossier_acces.dossier_id
       WHERE dossier_acces.utilisateur_texte = auth.user_id()

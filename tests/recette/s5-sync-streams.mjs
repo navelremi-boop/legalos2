@@ -29,6 +29,9 @@ if (compose.includes("sync-rules.yaml")) fail("docker-compose : sync-rules.yaml 
 
 const fluxAttendus = [
   "cabinet_global",
+  "journal_cabinet",
+  "journal_publics",
+  "journal_restreints",
   "dossiers_publics",
   "dossiers_restreints",
   "parties_publics",
@@ -61,11 +64,44 @@ for (const nom of fluxAttendus) {
 }
 
 const global = blocFlux("cabinet_global");
-if (!/\bFROM cabinets\b/i.test(global) || !/\bFROM journal_modifications\b/i.test(global)) {
-  fail("cabinet_global : cabinets + journal_modifications requis");
+if (!/\bFROM cabinets\b/i.test(global)) {
+  fail("cabinet_global : cabinets requis");
+}
+if (/\bFROM journal_modifications\b/i.test(global)) {
+  fail("cabinet_global : journal_modifications interdit (trois flux dédiés)");
 }
 if (!/auth\.parameter\('cabinet_id'\)/.test(global)) {
   fail("cabinet_global : auth.parameter('cabinet_id') requis");
+}
+
+const journalCabinet = blocFlux("journal_cabinet");
+if (!/\bFROM journal_modifications\b/i.test(journalCabinet)) {
+  fail("journal_cabinet : journal_modifications requis");
+}
+if (!/dossier_id\s+IS\s+NULL/i.test(journalCabinet)) {
+  fail("journal_cabinet : dossier_id IS NULL requis");
+}
+if (!/auth\.parameter\('cabinet_id'\)/.test(journalCabinet)) {
+  fail("journal_cabinet : auth.parameter('cabinet_id') requis");
+}
+
+const journalPublics = blocFlux("journal_publics");
+if (!/INNER JOIN dossiers/i.test(journalPublics)) {
+  fail("journal_publics : JOIN dossiers requis");
+}
+if (!/visibilite\s*=\s*'public'/.test(journalPublics)) {
+  fail("journal_publics : filtre dossiers publics requis");
+}
+if (!/auth\.parameter\('cabinet_id'\)/.test(journalPublics)) {
+  fail("journal_publics : auth.parameter('cabinet_id') requis");
+}
+
+const journalRestreints = blocFlux("journal_restreints");
+if (!/INNER JOIN dossier_acces/i.test(journalRestreints)) {
+  fail("journal_restreints : JOIN dossier_acces requis");
+}
+if (!/auth\.user_id\(\)/.test(journalRestreints)) {
+  fail("journal_restreints : auth.user_id() requis");
 }
 
 const dossiersPublics = blocFlux("dossiers_publics");
@@ -161,7 +197,7 @@ const requetes = [...yaml.matchAll(/(?:^|\n)\s{4,}-\s*(SELECT[\s\S]*?)(?=\n\s{4}
   )
   .filter((q) => /\bSELECT\b/i.test(q));
 
-if (requetes.length < 16) fail(`requêtes Sync Streams insuffisantes (${requetes.length})`);
+if (requetes.length < 19) fail(`requêtes Sync Streams insuffisantes (${requetes.length})`);
 for (const sql of requetes) {
   const n = compterTables(sql);
   if (n > 2) fail(`requête > 2 tables (${n}) : ${sql.slice(0, 80).replace(/\s+/g, " ")}…`);
@@ -186,5 +222,5 @@ if (existsSync(join(root, "docs/sync-rules.md"))) {
 }
 
 console.log(
-  "s5-sync-streams: OK — flux Sync Streams (dossiers, parties, documents, versions, temps, brouillons, taux)",
+  "s5-sync-streams: OK — flux Sync Streams (cabinet, journal ×3, dossiers, parties, documents, versions, temps, brouillons, taux)",
 );
