@@ -19,7 +19,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,6 +38,14 @@ import {
 
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "../..");
 const poste = join(root, "apps/poste");
+
+/** `.env` est ignoré par git : un worktree n'en a pas. Compose cible le dépôt qui le détient. */
+function racineInstance() {
+  if (existsSync(join(root, ".env"))) return root;
+  const principal = join(root, "..", "..");
+  if (existsSync(join(principal, ".env"))) return principal;
+  return root;
+}
 const instanceUrl = process.env.LEGALOS_INSTANCE_URL ?? "http://127.0.0.1:8088";
 const api = `${instanceUrl}/api`;
 const marque = String(Date.now()).slice(-6);
@@ -76,7 +84,7 @@ function sqlServeur(requete) {
         "-tAc",
         requete,
       ],
-      { cwd: root, stdio: ["ignore", "pipe", "ignore"] },
+      { cwd: racineInstance(), stdio: ["ignore", "pipe", "ignore"] },
     );
     let out = "";
     child.stdout.on("data", (chunk) => {
@@ -320,7 +328,7 @@ function compose(args) {
     const child = spawn(
       "docker",
       ["compose", "-f", "instance/docker-compose.yml", "--env-file", ".env", ...args],
-      { cwd: root, stdio: "ignore" },
+      { cwd: racineInstance(), stdio: "ignore" },
     );
     child.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`compose ${args[0]}`))));
   });
