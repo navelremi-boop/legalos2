@@ -3,13 +3,13 @@
 Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 - **Phase 0–1** VALIDÉES ; **J5–J7** VALIDÉS ; **Migration Sync Streams** VALIDÉE `9f80388` ; **J8** VALIDÉ `e8eb6b2`.
-- **Référence de dossier** : **non validée** (consigne du 27/09) ; verdict partiel VALIDÉ sur `6a1a050` pour l'attribution au format fixe ; la personnalisation (arbitrage R0 et complément) fait partie du jalon.
-- **En cours** : **Référence de dossier**, personnalisation.
-- **Ordre** : ~~Streams~~ → ~~J8~~ → **Référence de dossier** (personnalisation comprise) → Conflits généralisés → Coque (validation, points médians compris) → Vue scindée → Intercalaires → J9 → J10.
+- **Référence de dossier** : VALIDÉ `03ca364` (contrôleur, CI [36322383021](https://github.com/navelremi-boop/legalos2/actions/runs/36322383021)). Minutes des trois runs de clôture : **100** (durées de jobs arrondies à la minute supérieure ; le job macOS de [36319178833](https://github.com/navelremi-boop/legalos2/actions/runs/36319178833) compte dix fois).
+- **En cours** : **Conflits généralisés**.
+- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → **Conflits généralisés** → Coque → Vue scindée → Intercalaires → J9 → J10.
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance).
 - **Sync** : Streams édition 3, service 1.26.1. Dette mensuelle avis PowerSync.
 - **Coque** corrigée (`22d765e`), non cochée : points médians de La journée (consigne 3), onglets de démonstration (dette). La journée est validée par l'architecte sous réserve des captures régénérées (consigne du 27/09, point 2).
-- **B11 levé** (arbitrage R0 du 26/09 reçu le 27/09) : R0-a, R0-c, R0-d et R0-e confirmés. Écarts dans `dfed55c`. CI de cette fusion verte ([36319178833](https://github.com/navelremi-boop/legalos2/actions/runs/36319178833)). Contrôleur REFUSÉ : l'affichage du numéro minimal n'était pas prouvé à l'écran. Recette complétée : `reference-modele-ecran.mjs` affiche `1000000000`.
+- **B11 levé**. Contrôleur d'abord REFUSÉ (affichage du numéro minimal). Recette `reference-modele-ecran.mjs` : exit 0, numéro `1000000000`. Second verdict **VALIDÉ** sur `03ca364`.
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---
