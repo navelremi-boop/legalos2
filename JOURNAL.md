@@ -4,13 +4,29 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 - **Phase 0–1** VALIDÉES ; **J5–J7** VALIDÉS ; **Migration Sync Streams** VALIDÉE `9f80388` ; **J8** VALIDÉ `e8eb6b2`.
 - **Référence de dossier** : VALIDÉ `03ca364` (contrôleur, CI [36322383021](https://github.com/navelremi-boop/legalos2/actions/runs/36322383021)). Minutes des trois runs de clôture : **100** (durées de jobs arrondies à la minute supérieure ; le job macOS de [36319178833](https://github.com/navelremi-boop/legalos2/actions/runs/36319178833) compte dix fois).
-- **En cours** : **Conflits généralisés**. Lot API fusionné (`5fbac31`, CI de la PR verte). Lot poste (PR #5, `6b1a120`) : conflit de schéma résolu, non fusionné — la CI ne démarre plus (B13).
+- **En cours** : **Conflits généralisés**. Lot API fusionné (`5fbac31`). Lot poste (PR #5, `6b1a120`) non fusionné. B13 levé : dépôt public, runs relancés.
 - **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → **Conflits généralisés** → Coque → Vue scindée → Intercalaires → Dossiers et contacts complets → Agenda → Documents, suite → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance).
 - **Sync** : Streams édition 3, service 1.26.1. Dette mensuelle avis PowerSync.
 - **Coque** corrigée (`22d765e`), non cochée : points médians de La journée (consigne 3), onglets de démonstration (dette). La journée est validée par l'architecte sous réserve des captures régénérées (consigne du 27/09, point 2).
 - **B11 levé**. Contrôleur d'abord REFUSÉ (affichage du numéro minimal). Recette `reference-modele-ecran.mjs` : exit 0, numéro `1000000000`. Second verdict **VALIDÉ** sur `03ca364`.
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
+
+---
+
+## 2026-09-27 — Consigne de l'architecte : actions autorisées
+
+Texte reçu : GitHub Actions n'exécute plus que les actions créées par GitHub et la liste blanche `dtolnay/rust-toolchain`, `Swatinem/rust-cache`, `pnpm/action-setup`. Toute nouvelle action tierce passe par `BLOCAGES.md` (nom, version, justification) : le commandement l'ajoute. Aucun contournement (script téléchargé, copie de l'action dans le dépôt). Avant J14, épingler chaque action tierce sur un hash de commit complet plutôt que sur une étiquette.
+
+Traitement : le tableau est dans `BLOCAGES.md`. `workflows-valides.mjs` refuse une action hors `actions/` et `github/` qui n'y figure pas à la version indiquée, ainsi qu'une action locale ou une image Docker. Dette « Avant J14 » dans `PLAN.md` pour l'épinglage par hash. Les trois actions du workflow sont déjà celles de la liste.
+
+---
+
+## 2026-09-27 — Consigne de l'architecte : dépôt public
+
+Texte reçu : B13 levé, le dépôt est public. Relancer les runs échoués du dernier commit de `main` et de la PR #5 (`gh run rerun <id> --failed`), puis reprendre Conflits généralisés. Tout l'historique est lisible et définitif. `user.email` local = l'adresse noreply du compte GitHub. Hors développement, l'instance refuse de démarrer si un secret de `.env`, Garage compris, vaut une valeur des fichiers d'exemple ; `cargo xtask install` génère tous les secrets ; test dans la recette. Aucune donnée personnelle ou réelle dans le dépôt.
+
+Traitement : `permissions: contents: read` en tête de la CI. Refus au démarrage de l'API (`SECRETS_PUBLIES`), secrets Garage, Postgres et GreenMail transmis au conteneur API ; Garage et GreenMail attendent l'API. Recette `secrets-publies.mjs`. `cargo xtask install` écrit des secrets aléatoires et ne réécrit pas un `.env` déjà sain. Les auteurs de tous les commits sont l'adresse noreply. Douze commits de fusion par rebase ont un autre committer (adresse principale du compte) : l'historique est définitif, aucune réécriture. Les fichiers du dépôt ne contiennent que des adresses fictives (`example`, `cabinet-fictif`, `cabinet.test`). Runs relancés : [36327108849](https://github.com/navelremi-boop/legalos2/actions/runs/36327108849) et [36326938887](https://github.com/navelremi-boop/legalos2/actions/runs/36326938887).
 
 ---
 

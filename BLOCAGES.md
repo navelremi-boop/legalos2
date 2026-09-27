@@ -13,9 +13,19 @@
 | B10 | Revue juridique par l'avocat avant toute mise en service réelle | Relire, avant une mise en service réelle, les délais **H1–H13**, la facturation **F0–F8** et les hypothèses d'**installation**, déjà retenus à titre provisoire par l'architecte le 27/09/2026. Voir `docs/hypotheses-delais.md`, `docs/hypotheses-facturation.md`, `docs/hypotheses-installation.md` et `RAPPORT.md`. | Ne bloque plus le développement |
 | B11 | ~~Texte de l'arbitrage R0~~ | **Levé 2026-09-27** : texte du 26/09 reçu. Il confirme R0-a, R0-c, R0-d et R0-e. Écarts (responsable, 409, R0-g) traités dans le jalon Référence en cours. | — |
 | B12 | Signalement à PowerSync : `tauri-plugin-powersync` 0.0.6 tire une pile HTTP abandonnée (avis RustSec, `time` 0.2 qui ne compile plus) ; l'état-major ne publie rien hors du dépôt | Transmettre depuis un compte GitHub le texte préparé dans `docs/audit-dependances.md` (section « Signalement préparé pour PowerSync ») au dépôt du SDK Tauri de PowerSync | Aucun sur le reste ; conditionne la levée des avis de la chaîne PowerSync |
-| B13 | GitHub Actions ne démarre plus | Le 27/09 vers 16:40, les jobs échouent en une seconde : « recent account payments have failed or your spending limit needs to be increased ». Runs [36326788762](https://github.com/navelremi-boop/legalos2/actions/runs/36326788762) (`main`, fusion API) et [36326938887](https://github.com/navelremi-boop/legalos2/actions/runs/36326938887) (PR #5). Relever le plafond ou le paiement dans Billing & plans. | La CI verte reste exigée avant de cocher un jalon. Le développement continue en local. La PR #5 n'est pas fusionnée. |
+| B13 | ~~GitHub Actions ne démarre plus~~ | **Levé 2026-09-27** : le dépôt est public, le quota des dépôts privés ne s'applique plus. Runs à relancer : [36327108849](https://github.com/navelremi-boop/legalos2/actions/runs/36327108849) (`main`) et [36326938887](https://github.com/navelremi-boop/legalos2/actions/runs/36326938887) (PR #5). | — |
 
-**Levé ou contourné** : Git 2.55, rustup, pnpm, Windows SDK, polices Atkinson, MSVC (B2/B2b), scripts `bootstrap-path.ps1` / `clippy.ps1`.
+## Actions tierces autorisées
+
+GitHub Actions n'exécute que les actions créées par GitHub (`actions/`, `github/`) et ce tableau. Une action absente, ou une version différente de celle du tableau, fait échouer `node tests/recette/workflows-valides.mjs`. Le commandement ajoute la ligne. Aucun contournement : script téléchargé ou copie de l'action dans le dépôt. Avant J14, chaque ligne sera un hash de commit complet.
+
+| Action | Version en CI | Justification |
+| --- | --- | --- |
+| dtolnay/rust-toolchain | stable | Chaîne Rust du dépôt (`rust-toolchain.toml`), sans l'installer à la main sur le runner |
+| Swatinem/rust-cache | v2.7.5 | Cache des compilations Rust |
+| pnpm/action-setup | v4.1.0 | Installation de pnpm avant `pnpm install` |
+
+**Levé ou contourné** : Git 2.55, rustup, pnpm, Windows SDK, polices Atkinson, MSVC (B2/B2b), scripts `bootstrap-path.ps1` / `clippy.ps1`, quota Actions (B13, dépôt public).
 
 **Scripts** : `. .\scripts\bootstrap-path.ps1`
 
@@ -43,6 +53,7 @@
 
 ## Historique
 
+- **2026-09-27 (architecte)** : B13 levé (dépôt public) ; actions tierces limitées à la liste de ce fichier ; épinglage par hash de commit avant J14.
 - **2026-09-27 (état-major)** : B13 ouvert (GitHub Actions, plafond ou paiement).
 - **2026-09-27 (architecte)** : B11 levé (arbitrage R0 du 26/09) ; B9 (La journée validée sous réserve des captures, veto du commandement sur les autres écrans) ; B10 devient une revue avant mise en service et ne bloque plus le développement ; critères de J9 et J10 validés.
 - **2026-09-27 (état-major)** : B11 ouvert ; critères de J9 et J10 proposés ; B12 (signalement PowerSync) et décision en attente sur les avis de la chaîne PowerSync.

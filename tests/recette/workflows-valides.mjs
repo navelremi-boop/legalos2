@@ -29,6 +29,47 @@ function chargerJsYaml() {
   return require(join(magasin, version, "node_modules/js-yaml"));
 }
 
+function actionsAutorisees(texte) {
+  const map = new Map();
+  let dans = false;
+  for (const ligne of texte.split(/\n/)) {
+    if (ligne.startsWith("## Actions tierces autorisées")) {
+      dans = true;
+      continue;
+    }
+    if (dans && ligne.startsWith("## ")) break;
+    if (!dans) continue;
+    const cellules = ligne.split("|").map((c) => c.trim());
+    if (cellules.length < 4) continue;
+    const action = cellules[1];
+    const version = cellules[2];
+    if (!action || action === "Action" || action.startsWith("-")) continue;
+    map.set(action, version);
+  }
+  return map;
+}
+
+function erreurAction(spec, autorisees) {
+  if (spec.startsWith("./") || spec.startsWith("docker://")) {
+    return `action locale ou image interdite : ${spec}`;
+  }
+  const arobase = spec.split("@");
+  const chemin = arobase[0];
+  const version = arobase.slice(1).join("@");
+  const owner = chemin.split("/")[0];
+  if (owner === "actions" || owner === "github") return "";
+  const attendue = autorisees.get(chemin);
+  if (!attendue) return `action tierce non autorisée : ${chemin}`;
+  if (version !== attendue) return `${chemin}@${version || "?"} : la liste autorise ${attendue}`;
+  return "";
+}
+
+const texteBlocages = readFileSync(join(root, "BLOCAGES.md"), "utf8");
+const autorisees = actionsAutorisees(texteBlocages);
+if (autorisees.size === 0) fail("BLOCAGES.md : tableau « Actions tierces autorisées » vide");
+const essai = erreurAction("evil/action@v1", autorisees);
+if (!essai.includes("evil/action")) fail("essai négatif des actions tierces muet");
+
 const yaml = chargerJsYaml();
 const fichiers = readdirSync(dossierWorkflows).filter((nom) => /\.ya?ml$/.test(nom));
 if (fichiers.length === 0) fail("aucun workflow dans .github/workflows");
@@ -48,6 +89,9 @@ for (const nom of fichiers) {
     }
   }
   if (nom === "ci.yml") {
+    if (document.permissions?.contents !== "read") {
+      fail("ci.yml : permissions.contents doit être read");
+    }
     if (jobs["macos-placeholder"]) fail("ci.yml : macos-placeholder retiré (S14b, J16, déclenchement manuel)");
     if (!jobs.perimetre) fail("ci.yml : job perimetre absent");
     for (const lourd of ["rust", "s1-instance", "facturx"]) {
@@ -59,6 +103,11 @@ for (const nom of fichiers) {
     if (jobs.frontend?.if || jobs.gouvernance?.if) {
       fail("ci.yml : frontend et gouvernance restent lancés même pour un push Markdown");
     }
+  }
+  const brut = readFileSync(join(dossierWorkflows, nom), "utf8");
+  for (const correspondance of brut.matchAll(/uses:\s*['"]?([^'"\s#]+)/g)) {
+    const erreur = erreurAction(correspondance[1], autorisees);
+    if (erreur) fail(`${nom} : ${erreur}`);
   }
   console.log(`workflows-valides: ${nom} OK (${Object.keys(jobs).length} jobs)`);
 }

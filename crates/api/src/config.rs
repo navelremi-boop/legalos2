@@ -49,7 +49,7 @@ impl Config {
 
         let cipher_raw = std::env::var("SECRETS_CHIFFREMENT_KEY")
             .map_err(|_| anyhow::anyhow!("SECRETS_CHIFFREMENT_KEY est requis"))?;
-        refuser_cle_connue_hors_developpement(cipher_raw.trim())?;
+        refuser_secrets_publies_hors_developpement()?;
         let totp_cipher_key = decode_cipher_key(&cipher_raw)?;
 
         let access_token_ttl_secs = parse_u64_env("JWT_ACCESS_TTL_SECS", 900);
@@ -98,7 +98,50 @@ fn parse_u64_env(name: &str, default: u64) -> u64 {
         .unwrap_or(default)
 }
 
-/// Valeurs publiées (`.env.example`, recette). Interdites dès que `LEGALOS_MODE` n'est pas `development`.
+/// Couples (nom, valeur) de `.env.example` et `.env.development.example`.
+/// Hors développement, une variable d'environnement égale à l'une de ces valeurs refuse le démarrage.
+pub const SECRETS_PUBLIES: &[(&str, &str)] = &[
+    (
+        "POSTGRES_PASSWORD",
+        "remplacer-mot-de-passe-fort-alphanumerique",
+    ),
+    (
+        "DATABASE_URL",
+        "postgresql://legalos:remplacer-mot-de-passe-fort-alphanumerique@localhost:5432/legalos",
+    ),
+    (
+        "SECRETS_CHIFFREMENT_KEY",
+        "legalos_example_key_32_bytes!!!!",
+    ),
+    (
+        "SECRETS_CHIFFREMENT_KEY",
+        "legalos_demo_chiffrement_32oct!!",
+    ),
+    (
+        "PS_DATA_SOURCE_URI",
+        "postgresql://powersync_replication:remplacer-mot-de-passe-fort-alphanumerique@postgres:5432/legalos",
+    ),
+    (
+        "PS_STORAGE_URI",
+        "postgresql://legalos:remplacer-mot-de-passe-fort-alphanumerique@postgres:5432/powersync_storage",
+    ),
+    (
+        "GARAGE_RPC_SECRET",
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    ),
+    (
+        "GARAGE_ADMIN_TOKEN",
+        "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+    ),
+    ("GREENMAIL_PASSWORD", "remplacer-mot-de-passe-mail-test"),
+    ("LEGALOS_DEMO_PASSWORD", "MotDePasseDemo123!"),
+    (
+        "LEGALOS_DEMO_TOTP_SECRET_BASE32",
+        "MFRGG43FMZQXIZLTMVRXG43FNZQXIZLTO",
+    ),
+];
+
+/// Valeurs publiées de la clé de chiffrement. Conservé pour les tests d'installation.
 pub const CLES_CHIFFREMENT_CONNUES: &[&str] = &[
     "legalos_example_key_32_bytes!!!!",
     "legalos_demo_chiffrement_32oct!!",
@@ -110,14 +153,54 @@ pub fn mode_developpement() -> bool {
         .is_some_and(|v| v == "development")
 }
 
+pub fn valeur_secrete_publiee(nom: &str, valeur: &str) -> bool {
+    let valeur = valeur.trim();
+    !valeur.is_empty()
+        && SECRETS_PUBLIES
+            .iter()
+            .any(|(n, publi)| *n == nom && *publi == valeur)
+}
+
+pub fn mot_de_passe_dans_url(url: &str) -> Option<&str> {
+    let rest = url.trim().split_once("://")?.1;
+    let userinfo = rest.split_once('@')?.0;
+    Some(userinfo.split_once(':')?.1)
+}
+
 pub fn refuser_cle_connue_hors_developpement(raw: &str) -> anyhow::Result<()> {
+    if mode_developpement() || !CLES_CHIFFREMENT_CONNUES.contains(&raw.trim()) {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "SECRETS_CHIFFREMENT_KEY est une valeur de démonstration connue ; démarrage refusé hors LEGALOS_MODE=development"
+    )
+}
+
+/// Refuse le démarrage si un secret de l'environnement vaut une valeur désormais publique.
+pub fn refuser_secrets_publies_hors_developpement() -> anyhow::Result<()> {
     if mode_developpement() {
         return Ok(());
     }
-    if CLES_CHIFFREMENT_CONNUES.contains(&raw.trim()) {
-        anyhow::bail!(
-            "SECRETS_CHIFFREMENT_KEY est une valeur de démonstration connue ; démarrage refusé hors LEGALOS_MODE=development"
-        );
+    let mut noms = std::collections::BTreeSet::new();
+    for (nom, _) in SECRETS_PUBLIES {
+        noms.insert(*nom);
+    }
+    for nom in noms {
+        let Ok(valeur) = std::env::var(nom) else {
+            continue;
+        };
+        if valeur_secrete_publiee(nom, &valeur) {
+            anyhow::bail!(
+                "{nom} reprend une valeur publiée dans le dépôt ; démarrage refusé hors LEGALOS_MODE=development"
+            );
+        }
+        if let Some(mot) = mot_de_passe_dans_url(&valeur) {
+            if valeur_secrete_publiee("POSTGRES_PASSWORD", mot) {
+                anyhow::bail!(
+                    "{nom} contient un mot de passe publié ; démarrage refusé hors LEGALOS_MODE=development"
+                );
+            }
+        }
     }
     Ok(())
 }
@@ -165,5 +248,39 @@ mod tests {
         let key = decode_cipher_key(DEMO_KEY_STR).expect("clé démo");
         let plain = totp::dechiffrer_secret_totp(DEMO_TOTP_CIPHERTEXT, &key).expect("déchiffrer");
         assert_eq!(String::from_utf8(plain).expect("utf8"), DEMO_TOTP_PLAIN);
+    }
+
+    #[test]
+    fn fichiers_exemple_sont_tous_refuses() {
+        use super::valeur_secrete_publiee;
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        for nom_fichier in [".env.example", ".env.development.example"] {
+            let texte = std::fs::read_to_string(root.join(nom_fichier)).expect(nom_fichier);
+            for ligne in texte.lines() {
+                if ligne.starts_with('#') || ligne.is_empty() {
+                    continue;
+                }
+                let Some((cle, valeur)) = ligne.split_once('=') else {
+                    continue;
+                };
+                if valeur.is_empty() || !est_ligne_secrete(cle) {
+                    continue;
+                }
+                assert!(
+                    valeur_secrete_publiee(cle, valeur),
+                    "{nom_fichier} : {cle} absent du refus"
+                );
+            }
+        }
+    }
+
+    fn est_ligne_secrete(cle: &str) -> bool {
+        cle.ends_with("PASSWORD")
+            || cle.ends_with("_SECRET")
+            || cle.ends_with("_TOKEN")
+            || cle == "SECRETS_CHIFFREMENT_KEY"
+            || cle.contains("TOTP")
+            || cle == "DATABASE_URL"
+            || (cle.starts_with("PS_") && cle.ends_with("_URI"))
     }
 }
