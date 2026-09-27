@@ -4,13 +4,21 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 - **Phase 0–1** VALIDÉES ; **J5–J7** VALIDÉS ; **Migration Sync Streams** VALIDÉE `9f80388` ; **J8** VALIDÉ `e8eb6b2`.
 - **Référence de dossier** : VALIDÉ `03ca364` (contrôleur, CI [36322383021](https://github.com/navelremi-boop/legalos2/actions/runs/36322383021)). Minutes des trois runs de clôture : **100** (durées de jobs arrondies à la minute supérieure ; le job macOS de [36319178833](https://github.com/navelremi-boop/legalos2/actions/runs/36319178833) compte dix fois).
-- **En cours** : **Conflits généralisés**. Couverture V1 : matrice en tête de `PLAN.md` ; jalons manquants proposés, à valider par l'architecte.
-- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → **Conflits généralisés** → Coque → Vue scindée → Intercalaires → J9 → J10.
+- **En cours** : **Conflits généralisés**. Lot API fusionné (`5fbac31`, CI de la PR verte). Lot poste (PR #5, `6b1a120`) : conflit de schéma résolu, non fusionné — la CI ne démarre plus (B13).
+- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → **Conflits généralisés** → Coque → Vue scindée → Intercalaires → Dossiers et contacts complets → Agenda → Documents, suite → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance).
 - **Sync** : Streams édition 3, service 1.26.1. Dette mensuelle avis PowerSync.
 - **Coque** corrigée (`22d765e`), non cochée : points médians de La journée (consigne 3), onglets de démonstration (dette). La journée est validée par l'architecte sous réserve des captures régénérées (consigne du 27/09, point 2).
 - **B11 levé**. Contrôleur d'abord REFUSÉ (affichage du numéro minimal). Recette `reference-modele-ecran.mjs` : exit 0, numéro `1000000000`. Second verdict **VALIDÉ** sur `03ca364`.
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
+
+---
+
+## 2026-09-27 — Conflits généralisés : fusion API, CI arrêtée
+
+Le sondage des CI d'avant fusion : lot API `f1aafc1` ([36324877071](https://github.com/navelremi-boop/legalos2/actions/runs/36324877071)) succès ; lot poste `7b79f1c` échec (`cargo fmt`). Le formatage `e3b1323` ([36325362851](https://github.com/navelremi-boop/legalos2/actions/runs/36325362851)) est vert, y compris `s1-instance`.
+
+Fusion de la PR #6 en rebase : `8b5a744` et `5fbac31` sur `main`. La PR #5 a été fusionnée avec `main` sans réécriture (`6b1a120`) : `AppSchema.ts` garde le journal de `main` et la table locale `refus_sync`. La CI de cette fusion et celle de `main` après l'API ne démarrent pas (B13). La PR #5 reste ouverte. Le jalon n'est pas coché.
 
 ---
 
