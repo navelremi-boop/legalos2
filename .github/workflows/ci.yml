@@ -38,6 +38,7 @@ jobs:
       - run: node tests/recette/points-medians.mjs
       - run: node tests/recette/migrations-additives.mjs
       - run: node tests/recette/reference-dossier.mjs
+      - run: node tests/recette/reference-modele-poste.mjs
 
   gouvernance:
     runs-on: ubuntu-latest
