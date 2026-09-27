@@ -9,7 +9,20 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance).
 - **Sync** : Streams édition 3, service 1.26.1. Dette mensuelle avis PowerSync.
 - **Coque** corrigée (`22d765e`), non cochée : points médians de La journée (consigne 3), onglets de démonstration (dette). La journée est validée par l'architecte sous réserve des captures régénérées (consigne du 27/09, point 2).
-- **B11 levé** (arbitrage R0 du 26/09 reçu le 27/09) : R0-a, R0-c, R0-d et R0-e confirmés. Écarts à traiter dans le jalon en cours : initiales de l'avocat responsable (`dossiers.responsable_id`), 409 avec numéro de départ minimal, R0-g journalisé avec l'auteur.
+- **B11 levé** (arbitrage R0 du 26/09 reçu le 27/09) : R0-a, R0-c, R0-d et R0-e confirmés. Écarts traités dans le jalon en cours (`dfed55c`) : responsable, 409 avec numéro minimal, auteur au journal. Contrôleur en cours. CI de `main` en attente.
+- **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
+
+---
+
+## 2026-09-27 — Consigne de l'architecte : attente de la CI, minutes GitHub Actions
+
+Texte reçu :
+
+1. Attente de la CI. Ne plus terminer le tour pour attendre un run. Attendre dans le même tour avec `gh run watch <id> --exit-status --interval 60`, ou une boucle d'un sondage toutes les deux minutes, 30 minutes au plus. Pendant l'attente, avancer sur ce qui ne dépend pas du résultat : le contrôleur en local, ou les tests d'acceptation du jalon suivant dans son worktree, sans fusion avant la validation du jalon en cours.
+2. Fusions : quand plusieurs lots d'un même jalon sont verts, les fusionner à la suite, puis attendre une seule CI de `main`.
+3. Minutes GitHub Actions (dépôt privé, quota mensuel ; environ 1 700 minutes consommées depuis le 24/09) : supprimer `macos-placeholder` (dix fois le temps, 360 minutes ; il reviendra avec S14b, J16, en déclenchement manuel) ; un push qui ne touche que des fichiers Markdown ne lance que `gouvernance` et `frontend` ; regrouper les commits de documentation avec le code ; à chaque fin de jalon, consigner la somme des durées des jobs, chacune arrondie à la minute supérieure ; si un run ne démarre pas faute de minutes, l'inscrire dans `BLOCAGES.md` et continuer en local. La CI verte reste exigée avant de cocher un jalon.
+
+Traitement : la CI de la fusion `dfed55c` (run 36319178833) n'est pas interrompue. Le workflow est modifié dans le même commit que cette note, poussé une fois le run terminé. Le contrôleur du jalon Référence tourne déjà en local.
 
 ---
 

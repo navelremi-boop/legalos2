@@ -11,6 +11,42 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Un push uniquement Markdown ne lance que gouvernance et frontend.
+  # S14b (J16) : le job macOS reviendra en déclenchement manuel, pas à chaque push.
+  perimetre:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filtre.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+      - id: filtre
+        name: Fichiers autres que Markdown
+        run: |
+          set -eu
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+          else
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+          fi
+          if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git diff --name-only "$base" "$head" > "$RUNNER_TEMP/fichiers.txt"
+          if [ ! -s "$RUNNER_TEMP/fichiers.txt" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if grep -vE '\.md$' "$RUNNER_TEMP/fichiers.txt" | grep -q .; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
   frontend:
     runs-on: ubuntu-latest
     steps:
@@ -56,6 +92,8 @@ jobs:
 
   rust:
     runs-on: ubuntu-latest
+    needs: [perimetre]
+    if: needs.perimetre.outputs.code == 'true'
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: dtolnay/rust-toolchain@stable
@@ -94,7 +132,8 @@ jobs:
 
   s1-instance:
     runs-on: ubuntu-latest
-    needs: [rust]
+    needs: [perimetre, rust]
+    if: needs.perimetre.outputs.code == 'true' && needs.rust.result == 'success'
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: dtolnay/rust-toolchain@stable
@@ -127,6 +166,8 @@ jobs:
 
   facturx:
     runs-on: ubuntu-latest
+    needs: [perimetre]
+    if: needs.perimetre.outputs.code == 'true'
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: dtolnay/rust-toolchain@stable
@@ -153,21 +194,3 @@ jobs:
           export TYPST="$PWD/target/typst-x86_64-unknown-linux-musl/typst"
           export VERAPDF="$PWD/target/verapdf/verapdf"
           node tests/recette/s9-facturx.mjs
-
-  macos-placeholder:
-    runs-on: macos-latest
-    needs: [frontend, rust, s1-instance]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4.2.2
-      - uses: pnpm/action-setup@v4.1.0
-        with:
-          version: 12.6.0
-      - uses: actions/setup-node@v4.4.0
-        with:
-          node-version: "24"
-          cache: pnpm
-      - uses: dtolnay/rust-toolchain@stable
-      - run: pnpm install --frozen-lockfile
-      - name: Présence du dépôt (pas un build, pas un lancement, pas une preuve S14b)
-        run: echo "Ce job ne construit pas et ne lance pas l'application."

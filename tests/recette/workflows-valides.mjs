@@ -47,6 +47,19 @@ for (const nom of fichiers) {
       fail(`${nom} : job « ${job} » sans étape`);
     }
   }
+  if (nom === "ci.yml") {
+    if (jobs["macos-placeholder"]) fail("ci.yml : macos-placeholder retiré (S14b, J16, déclenchement manuel)");
+    if (!jobs.perimetre) fail("ci.yml : job perimetre absent");
+    for (const lourd of ["rust", "s1-instance", "facturx"]) {
+      const condition = String(jobs[lourd]?.if ?? "");
+      if (!condition.includes("perimetre")) {
+        fail(`ci.yml : ${lourd} doit dépendre du périmètre (push Markdown)`);
+      }
+    }
+    if (jobs.frontend?.if || jobs.gouvernance?.if) {
+      fail("ci.yml : frontend et gouvernance restent lancés même pour un push Markdown");
+    }
+  }
   console.log(`workflows-valides: ${nom} OK (${Object.keys(jobs).length} jobs)`);
 }
 
