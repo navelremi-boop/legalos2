@@ -9,7 +9,7 @@ Sources : cahier § 3.4 (« dernière écriture gagnante par champ par défaut, 
 | `cabinets` | `nom`, `slug` | `revision` (existe) | — |
 | `dossiers` | `nom`, `chemise`, `juridiction`, `numero_rg` | `revision` (existe) | la référence, déjà figée par déclencheur |
 | `parties` | `role`, `nom` | `revision` (existe) | — |
-| `temps_saisis` | `minutes`, `libelle`, `taux_centimes_heure` (`ht_centimes` recalculé par le serveur) | `revision` (à ajouter) | dès qu'un brouillon numéroté le référence (**à valider**) |
+| `temps_saisis` | `minutes`, `libelle`, `taux_centimes_heure` (`ht_centimes` recalculé par le serveur) | `revision` (à ajouter) | dès qu'un brouillon numéroté le référence (validé par l'architecte le 27/09/2026) |
 | `brouillons_facture` | `libelle`, `taux_centimes_heure` (`ht_centimes` recalculé par le serveur) | `revision` (à ajouter) | dès que `numero` n'est plus nul |
 | `taux_horaires` | `centimes_par_heure` | `revision` (à ajouter) | — |
 
@@ -42,8 +42,10 @@ Restent hors de ce jalon : la visibilité d'un dossier (changement de droits, ac
 
 ## 5. Refus du serveur
 
-- Une modification refusée (donnée immuable, droits, validation) répond 409 ou 403 avec un message en français. Le connecteur consigne le refus dans une table locale non synchronisée, retire l'entrée de la file (elle ne doit pas bloquer les suivantes), et l'app affiche le message ; l'état réel revient par la synchronisation suivante.
-- Les suppressions restent ignorées par le serveur ; elles ne sont pas proposées dans l'interface.
+- Une modification refusée (donnée immuable, droits, validation, ressource absente) répond 400, 403, 404 ou 409 avec un message en français. Le connecteur consigne le refus dans une table locale non synchronisée, retire l'entrée de la file, et l'app affiche le message. Les écritures suivantes partent. L'état réel revient par la synchronisation suivante.
+- Aucune perte silencieuse. Le connecteur traite explicitement `PUT`, `PATCH` et `DELETE`. Une modification d'un seul champ est envoyée. Une table inconnue est consignée comme un refus, sans bloquer la file. Retirer une entrée sans l'envoyer, ou bloquer la file parce qu'un champ accompagnateur manque, n'est pas admis.
+- `dossiers.restreint` et `dossiers.visibilite` ont une seule source de vérité : `CHECK (restreint = (visibilite = 'restreint'))`. Une écriture incohérente est refusée.
+- Les suppressions ne sont pas proposées dans l'interface. Si une entrée `DELETE` arrive dans la file, elle est traitée explicitement (refus consigné), pas écartée en silence.
 
 ## 6. Preuves attendues
 

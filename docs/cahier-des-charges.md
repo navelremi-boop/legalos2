@@ -164,7 +164,7 @@ La CI bloque tout merge qui ne passe pas clippy, les tests, le typage, la valida
 - Migrations serveur : numérotées (sqlx), exécutées par l'API au démarrage, **après** une sauvegarde, **uniquement additives** (on ajoute d'abord, on supprime plusieurs versions plus tard).
 - Schéma client PowerSync : défini en TypeScript, appliqué sous forme de vues, sans migration locale → évolutif par mise à jour à chaud.
 - Écritures : file d'attente locale → API Rust → Postgres. L'API valide tout (droits, cohérence) ; le poste n'est jamais cru sur parole.
-- **Référence de dossier** (« Dossier 2026-042 ») : année + numéro continu propre au cabinet, remis à zéro chaque année, **attribuée par le serveur** dans une transaction avec contrainte d'unicité, jamais sur le poste. Un dossier créé hors ligne affiche « référence en attente » jusqu'à la synchronisation. Une référence attribuée ne change jamais.
+- **Référence de dossier** (« Dossier 2026-042 » avec le modèle par défaut) : **attribuée par le serveur** dans une transaction avec contrainte d'unicité, jamais sur le poste. Chaque cabinet choisit un modèle (jetons `{AAAA}`, `{AA}`, `{N}`, `{N:k}`, `{INI}` ; « / » admis comme texte libre ; défaut `{AAAA}-{N:3}`). Remise à zéro annuelle (1er janvier, heure de Paris) ou jamais. Un numéro de départ permet de poursuivre une numérotation déjà commencée ; un changement qui redonnerait une référence existante est refusé. L'avocat responsable est choisi à la création (par défaut celui qui crée le dossier) ; ses initiales sont figées à l'attribution. Un dossier créé hors ligne affiche « référence en attente » jusqu'à la synchronisation. Une référence attribuée ne change jamais.
 - Conflits : dernière écriture gagnante par champ par défaut, sauf données sensibles (factures validées, pièces communiquées, mails envoyés) qui sont **immuables** une fois validées.
 
 ### 3.5 Fichiers
@@ -450,8 +450,9 @@ Aucune de ces deux fonctionnalités n'apparaît dans les fiches produits consult
 | FTS5 dans le SDK Tauri | Vérifier la disponibilité avant de construire la recherche dessus |
 | Couleur des dossiers | Trancher : choix manuel à la création, ou couleur par type de matière paramétrée par le cabinet |
 | Raccourcis clavier | Valider la liste proposée (§ 7.8) avant de la coder, pour éviter les conflits avec le système |
-| Référence de dossier | Format retenu : année + numéro remis à zéro chaque année (« 2026-042 ») ; à confirmer avant le premier dossier réel, car une séquence ne se corrige pas après coup |
-| Écrans non maquettés | La journée, Mails, Agenda, Facturation, Réglages : captures à valider par le commandement au premier passage (§ 7.6) |
+| Référence de dossier | Format arbitré le 27/09/2026 (R0, § 3.4). Une référence attribuée ne se réécrit pas ; un nouveau modèle ne vaut que pour les dossiers créés ensuite |
+| Clients publics | Chorus Pro et les clients publics ne sont pas couverts en V1 (facturation F8) |
+| Écrans non maquettés | La journée est validée par l'architecte, sous réserve des captures régénérées sans points médians (validation de la Coque). Dossiers, Mails, Agenda, Facturation et Réglages : captures validées par l'architecte, veto du commandement (§ 7.6) |
 
 ---
 
@@ -619,7 +620,7 @@ La journée, Dossiers, Mails, Agenda, Facturation et Réglages suivent la même 
 - **La journée** : une feuille en quatre sections (audiences et rendez-vous du jour, délais, mails à classer avec leur suggestion de dossier, temps à saisir). Chaque dossier cité porte sa pastille. Barre d'actions : Nouveau dossier, Nouveau mail, Saisir du temps.
 - **Mails** : une feuille en trois volets (comptes et dossiers IMAP, liste, lecture). Chaque mail classé porte la pastille de son dossier, et un bandeau « Classer dans … » s'affiche en tête d'un mail non classé.
 - **Agenda, Facturation, Réglages** : une feuille unique, construite avec les mêmes composants.
-- **Validation** : au premier passage, chaque nouvel écran fait l'objet de captures en jour et en nuit, revues par le contrôleur au regard du présent § 7, puis validées par le commandement.
+- **Validation** : au premier passage, chaque nouvel écran fait l'objet de captures en jour et en nuit, revues par le contrôleur au regard du présent § 7. La journée est validée par l'architecte, sous réserve des captures régénérées sans points médians (validation de la Coque). Pour les autres écrans, la validation sur captures est déléguée à l'architecte ; le commandement garde son veto.
 
 ### 7.7 Écriture et typographie française
 

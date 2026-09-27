@@ -8,7 +8,24 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Ordre** : ~~Streams~~ → ~~J8~~ → **Référence de dossier** (personnalisation comprise) → Conflits généralisés → Coque (validation, points médians compris) → Vue scindée → Intercalaires → J9 → J10.
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance).
 - **Sync** : Streams édition 3, service 1.26.1. Dette mensuelle avis PowerSync.
-- **Coque** corrigée (`22d765e`), non cochée : points médians de La journée (consigne 3), onglets de démonstration (dette), captures B9.
+- **Coque** corrigée (`22d765e`), non cochée : points médians de La journée (consigne 3), onglets de démonstration (dette). La journée est validée par l'architecte sous réserve des captures régénérées (consigne du 27/09, point 2).
+- **B11 levé** (arbitrage R0 du 26/09 reçu le 27/09) : R0-a, R0-c, R0-d et R0-e confirmés. Écarts à traiter dans le jalon en cours : initiales de l'avocat responsable (`dossiers.responsable_id`), 409 avec numéro de départ minimal, R0-g journalisé avec l'auteur.
+
+---
+
+## 2026-09-27 — Consigne de l'architecte : arbitrage R0, B9, B10, conflits, J9 et J10
+
+Texte reçu :
+
+1. B11 levé : texte de l'arbitrage R0 du 26/09, jamais transmis jusqu'ici. Il confirme R0-a, R0-c, R0-d et R0-e. Écarts à traiter dans le jalon Référence de dossier en cours : le jeton reste `{INI}` (le texte d'origine disait `{INIT}`) ; les initiales sont celles de l'avocat responsable (`dossiers.responsable_id`, migration additive, défaut le créateur, envoyé et synchronisé, figées à l'attribution) ; le 409 `reference_existante` indique le numéro de départ minimal quand il existe, affiché dans Réglages ; R0-g retenu pour la V1, chaque changement journalisé avec son auteur ; la forme de classement du déclencheur de la migration 017 est vérifiée contre `reference-vecteurs.json` dans `reference-modele.mjs` ; le § 3.4 du cahier et `docs/hypotheses-dossiers.md` sont mis à jour (R0-a à R0-g « arbitré », R0-b corrigé) ; ces critères sont ajoutés au jalon.
+2. B9 : La journée est validée par l'architecte, sous réserve des captures régénérées sans points médians (validation de la Coque). Pour les autres écrans du § 7.6, la validation sur captures est déléguée à l'architecte ; le commandement garde son veto. Mise à jour du § 7, des critères de J10 et de `BLOCAGES.md`.
+3. B10 : validation provisoire. Délais H1 à H13 retenus (H7 : pas de jours chômés locaux en V1, rappel à l'écran ; H10 : l'augmentation pour distance s'applique à la partie concernée ; H12 : l'art. 1037-1 se lit avec l'art. 915-4). Facturation F0 à F8 retenues, F3 dans sa version corrigée ; F7 est un choix technique ; F8 : les clients publics (Chorus Pro) ne sont pas couverts (point ouvert du § 6). Hypothèses d'installation retenues. B10 devient « Revue juridique par l'avocat avant toute mise en service réelle » et ne bloque plus le développement. Dette « Avant J17 » et section dans `RAPPORT.md`.
+4. Conflits généralisés : refus 400, 403, 404, 409 consignés hors de la file synchronisée, message affiché, écritures suivantes envoyées ; aucune perte silencieuse (PUT, PATCH et DELETE explicites, un champ seul par table, table inconnue consignée sans bloquer) ; `CHECK (restreint = (visibilite = 'restreint'))` ; immutabilité d'un temps référencé par un brouillon numéroté, validée.
+5. J9 et J10 : critères validés. J9 : reconnaissance dans l'objet pour tous les modèles utilisés par le cabinet (deux modèles successifs) ; relève de la boîte de classement interrompue puis reprise, sans perte ni doublon. J10 : captures validées par l'architecte, veto du commandement. Retrait de « à valider par l'architecte » et de la ligne J9-J10 de `BLOCAGES.md`.
+
+Les modifications de `PLAN.md` font l'objet d'un commit dédié « plan: » citant cette consigne.
+
+Traitement : critères ajoutés sans retirer ceux déjà écrits ; `docs/hypotheses-dossiers.md`, le cahier (§ 3.4, § 6, § 7.6), `docs/conflits.md`, les hypothèses de délais, de facturation et d'installation, `BLOCAGES.md` et `RAPPORT.md` mis à jour. L'implémentation des écarts R0 (responsable, 409, vecteurs du déclencheur) reste dans le jalon en cours.
 
 ---
 

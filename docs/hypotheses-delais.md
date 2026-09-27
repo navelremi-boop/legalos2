@@ -2,7 +2,7 @@
 
 *Version révisée par l'architecte le 26 septembre 2026, après vérification sur la base documentaire juridique (Memento Procédure civile 2024-2025, chapitres 10 « Délais, notification et signification » et 12 « Appel et opposition » ; cours de procédure civile). Sous réserve des modifications de textes postérieures à ces sources.*
 
-Chaque règle reste **à valider par l'avocat**. Une règle marquée « vérifiée » concorde avec la base documentaire ; elle n'est pas pour autant validée. Le jeu de cas automatique est `tests/recette/s8-delais.mjs`.
+Validation provisoire de l'architecte le 27/09/2026 : H1 à H13 sont retenues. La revue par l'avocat avant toute mise en service réelle reste ouverte (B10, dette « Avant J17 ») : chaque règle reste **à valider par l'avocat** à cette revue. Une règle marquée « vérifiée » concorde avec la base documentaire. Le jeu de cas automatique est `tests/recette/s8-delais.mjs`.
 
 ---
 
@@ -52,7 +52,7 @@ Jours fériés (C. trav., art. L. 3133-1) : 1er janvier, lundi de Pâques, 1er m
 
 Jours chômés : légalement, seul le 1er mai est à la fois férié et chômé pour tous. Les autres jours chômés résultent d'usages ou de conventions et ne peuvent pas être déduits par le moteur.
 
-**Décision à prendre par l'avocat** : faut-il permettre au cabinet d'ajouter des jours chômés propres (et, pour un confrère d'Alsace-Moselle, les jours fériés locaux) ? Par défaut : non, et l'écran rappelle que le calcul ne tient pas compte des jours chômés locaux.
+**Retenu par l'architecte (27/09/2026)** : pas de jours chômés locaux en V1 (ni jours fériés d'Alsace-Moselle). L'écran rappelle que le calcul ne tient pas compte des jours chômés locaux.
 
 ## H8 — Augmentation pour la distance (art. 643, 644 et 645) — révisée
 
@@ -90,7 +90,7 @@ Ces augmentations **s'ajoutent** à celles des art. 643 et 644 sur le délai d'a
 
 Cas de recette (Memento, exemple a) : appelant demeurant à l'étranger, jugement de droit commun signifié le 10 janvier 2025 → délai d'appel 1 mois (art. 538) + 2 mois (art. 643) ; premières conclusions : 3 mois (art. 908) + 2 mois (art. 915-4) ; soit **8 mois au total à compter de la signification** si l'appel est formé le dernier jour. Le moteur doit enchaîner les deux calculs (échéance d'appel, puis échéance des conclusions à compter de la déclaration d'appel réellement formée).
 
-Point à confirmer par l'avocat : le Memento vise « l'appelant qui demeure à l'étranger » pour l'augmentation de 2 mois, alors que la jurisprudence citée applique l'allongement aux appelants comme aux intimés selon leur situation. Par défaut, le moteur applique l'augmentation à la partie concernée, qu'elle soit appelante ou intimée.
+**Retenu par l'architecte (27/09/2026)** : l'augmentation pour distance s'applique à la partie concernée, appelante ou intimée.
 
 ## H11 — Date de notification selon la partie (art. 647-1) — nouvelle
 
@@ -100,7 +100,7 @@ Pour une notification à l'étranger, en Polynésie française, dans les îles W
 
 ## H12 — Renvoi après cassation — nouvelle
 
-L'instance d'appel initiale se poursuit devant la juridiction de renvoi. Les augmentations pour distance **ne s'appliquent pas** au délai de saisine de la juridiction de renvoi (Cass. 2e civ. 4 février 2021, n° 19-23.638). Les délais pour conclure devant la juridiction de renvoi sont, eux, augmentés (art. 1037-1). Point à vérifier par l'avocat : l'art. 1037-1 renvoie à l'ancien art. 911-2, dont le contenu figure désormais à l'art. 915-4.
+L'instance d'appel initiale se poursuit devant la juridiction de renvoi. Les augmentations pour distance **ne s'appliquent pas** au délai de saisine de la juridiction de renvoi (Cass. 2e civ. 4 février 2021, n° 19-23.638). Les délais pour conclure devant la juridiction de renvoi sont, eux, augmentés (art. 1037-1). **Retenu par l'architecte (27/09/2026)** : l'art. 1037-1 se lit avec l'art. 915-4 (l'ancien art. 911-2).
 
 ## H13 — Délais hors périmètre du moteur
 
