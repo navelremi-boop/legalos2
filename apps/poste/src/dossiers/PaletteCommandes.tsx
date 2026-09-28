@@ -10,10 +10,29 @@ type Resultat = {
   numero_rg: string;
   juridiction: string;
   reference: string | null;
+  chemise: string;
 };
 
-export function PaletteCommandes() {
-  const [ouverte, setOuverte] = useState(false);
+type PaletteCommandesProps = {
+  /** Ouvre le dossier choisi (palette Ctrl K / vue Dossiers). */
+  onChoisirDossier?: (
+    id: string,
+    nom: string,
+    chemise: string,
+    reference?: string | null,
+  ) => void;
+  /** Commande « Nouveau dossier » depuis la palette. */
+  onNouveauDossier?: () => void;
+  /** Démarre ouverte (panneau modal depuis la barre). */
+  ouverteParDefaut?: boolean;
+};
+
+export function PaletteCommandes({
+  onChoisirDossier,
+  onNouveauDossier,
+  ouverteParDefaut = false,
+}: PaletteCommandesProps = {}) {
+  const [ouverte, setOuverte] = useState(ouverteParDefaut);
   const [requete, setRequete] = useState("");
   const [resultats, setResultats] = useState<Resultat[]>([]);
 
@@ -36,7 +55,7 @@ export function PaletteCommandes() {
     void getPowerSyncDatabase()
       .then((database) =>
         database.getAll<Resultat>(
-          `SELECT DISTINCT d.id, d.nom, d.numero_rg, d.juridiction, d.reference
+          `SELECT DISTINCT d.id, d.nom, d.numero_rg, d.juridiction, d.reference, d.chemise
            FROM dossiers d
            LEFT JOIN parties p ON p.dossier_id = d.id
            WHERE d.nom LIKE ? ESCAPE '\\' OR d.numero_rg LIKE ? ESCAPE '\\'
@@ -81,16 +100,41 @@ export function PaletteCommandes() {
         }}
       />
       <ul>
+        {onNouveauDossier !== undefined &&
+        (requete.trim() === "" || /nouveau/i.test(requete)) ? (
+          <li>
+            <button
+              type="button"
+              className="w-full rounded-[var(--radius-control)] px-2 py-1.5 text-left font-bold hover:bg-survol"
+              data-testid="palette-nouveau-dossier"
+              onClick={() => {
+                onNouveauDossier();
+                setOuverte(false);
+                setRequete("");
+              }}
+            >
+              {fr("Nouveau dossier")}
+            </button>
+          </li>
+        ) : null}
         {resultats.map((ligne) => {
           const reference = libelleReferenceDossier(ligne.reference);
           return (
-            <li
-              key={ligne.id}
-              data-testid="palette-resultat"
-              data-dossier-id={ligne.id}
-              data-reference={reference}
-            >
-              {fr(`${reference} — ${ligne.nom} — ${ligne.numero_rg} — ${ligne.juridiction}`)}
+            <li key={ligne.id}>
+              <button
+                type="button"
+                className="w-full rounded-[var(--radius-control)] px-2 py-1.5 text-left hover:bg-survol"
+                data-testid="palette-resultat"
+                data-dossier-id={ligne.id}
+                data-reference={reference}
+                onClick={() => {
+                  onChoisirDossier?.(ligne.id, ligne.nom, ligne.chemise, ligne.reference);
+                  setOuverte(false);
+                  setRequete("");
+                }}
+              >
+                {fr(`${reference} — ${ligne.nom} — ${ligne.numero_rg} — ${ligne.juridiction}`)}
+              </button>
             </li>
           );
         })}

@@ -8,7 +8,7 @@ import { BarreActions } from "@/coque/BarreActions";
 import type { ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
 
-export type DossierDemo = {
+export type DossierVue = {
   id: string;
   reference: string;
   nom: string;
@@ -17,10 +17,17 @@ export type DossierDemo = {
   numeroRg: string;
   client: string;
   adversaire: string;
+  /** Présente uniquement pour le jeu de démonstration / galerie. */
+  echeanceDemo?: {
+    joursRestants: number;
+    partEcoulee: number;
+    intitule: string;
+    dateLibelle: string;
+  };
 };
 
 type DossierOuvertProps = {
-  dossier: DossierDemo;
+  dossier: DossierVue;
   onNouveauMail: () => void;
   onSaisirTemps: () => void;
   onFacturer: () => void;
@@ -41,6 +48,7 @@ export function DossierOuvert({
       className="fond-chemise relative flex h-full min-h-0 flex-col pr-[168px] pl-[42px] pt-[28px]"
       data-chemise={dossier.chemise}
       data-testid="ecran-dossier"
+      data-dossier-id={dossier.id}
     >
       <div className="grid grid-cols-[1fr_auto] items-start gap-7">
         <div>
@@ -52,12 +60,20 @@ export function DossierOuvert({
             adversaire={dossier.adversaire}
           />
         </div>
-        <JaugeEcheance
-          joursRestants={5}
-          partEcoulee={0.62}
-          intitule="Conclusions adverses"
-          dateLibelle="échéance le 3 oct."
-        />
+        {dossier.echeanceDemo ? (
+          <JaugeEcheance
+            joursRestants={dossier.echeanceDemo.joursRestants}
+            partEcoulee={dossier.echeanceDemo.partEcoulee}
+            intitule={dossier.echeanceDemo.intitule}
+            dateLibelle={dossier.echeanceDemo.dateLibelle}
+          />
+        ) : (
+          <div className="jauge-echeance" data-testid="jauge-echeance" role="status">
+            <p className="text-[length:var(--font-size-dense)] text-sur-chemise opacity-75">
+              {fr("Aucune échéance à afficher")}
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="relative mt-6 min-h-0 flex-1">
@@ -77,7 +93,7 @@ export function DossierOuvert({
               )}
             </h3>
             <p className="text-graphite">
-              {fr("Contenu fictif — la vue scindée arrivera au prochain jalon.")}
+              {fr("Le chrono détaillé arrivera avec la vue scindée.")}
             </p>
           </div>
         </Feuille>
@@ -101,6 +117,8 @@ export function DossierOuvert({
 }
 
 /** Jeu fictif pour démonstration / captures (trois chemises du prototype). */
+export type DossierDemo = DossierVue;
+
 export const DOSSIERS_DEMO: DossierDemo[] = [
   {
     id: "demo-kraft",
@@ -111,6 +129,12 @@ export const DOSSIERS_DEMO: DossierDemo[] = [
     numeroRg: "24/03812",
     client: "SAS Ferrand Métal",
     adversaire: "Sté Dupuis Outillage",
+    echeanceDemo: {
+      joursRestants: 5,
+      partEcoulee: 0.62,
+      intitule: "Conclusions adverses",
+      dateLibelle: "échéance le 3 oct.",
+    },
   },
   {
     id: "demo-bleu",
@@ -121,6 +145,12 @@ export const DOSSIERS_DEMO: DossierDemo[] = [
     numeroRg: "25/00441",
     client: "Me Martin",
     adversaire: "Assurances Loire",
+    echeanceDemo: {
+      joursRestants: 2,
+      partEcoulee: 0.8,
+      intitule: "Appel incident",
+      dateLibelle: "échéance le 29 sept.",
+    },
   },
   {
     id: "demo-amande",
@@ -131,6 +161,12 @@ export const DOSSIERS_DEMO: DossierDemo[] = [
     numeroRg: "23/01990",
     client: "SCI des Lilas",
     adversaire: "M. Durand",
+    echeanceDemo: {
+      joursRestants: 12,
+      partEcoulee: 0.35,
+      intitule: "Mémoire ampliatif",
+      dateLibelle: "échéance le 15 oct.",
+    },
   },
   {
     id: "demo-lilas",
@@ -141,5 +177,11 @@ export const DOSSIERS_DEMO: DossierDemo[] = [
     numeroRg: "25/01102",
     client: "Époux Bernard",
     adversaire: "Banque Atlantique",
+    echeanceDemo: {
+      joursRestants: 8,
+      partEcoulee: 0.45,
+      intitule: "Conclusions",
+      dateLibelle: "échéance le 10 oct.",
+    },
   },
 ];

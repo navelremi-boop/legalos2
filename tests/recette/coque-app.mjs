@@ -113,6 +113,14 @@ if (!/reference:\s*column\.text/u.test(srcBlob)) {
 }
 ok("référence de dossier (§ 3.4) branchée");
 
+if (/useState<OngletDossier\[\]>\(\(\) =>\s*DOSSIERS_DEMO/u.test(srcBlob)) {
+  fail("onglets initialisés avec DOSSIERS_DEMO (dette Coque)");
+}
+if (!srcBlob.includes("instanceReachable")) {
+  fail("sonde d'instance (instanceReachable) absente — navigator.onLine seul insuffisant");
+}
+ok("onglets sans démo ; sonde d'instance présente");
+
 const rType = spawnSync("pnpm", ["--filter", "@legal-os/poste", "typecheck"], {
   cwd: root,
   stdio: "inherit",

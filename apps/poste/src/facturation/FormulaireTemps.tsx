@@ -31,12 +31,20 @@ type BrouillonLocal = {
  * Saisie de temps hors ligne sur un dossier existant.
  * Le numéro de facture reste nul jusqu'à la validation serveur.
  */
-export function FormulaireTemps({ instanceUrl }: { instanceUrl: string }) {
+export function FormulaireTemps({
+  instanceUrl,
+  dossierIdPrefere,
+}: {
+  instanceUrl: string;
+  /** Pré-sélectionne le dossier ouvert (barre d'actions / chronomètre). */
+  dossierIdPrefere?: string | null;
+}) {
   const [message, setMessage] = useState("");
   const [brouillon, setBrouillon] = useState<BrouillonLocal | null>(null);
   const [cii, setCii] = useState("");
   const [dossiers, setDossiers] = useState<DossierOption[]>([]);
   const [tauxSuggere, setTauxSuggere] = useState(6_000);
+  const [dossierChoisi, setDossierChoisi] = useState(dossierIdPrefere ?? "");
 
   useEffect(() => {
     let annule = false;
@@ -65,6 +73,15 @@ export function FormulaireTemps({ instanceUrl }: { instanceUrl: string }) {
       window.clearInterval(timer);
     };
   }, []);
+
+  const dossierSelect =
+    dossiers.length === 0
+      ? dossierChoisi || dossierIdPrefere || ""
+      : dossiers.some((d) => d.id === dossierChoisi)
+        ? dossierChoisi
+        : dossierIdPrefere && dossiers.some((d) => d.id === dossierIdPrefere)
+          ? dossierIdPrefere
+          : "";
 
   async function soumettre(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -236,6 +253,10 @@ export function FormulaireTemps({ instanceUrl }: { instanceUrl: string }) {
         required
         className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
         data-testid="temps-dossier"
+        value={dossierSelect}
+        onChange={(event) => {
+          setDossierChoisi(event.target.value);
+        }}
       >
         <option value="">{fr("Choisir un dossier")}</option>
         {dossiers.map((d) => (
