@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "LEGAL OS — application de poste (Tauri)"
 authors = ["LEGAL OS"]
 edition = "2021"
+publish = false
 
 [lib]
 name = "legal_os_poste_lib"

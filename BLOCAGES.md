@@ -12,7 +12,7 @@
 | B9 | Écrans non maquettés (cahier § 7.6) | **La journée** : validée par l'architecte le 27/09/2026, sous réserve des captures régénérées sans points médians (validation de la Coque). **Autres écrans** : la validation sur captures est déléguée à l'architecte ; le commandement garde son veto. | Le développement continue ; les captures de la Coque et de J10 restent à produire |
 | B10 | Revue juridique par l'avocat avant toute mise en service réelle | Relire, avant une mise en service réelle, les délais **H1–H13**, la facturation **F0–F8** et les hypothèses d'**installation**, déjà retenus à titre provisoire par l'architecte le 27/09/2026. Voir `docs/hypotheses-delais.md`, `docs/hypotheses-facturation.md`, `docs/hypotheses-installation.md` et `RAPPORT.md`. | Ne bloque plus le développement |
 | B11 | ~~Texte de l'arbitrage R0~~ | **Levé 2026-09-27** : texte du 26/09 reçu. Il confirme R0-a, R0-c, R0-d et R0-e. Écarts (responsable, 409, R0-g) traités dans le jalon Référence en cours. | — |
-| B12 | Signalement à PowerSync : `tauri-plugin-powersync` 0.0.6 tire une pile HTTP abandonnée (avis RustSec, `time` 0.2 qui ne compile plus) ; l'état-major ne publie rien hors du dépôt | Transmettre depuis un compte GitHub le texte préparé dans `docs/audit-dependances.md` (section « Signalement préparé pour PowerSync ») au dépôt du SDK Tauri de PowerSync | Aucun sur le reste ; conditionne la levée des avis de la chaîne PowerSync |
+| B12 | ~~Signalement à PowerSync~~ | **Levé 2026-09-28** : transmis par le commandement, [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). Chaîne et texte : `docs/audit-dependances.md`. Chaque exception de `apps/poste/src-tauri/deny.toml` renvoie à cette issue. | — |
 | B13 | ~~GitHub Actions ne démarre plus~~ | **Levé 2026-09-27** : le dépôt est public. Le run du dernier commit d'alors, [36327108849](https://github.com/navelremi-boop/legalos2/actions/runs/36327108849), est vert. | — |
 | B14 | ~~La liste d'autorisation GitHub bloque les actions créées par GitHub~~ | **Levé 2026-09-27** : case « Allow actions created by GitHub » cochée. Liste des actions tierces inchangée. Premier lancement qui démarre : [36340930653](https://github.com/navelremi-boop/legalos2/actions/runs/36340930653) (`e7314f8`). | — |
 
@@ -36,17 +36,11 @@ GitHub Actions n'exécute que les actions créées par GitHub (`actions/`, `gith
 
 ## Décisions d'architecture en attente
 
-### Avis RustSec de la chaîne PowerSync du poste (2026-09-27)
-
-- **Constat** (`docs/audit-dependances.md`) : `tauri-plugin-powersync` 0.0.6, dernière version, tire `http-client` 6.5.3 (dernière publication en 2022). Sur Windows et macOS, quatre avis bloquants sans correctif amont : `async-std`, `aes-soft` et `cpuid-bool` non maintenus, notice sur `http-types`. L'ordre interdit d'ajouter des exceptions pour faire passer la CI : la dette « `cargo-deny` en CI sur les deux workspaces » ne peut donc pas être soldée côté poste sans décision.
-- **Option recommandée** : dans `apps/poste/src-tauri/deny.toml`, une exception nominative par identifiant, limitée à ces quatre avis, chacune motivée par la chaîne PowerSync et renvoyant au signalement (B12). Avec `unused-ignored-advisory = "deny"`, une exception devenue inutile fait échouer la CI : elle tombe dès le correctif amont. Revue avec la dette mensuelle des avis PowerSync.
-- **Alternatives écartées** :
-  - bifurquer le plugin pour remplacer sa couche HTTP : maintenir soi-même un SDK de synchronisation (invariant n° 5) ;
-  - revenir au SDK web : écarté en phase 1 ;
-  - rendre le contrôle non bloquant : affaiblissement.
-- **En attendant** : le workspace racine passera en CI dès le correctif `rsa` ; le poste, après la montée de Tauri (avis `unic-*`) et cette décision.
+Aucune.
 
 ### Décisions tranchées
+
+**Avis RustSec de la chaîne PowerSync** (consigne de l'architecte du 28/09/2026) : quatre exceptions nominatives dans `apps/poste/src-tauri/deny.toml` (`RUSTSEC-2025-0052`, `RUSTSEC-2021-0060`, `RUSTSEC-2021-0064`, `RUSTSEC-2026-0174`), chacune renvoyant à [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). `unused-ignored-advisory = "deny"` : une exception devenue inutile fait échouer le contrôle. Les avis `unic-*` (montée de Tauri) et `rsa` (workspace racine) restent hors de ces exceptions. Bifurquer le plugin ou rendre le contrôle non bloquant restent écartés.
 
 **Sync Streams** (`edition: 3`) : **VALIDÉ** `9f80388`. Contrat `docs/sync-streams.md`, déploiement `instance/powersync/sync-config.yaml`. JOIN autorisés (contrat ≤ 2 tables). La copie `visibilite` sur les enfants reste additive ; l’auth des flux restreints passe par `dossier_acces` + `auth.user_id()`.
 
@@ -54,6 +48,7 @@ GitHub Actions n'exécute que les actions créées par GitHub (`actions/`, `gith
 
 ## Historique
 
+- **2026-09-28 (commandement)** : B12 levé. Signalement transmis, [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129).
 - **2026-09-27 (commandement)** : B14 levé. Case « Allow actions created by GitHub » cochée. Premier lancement qui démarre : run 36340930653.
 - **2026-09-27 (état-major)** : B14 ouvert. Le réglage GitHub n'autorise pas `actions/*`, contrairement à la consigne.
 - **2026-09-27 (architecte)** : B13 levé (dépôt public) ; actions tierces limitées à la liste de ce fichier ; épinglage par hash de commit avant J14.

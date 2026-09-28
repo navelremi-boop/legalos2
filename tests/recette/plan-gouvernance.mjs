@@ -13,9 +13,10 @@
  *    JOURNAL.md.
  *
  * Plage : variable PLAN_RANGE (« base..tête ») ; à défaut origin/main..HEAD.
+ * 4. Un chemin `docs/…` cité dans PLAN.md, BLOCAGES.md ou JOURNAL.md existe dans le dépôt.
  */
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -174,6 +175,21 @@ function verifierCliquet(avant, apres, commit) {
   }
 }
 
+const RE_DOC = /docs\/(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+\.[A-Za-z0-9]+/g;
+
+function cheminsDocs(texte) {
+  return [...new Set(texte.match(RE_DOC) ?? [])];
+}
+
+/** Chemins docs/ cités qui ne sont pas dans le dépôt. `existe` reçoit le chemin relatif. */
+function documentsAbsents(texte, origine, existe) {
+  const absents = [];
+  for (const chemin of cheminsDocs(texte)) {
+    if (!existe(chemin)) absents.push(`${origine} : chemin cité absent du dépôt : ${chemin}`);
+  }
+  return absents;
+}
+
 function plage() {
   if (process.env.PLAN_RANGE) return process.env.PLAN_RANGE.trim();
   try {
@@ -196,6 +212,27 @@ const essaiNegatif = verifierCouverture(
 );
 if (!essaiNegatif.some((e) => e.includes("n° 2")) || !essaiNegatif.some((e) => e.includes("Jalon absent"))) {
   erreurs.push("essai négatif de la couverture V1 muet");
+}
+
+const existeDepot = (chemin) => existsSync(join(root, chemin));
+for (const nom of ["PLAN.md", "BLOCAGES.md", "JOURNAL.md"]) {
+  erreurs.push(...documentsAbsents(readFileSync(join(root, nom), "utf8"), nom, existeDepot));
+}
+const essaiDocs = documentsAbsents(
+  "voir `docs/inexistant-gouvernance.md` et docs/cahier-des-charges.md",
+  "essai",
+  () => false,
+);
+if (
+  essaiDocs.length !== 2 ||
+  !essaiDocs.some((e) => e.includes("docs/inexistant-gouvernance.md")) ||
+  !essaiDocs.some((e) => e.includes("docs/cahier-des-charges.md"))
+) {
+  erreurs.push("essai négatif des chemins docs muet");
+}
+const essaiDocsPresent = documentsAbsents("voir `docs/cahier-des-charges.md`", "essai", () => true);
+if (essaiDocsPresent.length !== 0) {
+  erreurs.push("essai négatif des chemins docs : faux positif");
 }
 
 const intervalle = plage();

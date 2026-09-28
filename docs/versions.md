@@ -51,6 +51,7 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 | veraPDF greenfield | **1.28.2** | https://software.verapdf.org/releases/1.28/ |
 | Schematron EN 16931 CII | **1.3.16** | https://github.com/ConnectingEurope/eInvoicing-EN16931/releases/tag/validation-1.3.16 — XSLT EUPL 1.2 |
 | LLVM / libclang (bindgen `powersync_sqlite_nostd`) | **23.1.2** | https://github.com/llvm/llvm-project — installé le 2026-09-25 via winget `LLVM.LLVM`. `LIBCLANG_PATH` = répertoire de `libclang.dll` (`C:\Program Files\LLVM\bin` sur ce poste). |
+| cargo-deny (audit des dépendances Rust, deux workspaces) | **0.20.2** | https://github.com/EmbarkStudios/cargo-deny/releases/tag/0.20.2 — publié le 2026-07-09, vérifié le 2026-09-27 ; configuration : https://embarkstudios.github.io/cargo-deny/ . Binaire officiel Windows installé dans `~/.cargo/bin`, empreinte SHA-256 contrôlée (`975a22143262fd27476d19ee00c7af67978426e40e1dee94eed6bbade1cf87dc`). Politique et constat : `docs/audit-dependances.md`. |
 | Rust toolchain | **stable** (`rust-toolchain.toml`) — **1.98.1** observé sur le poste 2026-09-26 | https://rust-lang.org |
 | Rust (image build API) | **rust:1.98.1-bookworm** (alignée sur la toolchain du dépôt) | https://hub.docker.com/_/rust |
 | Images compose LEGAL OS | **legalos/api:0.1.0**, **legalos/caddy:2.10.0-alpine**, **legalos/simulateur-pa:s1-stub** (build local, pas de `latest`) | `instance/docker-compose.yml` |

@@ -7,13 +7,20 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Conflits généralisés** : VALIDÉ `61e77c8` (contrôleur, CI [36357904754](https://github.com/navelremi-boop/legalos2/actions/runs/36357904754)). Quatre runs : **78** minutes (jobs arrondis à la minute supérieure). Dettes de preuve `fixerRevisionEdition` et injection `ps_crud` ouvertes jusqu'à la fin de la phase 2.
 - **En cours** : **Coque de l'app**.
 - **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → **Coque** → Vue scindée → Intercalaires → Dossiers et contacts complets → Agenda → Documents, suite → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
-- **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance).
+- **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance). Un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` doit exister.
+- **B12 levé** (28/09) : signalement transmis, [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). Quatre exceptions dans `apps/poste/src-tauri/deny.toml`. Constat : `docs/audit-dependances.md`.
 - **Sync** : Streams édition 3, service 1.26.1. Dette mensuelle avis PowerSync.
 - **Coque** corrigée (`22d765e`), non cochée : points médians de La journée (consigne 3), onglets de démonstration (dette). La journée est validée par l'architecte sous réserve des captures régénérées (consigne du 27/09, point 2).
 - **B11 levé**. Contrôleur d'abord REFUSÉ (affichage du numéro minimal). Recette `reference-modele-ecran.mjs` : exit 0, numéro `1000000000`. Second verdict **VALIDÉ** sur `03ca364`.
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---
+
+## 2026-09-28 — Consigne de l'architecte : B12 et document manquant
+
+Texte reçu : le signalement PowerSync a été transmis (issue powersync-ja/powersync-js #1129). Consigner le lien ; chaque exception de `deny.toml` y renvoie. Créer `docs/audit-dependances.md`, cité par `BLOCAGES.md` mais absent du dépôt, avec la chaîne vérifiée. `plan-gouvernance.mjs` échoue si un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` n'existe pas. Essai négatif inclus.
+
+Traitement : B12 levé. Chaîne contrôlée sur le crate publié 0.0.6 et le `Cargo.lock` du poste : `http-client` 6.5.3 sans fonctionnalités par défaut, `http-types` 2.12 avec `fs` et `cookie-secure`, seul usage `commands.rs:5`. Quatre exceptions nominatives. `cargo deny … check advisories` sur le poste ne signale plus ces quatre avis ; les cinq avis `unic-*` de Tauri restent, hors de ces exceptions. `node tests/recette/plan-gouvernance.mjs` → OK.
 
 ## 2026-09-28 — Conflits généralisés : refus du contrôleur
 
