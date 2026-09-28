@@ -26,7 +26,16 @@ function libelleUtilisateur(utilisateur: UtilisateurLocal): string {
   return utilisateur.id;
 }
 
-export function FormulaireDossier() {
+export function FormulaireDossier({
+  onCree,
+}: {
+  onCree?: (dossier: {
+    id: string;
+    nom: string;
+    chemise: string;
+    reference: string | null;
+  }) => void;
+} = {}) {
   const [message, setMessage] = useState("");
   const [utilisateurs, setUtilisateurs] = useState<UtilisateurLocal[]>([]);
   const [responsableId, setResponsableId] = useState("");
@@ -88,8 +97,9 @@ export function FormulaireDossier() {
       return;
     }
     try {
+      const nom = champ(form, "nom");
       const id = await ecrireDossier({
-        nom: champ(form, "nom"),
+        nom,
         chemise,
         juridiction: champ(form, "juridiction"),
         numeroRg: champ(form, "numero_rg"),
@@ -99,6 +109,7 @@ export function FormulaireDossier() {
         responsableId: responsable,
       });
       setMessage(id);
+      onCree?.({ id, nom, chemise, reference: null });
       formulaire.reset();
       setResponsableId(responsable);
     } catch (err) {

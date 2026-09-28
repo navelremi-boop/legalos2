@@ -19,10 +19,9 @@ import { FormulaireDossier } from "@/dossiers/FormulaireDossier";
 import { PaletteCommandes } from "@/dossiers/PaletteCommandes";
 import { isChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
-import {
-  libelleReferenceDossier,
-} from "@/lib/referenceDossier";
-import { DossierOuvert, DOSSIERS_DEMO, type DossierDemo } from "@/screens/DossierOuvert";
+import { instanceReachable } from "@/lib/instanceReachable";
+import { libelleReferenceDossier } from "@/lib/referenceDossier";
+import { DossierOuvert, type DossierVue } from "@/screens/DossierOuvert";
 import { Dossiers } from "@/screens/Dossiers";
 import { EcranStub } from "@/screens/EcranStub";
 import { Journee } from "@/screens/Journee";
@@ -49,22 +48,27 @@ type CoqueAppProps = {
   onReconnect?: () => void;
 };
 
+type DossierLocal = {
+  id: string;
+  nom: string;
+  chemise: string;
+  reference: string | null;
+  juridiction: string;
+  numero_rg: string;
+};
+
 export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppProps) {
   const [nav, setNav] = useState<NavId>("journee");
   const [themeMode, setThemeMode] = useState<ThemeMode>("system");
-  const [onglets, setOnglets] = useState<OngletDossier[]>(() =>
-    DOSSIERS_DEMO.map((d) => ({
-      id: d.id,
-      reference: d.reference,
-      nom: d.nom,
-      chemise: d.chemise,
-    })),
-  );
-  const [ongletActifId, setOngletActifId] = useState<string | null>(DOSSIERS_DEMO[0]?.id ?? null);
+  /** Onglets ouverts : uniquement des dossiers réels (jamais DOSSIERS_DEMO). */
+  const [onglets, setOnglets] = useState<OngletDossier[]>([]);
+  const [ongletActifId, setOngletActifId] = useState<string | null>(null);
+  const [dossierCharge, setDossierCharge] = useState<DossierVue | null>(null);
   const [panneau, setPanneau] = useState<Panneau>("aucun");
   const [menuCompteOuvert, setMenuCompteOuvert] = useState(false);
   const [enAttente, setEnAttente] = useState(0);
-  const [horsLigne, setHorsLigne] = useState(!navigator.onLine);
+  const [navigateurHorsLigne, setNavigateurHorsLigne] = useState(!navigator.onLine);
+  const [instanceHorsLigne, setInstanceHorsLigne] = useState(false);
 
   useEffect(() => {
     document.documentElement.dataset.theme = resolveTheme(themeMode);
@@ -72,10 +76,10 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
 
   useEffect(() => {
     const onOnline = () => {
-      setHorsLigne(false);
+      setNavigateurHorsLigne(false);
     };
     const onOffline = () => {
-      setHorsLigne(true);
+      setNavigateurHorsLigne(true);
     };
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
@@ -85,14 +89,28 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
     };
   }, []);
 
+  /** Coupure réelle vers l'instance (réseau local OK mais serveur injoignable). */
+  useEffect(() => {
+    let stop = false;
+    const sonder = () => {
+      void instanceReachable(instanceUrl).then((ok) => {
+        if (!stop) setInstanceHorsLigne(!ok);
+      });
+    };
+    sonder();
+    const timer = window.setInterval(sonder, 4_000);
+    return () => {
+      stop = true;
+      window.clearInterval(timer);
+    };
+  }, [instanceUrl]);
+
   useEffect(() => {
     let stop = false;
     const tick = () => {
       void getPowerSyncDatabase()
         .then((database) =>
-          database.getAll<{ n: number }>(
-            "SELECT COUNT(*) AS n FROM journal_modifications WHERE sync_pending = 1",
-          ),
+          database.getAll<{ n: number }>("SELECT COUNT(*) AS n FROM ps_crud"),
         )
         .then((rows) => {
           if (!stop) setEnAttente(rows[0]?.n ?? 0);
@@ -125,7 +143,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
   /** Met à jour les références serveur dès qu’elles descendent en SQLite (§ 3.4). */
   const ongletsIds = onglets.map((o) => o.id).join("|");
   useEffect(() => {
-    const ids = ongletsIds.split("|").filter((id) => id.length > 0 && !id.startsWith("demo-"));
+    const ids = ongletsIds.split("|").filter((id) => id.length > 0);
     if (ids.length === 0) return;
     let stop = false;
     const tick = () => {
@@ -165,30 +183,72 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
     };
   }, [ongletsIds]);
 
+  /** Charge les infos réelles du dossier actif (pas le jeu DOSSIERS_DEMO). */
+  useEffect(() => {
+    if (!ongletActifId || nav !== "dossier") return;
+    const cible = ongletActifId;
+    let stop = false;
+    const charger = () => {
+      void getPowerSyncDatabase()
+        .then(async (database) => {
+          const rows = await database.getAll<DossierLocal>(
+            `SELECT id, nom, chemise, reference, juridiction, numero_rg
+             FROM dossiers WHERE id = ? LIMIT 1`,
+            [cible],
+          );
+          const row = rows[0];
+          if (!row || !isChemiseId(row.chemise)) return null;
+          const parties = await database.getAll<{ role: string; nom: string }>(
+            "SELECT role, nom FROM parties WHERE dossier_id = ?",
+            [cible],
+          );
+          const client =
+            parties.find((p) => p.role === "client")?.nom ??
+            parties.find((p) => p.role === "demandeur")?.nom ??
+            "";
+          const adversaire =
+            parties.find((p) => p.role === "adversaire")?.nom ??
+            parties.find((p) => p.role === "defendeur")?.nom ??
+            "";
+          return {
+            id: row.id,
+            reference: libelleReferenceDossier(row.reference),
+            nom: row.nom,
+            chemise: row.chemise,
+            juridiction: row.juridiction || "—",
+            numeroRg: row.numero_rg || "—",
+            client: client || "—",
+            adversaire: adversaire || "—",
+          } satisfies DossierVue;
+        })
+        .then((vue) => {
+          if (!stop) setDossierCharge(vue);
+        })
+        .catch(() => {
+          if (!stop) setDossierCharge(null);
+        });
+    };
+    charger();
+    const timer = window.setInterval(charger, 2_000);
+    return () => {
+      stop = true;
+      window.clearInterval(timer);
+    };
+  }, [ongletActifId, nav]);
+
+  const horsLigne = navigateurHorsLigne || instanceHorsLigne;
+
   const sync: SyncEtat = useMemo(() => {
-    if (horsLigne || enAttente > 0) {
+    if (horsLigne) {
       return { kind: "hors-ligne", enAttente };
     }
     return { kind: "synchronise" };
   }, [horsLigne, enAttente]);
 
-  const dossierActif: DossierDemo | null = useMemo(() => {
-    if (!ongletActifId) return null;
-    const demo = DOSSIERS_DEMO.find((d) => d.id === ongletActifId);
-    if (demo) return demo;
-    const onglet = onglets.find((o) => o.id === ongletActifId);
-    if (!onglet || !isChemiseId(onglet.chemise)) return null;
-    return {
-      id: onglet.id,
-      reference: onglet.reference,
-      nom: onglet.nom,
-      chemise: onglet.chemise,
-      juridiction: "—",
-      numeroRg: "—",
-      client: "—",
-      adversaire: "—",
-    };
-  }, [ongletActifId, onglets]);
+  const dossierActif =
+    nav === "dossier" && ongletActifId && dossierCharge?.id === ongletActifId
+      ? dossierCharge
+      : null;
 
   const ouvrirDossier = useCallback(
     (id: string, nom: string, chemise: string, reference?: string | null) => {
@@ -203,6 +263,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
       });
       setOngletActifId(id);
       setNav("dossier");
+      setPanneau("aucun");
     },
     [],
   );
@@ -234,7 +295,14 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
       />
     );
   } else if (nav === "dossiers") {
-    contenu = <Dossiers onOuvrirDossier={ouvrirDossier} />;
+    contenu = (
+      <Dossiers
+        onOuvrirDossier={ouvrirDossier}
+        onNouveauDossier={() => {
+          setPanneau("dossier-form");
+        }}
+      />
+    );
   } else if (nav === "reglages") {
     contenu = (
       <Reglages
@@ -270,6 +338,12 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
     contenu = <EcranStub titre="Agenda" testId="ecran-agenda" />;
   } else if (nav === "facturation") {
     contenu = <EcranStub titre="Facturation" testId="ecran-facturation" />;
+  } else if (nav === "dossier") {
+    contenu = (
+      <div className="fond-neutre flex h-full items-center justify-center" data-testid="ecran-dossier-chargement">
+        <p className="text-sur-chemise">{fr("Chargement du dossier…")}</p>
+      </div>
+    );
   } else {
     contenu = (
       <Journee
@@ -406,10 +480,29 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
             >
               {fr("Fermer")}
             </button>
-            {panneau === "dossier-form" ? <FormulaireDossier /> : null}
-            {panneau === "temps" ? <FormulaireTemps instanceUrl={instanceUrl} /> : null}
+            {panneau === "dossier-form" ? (
+              <FormulaireDossier
+                onCree={({ id, nom, chemise, reference }) => {
+                  ouvrirDossier(id, nom, chemise, reference);
+                }}
+              />
+            ) : null}
+            {panneau === "temps" ? (
+              <FormulaireTemps
+                instanceUrl={instanceUrl}
+                dossierIdPrefere={ongletActifId}
+              />
+            ) : null}
             {panneau === "delai" ? <FormulaireDelai /> : null}
-            {panneau === "palette" ? <PaletteCommandes /> : null}
+            {panneau === "palette" ? (
+              <PaletteCommandes
+                ouverteParDefaut
+                onChoisirDossier={ouvrirDossier}
+                onNouveauDossier={() => {
+                  setPanneau("dossier-form");
+                }}
+              />
+            ) : null}
           </div>
         </div>
       ) : null}

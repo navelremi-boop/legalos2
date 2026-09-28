@@ -20,9 +20,10 @@ type DossiersProps = {
     chemise: string,
     reference?: string | null,
   ) => void;
+  onNouveauDossier?: () => void;
 };
 
-export function Dossiers({ onOuvrirDossier }: DossiersProps) {
+export function Dossiers({ onOuvrirDossier, onNouveauDossier }: DossiersProps) {
   const [lignes, setLignes] = useState<LigneDossier[]>([]);
 
   useEffect(() => {
@@ -56,8 +57,27 @@ export function Dossiers({ onOuvrirDossier }: DossiersProps) {
       </h1>
       <Feuille uneColonne className="min-h-[420px]">
         <div className="space-y-8 p-[22px] pb-16">
-          <PaletteCommandes />
-          <FormulaireDossier />
+          <div className="flex flex-wrap items-center gap-3">
+            <PaletteCommandes
+              onChoisirDossier={onOuvrirDossier}
+              onNouveauDossier={onNouveauDossier}
+            />
+            {onNouveauDossier !== undefined ? (
+              <button
+                type="button"
+                className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                data-testid="dossiers-nouveau"
+                onClick={onNouveauDossier}
+              >
+                {fr("Nouveau dossier")}
+              </button>
+            ) : null}
+          </div>
+          <FormulaireDossier
+            onCree={({ id, nom, chemise, reference }) => {
+              onOuvrirDossier?.(id, nom, chemise, reference);
+            }}
+          />
           <section>
             <h2 className="mb-3 text-[length:var(--font-size-section)] font-extrabold">
               {fr("Dossiers du cabinet")}
