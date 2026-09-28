@@ -32,16 +32,36 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .layer(TraceLayer::new_for_http())
 }
 
-fn couche_cors() -> CorsLayer {
-    const ORIGINES: [&str; 5] = [
-        "http://localhost:1420",
-        "http://127.0.0.1:1420",
-        "http://tauri.localhost",
-        "https://tauri.localhost",
-        "http://asset.localhost",
-    ];
+/// Origines Tauri / WebView toujours acceptées (build distribué compris).
+const ORIGINES_TOUJOURS: [&str; 4] = [
+    "tauri://localhost",
+    "http://tauri.localhost",
+    "https://tauri.localhost",
+    "http://asset.localhost",
+];
+
+/// Origines du serveur Vite : uniquement si `LEGALOS_MODE=development`.
+const ORIGINES_DEV_VITE: [&str; 2] = ["http://localhost:1420", "http://127.0.0.1:1420"];
+
+pub fn couche_cors() -> CorsLayer {
+    couche_cors_selon_developpement(config::mode_developpement())
+}
+
+/// Couche CORS paramétrable (tests) : Vite `:1420` seulement en développement.
+pub fn couche_cors_selon_developpement(developpement: bool) -> CorsLayer {
+    let mut origines: Vec<HeaderValue> = ORIGINES_TOUJOURS
+        .iter()
+        .map(|o| HeaderValue::from_static(o))
+        .collect();
+    if developpement {
+        origines.extend(
+            ORIGINES_DEV_VITE
+                .iter()
+                .map(|o| HeaderValue::from_static(o)),
+        );
+    }
     CorsLayer::new()
-        .allow_origin(ORIGINES.map(HeaderValue::from_static))
+        .allow_origin(origines)
         .allow_methods([
             Method::GET,
             Method::POST,
