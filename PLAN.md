@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-28 (jalon en cours : **Coque de l'app**).
+Dernière mise à jour : 2026-09-28 (jalon en cours : **Vue scindée**).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -120,22 +120,7 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
 
 - [x] **Conflits généralisés** — VALIDÉ `61e77c8` (contrôleur, CI [36357904754](https://github.com/navelremi-boop/legalos2/actions/runs/36357904754))
 
-- [ ] **Coque de l'app** — cahier § 7, version 5 (code sur `a24d0a2`, écarts de captures corrigés `22d765e`)
-  - **Critères d'acceptation (commandes)** :
-    - `node tests/recette/coque-app.mjs` → exit 0 :
-      - `design/tokens.css` conforme au § 7.3 : couleurs de base, huit chemises à quatre valeurs (fond, teinte, texte, accent), jour et nuit, fond `neutre`, tuile de grain embarquée ; thème shadcn réécrit à partir de ces jetons ;
-      - composants du § 7.4, jour et nuit : barre du haut, étiquette avec référence, informations du dossier, jauge d'échéance, feuille, intercalaires standards, barre d'actions flottante ;
-      - hors dossier, fond `neutre` ; La journée selon le § 7.6 ;
-      - recettes sur des `data-testid` stables.
-    - `node tests/recette/points-medians.mjs` → exit 0, en CI : aucun « · » dans un texte d'interface (La journée : « TJ Nanterre, 9 h 30 » ; « échéance le 3 oct., dans 5 jours »).
-    - `node tests/recette/coque-fonctions-tauri.mjs` → exit 0 (app Tauri) :
-      - fonctions à leur place définitive : nouveau dossier depuis la palette et la vue Dossiers ; saisie de temps rattachée à un dossier, depuis la barre d'actions et le chronomètre ; calcul de délai depuis la barre d'actions (type choisi dans la bibliothèque, lieu où demeure la partie : métropole, outre-mer, étranger) ; l'écran rappelle que le calcul ne prend pas en compte les jours chômés locaux (H7) ; nom du cabinet et thème dans Réglages ;
-      - synchronisation invisible : aucun bouton « hors ligne » ou « en ligne » ; pendant une coupure réelle, « Hors ligne, N modifications en attente », puis « Synchronisé ».
-    - `node tests/recette/galerie-absente.mjs` → exit 0 : galerie de démonstration réservée au développement, absente du build distribué (vérifiée sur le build).
-    - `node tests/recette/coque-app.mjs --captures` : captures jour et nuit de la vue dossier (trois couleurs de chemise) et de La journée, comparées au prototype par le contrôleur.
-    - `node tests/recette/cors.mjs` → exit 0 : dette CORS soldée (voir les dettes transverses).
-    - `pnpm --filter @legal-os/poste lint:ci` → exit 0 (aucune couleur en dur) ; contrôleur VALIDÉ ; CI verte.
-  - **Dettes à solder avant sa validation** : les deux dettes « Avant la fin de la Coque » ci-dessous.
+- [x] **Coque de l'app** — VALIDÉ `831e398` (contrôleur, CI [36475104465](https://github.com/navelremi-boop/legalos2/actions/runs/36475104465))
 
 - [ ] **Vue scindée** — § 7.4, intercalaire Chrono
   - **Critères d'acceptation (commandes)** :
@@ -224,8 +209,8 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
 
 - [x] **Immédiat** : `garde-commandes` et `garde-secrets` refusent, et le signalent, quand ils ne parviennent pas à lire leur entrée — `node tests/recette/garde-hooks.mjs`.
 - [x] **Immédiat** : images et compilations depuis un arbre de travail en CRLF (majeur 1 du contrôle Référence) — `Dockerfile.api` ramené en LF ; `node tests/recette/encodage-texte.mjs` ; outil `instance/outils/realigner-migrations-lf.mjs`.
-- [ ] **Avant la fin de la Coque** : CORS — ajouter `tauri://localhost` ; `localhost:1420` accepté seulement en mode développement.
-- [ ] **Avant la fin de la Coque** : onglets de démonstration aux références écrites en dur (`CoqueApp.tsx:56`, majeur 2 du contrôle Référence) ; onglets à 800 px (réduction, puis menu des dossiers ouverts) ; indicateur « Synchronisé » affiché pendant une coupure ; contenu de démonstration dans la vue d'un vrai dossier.
+- [x] **Avant la fin de la Coque** : CORS — ajouter `tauri://localhost` ; `localhost:1420` accepté seulement en mode développement.
+- [x] **Avant la fin de la Coque** : onglets de démonstration aux références écrites en dur (`CoqueApp.tsx:56`, majeur 2 du contrôle Référence) ; onglets à 800 px (réduction, puis menu des dossiers ouverts) ; indicateur « Synchronisé » affiché pendant une coupure ; contenu de démonstration dans la vue d'un vrai dossier.
 - [ ] **Avant J14** : feature `test-webdriver` réalisée (WebDriver embarqué, WebdriverIO) pour les scénarios de l'app, aussi en CI macOS.
 - [ ] **Avant J17** : revue juridique par l'avocat avant toute mise en service réelle (délais H1–H13, facturation F0–F8, installation) — `RAPPORT.md`, section du même nom.
 - [ ] **Avant J14** : build distribué sans outils de développement ni débogage distant, vérifié par un test.
