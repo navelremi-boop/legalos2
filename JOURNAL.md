@@ -5,8 +5,9 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Phase 0–1** VALIDÉES ; **J5–J7** VALIDÉS ; **Migration Sync Streams** VALIDÉE `9f80388` ; **J8** VALIDÉ `e8eb6b2`.
 - **Référence de dossier** : VALIDÉ `03ca364` (contrôleur, CI [36322383021](https://github.com/navelremi-boop/legalos2/actions/runs/36322383021)). Minutes des trois runs de clôture : **100** (durées de jobs arrondies à la minute supérieure ; le job macOS de [36319178833](https://github.com/navelremi-boop/legalos2/actions/runs/36319178833) compte dix fois).
 - **Conflits généralisés** : VALIDÉ `61e77c8` (contrôleur, CI [36357904754](https://github.com/navelremi-boop/legalos2/actions/runs/36357904754)). Quatre runs : **78** minutes (jobs arrondis à la minute supérieure). Dettes de preuve `fixerRevisionEdition` et injection `ps_crud` ouvertes jusqu'à la fin de la phase 2.
-- **En cours** : **Coque de l'app**. Lots en parallèle : poste (`lot/coque-poste`) et CORS (`lot/coque-cors`). Dettes à solder avant la coche : onglets de démonstration, 800 px, indicateur pendant une coupure, contenu de démo dans un vrai dossier, `tauri://localhost`, Vite seulement en développement.
-- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → **Coque** → Vue scindée → Intercalaires → Dossiers et contacts complets → Agenda → Documents, suite → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
+- **Coque de l'app** : VALIDÉ `831e398` (contrôleur, CI [36475104465](https://github.com/navelremi-boop/legalos2/actions/runs/36475104465)). Trois runs (CORS, poste, `main`) : **60** minutes.
+- **En cours** : **Vue scindée**.
+- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → **Vue scindée** → Intercalaires → Dossiers et contacts complets → Agenda → Documents, suite → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance). Un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` doit exister.
 - **B12 levé** (28/09) : signalement transmis, [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). Quatre exceptions dans `apps/poste/src-tauri/deny.toml`. Constat : `docs/audit-dependances.md`.
 - **Sync** : Streams édition 3, service 1.26.1. Dette mensuelle avis PowerSync.
@@ -15,6 +16,10 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---
+
+## 2026-09-28 — Coque de l'app VALIDÉE
+
+Contrôleur VALIDÉ sur `64cdb1b` (poste) et `958d09a` (CORS). Fusion dans `main` en `831e398`. CI [36475104465](https://github.com/navelremi-boop/legalos2/actions/runs/36475104465) verte. Dettes CORS et onglets de démonstration cochées. Détail dans `docs/journal/phase-2.md`. Jalon suivant : Vue scindée.
 
 ## 2026-09-28 — Consigne de l'architecte : B12 et document manquant
 

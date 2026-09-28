@@ -150,3 +150,10 @@ Preuves (2026-09-26) :
 - Premier contrôle REFUSÉ : `conflits_integration` rejouait des clés fixes sur le Postgres partagé (`journal dossier: RowNotFound`). Correctif `ad83917` : série unique par exécution, rejeu volontaire de la même clé. Recontrôle : exit 0, 1 passed.
 - Critères du PLAN inchangés depuis `c47dc6b` jusqu'à la coche. CI de `main` [36357904754](https://github.com/navelremi-boop/legalos2/actions/runs/36357904754) verte. Minutes des quatre runs du lot (lint en échec, lint corrigé, clés, `main`) : **78**.
 - Dettes jusqu'à la fin de la phase 2 : `fixerRevisionEdition` pour la fausse alerte ; insertion de secours dans `ps_crud`.
+
+## 2026-09-28 — Coque de l'app VALIDÉE
+
+- Poste `64cdb1b` : onglets vides au démarrage, dossiers réels, sonde `/health` (coupure → « Hors ligne, N modifications en attente », puis « Synchronisé »), overflow vers 800 px, galerie absente du build, captures jour et nuit.
+- CORS `958d09a` : `tauri://localhost` toujours ; `localhost:1420` et `127.0.0.1:1420` seulement en `LEGALOS_MODE=development`.
+- Contrôleur VALIDÉ. CI de `main` [36475104465](https://github.com/navelremi-boop/legalos2/actions/runs/36475104465). Minutes des trois runs (PR CORS, PR poste, `main`) : **60**.
+- Observation : La journée en développement garde un jeu fictif pour les captures ; le build distribué a des listes vides jusqu'à J10. Le chrono détaillé reste au jalon Vue scindée.
