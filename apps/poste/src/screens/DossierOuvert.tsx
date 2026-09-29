@@ -19,6 +19,7 @@ import {
   renommerIntercalaire,
   retirerIntercalaire,
 } from "@/dossiers/ecrireIntercalaire";
+import { CompleterDossier } from "@/dossiers/CompleterDossier";
 import type { ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
 import { getPowerSyncDatabase } from "@/sync/database";
@@ -32,6 +33,10 @@ export type DossierVue = {
   numeroRg: string;
   client: string;
   adversaire: string;
+  confrere?: string;
+  typeDossier?: string;
+  etape?: string;
+  lies?: string;
   /** Présente uniquement pour le jeu de démonstration / galerie. */
   echeanceDemo?: {
     joursRestants: number;
@@ -87,6 +92,9 @@ export function DossierOuvert({
   const [personnalises, setPersonnalises] = useState<IntercalaireLocal[]>([]);
   const [elements, setElements] = useState<ElementLocal[]>([]);
   const [conflits, setConflits] = useState<ConflitLocal[]>([]);
+  const [conflitDossier, setConflitDossier] = useState<ConflitLocal | null>(null);
+  const [conflitContact, setConflitContact] = useState<ConflitLocal | null>(null);
+  const [historique, setHistorique] = useState<ConflitLocal[]>([]);
   const [brouillonNom, setBrouillonNom] = useState<Record<string, string>>({});
   const chronoActif = intercalaire === "chrono";
   const persoActif =
@@ -127,19 +135,57 @@ export function DossierOuvert({
               [intercalaire],
             );
           }
-          return { rows, liens, journaux };
+          const dossierConflits = await database.getAll<ConflitLocal>(
+            `SELECT champ, valeur_remplacee, valeur_appliquee
+             FROM journal_modifications
+             WHERE table_cible = 'dossiers' AND conflit = 1 AND enregistrement_id = ?
+             ORDER BY cree_le DESC LIMIT 1`,
+            [dossier.id],
+          );
+          const contactConflits = await database.getAll<ConflitLocal>(
+            `SELECT champ, valeur_remplacee, valeur_appliquee
+             FROM journal_modifications
+             WHERE table_cible = 'contacts' AND conflit = 1
+               AND enregistrement_id IN (
+                 SELECT contact_id FROM parties WHERE dossier_id = ? AND contact_id IS NOT NULL
+               )
+             ORDER BY cree_le DESC LIMIT 1`,
+            [dossier.id],
+          );
+          const lignes = await database.getAll<ConflitLocal>(
+            `SELECT champ, valeur_remplacee, valeur_appliquee
+             FROM journal_modifications
+             WHERE table_cible = 'parties'
+               AND enregistrement_id IN (SELECT id FROM parties WHERE dossier_id = ?)
+             ORDER BY cree_le ASC`,
+            [dossier.id],
+          );
+          return {
+            rows,
+            liens,
+            journaux,
+            dossierConflit: dossierConflits[0] ?? null,
+            contactConflit: contactConflits[0] ?? null,
+            historique: lignes,
+          };
         })
-        .then(({ rows, liens, journaux }) => {
+        .then(({ rows, liens, journaux, dossierConflit, contactConflit, historique: lignes }) => {
           if (stop) return;
           setPersonnalises(rows);
           setElements(liens);
           setConflits(journaux);
+          setConflitDossier(dossierConflit);
+          setConflitContact(contactConflit);
+          setHistorique(lignes);
         })
         .catch(() => {
           if (stop) return;
           setPersonnalises([]);
           setElements([]);
           setConflits([]);
+          setConflitDossier(null);
+          setConflitContact(null);
+          setHistorique([]);
         });
     };
     tick();
@@ -192,7 +238,33 @@ export function DossierOuvert({
             numeroRg={dossier.numeroRg}
             client={dossier.client}
             adversaire={dossier.adversaire}
+            confrere={dossier.confrere}
+            typeDossier={dossier.typeDossier}
+            etape={dossier.etape}
+            lies={dossier.lies}
           />
+          {conflitDossier ? (
+            <p data-testid="dossier-conflit" role="status">
+              {fr(
+                `Conflit sur ${conflitDossier.champ} : « ${conflitDossier.valeur_remplacee ?? ""} » remplacé par « ${conflitDossier.valeur_appliquee ?? ""} ».`,
+              )}
+            </p>
+          ) : null}
+          {conflitContact ? (
+            <p data-testid="contact-conflit" role="status">
+              {fr(
+                `Conflit de contact sur ${conflitContact.champ} : « ${conflitContact.valeur_remplacee ?? ""} » remplacé par « ${conflitContact.valeur_appliquee ?? ""} ».`,
+              )}
+            </p>
+          ) : null}
+          <ul data-testid="contact-historique">
+            {historique.map((ligne, index) => (
+              <li key={`${ligne.champ}-${String(index)}`}>
+                {fr(`${ligne.champ} : ${ligne.valeur_appliquee ?? ""}`)}
+              </li>
+            ))}
+          </ul>
+          {intercalairesSync ? <CompleterDossier dossierId={dossier.id} /> : null}
         </div>
         {dossier.echeanceDemo ? (
           <JaugeEcheance

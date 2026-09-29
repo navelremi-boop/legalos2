@@ -18,6 +18,27 @@ function champ(form: FormData, nom: string): string {
   return typeof valeur === "string" ? valeur.trim() : "";
 }
 
+function typeSaisie(valeur: string): "contentieux" | "conseil" | "autre" {
+  if (valeur === "contentieux" || valeur === "conseil" || valeur === "autre") return valeur;
+  return "autre";
+}
+
+function etapeSaisie(
+  valeur: string,
+): "ouverture" | "instruction" | "plaidoirie" | "jugement" | "execution" | "clos" {
+  if (
+    valeur === "ouverture" ||
+    valeur === "instruction" ||
+    valeur === "plaidoirie" ||
+    valeur === "jugement" ||
+    valeur === "execution" ||
+    valeur === "clos"
+  ) {
+    return valeur;
+  }
+  return "ouverture";
+}
+
 function libelleUtilisateur(utilisateur: UtilisateurLocal): string {
   const nom = utilisateur.display_name?.trim() ?? "";
   if (nom !== "") return nom;
@@ -113,6 +134,8 @@ export function FormulaireDossier({
         partieRole: "client",
         restreint: form.get("restreint") === "on",
         responsableId: responsable,
+        typeDossier: typeSaisie(champ(form, "type_dossier")),
+        etape: etapeSaisie(champ(form, "etape")),
       });
       setMessage(id);
       onCree?.({ id, nom, chemise, reference: null });
@@ -198,6 +221,37 @@ export function FormulaireDossier({
         required
         className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
       />
+      <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="dossier-type">
+        {fr("Type de dossier")}
+      </label>
+      <select
+        id="dossier-type"
+        name="type_dossier"
+        data-testid="dossier-type"
+        className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+        defaultValue="contentieux"
+      >
+        <option value="contentieux">{fr("contentieux")}</option>
+        <option value="conseil">{fr("conseil")}</option>
+        <option value="autre">{fr("autre")}</option>
+      </select>
+      <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="dossier-etape">
+        {fr("Étape")}
+      </label>
+      <select
+        id="dossier-etape"
+        name="etape"
+        data-testid="dossier-etape"
+        className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+        defaultValue="instruction"
+      >
+        <option value="ouverture">{fr("ouverture")}</option>
+        <option value="instruction">{fr("instruction")}</option>
+        <option value="plaidoirie">{fr("plaidoirie")}</option>
+        <option value="jugement">{fr("jugement")}</option>
+        <option value="execution">{fr("exécution")}</option>
+        <option value="clos">{fr("clos")}</option>
+      </select>
       <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="dossier-partie">
         {fr("Partie cliente")}
       </label>

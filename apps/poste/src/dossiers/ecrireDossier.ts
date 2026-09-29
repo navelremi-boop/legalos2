@@ -11,6 +11,8 @@ export type NouveauDossier = {
   restreint: boolean;
   /** UUID d’un utilisateur du cabinet ; défaut = créateur (session). */
   responsableId: string;
+  typeDossier?: "contentieux" | "conseil" | "autre";
+  etape?: "ouverture" | "instruction" | "plaidoirie" | "jugement" | "execution" | "clos";
 };
 
 export async function ecrireDossier(saisie: NouveauDossier): Promise<string> {
@@ -30,12 +32,15 @@ export async function ecrireDossier(saisie: NouveauDossier): Promise<string> {
   const dossierId = crypto.randomUUID();
   const partieId = crypto.randomUUID();
   const creeLe = new Date().toISOString();
+  const typeDossier = saisie.typeDossier ?? "autre";
+  const etape = saisie.etape ?? "ouverture";
   await database.writeTransaction(async (tx) => {
     // `reference` reste NULL : attribution uniquement côté serveur (§ 3.4).
     await tx.execute(
       `INSERT INTO dossiers (
-        id, cabinet_id, reference, responsable_id, nom, chemise, juridiction, numero_rg, restreint, visibilite, revision, cree_le
-      ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+        id, cabinet_id, reference, responsable_id, nom, chemise, juridiction, numero_rg,
+        type_dossier, etape, restreint, visibilite, revision, cree_le
+      ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
       [
         dossierId,
         cabinetId,
@@ -44,14 +49,16 @@ export async function ecrireDossier(saisie: NouveauDossier): Promise<string> {
         saisie.chemise,
         saisie.juridiction.trim(),
         saisie.numeroRg.trim(),
+        typeDossier,
+        etape,
         saisie.restreint ? 1 : 0,
         saisie.restreint ? "restreint" : "public",
         creeLe,
       ],
     );
     await tx.execute(
-      `INSERT INTO parties (id, dossier_id, cabinet_id, role, nom, revision, cree_le)
-       VALUES (?, ?, ?, ?, ?, 1, ?)`,
+      `INSERT INTO parties (id, dossier_id, cabinet_id, role, nom, contact_id, revision, cree_le)
+       VALUES (?, ?, ?, ?, ?, NULL, 1, ?)`,
       [partieId, dossierId, cabinetId, saisie.partieRole, saisie.partieNom.trim(), creeLe],
     );
   });
