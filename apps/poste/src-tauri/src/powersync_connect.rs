@@ -474,13 +474,13 @@ async fn lire_revision(
     id: &str,
 ) -> Result<i64, PowerSyncError> {
     let conn = db.reader().await?;
-    if let Ok(revision) = conn.query_row(
-        "SELECT revision FROM revision_edition WHERE id = ?1",
-        [id],
-        |row| row.get(0),
-    ) {
-        return Ok(revision);
-    }
+    let depuis_edition: i64 = conn
+        .query_row(
+            "SELECT revision FROM revision_edition WHERE id = ?1",
+            [id],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
     let sql = match table {
         "cabinets" => "SELECT revision FROM cabinets WHERE id = ?1",
         "dossiers" => "SELECT revision FROM dossiers WHERE id = ?1",
@@ -488,12 +488,14 @@ async fn lire_revision(
         "temps_saisis" => "SELECT revision FROM temps_saisis WHERE id = ?1",
         "brouillons_facture" => "SELECT revision FROM brouillons_facture WHERE id = ?1",
         "taux_horaires" => "SELECT revision FROM taux_horaires WHERE id = ?1",
-        _ => return Ok(1),
+        _ => return Ok(depuis_edition.max(1)),
     };
-    match conn.query_row(sql, [id], |row| row.get::<_, i64>(0)) {
-        Ok(revision) => Ok(revision),
-        Err(_) => Ok(1),
-    }
+    let depuis_ligne: i64 = conn
+        .query_row(sql, [id], |row| row.get::<_, i64>(0))
+        .unwrap_or(0);
+    // Même règle que `memoriserRevision` (poste) : la base est la révision vue
+    // (ligne synchronisée ou édition locale après PATCH), jamais l'une seule.
+    Ok(depuis_ligne.max(depuis_edition).max(1))
 }
 
 async fn appliquer_revision_locale(

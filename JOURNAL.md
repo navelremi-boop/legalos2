@@ -4,7 +4,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 - **Phase 0–1** VALIDÉES ; **J5–J7** VALIDÉS ; **Migration Sync Streams** VALIDÉE `9f80388` ; **J8** VALIDÉ `e8eb6b2`.
 - **Référence de dossier** : VALIDÉ `03ca364` (contrôleur, CI [36322383021](https://github.com/navelremi-boop/legalos2/actions/runs/36322383021)). Minutes des trois runs de clôture : **100** (durées de jobs arrondies à la minute supérieure ; le job macOS de [36319178833](https://github.com/navelremi-boop/legalos2/actions/runs/36319178833) compte dix fois).
-- **Conflits généralisés** : VALIDÉ `61e77c8` (contrôleur, CI [36357904754](https://github.com/navelremi-boop/legalos2/actions/runs/36357904754)). Quatre runs : **78** minutes (jobs arrondis à la minute supérieure). Dettes de preuve `fixerRevisionEdition` et injection `ps_crud` ouvertes jusqu'à la fin de la phase 2.
+- **Conflits généralisés** : VALIDÉ `61e77c8` (contrôleur, CI [36357904754](https://github.com/navelremi-boop/legalos2/actions/runs/36357904754)). Quatre runs : **78** minutes (jobs arrondis à la minute supérieure). Dettes de preuve `fixerRevisionEdition` et injection `ps_crud` **soldées** sur `lot/conflits-preuve` (29/09).
 - **Coque de l'app** : VALIDÉ `831e398` (contrôleur, CI [36475104465](https://github.com/navelremi-boop/legalos2/actions/runs/36475104465)). Trois runs (CORS, poste, `main`) : **60** minutes.
 - **En cours** : **Vue scindée**.
 - **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → **Vue scindée** → Intercalaires → Dossiers et contacts complets → Agenda → Documents, suite → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
@@ -16,6 +16,12 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---
+
+## 2026-09-29 — Dettes de preuve Conflits (point a)
+
+Consigne architecte du 29/09, point a : solder avant les intercalaires. Sur `lot/conflits-preuve` : retrait de l'INSERT de secours dans `ps_crud` (`patcherChamp`) et de `fixerRevisionEdition`. Une seule règle de révision : `max(ligne synchronisée, revision_edition)` partagée entre `memoriserRevision` et `lire_revision` / `appliquer_revision_locale`. La preuve « fausse alerte » attend la reprise réelle (base neuve + sync, puis deux écritures séquentielles ; base = révision téléchargée d'un autre poste). `injecterCrud` conservé pour les refus.
+
+Preuve : `node tests/recette/conflits-poste-tauri.mjs` → exit 0 ; sortie contient `pas de fausse alerte` et `tous les critères`. Aucun appel restant à `fixerRevisionEdition`. `PLAN.md` non modifié (cases dette à cocher par l'état-major).
 
 ## 2026-09-29 — Consigne de l'architecte : hook de relance
 

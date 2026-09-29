@@ -516,6 +516,59 @@ async function attendreJeuLocal(send, ids) {
   await attendreLigneLocale(send, "dossiers", ids.dossierRestreintId);
 }
 
+/** Attend que la ligne locale (téléchargée) égale le serveur — pas de forçage. */
+async function attendreRevisionLocale(send, table, id, ms = 120_000) {
+  const debut = Date.now();
+  let locale = 0;
+  let serveur = 0;
+  let jurLocale = "";
+  let jurServeur = "";
+  while (Date.now() - debut < ms) {
+    serveur = Number(
+      await sqlServeur(`SELECT revision::text FROM ${table} WHERE id = '${id}'`),
+    );
+    if (table === "dossiers") {
+      jurServeur = await sqlServeur(`SELECT juridiction FROM dossiers WHERE id = '${id}'`);
+    }
+    const rows = await hook(
+      send,
+      `window.__legalosRecette.lireSqlite(${JSON.stringify(
+        table === "dossiers"
+          ? `SELECT revision AS v, juridiction AS j FROM ${table} WHERE id = ?`
+          : `SELECT revision AS v FROM ${table} WHERE id = ?`,
+      )}, ${JSON.stringify([id])})`,
+    );
+    locale = Array.isArray(rows) ? Number(rows[0]?.v ?? 0) : 0;
+    jurLocale = Array.isArray(rows) ? String(rows[0]?.j ?? "") : "";
+    const revOk = locale >= 1 && locale === serveur;
+    const jurOk = table !== "dossiers" || (jurLocale !== "" && jurLocale === jurServeur);
+    if (revOk && jurOk) return { locale, serveur };
+    await sleep(400);
+  }
+  throw new Error(
+    `révision locale non alignée par sync: ${table}/${id} local=${locale} serveur=${serveur}` +
+      (table === "dossiers" ? ` jurLocal=${jurLocale || "vide"} jurServeur=${jurServeur}` : ""),
+  );
+}
+
+/** Après un PATCH accepté : `appliquer_revision_locale` met à jour `revision_edition`. */
+async function attendreRevisionEdition(send, id, revisionAttendue, ms = 60_000) {
+  const debut = Date.now();
+  let vu = 0;
+  while (Date.now() - debut < ms) {
+    const rows = await hook(
+      send,
+      `window.__legalosRecette.lireSqlite("SELECT revision AS v FROM revision_edition WHERE id = ?", ${JSON.stringify([id])})`,
+    );
+    vu = Array.isArray(rows) ? Number(rows[0]?.v ?? 0) : 0;
+    if (vu === revisionAttendue) return;
+    await sleep(300);
+  }
+  throw new Error(
+    `revision_edition non mise à jour après PATCH: id=${id} vu=${vu} attendu=${revisionAttendue}`,
+  );
+}
+
 async function creerJeuApi(jeton) {
   const headers = {
     authorization: `Bearer ${jeton}`,
@@ -901,21 +954,16 @@ await avecPoste(
 );
 console.log("conflits-poste: OK — S5 journal restreint absent du poste non autorisé");
 
-// ——— fausse alerte : même poste, deux écritures séquentielles ———
-// Même nom d'appareil → même poste_id serveur. Les deux PATCH dans la même
-// session après alignement sur la révision serveur (sinon SEQ1 conflictue avec B).
+// ——— fausse alerte : reprise réelle du même poste (sans fixerRevisionEdition) ———
+// Base neuve : le téléchargement PowerSync livre la révision serveur (comme « apres refus B »).
+// Une base polluée par les écritures hors ligne du conflit peut rester figée (JA/rév. 1).
+resetPosteLocal("a");
 const nomFausse = "Poste fausse sequentiel";
 let avantFausse = 0;
 await avecPoste("a", demoEmail, demoPassword, totpSecretB32, nomFausse, async (send) => {
-  const revServeur = Number(
-    await sqlServeur(`SELECT revision::text FROM dossiers WHERE id = '${ids.dossierId}'`),
-  );
-  // Aligner la base_revision d'upload sur le serveur (la colonne locale peut rester
-  // en retard tant que le flux n'a pas rattrapé la valeur gagnante de B).
-  await hook(
-    send,
-    `window.__legalosRecette.fixerRevisionEdition(${JSON.stringify(ids.dossierId)}, ${revServeur})`,
-  );
+  await attendreJeuLocal(send, ids);
+  // Reprise réelle : révision (et juridiction) reçues par sync, pas un crochet.
+  await attendreRevisionLocale(send, "dossiers", ids.dossierId);
   avantFausse = Number(
     await sqlServeur(
       `SELECT COUNT(*) FROM journal_modifications
@@ -933,10 +981,8 @@ await avecPoste("a", demoEmail, demoPassword, totpSecretB32, nomFausse, async (s
   const revApresSeq1 = Number(
     await sqlServeur(`SELECT revision::text FROM dossiers WHERE id = '${ids.dossierId}'`),
   );
-  await hook(
-    send,
-    `window.__legalosRecette.fixerRevisionEdition(${JSON.stringify(ids.dossierId)}, ${revApresSeq1})`,
-  );
+  // Production : appliquer_revision_locale après PATCH réussi — pas de forçage test.
+  await attendreRevisionEdition(send, ids.dossierId, revApresSeq1);
   await hook(
     send,
     `window.__legalosRecette.patchChampSeul("dossiers", ${JSON.stringify(ids.dossierId)}, ${JSON.stringify(`SEQ2-${marque}`)})`,
@@ -957,6 +1003,69 @@ if (apresFausse > avantFausse) {
   fail(`fausse alerte de conflit (même poste) : ${avantFausse} → ${apresFausse}`);
 }
 console.log("conflits-poste: OK — pas de fausse alerte (même poste)");
+
+// Base reçue d'un autre poste : B écrit, A télécharge, A modifie — revision_base = reçue.
+const valeurAutre = `AUTRE-${marque}`;
+const valeurApresTelechargement = `APRES-DL-${marque}`;
+await avecPoste("b", demoEmail, demoPassword, totpSecretB32, "Poste autre revision", async (send) => {
+  await hook(
+    send,
+    `window.__legalosRecette.patchChampSeul("dossiers", ${JSON.stringify(ids.dossierId)}, ${JSON.stringify(valeurAutre)})`,
+  );
+  await attendreSql(
+    `SELECT juridiction FROM dossiers WHERE id = '${ids.dossierId}'`,
+    valeurAutre,
+  );
+});
+const revApresAutre = Number(
+  await sqlServeur(`SELECT revision::text FROM dossiers WHERE id = '${ids.dossierId}'`),
+);
+await avecPoste("a", demoEmail, demoPassword, totpSecretB32, nomFausse, async (send) => {
+  // Téléchargement de la modification de B (juridiction + révision).
+  const debut = Date.now();
+  let jur = "";
+  while (Date.now() - debut < 120_000) {
+    const rows = await hook(
+      send,
+      `window.__legalosRecette.lireSqlite("SELECT juridiction AS j, revision AS r FROM dossiers WHERE id = ?", ${JSON.stringify([ids.dossierId])})`,
+    );
+    jur = Array.isArray(rows) ? String(rows[0]?.j ?? "") : "";
+    const rev = Array.isArray(rows) ? Number(rows[0]?.r ?? 0) : 0;
+    if (jur === valeurAutre && rev === revApresAutre) break;
+    await sleep(400);
+  }
+  if (jur !== valeurAutre) {
+    fail(`téléchargement de l'autre poste absent (jur=${jur || "vide"})`);
+  }
+  const { locale: revRecue } = await attendreRevisionLocale(send, "dossiers", ids.dossierId);
+  if (revRecue !== revApresAutre) {
+    fail(`révision reçue ${revRecue} ≠ serveur après autre poste ${revApresAutre}`);
+  }
+  await hook(
+    send,
+    `window.__legalosRecette.patchChampSeul("dossiers", ${JSON.stringify(ids.dossierId)}, ${JSON.stringify(valeurApresTelechargement)})`,
+  );
+  await attendreSql(
+    `SELECT juridiction FROM dossiers WHERE id = '${ids.dossierId}'`,
+    valeurApresTelechargement,
+  );
+  // Preuve : la base envoyée est la révision vue avant édition (reçue), pas un crochet.
+  const baseJournal = Number(
+    await sqlServeur(
+      `SELECT revision_base::text FROM journal_modifications
+       WHERE table_cible = 'dossiers' AND enregistrement_id = '${ids.dossierId}'
+         AND champ = 'juridiction'
+         AND valeur_appliquee = '${valeurApresTelechargement.replaceAll("'", "''")}'
+       ORDER BY cree_le DESC LIMIT 1`,
+    ),
+  );
+  if (baseJournal !== revRecue) {
+    fail(
+      `base_revision forcée ou incorrecte : journal=${baseJournal} reçue=${revRecue}`,
+    );
+  }
+});
+console.log("conflits-poste: OK — pas de fausse alerte (base = révision reçue)");
 
 // ——— refus puis écriture valide ; table inconnue ; DELETE ———
 await avecPoste("a", demoEmail, demoPassword, totpSecretB32, "Poste refus", async (send) => {
