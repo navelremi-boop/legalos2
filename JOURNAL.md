@@ -20,6 +20,14 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-09-29 — Agenda : recettes locales vertes, CI en cours
+
+15:43, heure locale. Lot `lot/agenda`, tête `697bfbd`. PR [n° 14](https://github.com/navelremi-boop/legalos2/pull/14). Jalon non coché.
+
+- `node tests/recette/agenda-tauri.mjs` exit 0 : audiences, rendez-vous et tâches avec rappel ; notification Tauri pour un rappel échu ; échéance `2026-01-21` inscrite à l'agenda ; invitation mail refusée (reste à J11) ; élément restreint absent du SQLite du poste non autorisé.
+- `node tests/recette/s5-sync-streams.mjs` et `pnpm --filter @legal-os/poste lint:ci` exit 0.
+- Tauri crate **2.12.0**, exigé par `tauri-plugin-notification` **2.5.0** (crates.io et npm, 2026-09-29). Pas la 3.0 alpha.
+
 ## 2026-09-29 — Dossiers et contacts complets : contrôleur VALIDÉ
 
 Contrôleur **VALIDÉ** sur `09d7c8f` (branche `lot/dossiers-contacts-api`, PR [n° 13](https://github.com/navelremi-boop/legalos2/pull/13)). Critères PLAN non affaiblis. Jalon coché après la CI de `main`.
