@@ -10,6 +10,7 @@ Sources : cahier § 3.4 (« dernière écriture gagnante par champ par défaut, 
 | `dossiers` | `nom`, `chemise`, `juridiction`, `numero_rg`, `type_dossier`, `etape` | `revision` (existe) | la référence, déjà figée par déclencheur |
 | `parties` | `role`, `nom` | `revision` (existe) | — |
 | `contacts` | `nom`, `siren`, `numero_tva`, `type_client` | `revision` | — |
+| `agenda_elements` | `titre`, `debut`, `rappel_le` | `revision` | — |
 | `temps_saisis` | `minutes`, `libelle`, `taux_centimes_heure` (`ht_centimes` recalculé par le serveur) | `revision` (à ajouter) | dès qu'un brouillon numéroté le référence (validé par l'architecte le 27/09/2026) |
 | `brouillons_facture` | `libelle`, `taux_centimes_heure` (`ht_centimes` recalculé par le serveur) | `revision` (à ajouter) | dès que `numero` n'est plus nul |
 | `taux_horaires` | `centimes_par_heure` | `revision` (à ajouter) | — |

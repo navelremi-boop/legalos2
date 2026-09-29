@@ -14,6 +14,8 @@ import {
   type SyncEtat,
 } from "@/coque/BarreHaut";
 import { FormulaireDelai } from "@/delais/FormulaireDelai";
+import { EcranAgenda } from "@/agenda/EcranAgenda";
+import { emettreRappelsEchus } from "@/agenda/rappels";
 import { FormulaireTemps } from "@/facturation/FormulaireTemps";
 import { FormulaireDossier } from "@/dossiers/FormulaireDossier";
 import { PaletteCommandes } from "@/dossiers/PaletteCommandes";
@@ -256,6 +258,22 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
     };
   }, [ongletActifId, nav]);
 
+  useEffect(() => {
+    let stop = false;
+    const tick = () => {
+      if (stop) return;
+      void emettreRappelsEchus().catch(() => {
+        /* base ou permission pas encore prêtes */
+      });
+    };
+    tick();
+    const timer = window.setInterval(tick, 2_000);
+    return () => {
+      stop = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
   const horsLigne = navigateurHorsLigne || instanceHorsLigne;
 
   const sync: SyncEtat = useMemo(() => {
@@ -355,7 +373,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
   } else if (nav === "mails") {
     contenu = <EcranStub titre="Mails" testId="ecran-mails" />;
   } else if (nav === "agenda") {
-    contenu = <EcranStub titre="Agenda" testId="ecran-agenda" />;
+    contenu = <EcranAgenda />;
   } else if (nav === "facturation") {
     contenu = <EcranStub titre="Facturation" testId="ecran-facturation" />;
   } else if (nav === "dossier") {
@@ -513,7 +531,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
                 dossierIdPrefere={ongletActifId}
               />
             ) : null}
-            {panneau === "delai" ? <FormulaireDelai /> : null}
+            {panneau === "delai" ? <FormulaireDelai dossierId={ongletActifId} /> : null}
             {panneau === "palette" ? (
               <PaletteCommandes
                 ouverteParDefaut

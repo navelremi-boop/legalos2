@@ -6,6 +6,7 @@ import {
   type LieuPartie,
   type SiegeJuridiction,
 } from "@/delais/moteur";
+import { ecrireElementAgenda } from "@/agenda/ecrireAgenda";
 import { fr } from "@/lib/fr";
 
 function champ(form: FormData, nom: string): string {
@@ -15,10 +16,13 @@ function champ(form: FormData, nom: string): string {
 
 type TypeId = (typeof BIBLIOTHEQUE_DELAIS)[number]["id"];
 
-export function FormulaireDelai() {
+export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {}) {
   const [echeance, setEcheance] = useState("");
   const [augmentation, setAugmentation] = useState("");
   const [erreur, setErreur] = useState("");
+  const [inscrit, setInscrit] = useState("");
+  const [origineRetenue, setOrigineRetenue] = useState("");
+  const [dureeRetenue, setDureeRetenue] = useState({ jours: 0, mois: 0, annees: 0 });
   const [typeId, setTypeId] = useState<TypeId>("libre");
   const [siege, setSiege] = useState<SiegeJuridiction>("metropole");
   const [lieu, setLieu] = useState<LieuPartie>("metropole");
@@ -72,6 +76,8 @@ export function FormulaireDelai() {
         rolePartie,
       });
       setEcheance(resultat.echeance);
+      setOrigineRetenue(origine);
+      setDureeRetenue({ jours, mois, annees });
       if (resultat.moisAugmentation > 0) {
         setAugmentation(
           fr(`+ ${String(resultat.moisAugmentation)} mois (${resultat.sourceAugmentation})`),
@@ -80,6 +86,7 @@ export function FormulaireDelai() {
         setAugmentation(fr("Aucune augmentation pour la distance"));
       }
       setErreur("");
+      setInscrit("");
     } catch (err) {
       setEcheance("");
       setAugmentation("");
@@ -294,6 +301,38 @@ export function FormulaireDelai() {
       <p className="mt-2 text-[length:var(--font-size-dense)] text-encre" data-testid="delai-echeance">
         {echeance}
       </p>
+      {echeance !== "" && dossierId ? (
+        <button
+          type="button"
+          data-testid="delai-inscrire"
+          className="mt-3 rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+          onClick={() => {
+            void ecrireElementAgenda({
+              dossierId,
+              typeElement: "tache",
+              titre: `Échéance ${echeance}`,
+              debut: `${echeance}T09:00`,
+              origineCalcul: origineRetenue,
+              joursCalcul: dureeRetenue.jours,
+              moisCalcul: dureeRetenue.mois,
+              anneesCalcul: dureeRetenue.annees,
+            })
+              .then(() => {
+                setInscrit(echeance);
+              })
+              .catch((err: unknown) => {
+                setErreur(err instanceof Error ? err.message : fr("Inscription impossible."));
+              });
+          }}
+        >
+          {fr("Inscrire à l'agenda")}
+        </button>
+      ) : null}
+      {inscrit !== "" ? (
+        <p className="mt-2 text-[length:var(--font-size-dense)] text-encre" data-testid="delai-inscrit">
+          {inscrit}
+        </p>
+      ) : null}
       {augmentation !== "" ? (
         <p
           className="mt-1 text-[length:var(--font-size-dense)] text-graphite"

@@ -8,6 +8,7 @@ mod trousseau;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_powersync::init())
         .invoke_handler(tauri::generate_handler![
             powersync_connect::connect_powersync,

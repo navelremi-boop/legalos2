@@ -238,6 +238,27 @@ const dossierLiens = new Table(
   { indexes: { dossier: ["dossier_id"], lie: ["lie_a_id"] } },
 );
 
+/** Audiences, rendez-vous et tâches (§ 4.2 n° 4). Pas les invitations mail (J11). */
+const agendaElements = new Table(
+  {
+    cabinet_id: column.text,
+    dossier_id: column.text,
+    type_element: column.text,
+    titre: column.text,
+    debut: column.text,
+    rappel_le: column.text,
+    origine_calcul: column.text,
+    jours_calcul: column.integer,
+    mois_calcul: column.integer,
+    annees_calcul: column.integer,
+    revision: column.integer,
+    visibilite: column.text,
+    restreint: column.integer,
+    cree_le: column.text,
+  },
+  { indexes: { dossier: ["dossier_id"], debut: ["debut"] } },
+);
+
 export const AppSchema = new Schema({
   cabinets,
   journal_modifications: journalModifications,
@@ -255,6 +276,7 @@ export const AppSchema = new Schema({
   intercalaire_elements: intercalaireElements,
   contacts,
   dossier_liens: dossierLiens,
+  agenda_elements: agendaElements,
 });
 
 export type Database = (typeof AppSchema)["types"];

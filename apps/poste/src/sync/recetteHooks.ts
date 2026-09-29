@@ -1,3 +1,4 @@
+import { lireNotificationsEmises, type NotificationEmise } from "@/agenda/rappels";
 import { DEMO_CABINET_ID } from "@/sync/demoCabinet";
 import { getPowerSyncDatabase } from "@/sync/database";
 import {
@@ -76,6 +77,8 @@ export type RecetteHooks = {
     data?: Record<string, unknown>;
   }) => Promise<void>;
   lireSqlite: (sql: string, params?: unknown[]) => Promise<unknown[]>;
+  lireNotifications: () => NotificationEmise[];
+  decalerOrigineSansRecalcul: (id: string, origine: string) => Promise<void>;
   /** Coupe le flux PowerSync sans fermer la base (écritures locales → ps_crud). */
   disconnectSync: () => Promise<void>;
 };
@@ -161,6 +164,16 @@ export function createRecetteHooks(): RecetteHooks {
     async lireSqlite(sql, params = []) {
       const database = await getPowerSyncDatabase();
       return database.getAll(sql, params);
+    },
+    lireNotifications() {
+      return lireNotificationsEmises();
+    },
+    async decalerOrigineSansRecalcul(id: string, origine: string) {
+      const database = await getPowerSyncDatabase();
+      await database.execute("UPDATE agenda_elements SET origine_calcul = ? WHERE id = ?", [
+        origine,
+        id,
+      ]);
     },
     async disconnectSync() {
       const database = await getPowerSyncDatabase();
