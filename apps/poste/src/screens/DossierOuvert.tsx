@@ -6,6 +6,7 @@ import { Feuille } from "@/coque/Feuille";
 import { Intercalaires, type IntercalaireId } from "@/coque/Intercalaires";
 import { BarreActions } from "@/coque/BarreActions";
 import { VueScindee } from "@/coque/chrono/VueScindee";
+import type { ChronoItem } from "@/coque/chrono/types";
 import type { ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
 
@@ -33,6 +34,8 @@ type DossierOuvertProps = {
   onSaisirTemps: () => void;
   onFacturer: () => void;
   onCalculerDelai: () => void;
+  /** Jeu fictif : galerie et captures seulement, jamais un dossier réel. */
+  elementsChrono?: ChronoItem[];
 };
 
 export function DossierOuvert({
@@ -41,6 +44,7 @@ export function DossierOuvert({
   onSaisirTemps,
   onFacturer,
   onCalculerDelai,
+  elementsChrono,
 }: DossierOuvertProps) {
   const [intercalaire, setIntercalaire] = useState<IntercalaireId>("chrono");
   const chronoActif = intercalaire === "chrono";
@@ -81,7 +85,7 @@ export function DossierOuvert({
       <div className="relative mt-6 min-h-0 flex-1">
         <Feuille uneColonne={!chronoActif} className="h-full min-h-[360px]">
           {chronoActif ? (
-            <VueScindee />
+            <VueScindee items={elementsChrono ?? []} />
           ) : (
             <div className="p-[22px] pb-24">
               <h3 className="mb-2 text-[length:var(--font-size-section)] font-extrabold">

@@ -6,7 +6,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Référence de dossier** : VALIDÉ `03ca364` (contrôleur, CI [36322383021](https://github.com/navelremi-boop/legalos2/actions/runs/36322383021)). Minutes des trois runs de clôture : **100** (durées de jobs arrondies à la minute supérieure ; le job macOS de [36319178833](https://github.com/navelremi-boop/legalos2/actions/runs/36319178833) compte dix fois).
 - **Conflits généralisés** : VALIDÉ `61e77c8` (contrôleur, CI [36357904754](https://github.com/navelremi-boop/legalos2/actions/runs/36357904754)). Quatre runs : **78** minutes (jobs arrondis à la minute supérieure). Dettes de preuve `fixerRevisionEdition` et injection `ps_crud` **soldées** sur `lot/conflits-preuve` (29/09).
 - **Coque de l'app** : VALIDÉ `831e398` (contrôleur, CI [36475104465](https://github.com/navelremi-boop/legalos2/actions/runs/36475104465)). Trois runs (CORS, poste, `main`) : **60** minutes.
-- **Vue scindée** : VALIDÉ `f393190` (contrôleur, CI [36531714153](https://github.com/navelremi-boop/legalos2/actions/runs/36531714153)). Trois runs : **62** minutes. Dette : `CHRONO_DEMO` encore affiché dans un dossier réel, à brancher sur les données synchronisées avant la fin de J9 et de Documents, suite.
+- **Vue scindée** : VALIDÉ `f393190` (contrôleur, CI [36531714153](https://github.com/navelremi-boop/legalos2/actions/runs/36531714153)). Trois runs : **62** minutes. Consigne du 29/09 : un dossier réel n'affiche plus `CHRONO_DEMO` ; le branchement sur les éléments synchronisés reste dû avant la fin de J9 et de Documents, suite.
 - **En cours** : **Intercalaires personnalisés**.
 - **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → **Intercalaires** → Dossiers et contacts complets → Agenda → Documents, suite → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance). Un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` doit exister.
@@ -17,6 +17,12 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---
+
+## 2026-09-29 — Consigne de l'architecte : pas de CHRONO_DEMO dans le dossier réel
+
+Texte reçu : un dossier réel n'affiche plus le jeu fictif. Sans élément synchronisé, état vide sobre. `CHRONO_DEMO` reste à la galerie, aux captures et au développement. Le build distribué ne doit plus contenir un titre de ce jeu (exemple « Communication de pièces adverses n° 14 à 19 »), essai négatif inclus. Le branchement sur les mails, pièces et factures n'est pas avancé : il reste dû avant la fin de J9 et de Documents, suite. Sans retarder les intercalaires.
+
+Traitement : `DossierOuvert` passe une liste vide. La galerie seule fournit `CHRONO_DEMO`. Contrôle `node tests/recette/chrono-demo-absent.mjs`.
 
 ## 2026-09-29 — Dettes de preuve Conflits (point a)
 

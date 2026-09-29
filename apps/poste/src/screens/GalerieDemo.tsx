@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { BarreHaut } from "@/coque/BarreHaut";
+import { CHRONO_DEMO } from "@/coque/chrono/donneesDemo";
 import { DossierOuvert, DOSSIERS_DEMO } from "@/screens/DossierOuvert";
 import { Journee } from "@/screens/Journee";
 import type { ChemiseId } from "@/lib/chemise";
@@ -138,6 +139,7 @@ export function GalerieDemo() {
               onSaisirTemps={() => undefined}
               onFacturer={() => undefined}
               onCalculerDelai={() => undefined}
+              elementsChrono={CHRONO_DEMO}
             />
           ) : (
             <Journee
