@@ -887,8 +887,9 @@ async function main() {
       a.send,
       `window.__legalosRecette.compterJournalConflits("intercalaires_personnalises")`,
     );
-    if (!signal && Number(nLocal) < 1) fail("conflit non signalé");
-    ok(signal ? "conflit signalé dans l'UI" : "conflit présent dans le journal local");
+    if (!signal) fail("conflit non signalé dans l'interface");
+    if (Number(nLocal) < 1) fail("conflit absent du journal local");
+    ok("conflit signalé dans l'interface");
 
     const croix = await evaluate(
       a.send,
