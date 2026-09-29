@@ -14,6 +14,9 @@
  *
  * Plage : variable PLAN_RANGE (« base..tête ») ; à défaut origin/main..HEAD.
  * 4. Un chemin `docs/…` cité dans PLAN.md, BLOCAGES.md ou JOURNAL.md existe dans le dépôt.
+ * 5. Le jalon en cours (en-tête « jalon en cours ») ne porte pas « à valider par l'architecte »
+ *    (consigne du 29/09/2026). Sinon le contrôle échoue : l'état-major consigne l'attente
+ *    dans BLOCAGES.md et traite les dettes ouvertes ; s'il n'en reste aucune, `.mission/STOP`.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -142,6 +145,31 @@ function verifierCouverture(texte, nomsJalons) {
   return trouves;
 }
 
+const MARQUE_A_VALIDER = "à valider par l'architecte";
+
+/** Nom cité par l'en-tête, puis son bloc jusqu'au jalon suivant. `null` si le bloc est recevable. */
+function jalonEnCoursPorteAValider(texte) {
+  const normalise = texte.replace(/\r\n/g, "\n");
+  const entete = /jalon en cours\s*:\s*\*\*(.+?)\*\*/.exec(normalise);
+  if (!entete) return "en-tête « jalon en cours » absent";
+  const nom = entete[1].trim();
+  let dans = false;
+  const bloc = [];
+  for (const ligne of normalise.split("\n")) {
+    const jalon = /^- \[[ x]\] \*\*(.+?)\*\*/.exec(ligne);
+    if (jalon) {
+      if (dans) break;
+      if (jalon[1] === nom) dans = true;
+    }
+    if (dans) bloc.push(ligne);
+  }
+  if (!dans) return `jalon en cours « ${nom} » introuvable dans le plan`;
+  if (bloc.join("\n").includes(MARQUE_A_VALIDER)) {
+    return `jalon en cours « ${nom} » porte « ${MARQUE_A_VALIDER} »`;
+  }
+  return null;
+}
+
 function verifierStructure(plan, origine) {
   for (const jalon of plan.jalons.values()) {
     if (jalon.coche || jalon.exempt) continue;
@@ -201,6 +229,31 @@ function plage() {
 }
 
 const textePlan = readFileSync(join(root, "PLAN.md"), "utf8");
+const attenteArchitecte = jalonEnCoursPorteAValider(textePlan);
+if (attenteArchitecte) erreurs.push(`PLAN.md : ${attenteArchitecte}`);
+
+const essaiJalonAttente = jalonEnCoursPorteAValider(
+  [
+    "Dernière mise à jour (jalon en cours : **Agenda**).",
+    "- [ ] **Agenda** — critères proposés, **à valider par l'architecte**",
+    "  - `node tests/recette/agenda-tauri.mjs`",
+  ].join("\n"),
+);
+if (!essaiJalonAttente || !essaiJalonAttente.includes(MARQUE_A_VALIDER)) {
+  erreurs.push("essai négatif du jalon en cours muet");
+}
+const essaiJalonSuivant = jalonEnCoursPorteAValider(
+  [
+    "Dernière mise à jour (jalon en cours : **Agenda**).",
+    "- [ ] **Agenda** — critères validés par l'architecte le 29/09/2026",
+    "  - `node tests/recette/agenda-tauri.mjs`",
+    "- [ ] **Documents, suite** — **à valider par l'architecte**",
+  ].join("\n"),
+);
+if (essaiJalonSuivant) {
+  erreurs.push(`essai négatif du jalon en cours : faux positif (${essaiJalonSuivant})`);
+}
+
 const planCourant = analyser(textePlan);
 verifierStructure(planCourant, "PLAN.md");
 for (const e of verifierCouverture(textePlan, new Set(planCourant.jalons.keys()))) {

@@ -20,6 +20,15 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-09-29 — Consigne de l'architecte : Agenda, Documents, SIREN, garde-fou
+
+15:46, heure locale. Consigne de l'architecte du 29/09/2026. Commit `plan:` `ca8208b` (PLAN.md seul).
+
+- Agenda et Documents, suite : critères validés. Ajouts inscrits sans retirer les commandes déjà exigées. Le jalon en cours est Agenda : il ne porte plus « à valider par l'architecte ».
+- Dette nouvelle, ouverte : **Avant Facturation, suite**, contrôle du SIREN (Luhn) et du n° TVA FR, saisie et API, message en français — `node tests/recette/siren-tva.mjs`.
+- Garde-fou : `plan-gouvernance.mjs` échoue si le jalon en cours porte « à valider par l'architecte ». Essai négatif dans le script (jalon en cours marqué ainsi : échec ; un jalon ultérieur seulement : pas d'échec). Dans ce cas l'état-major consigne l'attente dans `BLOCAGES.md` et traite les dettes ouvertes ; s'il n'en reste aucune, `.mission/STOP`.
+- Dette `cargo-deny` cochée. Preuve : job `rust` de la CI, étapes « cargo-deny 0.20.2 » et « Exception d'avis devenue inutile ». Run [36572546272](https://github.com/navelremi-boop/legalos2/actions/runs/36572546272), 29/09/2026 13:11 UTC : `deny-exception-inutile: OK — une exception absente du graphe fait échouer cargo deny`. Signalement PowerSync / `time` 0.2 : [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129), transmis le 28/09. Constat : `docs/audit-dependances.md`.
+
 ## 2026-09-29 — Agenda : recettes locales vertes, CI en cours
 
 15:43, heure locale. Lot `lot/agenda`, tête `697bfbd`. PR [n° 14](https://github.com/navelremi-boop/legalos2/pull/14). Jalon non coché.
