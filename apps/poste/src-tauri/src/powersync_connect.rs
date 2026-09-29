@@ -196,7 +196,14 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
         table: "dossiers",
         patch_chemin: |id| format!("/api/dossiers/{id}"),
         put_chemin: |_| Ok("/api/dossiers".into()),
-        champs_modifiables: &["nom", "chemise", "juridiction", "numero_rg", "type_dossier", "etape"],
+        champs_modifiables: &[
+            "nom",
+            "chemise",
+            "juridiction",
+            "numero_rg",
+            "type_dossier",
+            "etape",
+        ],
         champs_entiers: &[],
         champs_booleens: &["restreint"],
     };
