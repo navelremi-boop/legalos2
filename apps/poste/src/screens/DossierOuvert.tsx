@@ -5,6 +5,7 @@ import { JaugeEcheance } from "@/coque/JaugeEcheance";
 import { Feuille } from "@/coque/Feuille";
 import { Intercalaires, type IntercalaireId } from "@/coque/Intercalaires";
 import { BarreActions } from "@/coque/BarreActions";
+import { VueScindee } from "@/coque/chrono/VueScindee";
 import type { ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
 
@@ -42,6 +43,7 @@ export function DossierOuvert({
   onCalculerDelai,
 }: DossierOuvertProps) {
   const [intercalaire, setIntercalaire] = useState<IntercalaireId>("chrono");
+  const chronoActif = intercalaire === "chrono";
 
   return (
     <div
@@ -77,25 +79,27 @@ export function DossierOuvert({
       </div>
 
       <div className="relative mt-6 min-h-0 flex-1">
-        <Feuille uneColonne={intercalaire !== "chrono"} className="h-full min-h-[360px]">
-          <div className="p-[22px] pb-24">
-            <h3 className="mb-2 text-[length:var(--font-size-section)] font-extrabold">
-              {fr(
-                intercalaire === "chrono"
-                  ? "Chrono"
-                  : intercalaire === "procedure"
+        <Feuille uneColonne={!chronoActif} className="h-full min-h-[360px]">
+          {chronoActif ? (
+            <VueScindee />
+          ) : (
+            <div className="p-[22px] pb-24">
+              <h3 className="mb-2 text-[length:var(--font-size-section)] font-extrabold">
+                {fr(
+                  intercalaire === "procedure"
                     ? "Procédure"
                     : intercalaire === "pieces"
                       ? "Pièces"
                       : intercalaire === "mails"
                         ? "Mails"
                         : "Factures",
-              )}
-            </h3>
-            <p className="text-graphite">
-              {fr("Le chrono détaillé arrivera avec la vue scindée.")}
-            </p>
-          </div>
+                )}
+              </h3>
+              <p className="text-graphite">
+                {fr("Vue non détaillée dans cette version.")}
+              </p>
+            </div>
+          )}
         </Feuille>
         <Intercalaires actif={intercalaire} onChanger={setIntercalaire} />
       </div>

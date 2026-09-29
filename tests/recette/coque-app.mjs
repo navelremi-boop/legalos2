@@ -256,6 +256,25 @@ async function runCaptures() {
       await page.locator("[data-testid=galerie-scene]").screenshot({
         path: join(outDir, `journee-${theme === "light" ? "jour" : "nuit"}.png`),
       });
+
+      // Vue scindée (§ 7.4) : chrono + aperçu, jour et nuit (chemise kraft).
+      await commandes.getByRole("button", { name: "Dossier", exact: true }).click();
+      await commandes.getByRole("button", { name: "kraft", exact: true }).click();
+      await page.waitForSelector("[data-testid=ecran-dossier][data-chemise=kraft]");
+      await page.waitForSelector("[data-testid=chrono-liste]");
+      await page.waitForSelector("[data-testid=chrono-apercu]");
+      await page.waitForFunction(
+        (attendu) => {
+          const el = document.querySelector("[data-testid=ecran-dossier]");
+          return el !== null && getComputedStyle(el).backgroundColor === attendu;
+        },
+        fondAttendu[theme].kraft,
+        { timeout: 5_000 },
+      );
+      await page.waitForTimeout(100);
+      await page.locator("[data-testid=galerie-scene]").screenshot({
+        path: join(outDir, `vue-scindee-${theme === "light" ? "jour" : "nuit"}.png`),
+      });
     }
     ok(`captures écrites dans ${relative(root, outDir)}`);
   } finally {

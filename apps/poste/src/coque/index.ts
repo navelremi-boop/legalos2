@@ -8,3 +8,5 @@ export { Intercalaires, INTERCALAIRES_STANDARDS } from "./Intercalaires";
 export type { IntercalaireId, IntercalaireItem } from "./Intercalaires";
 export { BarreActions } from "./BarreActions";
 export type { ActionBarre } from "./BarreActions";
+export { VueScindee } from "./chrono/VueScindee";
+export { BadgeDefinitif } from "./chrono/BadgeDefinitif";
