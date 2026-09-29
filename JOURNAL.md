@@ -7,8 +7,9 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Conflits généralisés** : VALIDÉ `61e77c8` (contrôleur, CI [36357904754](https://github.com/navelremi-boop/legalos2/actions/runs/36357904754)). Quatre runs : **78** minutes (jobs arrondis à la minute supérieure). Dettes de preuve `fixerRevisionEdition` et injection `ps_crud` **soldées** sur `lot/conflits-preuve` (29/09).
 - **Coque de l'app** : VALIDÉ `831e398` (contrôleur, CI [36475104465](https://github.com/navelremi-boop/legalos2/actions/runs/36475104465)). Trois runs (CORS, poste, `main`) : **60** minutes.
 - **Vue scindée** : VALIDÉ `f393190` (contrôleur, CI [36531714153](https://github.com/navelremi-boop/legalos2/actions/runs/36531714153)). Trois runs : **62** minutes. Consigne du 29/09 : un dossier réel n'affiche plus `CHRONO_DEMO` ; le branchement sur les éléments synchronisés reste dû avant la fin de J9 et de Documents, suite.
-- **En cours** : **Intercalaires personnalisés**.
-- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → **Intercalaires** → Dossiers et contacts complets → Agenda → Documents, suite → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
+- **Intercalaires personnalisés** : VALIDÉ `9e0aa69` (contrôleur, CI [36561017502](https://github.com/navelremi-boop/legalos2/actions/runs/36561017502)). Trois runs de clôture : **63** minutes.
+- **En cours** : **Dossiers et contacts complets**.
+- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → ~~Intercalaires~~ → **Dossiers et contacts complets** → Agenda → Documents, suite → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance). Un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` doit exister.
 - **B12 levé** (28/09) : signalement transmis, [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). Quatre exceptions dans `apps/poste/src-tauri/deny.toml`. Constat : `docs/audit-dependances.md`.
 - **Sync** : Streams édition 3, service 1.26.1. Dette mensuelle avis PowerSync.
@@ -17,6 +18,23 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---
+
+## 2026-09-29 — Intercalaires personnalisés VALIDÉS
+
+Contrôleur VALIDÉ sur `ee6ac1e`. Fusion dans `main` en `9e0aa69`. CI [36561017502](https://github.com/navelremi-boop/legalos2/actions/runs/36561017502) verte. Trois runs de clôture (API [36536216401](https://github.com/navelremi-boop/legalos2/actions/runs/36536216401), poste [36559426799](https://github.com/navelremi-boop/legalos2/actions/runs/36559426799), `main`) : **63** minutes, jobs arrondis à la minute supérieure. Détail dans `docs/journal/phase-2.md`. Jalon suivant : Dossiers et contacts complets.
+
+## 2026-09-29 — Intercalaires personnalisés : contrôleur REFUSÉ
+
+11:01, heure locale. Contrôleur **REFUSÉ** sur `4a63651`. CI du lot poste [36540474066](https://github.com/navelremi-boop/legalos2/actions/runs/36540474066) verte (PR [n° 12](https://github.com/navelremi-boop/legalos2/pull/12)). Critères PLAN non affaiblis.
+
+- Bloquant : `node tests/recette/j5-poste-tauri.mjs` exit 1. Après création, le formulaire se démonte quand le dossier s'ouvre ; J5 ne lit plus `[data-testid=dossier-cree]`.
+- Majeur : le conflit de la recette intercalaires était deux PATCH HTTP, pas la file du poste.
+
+Correctif en cours dans `.worktrees/intercalaires-poste`, non commité : J5 lit aussi l'écran ouvert ; la recette écrit hors ligne (`patchChamp`, `ps_crud`) et le serveur journalise le conflit. Le signal d'interface ne s'affiche pas encore : la ligne de journal est dans `ps_oplog` mais pas dans la vue `journal_modifications` (`revision` locale reste 1, `ps_updated_rows` a été vidé). `intercalaires-tauri.mjs` ne sort pas 0. Jalon non coché. PR API [n° 11](https://github.com/navelremi-boop/legalos2/pull/11) non fusionnée.
+
+## 2026-09-29 — Intercalaires personnalisés : lot API vert, lot poste en cours
+
+PR [n° 11](https://github.com/navelremi-boop/legalos2/pull/11), tête `5f6b770` (rustfmt après `5624997`). CI [36536216401](https://github.com/navelremi-boop/legalos2/actions/runs/36536216401) verte au second essai : le job facturx avait échoué sur un téléchargement Saxon (`curl` 35, connexion coupée), sans lien avec le diff. Le lot poste est sur `lot/intercalaires-poste`, non fusionné. Le jalon n'est pas coché.
 
 ## 2026-09-29 — Consigne de l'architecte : pas de CHRONO_DEMO dans le dossier réel
 

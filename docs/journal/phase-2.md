@@ -165,3 +165,11 @@ Preuves (2026-09-26) :
 - CI de `main` [36531714153](https://github.com/navelremi-boop/legalos2/actions/runs/36531714153). Minutes des trois runs (PR, correctif, `main`) : **62**.
 - Dette : `CHRONO_DEMO` reste le contenu par défaut d'un dossier réel, à remplacer par les éléments synchronisés avant la fin de J9 et de Documents, suite.
 - Même fusion : dettes de preuve des conflits soldées (`f393190`) — plus d'insertion de secours dans `ps_crud`, plus de `fixerRevisionEdition`.
+
+## 2026-09-29 — Intercalaires personnalisés VALIDÉS
+
+- Tables `intercalaires_personnalises` et `intercalaire_elements` (migration 020). Le retrait d'un intercalaire ne supprime pas la pièce : CASCADE seulement sur les rattachements.
+- Poste : « + Intercalaire », croix seulement sur un personnalisé, standards intacts. Conflit de nom hors ligne (`patchChamp`, file `ps_crud`), journalisé, signalé dans le dossier.
+- Premier contrôle REFUSÉ : `j5-poste-tauri.mjs` ne lisait plus l'identifiant une fois le dossier ouvert ; le conflit était deux PATCH HTTP. Correctif `ee6ac1e`. Recontrôle : `intercalaires-tauri.mjs` et `j5-poste-tauri.mjs` exit 0.
+- CI de `main` [36561017502](https://github.com/navelremi-boop/legalos2/actions/runs/36561017502) verte. Minutes des trois runs de clôture (API, poste validé, `main`) : **63**.
+- Sync : au-delà d'environ 80 dossiers, les flux par dossier dépassent la limite PowerSync de 1 000 résultats de paramètres (PSYNC_S2305). Le Postgres local de test a été ramené aux dossiers encore liés à une facture (16) pour pouvoir rejouer J5.
