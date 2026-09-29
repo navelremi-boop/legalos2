@@ -173,3 +173,10 @@ Preuves (2026-09-26) :
 - Premier contrôle REFUSÉ : `j5-poste-tauri.mjs` ne lisait plus l'identifiant une fois le dossier ouvert ; le conflit était deux PATCH HTTP. Correctif `ee6ac1e`. Recontrôle : `intercalaires-tauri.mjs` et `j5-poste-tauri.mjs` exit 0.
 - CI de `main` [36561017502](https://github.com/navelremi-boop/legalos2/actions/runs/36561017502) verte. Minutes des trois runs de clôture (API, poste validé, `main`) : **63**.
 - Sync : au-delà d'environ 80 dossiers, les flux par dossier dépassent la limite PowerSync de 1 000 résultats de paramètres (PSYNC_S2305). Le Postgres local de test a été ramené aux dossiers encore liés à une facture (16) pour pouvoir rejouer J5.
+
+## 2026-09-29 — Dossiers et contacts complets VALIDÉS
+
+- Migration 021 : type et étape du dossier, contacts (personne physique ou morale, SIREN, n° TVA, `type_client` aligné sur F8), rôle dans le dossier, historique, liens dans les deux sens. L'annuaire est un flux cabinet (`contacts_cabinet`), pas un seau par dossier.
+- PowerSync 1.26.1 refuse `EXISTS`. Un lien vers un dossier restreint exige l'accès des deux côtés via deux jointures `dossier_acces` (`dossier_liens_restreints_croises`).
+- Premier contrôle REFUSÉ sur `be75154` (rustfmt). Recontrôle VALIDÉ sur `09d7c8f`. Recettes `dossiers-contacts.mjs`, `s5-sync-streams.mjs`, `dossiers-contacts-conflits.mjs` et clippy : exit 0.
+- CI de `main` [36572546272](https://github.com/navelremi-boop/legalos2/actions/runs/36572546272) verte. Minutes des trois runs (fmt refusé, lot vert, `main`) : **54**.

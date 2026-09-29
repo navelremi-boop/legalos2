@@ -8,8 +8,9 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Coque de l'app** : VALIDÉ `831e398` (contrôleur, CI [36475104465](https://github.com/navelremi-boop/legalos2/actions/runs/36475104465)). Trois runs (CORS, poste, `main`) : **60** minutes.
 - **Vue scindée** : VALIDÉ `f393190` (contrôleur, CI [36531714153](https://github.com/navelremi-boop/legalos2/actions/runs/36531714153)). Trois runs : **62** minutes. Consigne du 29/09 : un dossier réel n'affiche plus `CHRONO_DEMO` ; le branchement sur les éléments synchronisés reste dû avant la fin de J9 et de Documents, suite.
 - **Intercalaires personnalisés** : VALIDÉ `9e0aa69` (contrôleur, CI [36561017502](https://github.com/navelremi-boop/legalos2/actions/runs/36561017502)). Trois runs de clôture : **63** minutes.
-- **En cours** : **Dossiers et contacts complets**.
-- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → ~~Intercalaires~~ → **Dossiers et contacts complets** → Agenda → Documents, suite → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
+- **Dossiers et contacts complets** : VALIDÉ `3482a36` (contrôleur, CI [36572546272](https://github.com/navelremi-boop/legalos2/actions/runs/36572546272)). Trois runs : **54** minutes.
+- **En cours** : **Agenda**.
+- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → ~~Intercalaires~~ → ~~Dossiers et contacts~~ → **Agenda** → Documents, suite → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance). Un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` doit exister.
 - **B12 levé** (28/09) : signalement transmis, [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). Quatre exceptions dans `apps/poste/src-tauri/deny.toml`. Constat : `docs/audit-dependances.md`.
 - **Sync** : Streams édition 3, service 1.26.1. Dette mensuelle avis PowerSync.
@@ -18,6 +19,25 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---
+
+## 2026-09-29 — Dossiers et contacts complets : contrôleur VALIDÉ
+
+Contrôleur **VALIDÉ** sur `09d7c8f` (branche `lot/dossiers-contacts-api`, PR [n° 13](https://github.com/navelremi-boop/legalos2/pull/13)). Critères PLAN non affaiblis. Jalon coché après la CI de `main`.
+
+Premier passage REFUSÉ sur `be75154` : `cargo fmt --check` et CI [36569809421](https://github.com/navelremi-boop/legalos2/actions/runs/36569809421) (rustfmt `powersync_connect.rs`). Correctif `09d7c8f` : formatage seul de `champs_modifiables` (`git diff be75154 09d7c8f` : un fichier).
+
+Preuves déjà vertes sur `be75154` (worktree, `CARGO_BUILD_JOBS=2`) :
+- `node tests/recette/dossiers-contacts.mjs` → exit 0
+- `node tests/recette/s5-sync-streams.mjs` → exit 0
+- `node tests/recette/dossiers-contacts-conflits.mjs` → exit 0
+- `cargo clippy --workspace --all-targets -- -D warnings` → exit 0
+- `cargo clippy --manifest-path apps/poste/src-tauri/Cargo.toml --all-targets -- -D warnings` → exit 0
+
+Reprise sur `09d7c8f` :
+- `cargo fmt --manifest-path apps/poste/src-tauri/Cargo.toml -- --check` → exit 0
+- CI du lot [36570550219](https://github.com/navelremi-boop/legalos2/actions/runs/36570550219) **success** (gouvernance, perimetre, frontend, rust 6m47, facturx 2m14, s1-instance 7m21)
+
+Fusion dans `main` en `3482a36`. CI [36572546272](https://github.com/navelremi-boop/legalos2/actions/runs/36572546272) verte. Trois runs (fmt refusé, lot vert, `main`) : **54** minutes, jobs arrondis à la minute supérieure. Détail dans `docs/journal/phase-2.md`. Jalon suivant : Agenda.
 
 ## 2026-09-29 — Dossiers et contacts : recettes locales vertes
 
