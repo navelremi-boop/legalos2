@@ -19,6 +19,14 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-09-29 — Dossiers et contacts : API et écran, recettes Tauri encore dues
+
+14:12, heure locale. Branche `lot/dossiers-contacts-api`, tête `3664093`, worktree `.worktrees/dossiers-contacts-api`. Non poussée. Jalon non coché.
+
+- Migration `021` : `type_dossier`, `etape`, `contacts` (SIREN, n° TVA, `type_client` aligné sur F8), `parties.contact_id`, `dossier_liens` dans les deux sens. L'annuaire est un seul flux cabinet (`contacts_cabinet`) pour ne pas multiplier les seaux. `node tests/recette/s5-sync-streams.mjs` exit 0.
+- `cargo test -p legalos-api --test dossiers_contacts_integration` : 1 passé (Postgres local). Clippy `legalos-api` et `legal-os-poste` : exit 0. `pnpm --filter @legal-os/poste typecheck` et `lint:ci` : exit 0.
+- L'écran du dossier affiche type, étape, confrère, liens, historique et les signaux `dossier-conflit` / `contact-conflit`. `tests/recette/dossiers-contacts.mjs` et `dossiers-contacts-conflits.mjs` ne sont pas encore écrits : la preuve Tauri du PLAN n'est pas faite.
+
 ## 2026-09-29 — Intercalaires personnalisés VALIDÉS
 
 Contrôleur VALIDÉ sur `ee6ac1e`. Fusion dans `main` en `9e0aa69`. CI [36561017502](https://github.com/navelremi-boop/legalos2/actions/runs/36561017502) verte. Trois runs de clôture (API [36536216401](https://github.com/navelremi-boop/legalos2/actions/runs/36536216401), poste [36559426799](https://github.com/navelremi-boop/legalos2/actions/runs/36559426799), `main`) : **63** minutes, jobs arrondis à la minute supérieure. Détail dans `docs/journal/phase-2.md`. Jalon suivant : Dossiers et contacts complets.
