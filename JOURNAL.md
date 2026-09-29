@@ -22,9 +22,15 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
-## 2026-09-29 — Documents, suite : lot API lancé
+## 2026-09-29 — Documents, suite : contrat serveur livré, pas fusionné
 
-Jalon en cours : Documents, suite. Worktree `.worktrees/documents-api`, branche `lot/documents-api`, à partir de `6bc42ab`. Agent API en cours : ne pas en lancer un second. Le lot poste attend ce contrat (migration 024, flux `repertoires_*`, colonnes `repertoire_id`, `texte`, `parent_numero`) puis s'appuie sur `tests/recette/lib/poste-session.mjs`. CI du push de clôture Agenda : run [36618225538](https://github.com/navelremi-boop/legalos2/actions/runs/36618225538), à relire par `gh run view` (pas de mémoire).
+[API arborescence](f70a4356-d103-4529-b136-1203c7cec6ff) : commit `3889e91` sur `lot/documents-api`, PR [n° 15](https://github.com/navelremi-boop/legalos2/pull/15). Pas de fusion dans `main` : le contrôleur du jalon attend le lot poste.
+
+CI lue par `gh run view 36622021205` : completed, success. perimetre, frontend, gouvernance, facturx, rust, s1-instance en succès. Preuves locales rapportées : `migrations-additives.mjs`, `s5-sync-streams.mjs`, clippy, `documents_arborescence_integration` (3), `s6-documents.mjs`, `documents-arborescence.mjs`.
+
+Écart assumé : table `document_versions_en_cours` (réservation de numéro), absente des flux. Dépendances `pdf-extract` 0.12.1, `zip` 8.6.0, `quick-xml` 0.42.0.
+
+Le lot poste est dans `.worktrees/documents-poste` et doit intégrer `3889e91` avant la recette Tauri. Run [36618225538](https://github.com/navelremi-boop/legalos2/actions/runs/36618225538) annulé par concurrence ; [36619287466](https://github.com/navelremi-boop/legalos2/actions/runs/36619287466) vert, jobs de code sautés (journal seul).
 
 ## 2026-09-29 — Agenda VALIDÉ
 
