@@ -228,20 +228,51 @@ async function ecranAuth(send) {
   );
 }
 
+async function forcerReconnexion(send) {
+  await evaluate(
+    send,
+    `([...document.querySelectorAll("button")].find((b) => (b.textContent || "").trim() === "Compte") || null)?.click()`,
+  );
+  await sleep(200);
+  await evaluate(
+    send,
+    `([...document.querySelectorAll("button")].find((b) => /réglages/i.test((b.textContent || "").trim())) || null)?.click()`,
+  );
+  await sleep(400);
+  return evaluate(
+    send,
+    `(() => {
+      const b = document.querySelector("[data-testid=se-reconnecter]");
+      if (!b) return false;
+      b.click();
+      return true;
+    })()`,
+  );
+}
+
 async function login(send) {
   const pret = Date.now();
   let ecran = "";
   while (Date.now() - pret < 90_000) {
     ecran = await ecranAuth(send);
-    if (ecran === "login" || ecran === "creds" || ecran === "totp" || ecran === "local") break;
+    if (ecran === "login" || ecran === "creds" || ecran === "totp") break;
     const coque = await evaluate(
       send,
       `Boolean(document.querySelector("[data-testid=barre-haut]")) && !document.getElementById("instance-url")`,
     );
-    if (coque) return;
+    if (coque) {
+      const relance = await forcerReconnexion(send);
+      if (relance) {
+        await sleep(400);
+        continue;
+      }
+    }
     await sleep(250);
   }
-  if (!ecran) throw new Error("écran auth absent");
+  if (!ecran) {
+    const corps = await evaluate(send, `(document.body?.innerText || "").slice(0, 300)`);
+    throw new Error(`écran auth absent (${corps})`);
+  }
   if (ecran === "login") {
     await setField(send, "instance-url", instanceUrl);
     await evaluate(send, `document.getElementById("instance-url")?.closest("form")?.requestSubmit()`);
@@ -270,7 +301,6 @@ async function login(send) {
       `Boolean(document.querySelector("[data-testid=barre-haut]")) && !document.getElementById("instance-url") && !document.getElementById("code-totp")`,
     );
     if (totpSoumis && coque) return;
-    if (ecran === "local" && coque) return;
     await sleep(250);
   }
   throw new Error("coque absente après auth");
@@ -323,6 +353,20 @@ async function creerDossierUi(send, { nom, chemise, juridiction, rg, partie }) {
   await setField(send, "dossier-juridiction", juridiction);
   await setField(send, "dossier-rg", rg);
   await setField(send, "dossier-partie", partie);
+  const attenteResponsable = Date.now();
+  while (Date.now() - attenteResponsable < 25_000) {
+    const pretResp = await evaluate(
+      send,
+      `(() => {
+        const sel = document.getElementById("dossier-responsable");
+        if (sel && sel.value) return true;
+        const hid = document.querySelector("input[name=responsable_id]");
+        return Boolean(hid && hid.value);
+      })()`,
+    );
+    if (pretResp) break;
+    await sleep(300);
+  }
   await evaluate(send, `document.getElementById("dossier-nom")?.closest("form")?.requestSubmit()`);
   const debut = Date.now();
   while (Date.now() - debut < 30_000) {
@@ -338,7 +382,11 @@ async function creerDossierUi(send, { nom, chemise, juridiction, rg, partie }) {
     if (ouvert) return String(ouvert);
     await sleep(250);
   }
-  throw new Error(`création dossier échouée (${nom})`);
+  const detail = await evaluate(
+    send,
+    `document.querySelector("[data-testid=dossier-cree]")?.textContent?.trim() ?? ""`,
+  );
+  throw new Error(`création dossier échouée (${nom}${detail ? ` : ${detail}` : ""})`);
 }
 
 async function attendreChrono(send) {
