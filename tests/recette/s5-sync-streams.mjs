@@ -55,6 +55,8 @@ const fluxAttendus = [
   "dossier_liens_publics",
   "dossier_liens_restreints",
   "dossier_liens_restreints_croises",
+  "agenda_publics",
+  "agenda_restreints",
 ];
 
 /** Extrait le bloc YAML d'un flux nommé (clés de flux : exactement 2 espaces). */
@@ -142,6 +144,7 @@ for (const nom of [
   "intercalaires_publics",
   "intercalaire_elements_publics",
   "dossier_liens_publics",
+  "agenda_publics",
 ]) {
   const bloc = blocFlux(nom);
   if (!/INNER JOIN dossiers/i.test(bloc) && !/IN\s*\(\s*SELECT[\s\S]*FROM dossiers/i.test(bloc)) {
@@ -161,12 +164,13 @@ for (const nom of [
   "intercalaire_elements_restreints",
   "dossier_liens_restreints",
   "dossier_liens_restreints_croises",
+  "agenda_restreints",
 ]) {
   const bloc = blocFlux(nom);
   if (!/INNER JOIN dossier_acces/i.test(bloc)) fail(`${nom} : JOIN dossier_acces requis`);
   if (!/auth\.user_id\(\)/.test(bloc)) fail(`${nom} : auth.user_id() requis`);
   if (
-    /WHERE[\s\S]*\b(documents|document_versions|parties|temps_saisis|brouillons_facture|taux_horaires|intercalaires_personnalises|intercalaire_elements|dossier_liens)\.visibilite\s*=/.test(
+    /WHERE[\s\S]*\b(documents|document_versions|parties|temps_saisis|brouillons_facture|taux_horaires|intercalaires_personnalises|intercalaire_elements|dossier_liens|agenda_elements)\.visibilite\s*=/.test(
       bloc,
     )
   ) {
@@ -204,6 +208,7 @@ for (const table of [
   "intercalaire_elements",
   "contacts",
   "dossier_liens",
+  "agenda_elements",
 ]) {
   if (!new RegExp(`\\b${table}\\b`).test(schema)) fail(`AppSchema : table ${table} absente`);
 }

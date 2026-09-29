@@ -207,3 +207,19 @@ streams:
       WHERE acces_source.utilisateur_texte = auth.user_id()
         AND acces_cible.utilisateur_texte = auth.user_id()
         AND dossier_liens.lie_restreint = true
+
+  agenda_publics:
+    auto_subscribe: true
+    query: |
+      SELECT agenda_elements.id, agenda_elements.cabinet_id, agenda_elements.dossier_id, agenda_elements.type_element, agenda_elements.titre, agenda_elements.debut, agenda_elements.rappel_le, agenda_elements.revision, agenda_elements.visibilite, agenda_elements.restreint, agenda_elements.cree_le::text AS cree_le
+      FROM agenda_elements
+      INNER JOIN dossiers ON agenda_elements.dossier_id = dossiers.id
+      WHERE dossiers.visibilite = 'public' AND dossiers.cabinet_id::text = auth.parameter('cabinet_id')
+
+  agenda_restreints:
+    auto_subscribe: true
+    query: |
+      SELECT agenda_elements.id, agenda_elements.cabinet_id, agenda_elements.dossier_id, agenda_elements.type_element, agenda_elements.titre, agenda_elements.debut, agenda_elements.rappel_le, agenda_elements.revision, agenda_elements.visibilite, agenda_elements.restreint, agenda_elements.cree_le::text AS cree_le
+      FROM agenda_elements
+      INNER JOIN dossier_acces ON agenda_elements.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()

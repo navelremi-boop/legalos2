@@ -42,6 +42,7 @@ const familles = [
   { table: "temps_saisis", label: "temps" },
   { table: "brouillons_facture", label: "brouillons" },
   { table: "intercalaires_personnalises", label: "intercalaires" },
+  { table: "agenda_elements", label: "agenda" },
 ];
 
 const manques = [];

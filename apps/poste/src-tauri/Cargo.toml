@@ -16,6 +16,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
+tauri-plugin-notification = "2.5.0"
 tauri-plugin-powersync = "0.0.6"
 keyring = { version = "3.6.3", features = ["apple-native", "windows-native"] }
 powersync = "0.0.7"

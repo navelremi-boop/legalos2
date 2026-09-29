@@ -1,3 +1,4 @@
+pub mod agenda;
 pub mod auth;
 pub mod cabinets;
 pub mod collaborateurs;
@@ -47,6 +48,8 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/dossiers/{dossier_id}/liens",
             post(contacts::lier_dossiers),
         )
+        .route("/dossiers/{dossier_id}/agenda", post(agenda::creer_element))
+        .route("/agenda/{element_id}", patch(agenda::patch_element))
         .route(
             "/dossiers/{dossier_id}/intercalaires",
             post(intercalaires::creer_intercalaire),

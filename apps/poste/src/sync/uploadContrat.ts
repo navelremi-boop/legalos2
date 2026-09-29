@@ -12,6 +12,7 @@ export const TABLES_MODIFIABLES = [
   "taux_horaires",
   "intercalaires_personnalises",
   "contacts",
+  "agenda_elements",
 ] as const;
 
 export type TableModifiable = (typeof TABLES_MODIFIABLES)[number];
@@ -26,6 +27,7 @@ export const CHAMPS_PAR_TABLE: Record<TableModifiable, readonly string[]> = {
   taux_horaires: ["centimes_par_heure"],
   intercalaires_personnalises: ["nom"],
   contacts: ["nom", "siren", "numero_tva", "type_client"],
+  agenda_elements: ["titre", "debut", "rappel_le"],
 };
 
 /** Champ unique utilisé pour la preuve « un champ seul par table ». */
@@ -38,6 +40,7 @@ export const CHAMP_SEUL_PAR_TABLE: Record<TableModifiable, string> = {
   taux_horaires: "centimes_par_heure",
   intercalaires_personnalises: "nom",
   contacts: "nom",
+  agenda_elements: "titre",
 };
 
 export type OperationCrud = "PUT" | "PATCH" | "DELETE";
@@ -64,6 +67,8 @@ export function cheminPatch(table: TableModifiable, id: string): string {
       return `/api/intercalaires/${id}`;
     case "contacts":
       return `/api/contacts/${id}`;
+    case "agenda_elements":
+      return `/api/agenda/${id}`;
   }
 }
 

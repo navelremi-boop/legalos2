@@ -1,3 +1,4 @@
+import { lireNotificationsEmises, type NotificationEmise } from "@/agenda/rappels";
 import { DEMO_CABINET_ID } from "@/sync/demoCabinet";
 import { getPowerSyncDatabase } from "@/sync/database";
 import {
@@ -76,6 +77,7 @@ export type RecetteHooks = {
     data?: Record<string, unknown>;
   }) => Promise<void>;
   lireSqlite: (sql: string, params?: unknown[]) => Promise<unknown[]>;
+  lireNotifications: () => NotificationEmise[];
   /** Coupe le flux PowerSync sans fermer la base (écritures locales → ps_crud). */
   disconnectSync: () => Promise<void>;
 };
@@ -161,6 +163,9 @@ export function createRecetteHooks(): RecetteHooks {
     async lireSqlite(sql, params = []) {
       const database = await getPowerSyncDatabase();
       return database.getAll(sql, params);
+    },
+    lireNotifications() {
+      return lireNotificationsEmises();
     },
     async disconnectSync() {
       const database = await getPowerSyncDatabase();
