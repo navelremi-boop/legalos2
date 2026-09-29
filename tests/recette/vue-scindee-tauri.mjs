@@ -513,6 +513,43 @@ async function main() {
       if (ouvert) break;
       await sleep(250);
     }
+    const debutVide = Date.now();
+    while (Date.now() - debutVide < 20_000) {
+      const vide = await evaluate(send, `Boolean(document.querySelector("[data-testid=chrono-vide]"))`);
+      if (vide) break;
+      await sleep(200);
+    }
+    const texteDossier = await evaluate(send, `(document.body?.innerText || "")`);
+    if (!String(texteDossier).includes("Aucun élément")) {
+      fail(`état vide absent d'un dossier réel (${String(texteDossier).slice(0, 240)})`);
+    }
+    if (String(texteDossier).includes("Communication de pièces adverses")) {
+      fail("CHRONO_DEMO visible dans un dossier réel");
+    }
+    if (String(texteDossier).includes("·")) fail("point médian dans le dossier réel");
+    ok("dossier réel : chrono vide, sans jeu fictif");
+
+    await evaluate(
+      send,
+      `([...document.querySelectorAll("button")].find((b) => (b.textContent || "").trim() === "Compte") || null)?.click()`,
+    );
+    await sleep(200);
+    const galerie = await evaluate(
+      send,
+      `(() => {
+        const b = [...document.querySelectorAll("button")].find((n) => /galerie/i.test(n.textContent || ""));
+        if (!b) return false;
+        b.click();
+        return true;
+      })()`,
+    );
+    if (!galerie) fail("galerie de développement absente");
+    const debutGalerie = Date.now();
+    while (Date.now() - debutGalerie < 20_000) {
+      const okGalerie = await evaluate(send, `Boolean(document.querySelector("[data-testid=galerie-demo]"))`);
+      if (okGalerie) break;
+      await sleep(200);
+    }
     await attendreChrono(send);
     ok("vue scindée affichée");
 

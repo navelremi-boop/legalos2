@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { fr } from "@/lib/fr";
 import { ApercuChrono } from "./ApercuChrono";
 import { BadgeDefinitif } from "./BadgeDefinitif";
-import { CHRONO_DEMO, FILTRE_LIBELLES, PERIODE_LIBELLES } from "./donneesDemo";
+import { FILTRE_LIBELLES, PERIODE_LIBELLES } from "./libelles";
 import { IconeTypeChrono } from "./icones";
 import type { ChronoFiltre, ChronoItem, ChronoPeriode } from "./types";
 
@@ -27,20 +27,30 @@ function filtreCorrespond(item: ChronoItem, filtre: ChronoFiltre): boolean {
 }
 
 type VueScindeeProps = {
+  /** Éléments synchronisés. Vide tant que le branchement mail / pièces / factures n’est pas fait. */
   items?: ChronoItem[];
 };
 
 /**
  * Vue scindée de l’intercalaire Chrono (§ 7.4) : liste groupée + aperçu.
+ * Sans élément : état vide. Le jeu fictif n’est pas le défaut (galerie seulement).
  */
-export function VueScindee({ items = CHRONO_DEMO }: VueScindeeProps) {
+export function VueScindee({ items = [] }: VueScindeeProps) {
   const [filtre, setFiltre] = useState<ChronoFiltre>("tout");
   const [selectionId, setSelectionId] = useState(items[0]?.id ?? "");
-
   const filtrés = useMemo(
     () => items.filter((item) => filtreCorrespond(item, filtre)),
     [items, filtre],
   );
+
+  if (items.length === 0) {
+    return (
+      <div className="chrono-vide px-[22px] py-6" data-testid="chrono-vide">
+        <h3 className="mb-2 text-[length:var(--font-size-section)] font-extrabold">{fr("Chrono")}</h3>
+        <p className="text-graphite">{fr("Aucun élément pour l'instant.")}</p>
+      </div>
+    );
+  }
 
   const selection =
     filtrés.find((item) => item.id === selectionId) ?? filtrés[0] ?? null;
