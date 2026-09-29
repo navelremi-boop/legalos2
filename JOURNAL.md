@@ -22,11 +22,17 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-09-29 — Documents, suite : lot API lancé
+
+Jalon en cours : Documents, suite. Worktree `.worktrees/documents-api`, branche `lot/documents-api`, à partir de `6bc42ab`. Agent API en cours : ne pas en lancer un second. Le lot poste attend ce contrat (migration 024, flux `repertoires_*`, colonnes `repertoire_id`, `texte`, `parent_numero`) puis s'appuie sur `tests/recette/lib/poste-session.mjs`. CI du push de clôture Agenda : run [36618225538](https://github.com/navelremi-boop/legalos2/actions/runs/36618225538), à relire par `gh run view` (pas de mémoire).
+
 ## 2026-09-29 — Agenda VALIDÉ
 
 Contrôleur **VALIDÉ** sur `635714e` (consigne de l'architecte du 29/09/2026, 21 h). Fusion dans `main` en `57fd4dc`. Jalon coché. Suivant : Documents, suite.
 
 Premier contrôle **REFUSÉ** sur `697bfbd` : les critères renforcés par `ca8208b` (rappel app fermée ou hors ligne, lien de calcul, confirmation de suppression, conflits par champ, `agenda-fuseau.mjs`) n'étaient pas couverts. Correctif `635714e` : fuseau Europe/Paris, lien de calcul, trace de suppression, conflits par champ.
+
+Preuve du contrôleur sur `635714e` (worktree agenda, retrouvée avant retrait du worktree) : `agenda-fuseau.mjs`, `s5-sync-streams.mjs`, `s5-sqlite-par-flux.mjs`, `upload-contrat-poste.mjs`, `lint:ci`, `cargo fmt`, clippy API et poste, `agenda-tauri.mjs` — tous exit 0. La recette Tauri couvre le rappel au lancement suivant, le recalcul ou le signal périmé, la confirmation avec trace, les conflits par champ et l'absence du dossier restreint dans le SQLite. Aucun écart bloquant.
 
 **CI lue par commande** le 29/09/2026 à 21 h (heure de Paris), `gh run view <id> --json status,conclusion,jobs` :
 - [36586753618](https://github.com/navelremi-boop/legalos2/actions/runs/36586753618) (`57fd4dc`, `main`) : completed, success. perimetre, gouvernance, frontend, facturx, rust, s1-instance en succès. `s1-instance` terminé à 15:13:54 UTC (17:13, heure de Paris).
