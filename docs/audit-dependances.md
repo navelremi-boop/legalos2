@@ -12,7 +12,7 @@ Dette de la phase 2 (`PLAN.md`) : `cargo-deny` en CI sur les deux workspaces, et
 - Avis bloquants : vulnérabilités, notices, crates non maintenus, versions retirées du registre. « Unsound » : réglage par défaut de l'outil (dépendances directes).
 - Licences admises : permissives (Apache-2.0, MIT, BSD, ISC, Zlib, Unicode-3.0, etc.) et MPL-2.0 (crates Servo tirés par Tauri, copyleft limité aux fichiers). Crates du dépôt exclus du contrôle de licence (`publish = false`).
 - Sources : crates.io seulement. Versions génériques interdites, sauf chemins locaux (correctifs `apps/poste/src-tauri/patches/`).
-- Exceptions d'avis, seulement les quatre de la chaîne PowerSync du poste, chacune nominative et renvoyant à [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). `unused-ignored-advisory = "deny"` : une exception devenue inutile fait échouer le contrôle.
+- Exceptions d'avis, seulement les quatre de la chaîne PowerSync du poste, chacune nominative et renvoyant à [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). `unused-ignored-advisory = "deny"` : une exception devenue inutile fait échouer le contrôle. Essai négatif en CI : `node tests/recette/deny-exception-inutile.mjs` (identifiant fictif `RUSTSEC-2099-0001`). Le contrôle complet des deux workspaces reste une dette : les avis `unic-*` et `rsa` ne sont pas des exceptions.
 
 ## Constat du 27 septembre 2026
 
