@@ -195,6 +195,25 @@ async fn journaliser(
     Ok(())
 }
 
+/// Événement d'historique (rôle, nature, lien), sans conflit.
+pub async fn noter_historique(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    contexte: &ContexteChamp,
+    champ: &str,
+    valeur_appliquee: &str,
+) -> Result<(), ApiError> {
+    journaliser(
+        tx,
+        contexte,
+        champ,
+        None,
+        valeur_appliquee,
+        contexte.base_revision.max(1),
+        false,
+    )
+    .await
+}
+
 /// Réserve la clé d'idempotence. `Ok(true)` si première écriture ; `Ok(false)` si rejeu.
 pub async fn reserver_idempotence(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,

@@ -28,6 +28,15 @@ const CHEMISES: &[&str] = &[
 ];
 
 const ROLES_PARTIE: &[&str] = &["client", "adversaire", "confrere"];
+const TYPES_DOSSIER: &[&str] = &["contentieux", "conseil", "autre"];
+const ETAPES_DOSSIER: &[&str] = &[
+    "ouverture",
+    "instruction",
+    "plaidoirie",
+    "jugement",
+    "execution",
+    "clos",
+];
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreerDossierRequest {
@@ -40,6 +49,8 @@ pub struct CreerDossierRequest {
     pub restreint: bool,
     /// Avocat responsable (R0-b) ; défaut = créateur si omis.
     pub responsable_id: Option<Uuid>,
+    pub type_dossier: Option<String>,
+    pub etape: Option<String>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -57,6 +68,7 @@ pub struct CreerPartieRequest {
     pub idempotence_cle: String,
     pub role: String,
     pub nom: String,
+    pub contact_id: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -74,6 +86,8 @@ pub struct PatchDossierRequest {
     pub chemise: Option<String>,
     pub juridiction: Option<String>,
     pub numero_rg: Option<String>,
+    pub type_dossier: Option<String>,
+    pub etape: Option<String>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -83,6 +97,8 @@ pub struct DossierDetailResponse {
     pub chemise: String,
     pub juridiction: String,
     pub numero_rg: String,
+    pub type_dossier: String,
+    pub etape: String,
     pub restreint: bool,
     pub reference: Option<String>,
     pub revision: i64,
@@ -229,18 +245,38 @@ pub async fn creer_dossier(
         u64::try_from(numero).map_err(|_| ApiError::internal("numéro de référence"))?;
     let initiales = initiales_utilisateur(&mut *tx, responsable_id).await?;
     let reference = modele.produire(annee, numero_u64, &initiales);
+    let type_dossier = body
+        .type_dossier
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("autre");
+    if !TYPES_DOSSIER.contains(&type_dossier) {
+        return Err(ApiError::bad_request("Type de dossier inconnu"));
+    }
+    let etape = body
+        .etape
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("ouverture");
+    if !ETAPES_DOSSIER.contains(&etape) {
+        return Err(ApiError::bad_request("Étape de dossier inconnue"));
+    }
 
     sqlx::query(
         r#"
         INSERT INTO dossiers (
             id, cabinet_id, nom, chemise, juridiction, numero_rg,
             reference, reference_annee, reference_numero,
-            restreint, visibilite, revision, responsable_id
+            restreint, visibilite, revision, responsable_id,
+            type_dossier, etape
         )
         VALUES (
             $1, $2, $3, $4, $5, $6,
             $7, $8, $9,
-            $10, CASE WHEN $10 THEN 'restreint' ELSE 'public' END, 1, $11
+            $10, CASE WHEN $10 THEN 'restreint' ELSE 'public' END, 1, $11,
+            $12, $13
         )
         "#,
     )
@@ -255,6 +291,8 @@ pub async fn creer_dossier(
     .bind(numero)
     .bind(body.restreint)
     .bind(responsable_id)
+    .bind(type_dossier)
+    .bind(etape)
     .execute(&mut *tx)
     .await
     .map_err(|_| ApiError::internal("création dossier"))?;
@@ -312,12 +350,25 @@ pub async fn creer_partie(
     if !dossier_visible(&state, claims.cabinet_id, claims.sub, dossier_id).await? {
         return Err(ApiError::unauthorized("Dossier non autorisé"));
     }
+    if let Some(contact_id) = body.contact_id {
+        let ok = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM contacts WHERE id = $1 AND cabinet_id = $2)",
+        )
+        .bind(contact_id)
+        .bind(claims.cabinet_id)
+        .fetch_one(&state.pool)
+        .await
+        .map_err(|_| ApiError::internal("lecture contact"))?;
+        if !ok {
+            return Err(ApiError::bad_request("Contact hors cabinet"));
+        }
+    }
 
-    sqlx::query(
+    let inserted = sqlx::query(
         r#"
-        INSERT INTO parties (id, dossier_id, cabinet_id, role, nom, revision, restreint, visibilite)
+        INSERT INTO parties (id, dossier_id, cabinet_id, role, nom, contact_id, revision, restreint, visibilite)
         VALUES (
-            $1, $2, $3, $4, $5, 1,
+            $1, $2, $3, $4, $5, $6, 1,
             (SELECT restreint FROM dossiers WHERE id = $2),
             (SELECT visibilite FROM dossiers WHERE id = $2)
         )
@@ -329,9 +380,36 @@ pub async fn creer_partie(
     .bind(claims.cabinet_id)
     .bind(&body.role)
     .bind(&nom)
+    .bind(body.contact_id)
     .execute(&state.pool)
     .await
     .map_err(|_| ApiError::internal("création partie"))?;
+
+    if body.contact_id.is_some() && inserted.rows_affected() == 1 {
+        let mut tx = state
+            .pool
+            .begin()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?;
+        crate::conflits::noter_historique(
+            &mut tx,
+            &crate::conflits::ContexteChamp {
+                cabinet_id: claims.cabinet_id,
+                poste_id: claims.poste_id,
+                auteur_id: claims.sub,
+                base_revision: 1,
+                enregistrement_id: body.id,
+                table_cible: "parties",
+                dossier_id: Some(dossier_id),
+            },
+            "role",
+            &body.role,
+        )
+        .await?;
+        tx.commit()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?;
+    }
 
     Ok(Json(PartieResponse {
         id: body.id,
@@ -367,12 +445,30 @@ pub async fn patch_dossier(
     let chemise = champ_texte_optionnel(body.chemise)?;
     let juridiction = champ_texte_optionnel(body.juridiction)?;
     let numero_rg = champ_texte_optionnel(body.numero_rg)?;
-    if nom.is_none() && chemise.is_none() && juridiction.is_none() && numero_rg.is_none() {
+    let type_dossier = champ_texte_optionnel(body.type_dossier)?;
+    let etape = champ_texte_optionnel(body.etape)?;
+    if nom.is_none()
+        && chemise.is_none()
+        && juridiction.is_none()
+        && numero_rg.is_none()
+        && type_dossier.is_none()
+        && etape.is_none()
+    {
         return Err(ApiError::bad_request("Aucun champ à appliquer"));
     }
     if let Some(ref c) = chemise {
         if !CHEMISES.contains(&c.as_str()) {
             return Err(ApiError::bad_request("Couleur de chemise inconnue"));
+        }
+    }
+    if let Some(ref t) = type_dossier {
+        if !TYPES_DOSSIER.contains(&t.as_str()) {
+            return Err(ApiError::bad_request("Type de dossier inconnu"));
+        }
+    }
+    if let Some(ref e) = etape {
+        if !ETAPES_DOSSIER.contains(&e.as_str()) {
+            return Err(ApiError::bad_request("Étape de dossier inconnue"));
         }
     }
 
@@ -403,10 +499,13 @@ pub async fn patch_dossier(
             bool,
             Option<String>,
             i64,
+            String,
+            String,
         ),
     >(
         r#"
-        SELECT cabinet_id, nom, chemise, juridiction, numero_rg, restreint, reference, revision
+        SELECT cabinet_id, nom, chemise, juridiction, numero_rg, restreint, reference, revision,
+               type_dossier, etape
         FROM dossiers WHERE id = $1 FOR UPDATE
         "#,
     )
@@ -474,24 +573,47 @@ pub async fn patch_dossier(
         &mut revision,
     )
     .await?;
+    appliquer_champ_texte(
+        &mut tx,
+        &contexte,
+        "type_dossier",
+        type_dossier.as_deref(),
+        &courant.8,
+        &mut revision,
+    )
+    .await?;
+    appliquer_champ_texte(
+        &mut tx,
+        &contexte,
+        "etape",
+        etape.as_deref(),
+        &courant.9,
+        &mut revision,
+    )
+    .await?;
 
     let nom_f = nom.as_deref().unwrap_or(&courant.1);
     let chemise_f = chemise.as_deref().unwrap_or(&courant.2);
     let juridiction_f = juridiction.as_deref().unwrap_or(&courant.3);
     let numero_rg_f = numero_rg.as_deref().unwrap_or(&courant.4);
+    let type_f = type_dossier.as_deref().unwrap_or(&courant.8);
+    let etape_f = etape.as_deref().unwrap_or(&courant.9);
 
     if revision != courant.7 {
         sqlx::query(
             r#"
             UPDATE dossiers
-            SET nom = $1, chemise = $2, juridiction = $3, numero_rg = $4, revision = $5
-            WHERE id = $6
+            SET nom = $1, chemise = $2, juridiction = $3, numero_rg = $4,
+                type_dossier = $5, etape = $6, revision = $7
+            WHERE id = $8
             "#,
         )
         .bind(nom_f)
         .bind(chemise_f)
         .bind(juridiction_f)
         .bind(numero_rg_f)
+        .bind(type_f)
+        .bind(etape_f)
         .bind(revision)
         .bind(dossier_id)
         .execute(
@@ -513,6 +635,8 @@ pub async fn patch_dossier(
         chemise: chemise_f.to_owned(),
         juridiction: juridiction_f.to_owned(),
         numero_rg: numero_rg_f.to_owned(),
+        type_dossier: type_f.to_owned(),
+        etape: etape_f.to_owned(),
         restreint: courant.5,
         reference: courant.6,
         revision,
@@ -662,9 +786,23 @@ async fn charger_dossier(
     if !dossier_visible(state, cabinet_id, utilisateur_id, dossier_id).await? {
         return Err(ApiError::forbidden("Dossier non autorisé"));
     }
-    let row = sqlx::query_as::<_, (String, String, String, String, bool, Option<String>, i64)>(
+    let row = sqlx::query_as::<
+        _,
+        (
+            String,
+            String,
+            String,
+            String,
+            bool,
+            Option<String>,
+            i64,
+            String,
+            String,
+        ),
+    >(
         r#"
-        SELECT nom, chemise, juridiction, numero_rg, restreint, reference, revision
+        SELECT nom, chemise, juridiction, numero_rg, restreint, reference, revision,
+               type_dossier, etape
         FROM dossiers WHERE id = $1 AND cabinet_id = $2
         "#,
     )
@@ -680,6 +818,8 @@ async fn charger_dossier(
         chemise: row.1,
         juridiction: row.2,
         numero_rg: row.3,
+        type_dossier: row.7,
+        etape: row.8,
         restreint: row.4,
         reference: row.5,
         revision: row.6,

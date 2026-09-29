@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod cabinets;
 pub mod collaborateurs;
+pub mod contacts;
 pub mod documents;
 pub mod dossiers;
 pub mod factures;
@@ -36,6 +37,16 @@ pub fn router(state: Arc<AppState>) -> Router {
             post(dossiers::creer_partie),
         )
         .route("/parties/{partie_id}", patch(dossiers::patch_partie))
+        .route("/contacts", post(contacts::creer_contact))
+        .route("/contacts/{contact_id}", patch(contacts::patch_contact))
+        .route(
+            "/contacts/{contact_id}/historique",
+            get(contacts::historique_contact),
+        )
+        .route(
+            "/dossiers/{dossier_id}/liens",
+            post(contacts::lier_dossiers),
+        )
         .route(
             "/dossiers/{dossier_id}/intercalaires",
             post(intercalaires::creer_intercalaire),
