@@ -12,8 +12,9 @@ Sources : cahier § 3.4 (« dernière écriture gagnante par champ par défaut, 
 | `temps_saisis` | `minutes`, `libelle`, `taux_centimes_heure` (`ht_centimes` recalculé par le serveur) | `revision` (à ajouter) | dès qu'un brouillon numéroté le référence (validé par l'architecte le 27/09/2026) |
 | `brouillons_facture` | `libelle`, `taux_centimes_heure` (`ht_centimes` recalculé par le serveur) | `revision` (à ajouter) | dès que `numero` n'est plus nul |
 | `taux_horaires` | `centimes_par_heure` | `revision` (à ajouter) | — |
+| `intercalaires_personnalises` | `nom` | `revision` | — |
 
-Restent hors de ce jalon : la visibilité d'un dossier (changement de droits, action serveur dédiée), les suppressions (toujours ignorées par le serveur, voir § 5), les intercalaires (à leur jalon, même mécanisme).
+Restent hors de ce jalon : la visibilité d'un dossier (changement de droits, action serveur dédiée), les suppressions hors intercalaires personnalisés (toujours refusées ou explicites, voir § 5). Les intercalaires **standards** ne sont pas des lignes synchronisées et n'ont pas d'API de retrait.
 
 ## 2. Protocole
 

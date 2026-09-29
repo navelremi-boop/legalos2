@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * S5 — Sync Streams : contrôle statique des flux (dossiers, parties, documents, versions, temps, brouillons, taux).
+ * S5 — Sync Streams : contrôle statique des flux (dossiers, parties, documents, versions, temps, brouillons, taux, intercalaires).
  * Invariant : un dossier restreint et ses enfants ne descendent que via dossier_acces + auth.user_id().
  * Usage : node tests/recette/s5-sync-streams.mjs
  */
@@ -47,6 +47,10 @@ const fluxAttendus = [
   "taux_cabinet",
   "taux_publics",
   "taux_restreints",
+  "intercalaires_publics",
+  "intercalaires_restreints",
+  "intercalaire_elements_publics",
+  "intercalaire_elements_restreints",
 ];
 
 /** Extrait le bloc YAML d'un flux nommé (clés de flux : exactement 2 espaces). */
@@ -131,6 +135,8 @@ for (const nom of [
   "temps_publics",
   "brouillons_publics",
   "taux_publics",
+  "intercalaires_publics",
+  "intercalaire_elements_publics",
 ]) {
   const bloc = blocFlux(nom);
   if (!/INNER JOIN dossiers/i.test(bloc) && !/IN\s*\(\s*SELECT[\s\S]*FROM dossiers/i.test(bloc)) {
@@ -146,12 +152,14 @@ for (const nom of [
   "temps_restreints",
   "brouillons_restreints",
   "taux_restreints",
+  "intercalaires_restreints",
+  "intercalaire_elements_restreints",
 ]) {
   const bloc = blocFlux(nom);
   if (!/INNER JOIN dossier_acces/i.test(bloc)) fail(`${nom} : JOIN dossier_acces requis`);
   if (!/auth\.user_id\(\)/.test(bloc)) fail(`${nom} : auth.user_id() requis`);
   if (
-    /WHERE[\s\S]*\b(documents|document_versions|parties|temps_saisis|brouillons_facture|taux_horaires)\.visibilite\s*=/.test(
+    /WHERE[\s\S]*\b(documents|document_versions|parties|temps_saisis|brouillons_facture|taux_horaires|intercalaires_personnalises|intercalaire_elements)\.visibilite\s*=/.test(
       bloc,
     )
   ) {
@@ -197,7 +205,7 @@ const requetes = [...yaml.matchAll(/(?:^|\n)\s{4,}-\s*(SELECT[\s\S]*?)(?=\n\s{4}
   )
   .filter((q) => /\bSELECT\b/i.test(q));
 
-if (requetes.length < 19) fail(`requêtes Sync Streams insuffisantes (${requetes.length})`);
+if (requetes.length < 23) fail(`requêtes Sync Streams insuffisantes (${requetes.length})`);
 for (const sql of requetes) {
   const n = compterTables(sql);
   if (n > 2) fail(`requête > 2 tables (${n}) : ${sql.slice(0, 80).replace(/\s+/g, " ")}…`);
@@ -222,5 +230,5 @@ if (existsSync(join(root, "docs/sync-rules.md"))) {
 }
 
 console.log(
-  "s5-sync-streams: OK — flux Sync Streams (cabinet, journal ×3, dossiers, parties, documents, versions, temps, brouillons, taux)",
+  "s5-sync-streams: OK — flux Sync Streams (cabinet, journal ×3, dossiers, parties, documents, versions, temps, brouillons, taux, intercalaires, éléments)",
 );

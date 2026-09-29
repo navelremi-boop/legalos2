@@ -5,12 +5,13 @@ pub mod documents;
 pub mod dossiers;
 pub mod factures;
 pub mod health;
+pub mod intercalaires;
 pub mod temps;
 
 use std::sync::Arc;
 
 use axum::{
-    routing::{get, patch, post},
+    routing::{delete, get, patch, post},
     Router,
 };
 
@@ -35,6 +36,22 @@ pub fn router(state: Arc<AppState>) -> Router {
             post(dossiers::creer_partie),
         )
         .route("/parties/{partie_id}", patch(dossiers::patch_partie))
+        .route(
+            "/dossiers/{dossier_id}/intercalaires",
+            post(intercalaires::creer_intercalaire),
+        )
+        .route(
+            "/intercalaires/{intercalaire_id}",
+            patch(intercalaires::patch_intercalaire).delete(intercalaires::retirer_intercalaire),
+        )
+        .route(
+            "/intercalaires/{intercalaire_id}/elements",
+            post(intercalaires::rattacher_element),
+        )
+        .route(
+            "/intercalaire-elements/{element_lien_id}",
+            delete(intercalaires::detacher_element),
+        )
         .route("/collaborateurs", post(collaborateurs::creer_collaborateur))
         .route("/documents", post(documents::creer_document))
         .route(

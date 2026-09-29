@@ -143,3 +143,35 @@ streams:
       FROM taux_horaires
       INNER JOIN dossier_acces ON taux_horaires.dossier_id = dossier_acces.dossier_id
       WHERE dossier_acces.utilisateur_texte = auth.user_id()
+
+  intercalaires_publics:
+    auto_subscribe: true
+    query: |
+      SELECT intercalaires_personnalises.id, intercalaires_personnalises.cabinet_id, intercalaires_personnalises.dossier_id, intercalaires_personnalises.nom, intercalaires_personnalises.revision, intercalaires_personnalises.visibilite, intercalaires_personnalises.restreint, intercalaires_personnalises.cree_le::text AS cree_le
+      FROM intercalaires_personnalises
+      INNER JOIN dossiers ON intercalaires_personnalises.dossier_id = dossiers.id
+      WHERE dossiers.visibilite = 'public' AND dossiers.cabinet_id::text = auth.parameter('cabinet_id')
+
+  intercalaires_restreints:
+    auto_subscribe: true
+    query: |
+      SELECT intercalaires_personnalises.id, intercalaires_personnalises.cabinet_id, intercalaires_personnalises.dossier_id, intercalaires_personnalises.nom, intercalaires_personnalises.revision, intercalaires_personnalises.visibilite, intercalaires_personnalises.restreint, intercalaires_personnalises.cree_le::text AS cree_le
+      FROM intercalaires_personnalises
+      INNER JOIN dossier_acces ON intercalaires_personnalises.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
+
+  intercalaire_elements_publics:
+    auto_subscribe: true
+    query: |
+      SELECT intercalaire_elements.id, intercalaire_elements.intercalaire_id, intercalaire_elements.dossier_id, intercalaire_elements.type_element, intercalaire_elements.element_id, intercalaire_elements.revision, intercalaire_elements.visibilite, intercalaire_elements.restreint, intercalaire_elements.cree_le::text AS cree_le
+      FROM intercalaire_elements
+      INNER JOIN dossiers ON intercalaire_elements.dossier_id = dossiers.id
+      WHERE dossiers.visibilite = 'public' AND dossiers.cabinet_id::text = auth.parameter('cabinet_id')
+
+  intercalaire_elements_restreints:
+    auto_subscribe: true
+    query: |
+      SELECT intercalaire_elements.id, intercalaire_elements.intercalaire_id, intercalaire_elements.dossier_id, intercalaire_elements.type_element, intercalaire_elements.element_id, intercalaire_elements.revision, intercalaire_elements.visibilite, intercalaire_elements.restreint, intercalaire_elements.cree_le::text AS cree_le
+      FROM intercalaire_elements
+      INNER JOIN dossier_acces ON intercalaire_elements.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()

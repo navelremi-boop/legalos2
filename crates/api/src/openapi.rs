@@ -16,6 +16,11 @@ use crate::routes::dossiers::{
     CreerDossierRequest, CreerPartieRequest, DossierResponse, PartieResponse,
 };
 use crate::routes::health::HealthResponse;
+use crate::routes::intercalaires::{
+    CreerIntercalaireRequest, DetacherElementRequest, ElementIntercalaireResponse,
+    IntercalaireResponse, PatchIntercalaireRequest, RattacherElementRequest,
+    RetirerIntercalaireRequest, RetirerIntercalaireResponse,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -35,6 +40,11 @@ use crate::routes::health::HealthResponse;
         crate::routes::cabinets::ecrire_reference,
         crate::routes::dossiers::creer_dossier,
         crate::routes::dossiers::creer_partie,
+        crate::routes::intercalaires::creer_intercalaire,
+        crate::routes::intercalaires::patch_intercalaire,
+        crate::routes::intercalaires::retirer_intercalaire,
+        crate::routes::intercalaires::rattacher_element,
+        crate::routes::intercalaires::detacher_element,
         crate::routes::collaborateurs::creer_collaborateur,
         crate::routes::documents::creer_document,
         crate::routes::documents::preparer_version,
@@ -56,6 +66,14 @@ use crate::routes::health::HealthResponse;
         DossierResponse,
         CreerPartieRequest,
         PartieResponse,
+        CreerIntercalaireRequest,
+        IntercalaireResponse,
+        PatchIntercalaireRequest,
+        RetirerIntercalaireRequest,
+        RetirerIntercalaireResponse,
+        RattacherElementRequest,
+        ElementIntercalaireResponse,
+        DetacherElementRequest,
         CreerCollaborateurRequest,
         CollaborateurResponse,
         CreerDocumentRequest,

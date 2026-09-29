@@ -58,6 +58,7 @@ Fichier déployé : `instance/powersync/sync-config.yaml`, monté via `sync_conf
 | `parties` | Parties du dossier |
 | `documents` / `document_versions` | Métadonnées ; `visibilite` en SELECT, auth via dossier |
 | `temps_saisis` / `brouillons_facture` / `taux_horaires` | J8 — flux publics / restreints (+ `taux_cabinet` sans dossier) |
+| `intercalaires_personnalises` / `intercalaire_elements` | Intercalaires personnalisés (§ 7.4) — flux publics / restreints |
 | `users` / `postes` | (schéma client ; flux à ajouter si réplication) |
 
 ---
@@ -83,8 +84,10 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 | `temps_publics` / `brouillons_publics` / `taux_publics` | JOIN `dossiers` (visibilité publique + cabinet) |
 | `temps_restreints` / `brouillons_restreints` / `taux_restreints` | JOIN `dossier_acces` (`auth.user_id()`) — **sans** filtre sur la `visibilite` fille |
 | `taux_cabinet` | `taux_horaires` où `dossier_id IS NULL` et `cabinet_id` du JWT |
+| `intercalaires_publics` / `intercalaire_elements_publics` | JOIN `dossiers` (visibilité publique + cabinet) |
+| `intercalaires_restreints` / `intercalaire_elements_restreints` | JOIN `dossier_acces` (`auth.user_id()`) — **sans** filtre sur la `visibilite` fille |
 
-**Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants (`parties`, `documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, `taux_horaires` liés au dossier) dans la SQLite locale. Preuve SQLite (fichier `legalos-powersync-*.db` du poste Tauri) : `tests/recette/j5-poste-tauri.mjs` ; couverture par flux : `tests/recette/s5-sqlite-par-flux.mjs` ; contrôle statique des flux : `tests/recette/s5-sync-streams.mjs`. Filtre JOIN Postgres (sans SQLite) : `tests/recette/s9-s5-temps.mjs`.
+**Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants (`parties`, `documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, `taux_horaires`, `intercalaires_personnalises`, `intercalaire_elements` liés au dossier) dans la SQLite locale. Preuve SQLite (fichier `legalos-powersync-*.db` du poste Tauri) : `tests/recette/j5-poste-tauri.mjs` ; couverture par flux : `tests/recette/s5-sqlite-par-flux.mjs` ; contrôle statique des flux : `tests/recette/s5-sync-streams.mjs`. Filtre JOIN Postgres (sans SQLite) : `tests/recette/s9-s5-temps.mjs`.
 
 ---
 
