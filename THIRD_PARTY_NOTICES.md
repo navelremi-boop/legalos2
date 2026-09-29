@@ -16,3 +16,4 @@ Une copie ou un portage de code sous MIT, Apache-2.0 ou BSD ajoute ici l'en-têt
 | --- | --- | --- | --- |
 | io-imap | 0.6.1 | MIT OR Apache-2.0 | https://crates.io/crates/io-imap/0.6.1 |
 | imap-codec | 2.0.0-alpha.8 | MIT OR Apache-2.0 | https://crates.io/crates/imap-codec/2.0.0-alpha.8 |
+| notify | 8.2.0 | CC0-1.0 | https://crates.io/crates/notify/8.2.0 |

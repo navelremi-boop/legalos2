@@ -19,6 +19,7 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 | tauri-plugin-powersync | **0.0.6** | https://crates.io/crates/tauri-plugin-powersync — vérifié le 2026-09-25 ; dépend de `powersync` ^0.0.7 |
 | tauri-plugin-notification | **2.5.0** | https://crates.io/crates/tauri-plugin-notification — vérifié le 2026-09-29 ; stable 2.x, pas la 3.0 alpha |
 | @tauri-apps/plugin-notification | **2.5.0** | https://www.npmjs.com/package/@tauri-apps/plugin-notification — vérifié npm le 2026-09-29 |
+| notify (crate Rust, surveillance cache documents) | **8.2.0** | https://crates.io/crates/notify/8.2.0 — vérifié le 2026-09-29 ; licence **CC0-1.0** (acceptée `deny.toml`) ; stable, pas la 9.0.0-rc |
 | powersync (crate Rust) | **0.0.7** | https://crates.io/crates/powersync — vérifié le 2026-09-25 |
 | SDK web `@powersync/web` | **écart** : utilisé à tort jusqu'au 2026-09-25 ; retiré (cahier § 2.1) | https://docs.powersync.com/client-sdks/reference/tauri |
 | pnpm | **12.6.0** | `packageManager` racine |
