@@ -128,22 +128,28 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
 
 - [x] **Dossiers et contacts complets** — VALIDÉ `3482a36` (contrôleur, CI [36572546272](https://github.com/navelremi-boop/legalos2/actions/runs/36572546272))
 
-- [ ] **Agenda** — § 4.2 n° 4, ce que J6 n'a pas livré — critères proposés le 27/09, **à valider par l'architecte**
+- [ ] **Agenda** — § 4.2 n° 4, ce que J6 n'a pas livré — critères validés par l'architecte le 29/09/2026
   - **Critères d'acceptation (commandes)** :
     - `node tests/recette/agenda-tauri.mjs` → exit 0 (app Tauri, deux postes) :
       - audiences, rendez-vous et tâches rattachés à un dossier, avec rappels ;
       - une notification Tauri est émise pour un rappel échu ;
+      - un rappel échu pendant que l'app était fermée ou le poste hors ligne est notifié au lancement suivant ;
       - une échéance calculée par le moteur de délais s'inscrit à l'agenda ;
+      - une échéance issue du moteur garde le lien vers son calcul : si la date de départ change, l'échéance est recalculée ou signalée, jamais laissée périmée en silence ;
+      - supprimer une échéance issue du moteur exige une confirmation et laisse une trace consultable (qui, quand) ;
+      - conflits par champ sur les tables d'agenda (révision de base, journal, signal dans l'app), comme les autres tables ;
       - les invitations reçues par mail restent au jalon J11.
+    - `node tests/recette/agenda-fuseau.mjs` → exit 0 : heures stockées avec le fuseau Europe/Paris ; un rendez-vous fixé à 9 h 30 le 27/10/2026 reste à 9 h 30 après le passage à l'heure d'hiver du 25/10 ; essai négatif (un instant naïf ou un décalage d'été ne vaut pas cette heure-là).
     - `node tests/recette/s5-sync-streams.mjs` → exit 0 : un élément d'agenda d'un dossier restreint est absent du SQLite du poste non autorisé.
     - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
-- [ ] **Documents, suite** — § 4.2 n° 6, ce que J7 n'a pas livré — critères proposés le 27/09, **à valider par l'architecte**
+- [ ] **Documents, suite** — § 4.2 n° 6, ce que J7 n'a pas livré — critères validés par l'architecte le 29/09/2026
   - **Critères d'acceptation (commandes)** :
     - `node tests/recette/documents-suite.mjs` → exit 0 (app Tauri, S4) :
       - arborescence par dossier ;
-      - ouverture dans Word et renvoi automatique de la nouvelle version ;
-      - recherche dans les documents du dossier ;
+      - ouverture dans Word et renvoi automatique de la nouvelle version, quel que soit l'éditeur par défaut ;
+      - recherche dans les noms et le contenu textuel (docx, pdf avec couche texte) ; pas d'OCR ;
+      - les fichiers temporaires de Word (`~$…`, `.tmp`) et les enregistrements automatiques ne créent pas de version ;
       - modification concurrente hors ligne : les deux versions sont conservées et signalées, aucun écrasement silencieux.
     - `node tests/recette/s6-documents.mjs` → exit 0 (non-régression des versions).
     - `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ; contrôleur VALIDÉ ; CI verte.
@@ -189,7 +195,8 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
 - [ ] **Avant J17** : revue juridique par l'avocat avant toute mise en service réelle (délais H1–H13, facturation F0–F8, installation) — `RAPPORT.md`, section du même nom.
 - [ ] **Avant J14** : build distribué sans outils de développement ni débogage distant, vérifié par un test.
 - [ ] **Avant J14** : épingler chaque action tierce de la CI sur un hash de commit complet, pas sur une étiquette (la CI manipulera alors les clés de signature) — liste dans `BLOCAGES.md`, contrôle `node tests/recette/workflows-valides.mjs`.
-- [ ] **Avant la fin de la phase 2** : `cargo-deny` (ou `cargo-audit`) en CI sur les deux workspaces ; signalement préparé pour PowerSync / dépendance `time` 0.2.
+- [x] **Avant la fin de la phase 2** : `cargo-deny` (ou `cargo-audit`) en CI sur les deux workspaces ; signalement préparé pour PowerSync / dépendance `time` 0.2.
+- [ ] **Avant Facturation, suite** : contrôle du SIREN (clé de Luhn) et d'un n° TVA commençant par FR (clé = (12 + 3 × (SIREN mod 97)) mod 97), à la saisie sur le poste et dans l'API ; message d'erreur en français — `node tests/recette/siren-tva.mjs`.
 - [ ] **Avant la fin de la phase 2** : moteur de délais en TypeScript strict ; licence OFL livrée avec les polices.
 - [x] **Avant la fin de la phase 2** : la preuve « fausse alerte » de `node tests/recette/conflits-poste-tauri.mjs` aligne `revision_edition` par `fixerRevisionEdition` au lieu d'attendre la reprise réelle du même poste.
 - [x] **Avant la fin de la phase 2** : `recetteHooks.ts` insère une entrée dans `ps_crud` lorsque le SDK ne journalise pas le PATCH hors ligne ; le chemin d'écriture réel reste à prouver sans cette injection.
