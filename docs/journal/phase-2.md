@@ -157,3 +157,11 @@ Preuves (2026-09-26) :
 - CORS `958d09a` : `tauri://localhost` toujours ; `localhost:1420` et `127.0.0.1:1420` seulement en `LEGALOS_MODE=development`.
 - Contrôleur VALIDÉ. CI de `main` [36475104465](https://github.com/navelremi-boop/legalos2/actions/runs/36475104465). Minutes des trois runs (PR CORS, PR poste, `main`) : **60**.
 - Observation : La journée en développement garde un jeu fictif pour les captures ; le build distribué a des listes vides jusqu'à J10. Le chrono détaillé reste au jalon Vue scindée.
+
+## 2026-09-29 — Vue scindée VALIDÉE
+
+- Premier contrôle REFUSÉ : `vue-scindee-tauri.mjs` s'arrêtait sur la coque hors session, formulaire sans responsable.
+- Correctif `c0cfa49` : reconnexion par le menu Compte, formulaire qui attend le responsable. Recontrôle : exit 0, `vue-scindee: OK`.
+- CI de `main` [36531714153](https://github.com/navelremi-boop/legalos2/actions/runs/36531714153). Minutes des trois runs (PR, correctif, `main`) : **62**.
+- Dette : `CHRONO_DEMO` reste le contenu par défaut d'un dossier réel, à remplacer par les éléments synchronisés avant la fin de J9 et de Documents, suite.
+- Même fusion : dettes de preuve des conflits soldées (`f393190`) — plus d'insertion de secours dans `ps_crud`, plus de `fixerRevisionEdition`.
