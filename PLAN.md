@@ -211,7 +211,7 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
 - [ ] **Avant la fin de la phase 2** : moteur de délais en TypeScript strict ; licence OFL livrée avec les polices.
 - [x] **Avant la fin de la phase 2** : la preuve « fausse alerte » de `node tests/recette/conflits-poste-tauri.mjs` aligne `revision_edition` par `fixerRevisionEdition` au lieu d'attendre la reprise réelle du même poste.
 - [x] **Avant la fin de la phase 2** : `recetteHooks.ts` insère une entrée dans `ps_crud` lorsque le SDK ne journalise pas le PATCH hors ligne ; le chemin d'écriture réel reste à prouver sans cette injection.
-- [ ] **Avant la fin de la phase 2** : la vue scindée affiche encore le jeu `CHRONO_DEMO` dans un dossier réel ; le brancher sur les éléments synchronisés (mails, pièces, factures) avant la fin de J9 et de Documents, suite.
+- [ ] **Avant la fin de J9 et de Documents, suite** : brancher la vue scindée sur les éléments synchronisés (mails, pièces, factures), sans réintroduire de jeu fictif dans le dossier réel ni dans le build distribué.
 - [ ] **Mensuel** : avis de sécurité PowerSync (GHSA, édition 3) relus et consignés dans `docs/versions.md`.
 
 Chaque jalon : recettes + clippy + contrôleur.
