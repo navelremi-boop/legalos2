@@ -166,6 +166,12 @@ Alors : rédiger `RAPPORT.md` (livré, preuves, écarts au cahier des charges, b
 
 Tant que ce n'est pas le cas : ne jamais conclure, ne jamais demander « voulez-vous que je continue ? ». **Continuer.**
 
+### 4.7 Intégration continue
+
+- L'état d'une CI se lit par une commande à chaque fois (`gh run view <id> --json status,conclusion,jobs`, ou l'API GitHub), jamais de mémoire ni d'un résultat antérieur.
+- Attendre une CI = commande bloquante (`gh run watch <id> --exit-status`), jamais un arrêt : chaque arrêt relance l'agent par le hook.
+- Deux relances consécutives sans commande exécutée ni commit : consigner l'incident dans `JOURNAL.md` et créer `.mission/STOP`.
+
 ## 5. Invariants (règles d'engagement, non négociables)
 
 1. **Secret professionnel** : identifiants (stockage, mail, plateforme agréée) jamais sur les postes ; aucune télémétrie ; aucun appel à un service tiers non prévu par le cahier des charges ; aucune donnée réelle dans le dépôt.

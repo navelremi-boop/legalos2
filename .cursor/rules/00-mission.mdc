@@ -15,3 +15,6 @@ alwaysApply: true
 - **Poste Windows** : shell PowerShell ; scripts du dépôt multiplateformes (`cargo xtask` ou Node) ; chemins jamais codés en dur ; fins de ligne LF.
 - **Règle vérifiable = règle outillée** : quand une règle peut être contrôlée par un lint, un test ou la CI, elle doit l'être.
 - **Commits** : autorisation explicite et permanente de committer et de pousser main pendant toute la mission. Restent interdits : push forcé, réécriture de l'historique, push de tag de version.
+- **CI** : l'état d'une CI se lit par une commande à chaque fois (`gh run view <id> --json status,conclusion,jobs`, ou l'API GitHub), jamais de mémoire ni d'un résultat antérieur.
+- **Attente d'une CI** : commande bloquante (`gh run watch <id> --exit-status`), jamais un arrêt : chaque arrêt relance l'agent par le hook.
+- **Deux relances consécutives sans commande exécutée ni commit** : consigner l'incident dans `JOURNAL.md` et créer `.mission/STOP`.

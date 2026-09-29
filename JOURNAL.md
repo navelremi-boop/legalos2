@@ -9,8 +9,10 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Vue scindée** : VALIDÉ `f393190` (contrôleur, CI [36531714153](https://github.com/navelremi-boop/legalos2/actions/runs/36531714153)). Trois runs : **62** minutes. Consigne du 29/09 : un dossier réel n'affiche plus `CHRONO_DEMO` ; le branchement sur les éléments synchronisés reste dû avant la fin de J9 et de Documents, suite.
 - **Intercalaires personnalisés** : VALIDÉ `9e0aa69` (contrôleur, CI [36561017502](https://github.com/navelremi-boop/legalos2/actions/runs/36561017502)). Trois runs de clôture : **63** minutes.
 - **Dossiers et contacts complets** : VALIDÉ `3482a36` (contrôleur, CI [36572546272](https://github.com/navelremi-boop/legalos2/actions/runs/36572546272)). Trois runs : **54** minutes.
-- **En cours** : **Agenda** — contrôleur **REFUSÉ** `697bfbd` (critères renforcés `ca8208b` non couverts). CI lot [36577300524](https://github.com/navelremi-boop/legalos2/actions/runs/36577300524) success. Jalon non coché.
-- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → ~~Intercalaires~~ → ~~Dossiers et contacts~~ → **Agenda** → Documents, suite → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
+- **Agenda** : VALIDÉ `57fd4dc` (contrôleur sur `635714e`, CI [36586753618](https://github.com/navelremi-boop/legalos2/actions/runs/36586753618)). Trois runs : **65** minutes. Premier contrôle REFUSÉ sur `697bfbd`.
+- **En cours** : **Documents, suite**.
+- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → ~~Intercalaires~~ → ~~Dossiers et contacts~~ → ~~Agenda~~ → **Documents, suite** → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
+- **CI** : l'état d'un run se lit par `gh run view` à chaque fois. Attendre = `gh run watch <id> --exit-status`. Deux relances consécutives sans commande ni commit créent `.mission/STOP` (ordre § 4.7).
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance). Un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` doit exister.
 - **B12 levé** (28/09) : signalement transmis, [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). Quatre exceptions dans `apps/poste/src-tauri/deny.toml`. Constat : `docs/audit-dependances.md`.
 - **Sync** : Streams édition 3, service 1.26.1. Dette mensuelle avis PowerSync.
@@ -19,6 +21,30 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---
+
+## 2026-09-29 — Agenda VALIDÉ
+
+Contrôleur **VALIDÉ** sur `635714e` (consigne de l'architecte du 29/09/2026, 21 h). Fusion dans `main` en `57fd4dc`. Jalon coché. Suivant : Documents, suite.
+
+Premier contrôle **REFUSÉ** sur `697bfbd` : les critères renforcés par `ca8208b` (rappel app fermée ou hors ligne, lien de calcul, confirmation de suppression, conflits par champ, `agenda-fuseau.mjs`) n'étaient pas couverts. Correctif `635714e` : fuseau Europe/Paris, lien de calcul, trace de suppression, conflits par champ.
+
+**CI lue par commande** le 29/09/2026 à 21 h (heure de Paris), `gh run view <id> --json status,conclusion,jobs` :
+- [36586753618](https://github.com/navelremi-boop/legalos2/actions/runs/36586753618) (`57fd4dc`, `main`) : completed, success. perimetre, gouvernance, frontend, facturx, rust, s1-instance en succès. `s1-instance` terminé à 15:13:54 UTC (17:13, heure de Paris).
+- [36584915520](https://github.com/navelremi-boop/legalos2/actions/runs/36584915520) (`635714e`, lot) : completed, success. Mêmes six jobs.
+- [36577300524](https://github.com/navelremi-boop/legalos2/actions/runs/36577300524) (`697bfbd`, lot refusé) : completed, success. Mêmes six jobs.
+
+Minutes des trois runs (lot refusé, lot `635714e`, `main`), jobs arrondis à la minute supérieure : 22 + 22 + 21 = **65**.
+
+## 2026-09-29 — Consigne de l'architecte : fin de la boucle d'attente
+
+21 h, heure de Paris. L'information « S1 en cours depuis 17 h 06 » était périmée : le run `36586753618` était déjà vert.
+
+Règle permanente (§ 4.7, `.cursor/rules/00-mission.mdc` et `50-infra-ci.mdc`) :
+- l'état d'une CI se lit par `gh run view <id> --json status,conclusion,jobs` (ou l'API GitHub) à chaque fois ;
+- attendre une CI = `gh run watch <id> --exit-status`, jamais un arrêt ;
+- deux relances consécutives sans commande exécutée ni commit : incident dans `JOURNAL.md` et `.mission/STOP`.
+
+Le hook `continuer.mjs` tient le compteur. `apres-commande.mjs` marque chaque commande. Preuve : `node tests/recette/garde-hooks.mjs`.
 
 ## 2026-09-29 — Agenda : contrôleur REFUSÉ
 

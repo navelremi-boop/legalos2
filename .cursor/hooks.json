@@ -4,6 +4,9 @@
     "stop": [
       { "command": "node .cursor/hooks/continuer.mjs", "loop_limit": 50, "timeout": 30 }
     ],
+    "afterShellExecution": [
+      { "command": "node .cursor/hooks/apres-commande.mjs", "timeout": 10 }
+    ],
     "beforeReadFile": [
       { "command": "node .cursor/hooks/garde-secrets.mjs", "timeout": 10 }
     ],

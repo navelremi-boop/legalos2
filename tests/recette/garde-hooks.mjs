@@ -5,7 +5,7 @@
  * Couvre aussi `continuer.mjs` (relance). Toute modification de `lib.mjs` repasse ce fichier (CI, job frontend).
  */
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -227,6 +227,86 @@ try {
   }
 } finally {
   rmSync(ancien, { force: true });
+}
+
+for (const fichier of ["docs/ordre-operation.md", ".cursor/rules/00-mission.mdc", ".cursor/rules/50-infra-ci.mdc"]) {
+  const texte = readFileSync(join(root, fichier), "utf8");
+  for (const extrait of ["gh run view", "gh run watch", "relances consécutives sans commande exécutée ni commit"]) {
+    if (!texte.includes(extrait)) fail(`${fichier} : extrait absent « ${extrait} »`);
+  }
+}
+
+function etatRelances(dir) {
+  return JSON.parse(readFileSync(join(dir, ".mission", "relances.json"), "utf8"));
+}
+
+{
+  const dir = depotTemporaire(planOuvert, false);
+  try {
+    const une = runContinuer(join(hooks, "continuer.mjs"), entreeCompleted, dir);
+    if (!String(une.json.followup_message || "").includes("premier jalon non coché")) {
+      fail(`première relance vide : suivi absent (${JSON.stringify(une.json)})`);
+    }
+    if (etatRelances(dir).sans_travail !== 1) {
+      fail(`première relance vide : compteur ${etatRelances(dir).sans_travail}`);
+    }
+    if (existsSync(join(dir, ".mission", "STOP"))) fail("première relance vide : STOP trop tôt");
+
+    const { json: marque } = runContinuer(join(hooks, "apres-commande.mjs"), "{}", dir);
+    if (JSON.stringify(marque) !== "{}") fail(`apres-commande : ${JSON.stringify(marque)}`);
+    const apresCmd = runContinuer(join(hooks, "continuer.mjs"), entreeCompleted, dir);
+    if (!String(apresCmd.json.followup_message || "").includes("premier jalon non coché")) {
+      fail(`commande exécutée : suivi absent (${JSON.stringify(apresCmd.json)})`);
+    }
+    if (etatRelances(dir).sans_travail !== 0) {
+      fail(`commande exécutée : compteur ${etatRelances(dir).sans_travail}`);
+    }
+
+    runContinuer(join(hooks, "continuer.mjs"), entreeCompleted, dir);
+    const deux = runContinuer(join(hooks, "continuer.mjs"), entreeCompleted, dir);
+    if (JSON.stringify(deux.json) !== "{}") {
+      fail(`deuxième relance vide : {} attendu, reçu ${JSON.stringify(deux.json)}`);
+    }
+    if (!existsSync(join(dir, ".mission", "STOP"))) fail("deuxième relance vide : STOP absent");
+    const journal = readFileSync(join(dir, "JOURNAL.md"), "utf8");
+    if (!journal.includes("deux relances consécutives sans commande exécutée ni commit")) {
+      fail("deuxième relance vide : incident absent du journal");
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+{
+  const dir = depotTemporaire(planOuvert, false);
+  const gitEnv = {
+    ...process.env,
+    GIT_AUTHOR_NAME: "test",
+    GIT_AUTHOR_EMAIL: "test@example.com",
+    GIT_COMMITTER_NAME: "test",
+    GIT_COMMITTER_EMAIL: "test@example.com",
+  };
+  const git = (args) => {
+    const r = spawnSync("git", args, { cwd: dir, encoding: "utf8", env: gitEnv });
+    if (r.status !== 0) fail(`git ${args.join(" ")} : ${r.stderr || r.stdout}`);
+  };
+  try {
+    git(["init", "-b", "main"]);
+    git(["add", "PLAN.md"]);
+    git(["commit", "-m", "plan initial"]);
+    runContinuer(join(hooks, "continuer.mjs"), entreeCompleted, dir);
+    if (etatRelances(dir).sans_travail !== 1) fail("avant commit : le compteur doit rester à 1");
+    writeFileSync(join(dir, "PLAN.md"), `${planOuvert}\n`, "utf8");
+    git(["add", "PLAN.md"]);
+    git(["commit", "-m", "plan suite"]);
+    const apres = runContinuer(join(hooks, "continuer.mjs"), entreeCompleted, dir);
+    if (!String(apres.json.followup_message || "").includes("premier jalon non coché")) {
+      fail(`commit : suivi absent (${JSON.stringify(apres.json)})`);
+    }
+    if (etatRelances(dir).sans_travail !== 0) fail(`commit : compteur ${etatRelances(dir).sans_travail}`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 console.log("garde-hooks: OK");

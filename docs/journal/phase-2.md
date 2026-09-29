@@ -180,3 +180,10 @@ Preuves (2026-09-26) :
 - PowerSync 1.26.1 refuse `EXISTS`. Un lien vers un dossier restreint exige l'accès des deux côtés via deux jointures `dossier_acces` (`dossier_liens_restreints_croises`).
 - Premier contrôle REFUSÉ sur `be75154` (rustfmt). Recontrôle VALIDÉ sur `09d7c8f`. Recettes `dossiers-contacts.mjs`, `s5-sync-streams.mjs`, `dossiers-contacts-conflits.mjs` et clippy : exit 0.
 - CI de `main` [36572546272](https://github.com/navelremi-boop/legalos2/actions/runs/36572546272) verte. Minutes des trois runs (fmt refusé, lot vert, `main`) : **54**.
+
+## 2026-09-29 — Agenda VALIDÉ
+
+- Audiences, rendez-vous et tâches rattachés à un dossier, avec rappels. Notification Tauri d'un rappel échu, y compris si l'app était fermée ou le poste hors ligne. Échéance du moteur de délais inscrite, liée à son calcul (recalcul ou signal si la date de départ change). Suppression d'une échéance issue du moteur : confirmation et trace (qui, quand). Conflits par champ. Heures en Europe/Paris : un rendez-vous à 9 h 30 le 27/10/2026 reste à 9 h 30 après le passage à l'heure d'hiver. Invitations reçues par mail laissées à J11.
+- Premier contrôle **REFUSÉ** sur `697bfbd` (critères `ca8208b` non couverts). Recontrôle **VALIDÉ** sur `635714e` (consigne de l'architecte du 29/09/2026, 21 h). Fusion `57fd4dc`.
+- CI lue par `gh run view` : [36577300524](https://github.com/navelremi-boop/legalos2/actions/runs/36577300524) (`697bfbd`) success ; [36584915520](https://github.com/navelremi-boop/legalos2/actions/runs/36584915520) (`635714e`) success ; [36586753618](https://github.com/navelremi-boop/legalos2/actions/runs/36586753618) (`57fd4dc`, `main`) success, `s1-instance` terminé à 17:13 heure de Paris. Minutes des trois runs : **65**.
+- Jalon coché. Suivant : Documents, suite.

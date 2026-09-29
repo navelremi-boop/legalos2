@@ -10,8 +10,10 @@ tests/recette/facturx/factur-x.xml
 *.p12
 secrets/
 
-# Arrêt d'urgence local de la mission
+# Arrêt d'urgence local de la mission, et compteur de relances (§ 4.7)
 .mission/STOP
+.mission/relances.json
+.mission/derniere-commande
 
 # Worktrees des sous-agents (ordre d'opération § 4.3)
 .worktrees/
