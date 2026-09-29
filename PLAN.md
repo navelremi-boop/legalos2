@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-29 (jalon en cours : **Dossiers et contacts complets**).
+Dernière mise à jour : 2026-09-29 (jalon en cours : **Agenda**).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -126,15 +126,7 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
 
 - [x] **Intercalaires personnalisés** — VALIDÉ `9e0aa69` (contrôleur, CI [36561017502](https://github.com/navelremi-boop/legalos2/actions/runs/36561017502))
 
-- [ ] **Dossiers et contacts complets** — § 4.2 n° 1 et 2, ce que J5 n'a pas livré — critères proposés le 27/09, **à valider par l'architecte**
-  - **Critères d'acceptation (commandes)** :
-    - `node tests/recette/dossiers-contacts.mjs` → exit 0 (API, Postgres réel, puis app Tauri) :
-      - le dossier porte un client, des adversaires et des confrères adverses, une juridiction, un n° RG, un type et une étape ;
-      - des dossiers liés se retrouvent dans les deux sens ;
-      - un contact est une personne physique ou morale, avec un rôle dans chaque dossier et un historique ;
-      - données de facturation : SIREN, n° TVA, type de client (professionnel, particulier, étranger), celles qu'utilise F8.
-    - `node tests/recette/s5-sync-streams.mjs` et `node tests/recette/dossiers-contacts-conflits.mjs` → exit 0 : S5 sur ces tables ; conflits par champ (révision de base, journal, signal dans l'app), comme les autres tables.
-    - `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+- [x] **Dossiers et contacts complets** — VALIDÉ `3482a36` (contrôleur, CI [36572546272](https://github.com/navelremi-boop/legalos2/actions/runs/36572546272))
 
 - [ ] **Agenda** — § 4.2 n° 4, ce que J6 n'a pas livré — critères proposés le 27/09, **à valider par l'architecte**
   - **Critères d'acceptation (commandes)** :
