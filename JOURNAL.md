@@ -19,6 +19,14 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-09-29 — Dossiers et contacts : recettes locales vertes
+
+14:41, heure locale. Lot `lot/dossiers-contacts-api`, tête `be75154`. PR [n° 13](https://github.com/navelremi-boop/legalos2/pull/13). Jalon non coché : contrôleur et CI restent à consigner.
+
+- `node tests/recette/dossiers-contacts.mjs` exit 0 : API Postgres (fiche, rôles, lien réciproque, historique, SIREN, TVA, `type_client` F8), puis Tauri (écran, lien dans les deux sens, historique), puis S5 (dossier restreint, partie et lien absents du poste non autorisé, dossier public présent).
+- `node tests/recette/dossiers-contacts-conflits.mjs` exit 0 : file du poste, conflit journalisé avec révision de base, signaux `contact-conflit` et `dossier-conflit`.
+- `node tests/recette/s5-sync-streams.mjs` exit 0. PowerSync 1.26.1 refuse `EXISTS` : les liens dont la cible est restreinte passent par deux jointures `dossier_acces` (`dossier_liens_restreints_croises`).
+
 ## 2026-09-29 — Dossiers et contacts : API et écran, recettes Tauri encore dues
 
 14:12, heure locale. Branche `lot/dossiers-contacts-api`, tête `3664093`, worktree `.worktrees/dossiers-contacts-api`. Non poussée. Jalon non coché.
