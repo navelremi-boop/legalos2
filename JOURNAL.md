@@ -21,7 +21,9 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 Texte reçu (remplace la précédente du 29/09). Priorité : `continuer.mjs` lisait `status` sur le résultat `{ ok, valeur }` de `lireEntree()` (depuis `7945016`), donc ne relançait jamais. Preuve dans `garde-hooks.mjs`, cinq cas, essai négatif sur l'ancien code. Ensuite Vue scindée, et sans la retarder : dettes de preuve des conflits avant les intercalaires ; essai négatif d'une exception `deny.toml` inutile ; suppression des branches `lot/` déjà dans `main`. Tout arrêt est consigné ici avec l'heure et la raison.
 
-Traitement (07:20, heure locale) : correctif commité. `node tests/recette/garde-hooks.mjs` → OK. L'essai `deny-exception-inutile.mjs` est branché sur le job `rust` (cargo-deny 0.20.2, somme SHA-256 du binaire Linux). Vue scindée et dettes de preuve des conflits suivent dans leurs lots.
+Traitement (07:20, heure locale) : correctif commité (`2da7703`, `f2ff014`). `node tests/recette/garde-hooks.mjs` → OK. L'essai `deny-exception-inutile.mjs` est branché sur le job `rust` (cargo-deny 0.20.2, somme SHA-256 du binaire Linux). Vue scindée et dettes de preuve des conflits suivent dans leurs lots.
+
+07:22 — suppression des branches `lot/` déjà intégrées refusée par `garde-commandes` (suppression de branche distante). Aucun contournement. Branches concernées, correctifs déjà dans `main` (`git cherry` tout en « - ») : `lot/conflits-api`, `lot/conflits-poste`, `lot/coque-cors`, `lot/coque-poste`, `lot/reference-modele-api`, `lot/reference-modele-poste`, `lot/reference-responsable-api`, `lot/reference-responsable-poste`.
 
 ## 2026-09-28 — Coque de l'app VALIDÉE
 
