@@ -7,8 +7,9 @@ Sources : cahier § 3.4 (« dernière écriture gagnante par champ par défaut, 
 | Table | Champs modifiables | Révision | Immuable |
 |---|---|---|---|
 | `cabinets` | `nom`, `slug` | `revision` (existe) | — |
-| `dossiers` | `nom`, `chemise`, `juridiction`, `numero_rg` | `revision` (existe) | la référence, déjà figée par déclencheur |
+| `dossiers` | `nom`, `chemise`, `juridiction`, `numero_rg`, `type_dossier`, `etape` | `revision` (existe) | la référence, déjà figée par déclencheur |
 | `parties` | `role`, `nom` | `revision` (existe) | — |
+| `contacts` | `nom`, `siren`, `numero_tva`, `type_client` | `revision` | — |
 | `temps_saisis` | `minutes`, `libelle`, `taux_centimes_heure` (`ht_centimes` recalculé par le serveur) | `revision` (à ajouter) | dès qu'un brouillon numéroté le référence (validé par l'architecte le 27/09/2026) |
 | `brouillons_facture` | `libelle`, `taux_centimes_heure` (`ht_centimes` recalculé par le serveur) | `revision` (à ajouter) | dès que `numero` n'est plus nul |
 | `taux_horaires` | `centimes_par_heure` | `revision` (à ajouter) | — |
@@ -28,7 +29,7 @@ Restent hors de ce jalon : la visibilité d'un dossier (changement de droits, ac
 
 ## 3. Journal des modifications
 
-- `journal_modifications.dossier_id` : nul pour les enregistrements du cabinet (`cabinets`, taux du cabinet) ; sinon le dossier de l'enregistrement (`dossiers.id`, `parties.dossier_id`, etc.).
+- `journal_modifications.dossier_id` : nul pour les enregistrements du cabinet (`cabinets`, `contacts`, taux du cabinet) ; sinon le dossier de l'enregistrement (`dossiers.id`, `parties.dossier_id`, etc.).
 - Trois flux PowerSync, à la place de la requête du journal dans `cabinet_global` :
   - `journal_cabinet` : `dossier_id IS NULL` et cabinet du jeton ;
   - `journal_publics` : jointure `dossiers` sur `dossier_id`, dossier public du cabinet du jeton ;

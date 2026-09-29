@@ -31,12 +31,12 @@ streams:
 
   dossiers_publics:
     auto_subscribe: true
-    query: SELECT id, cabinet_id, nom, chemise, juridiction, numero_rg, reference, restreint, revision, responsable_id, cree_le::text AS cree_le FROM dossiers WHERE visibilite = 'public' AND cabinet_id::text = auth.parameter('cabinet_id')
+    query: SELECT id, cabinet_id, nom, chemise, juridiction, numero_rg, type_dossier, etape, reference, restreint, revision, responsable_id, cree_le::text AS cree_le FROM dossiers WHERE visibilite = 'public' AND cabinet_id::text = auth.parameter('cabinet_id')
 
   dossiers_restreints:
     auto_subscribe: true
     query: |
-      SELECT dossiers.id, dossiers.cabinet_id, dossiers.nom, dossiers.chemise, dossiers.juridiction, dossiers.numero_rg, dossiers.reference, dossiers.restreint, dossiers.revision, dossiers.responsable_id, dossiers.cree_le::text AS cree_le
+      SELECT dossiers.id, dossiers.cabinet_id, dossiers.nom, dossiers.chemise, dossiers.juridiction, dossiers.numero_rg, dossiers.type_dossier, dossiers.etape, dossiers.reference, dossiers.restreint, dossiers.revision, dossiers.responsable_id, dossiers.cree_le::text AS cree_le
       FROM dossiers
       INNER JOIN dossier_acces ON dossiers.id = dossier_acces.dossier_id
       WHERE dossier_acces.utilisateur_texte = auth.user_id()
@@ -44,7 +44,7 @@ streams:
   parties_publics:
     auto_subscribe: true
     query: |
-      SELECT parties.id, parties.dossier_id, parties.cabinet_id, parties.role, parties.nom, parties.revision, parties.cree_le::text AS cree_le
+      SELECT parties.id, parties.dossier_id, parties.cabinet_id, parties.role, parties.nom, parties.contact_id, parties.revision, parties.cree_le::text AS cree_le
       FROM parties
       INNER JOIN dossiers ON parties.dossier_id = dossiers.id
       WHERE dossiers.visibilite = 'public' AND dossiers.cabinet_id::text = auth.parameter('cabinet_id')
@@ -52,7 +52,7 @@ streams:
   parties_restreints:
     auto_subscribe: true
     query: |
-      SELECT parties.id, parties.dossier_id, parties.cabinet_id, parties.role, parties.nom, parties.revision, parties.cree_le::text AS cree_le
+      SELECT parties.id, parties.dossier_id, parties.cabinet_id, parties.role, parties.nom, parties.contact_id, parties.revision, parties.cree_le::text AS cree_le
       FROM parties
       INNER JOIN dossier_acces ON parties.dossier_id = dossier_acces.dossier_id
       WHERE dossier_acces.utilisateur_texte = auth.user_id()
@@ -175,3 +175,35 @@ streams:
       FROM intercalaire_elements
       INNER JOIN dossier_acces ON intercalaire_elements.dossier_id = dossier_acces.dossier_id
       WHERE dossier_acces.utilisateur_texte = auth.user_id()
+
+  contacts_cabinet:
+    auto_subscribe: true
+    query: SELECT id, cabinet_id, nature, nom, siren, numero_tva, type_client, revision, cree_le::text AS cree_le FROM contacts WHERE cabinet_id::text = auth.parameter('cabinet_id')
+
+  dossier_liens_publics:
+    auto_subscribe: true
+    query: |
+      SELECT dossier_liens.id, dossier_liens.cabinet_id, dossier_liens.dossier_id, dossier_liens.lie_a_id, dossier_liens.revision, dossier_liens.visibilite, dossier_liens.restreint, dossier_liens.cree_le::text AS cree_le
+      FROM dossier_liens
+      INNER JOIN dossiers ON dossier_liens.dossier_id = dossiers.id
+      WHERE dossiers.visibilite = 'public' AND dossier_liens.visibilite = 'public' AND dossiers.cabinet_id::text = auth.parameter('cabinet_id')
+
+  dossier_liens_restreints:
+    auto_subscribe: true
+    query: |
+      SELECT dossier_liens.id, dossier_liens.cabinet_id, dossier_liens.dossier_id, dossier_liens.lie_a_id, dossier_liens.revision, dossier_liens.visibilite, dossier_liens.restreint, dossier_liens.cree_le::text AS cree_le
+      FROM dossier_liens
+      INNER JOIN dossier_acces ON dossier_liens.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
+        AND dossier_liens.lie_restreint = false
+
+  dossier_liens_restreints_croises:
+    auto_subscribe: true
+    query: |
+      SELECT dossier_liens.id, dossier_liens.cabinet_id, dossier_liens.dossier_id, dossier_liens.lie_a_id, dossier_liens.revision, dossier_liens.visibilite, dossier_liens.restreint, dossier_liens.cree_le::text AS cree_le
+      FROM dossier_liens
+      INNER JOIN dossier_acces AS acces_source ON dossier_liens.dossier_id = acces_source.dossier_id
+      INNER JOIN dossier_acces AS acces_cible ON dossier_liens.lie_a_id = acces_cible.dossier_id
+      WHERE acces_source.utilisateur_texte = auth.user_id()
+        AND acces_cible.utilisateur_texte = auth.user_id()
+        AND dossier_liens.lie_restreint = true

@@ -83,6 +83,8 @@ const dossiers = new Table(
     chemise: column.text,
     juridiction: column.text,
     numero_rg: column.text,
+    type_dossier: column.text,
+    etape: column.text,
     restreint: column.integer,
     /** Aligné sur `restreint` (CHECK serveur) ; source de vérité partagée. */
     visibilite: column.text,
@@ -124,6 +126,7 @@ const parties = new Table(
     cabinet_id: column.text,
     role: column.text,
     nom: column.text,
+    contact_id: column.text,
     revision: column.integer,
     cree_le: column.text,
   },
@@ -206,6 +209,35 @@ const intercalaireElements = new Table(
   { indexes: { intercalaire: ["intercalaire_id"], dossier: ["dossier_id"] } },
 );
 
+/** Annuaire du cabinet (un flux, pas un seau par dossier). */
+const contacts = new Table(
+  {
+    cabinet_id: column.text,
+    nature: column.text,
+    nom: column.text,
+    siren: column.text,
+    numero_tva: column.text,
+    type_client: column.text,
+    revision: column.integer,
+    cree_le: column.text,
+  },
+  { indexes: { cabinet: ["cabinet_id"] } },
+);
+
+/** Lien de dossiers, une ligne par sens. */
+const dossierLiens = new Table(
+  {
+    cabinet_id: column.text,
+    dossier_id: column.text,
+    lie_a_id: column.text,
+    revision: column.integer,
+    visibilite: column.text,
+    restreint: column.integer,
+    cree_le: column.text,
+  },
+  { indexes: { dossier: ["dossier_id"], lie: ["lie_a_id"] } },
+);
+
 export const AppSchema = new Schema({
   cabinets,
   journal_modifications: journalModifications,
@@ -221,6 +253,8 @@ export const AppSchema = new Schema({
   taux_horaires: tauxHoraires,
   intercalaires_personnalises: intercalairesPersonnalises,
   intercalaire_elements: intercalaireElements,
+  contacts,
+  dossier_liens: dossierLiens,
 });
 
 export type Database = (typeof AppSchema)["types"];

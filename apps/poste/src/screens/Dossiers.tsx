@@ -96,6 +96,7 @@ export function Dossiers({ onOuvrirDossier, onNouveauDossier }: DossiersProps) {
                         data-chemise={ligne.chemise}
                         data-reference={reference}
                         data-testid="liste-dossier"
+                        data-dossier-id={ligne.id}
                         onClick={() => {
                           onOuvrirDossier?.(ligne.id, ligne.nom, ligne.chemise, ligne.reference);
                         }}

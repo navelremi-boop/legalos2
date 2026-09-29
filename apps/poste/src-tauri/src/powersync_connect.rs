@@ -196,7 +196,14 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
         table: "dossiers",
         patch_chemin: |id| format!("/api/dossiers/{id}"),
         put_chemin: |_| Ok("/api/dossiers".into()),
-        champs_modifiables: &["nom", "chemise", "juridiction", "numero_rg"],
+        champs_modifiables: &[
+            "nom",
+            "chemise",
+            "juridiction",
+            "numero_rg",
+            "type_dossier",
+            "etape",
+        ],
         champs_entiers: &[],
         champs_booleens: &["restreint"],
     };
@@ -261,6 +268,26 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
         champs_entiers: &[],
         champs_booleens: &["restreint"],
     };
+    static CONTACTS: Ressource = Ressource {
+        table: "contacts",
+        patch_chemin: |id| format!("/api/contacts/{id}"),
+        put_chemin: |_| Ok("/api/contacts".into()),
+        champs_modifiables: &["nom", "siren", "numero_tva", "type_client"],
+        champs_entiers: &[],
+        champs_booleens: &[],
+    };
+    static DOSSIER_LIENS: Ressource = Ressource {
+        table: "dossier_liens",
+        patch_chemin: |id| format!("/api/dossier-liens/{id}"),
+        put_chemin: |data| {
+            let dossier_id = json_text(data.get("dossier_id"))
+                .ok_or_else(|| "dossier du lien absent".to_string())?;
+            Ok(format!("/api/dossiers/{dossier_id}/liens"))
+        },
+        champs_modifiables: &[],
+        champs_entiers: &[],
+        champs_booleens: &["restreint"],
+    };
     match table {
         "cabinets" => Some(&CABINETS),
         "dossiers" => Some(&DOSSIERS),
@@ -270,6 +297,8 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
         "taux_horaires" => Some(&TAUX),
         "intercalaires_personnalises" => Some(&INTERCALAIRES),
         "intercalaire_elements" => Some(&INTERCALAIRE_ELEMENTS),
+        "contacts" => Some(&CONTACTS),
+        "dossier_liens" => Some(&DOSSIER_LIENS),
         _ => None,
     }
 }
@@ -616,6 +645,8 @@ async fn lire_revision(
             "SELECT revision FROM intercalaires_personnalises WHERE id = ?1"
         }
         "intercalaire_elements" => "SELECT revision FROM intercalaire_elements WHERE id = ?1",
+        "contacts" => "SELECT revision FROM contacts WHERE id = ?1",
+        "dossier_liens" => "SELECT revision FROM dossier_liens WHERE id = ?1",
         _ => return Ok(depuis_edition.max(1)),
     };
     let depuis_ligne: i64 = conn
@@ -661,6 +692,8 @@ mod tests {
         assert!(ressource_connue("taux_horaires").is_some());
         assert!(ressource_connue("intercalaires_personnalises").is_some());
         assert!(ressource_connue("intercalaire_elements").is_some());
+        assert!(ressource_connue("contacts").is_some());
+        assert!(ressource_connue("dossier_liens").is_some());
         assert!(ressource_connue("inconnue").is_none());
         assert!(ressource_suppression("intercalaires_personnalises").is_some());
         assert!(ressource_suppression("intercalaire_elements").is_some());

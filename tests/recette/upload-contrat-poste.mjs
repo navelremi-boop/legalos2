@@ -14,9 +14,10 @@ import {
   filtrerChampsModifies,
 } from "../../apps/poste/src/sync/uploadContrat.ts";
 
-assert.equal(TABLES_MODIFIABLES.length, 7);
+assert.equal(TABLES_MODIFIABLES.length, 8);
 assert.ok(estTableModifiable("dossiers"));
 assert.ok(estTableModifiable("intercalaires_personnalises"));
+assert.ok(estTableModifiable("contacts"));
 assert.equal(estTableModifiable("inconnue"), false);
 
 for (const table of TABLES_MODIFIABLES) {

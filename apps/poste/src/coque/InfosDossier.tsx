@@ -5,9 +5,22 @@ type InfosDossierProps = {
   numeroRg: string;
   client: string;
   adversaire: string;
+  confrere?: string;
+  typeDossier?: string;
+  etape?: string;
+  lies?: string;
 };
 
-export function InfosDossier({ juridiction, numeroRg, client, adversaire }: InfosDossierProps) {
+export function InfosDossier({
+  juridiction,
+  numeroRg,
+  client,
+  adversaire,
+  confrere,
+  typeDossier,
+  etape,
+  lies,
+}: InfosDossierProps) {
   return (
     <dl className="infos-dossier" data-testid="infos-dossier">
       <div>
@@ -20,11 +33,27 @@ export function InfosDossier({ juridiction, numeroRg, client, adversaire }: Info
       </div>
       <div>
         <dt>{fr("Client")}</dt>
-        <dd>{fr(client)}</dd>
+        <dd data-testid="dossier-client">{fr(client)}</dd>
       </div>
       <div>
         <dt>{fr("Adversaire")}</dt>
-        <dd>{fr(adversaire)}</dd>
+        <dd data-testid="dossier-adversaire">{fr(adversaire)}</dd>
+      </div>
+      <div>
+        <dt>{fr("Confrère")}</dt>
+        <dd data-testid="dossier-confrere">{fr(confrere || "—")}</dd>
+      </div>
+      <div>
+        <dt>{fr("Type")}</dt>
+        <dd data-testid="dossier-type-affiche">{fr(typeDossier || "—")}</dd>
+      </div>
+      <div>
+        <dt>{fr("Étape")}</dt>
+        <dd data-testid="dossier-etape-affiche">{fr(etape || "—")}</dd>
+      </div>
+      <div>
+        <dt>{fr("Dossiers liés")}</dt>
+        <dd data-testid="dossier-liens">{fr(lies || "—")}</dd>
       </div>
     </dl>
   );

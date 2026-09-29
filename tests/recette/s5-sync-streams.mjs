@@ -51,6 +51,10 @@ const fluxAttendus = [
   "intercalaires_restreints",
   "intercalaire_elements_publics",
   "intercalaire_elements_restreints",
+  "contacts_cabinet",
+  "dossier_liens_publics",
+  "dossier_liens_restreints",
+  "dossier_liens_restreints_croises",
 ];
 
 /** Extrait le bloc YAML d'un flux nommé (clés de flux : exactement 2 espaces). */
@@ -137,6 +141,7 @@ for (const nom of [
   "taux_publics",
   "intercalaires_publics",
   "intercalaire_elements_publics",
+  "dossier_liens_publics",
 ]) {
   const bloc = blocFlux(nom);
   if (!/INNER JOIN dossiers/i.test(bloc) && !/IN\s*\(\s*SELECT[\s\S]*FROM dossiers/i.test(bloc)) {
@@ -154,12 +159,14 @@ for (const nom of [
   "taux_restreints",
   "intercalaires_restreints",
   "intercalaire_elements_restreints",
+  "dossier_liens_restreints",
+  "dossier_liens_restreints_croises",
 ]) {
   const bloc = blocFlux(nom);
   if (!/INNER JOIN dossier_acces/i.test(bloc)) fail(`${nom} : JOIN dossier_acces requis`);
   if (!/auth\.user_id\(\)/.test(bloc)) fail(`${nom} : auth.user_id() requis`);
   if (
-    /WHERE[\s\S]*\b(documents|document_versions|parties|temps_saisis|brouillons_facture|taux_horaires|intercalaires_personnalises|intercalaire_elements)\.visibilite\s*=/.test(
+    /WHERE[\s\S]*\b(documents|document_versions|parties|temps_saisis|brouillons_facture|taux_horaires|intercalaires_personnalises|intercalaire_elements|dossier_liens)\.visibilite\s*=/.test(
       bloc,
     )
   ) {
@@ -173,6 +180,17 @@ if (!/auth\.parameter\('cabinet_id'\)/.test(tauxCabinet)) {
   fail("taux_cabinet : auth.parameter('cabinet_id') requis");
 }
 
+const contactsCabinet = blocFlux("contacts_cabinet");
+if (/JOIN\s+dossiers/i.test(contactsCabinet)) {
+  fail("contacts_cabinet : JOIN dossiers interdit (un seul seau cabinet)");
+}
+if (!/auth\.parameter\('cabinet_id'\)/.test(contactsCabinet)) {
+  fail("contacts_cabinet : auth.parameter('cabinet_id') requis");
+}
+if (!/\bFROM contacts\b/i.test(contactsCabinet)) {
+  fail("contacts_cabinet : contacts requis");
+}
+
 const schema = readFileSync(join(root, "apps/poste/src/sync/AppSchema.ts"), "utf8");
 for (const table of [
   "dossiers",
@@ -184,6 +202,8 @@ for (const table of [
   "taux_horaires",
   "intercalaires_personnalises",
   "intercalaire_elements",
+  "contacts",
+  "dossier_liens",
 ]) {
   if (!new RegExp(`\\b${table}\\b`).test(schema)) fail(`AppSchema : table ${table} absente`);
 }

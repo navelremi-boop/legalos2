@@ -59,6 +59,8 @@ Fichier déployé : `instance/powersync/sync-config.yaml`, monté via `sync_conf
 | `documents` / `document_versions` | Métadonnées ; `visibilite` en SELECT, auth via dossier |
 | `temps_saisis` / `brouillons_facture` / `taux_horaires` | J8 — flux publics / restreints (+ `taux_cabinet` sans dossier) |
 | `intercalaires_personnalises` / `intercalaire_elements` | Intercalaires personnalisés (§ 7.4) — flux publics / restreints |
+| `contacts` | Annuaire du cabinet (SIREN, n° TVA, type de client F8) — un flux, pas un seau par dossier |
+| `dossier_liens` | Dossiers liés, une ligne par sens — flux public (les deux dossiers publics) ou restreint |
 | `users` / `postes` | (schéma client ; flux à ajouter si réplication) |
 
 ---
@@ -73,8 +75,8 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 | `journal_cabinet` | `journal_modifications` où `dossier_id IS NULL` et cabinet du jeton |
 | `journal_publics` | `journal_modifications` JOIN `dossiers` (visibilité publique + cabinet) |
 | `journal_restreints` | `journal_modifications` JOIN `dossier_acces` (`auth.user_id()`) |
-| `dossiers_publics` | `dossiers` où `visibilite = 'public'` et `cabinet_id` du JWT — SELECT inclut `reference` et `responsable_id` |
-| `dossiers_restreints` | `dossiers` JOIN `dossier_acces` où `utilisateur_texte = auth.user_id()` — SELECT inclut `reference` et `responsable_id` |
+| `dossiers_publics` | `dossiers` où `visibilite = 'public'` et `cabinet_id` du JWT — SELECT inclut `reference`, `responsable_id`, `type_dossier`, `etape` |
+| `dossiers_restreints` | `dossiers` JOIN `dossier_acces` où `utilisateur_texte = auth.user_id()` — SELECT inclut `reference`, `responsable_id`, `type_dossier`, `etape` |
 | `parties_publics` | `parties` JOIN `dossiers` (visibilité publique + cabinet) |
 | `parties_restreints` | `parties` JOIN `dossier_acces` (`auth.user_id()`) |
 | `documents_publics` | `documents` JOIN `dossiers` (visibilité publique + cabinet) |
@@ -86,8 +88,12 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 | `taux_cabinet` | `taux_horaires` où `dossier_id IS NULL` et `cabinet_id` du JWT |
 | `intercalaires_publics` / `intercalaire_elements_publics` | JOIN `dossiers` (visibilité publique + cabinet) |
 | `intercalaires_restreints` / `intercalaire_elements_restreints` | JOIN `dossier_acces` (`auth.user_id()`) — **sans** filtre sur la `visibilite` fille |
+| `contacts_cabinet` | `contacts` du cabinet (`auth.parameter('cabinet_id')`), sans JOIN `dossiers` |
+| `dossier_liens_publics` | `dossier_liens` JOIN `dossiers` (visibilité publique des deux côtés) |
+| `dossier_liens_restreints` | `dossier_liens` JOIN `dossier_acces` sur le dossier source, cible publique (`lie_restreint = false`) |
+| `dossier_liens_restreints_croises` | les deux dossiers restreints : deux jointures `dossier_acces` (source et cible), même utilisateur |
 
-**Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants (`parties`, `documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, `taux_horaires`, `intercalaires_personnalises`, `intercalaire_elements` liés au dossier) dans la SQLite locale. Preuve SQLite (fichier `legalos-powersync-*.db` du poste Tauri) : `tests/recette/j5-poste-tauri.mjs` ; couverture par flux : `tests/recette/s5-sqlite-par-flux.mjs` ; contrôle statique des flux : `tests/recette/s5-sync-streams.mjs`. Filtre JOIN Postgres (sans SQLite) : `tests/recette/s9-s5-temps.mjs`.
+**Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants (`parties`, `documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, `taux_horaires`, `intercalaires_personnalises`, `intercalaire_elements`, `dossier_liens` ancrés sur ce dossier) dans la SQLite locale. L'annuaire `contacts` est celui du cabinet : il n'est pas un enfant de dossier. Preuve SQLite (fichier `legalos-powersync-*.db` du poste Tauri) : `tests/recette/j5-poste-tauri.mjs` ; couverture par flux : `tests/recette/s5-sqlite-par-flux.mjs` ; contrôle statique des flux : `tests/recette/s5-sync-streams.mjs`. Filtre JOIN Postgres (sans SQLite) : `tests/recette/s9-s5-temps.mjs`.
 
 ---
 

@@ -55,6 +55,8 @@ type DossierLocal = {
   reference: string | null;
   juridiction: string;
   numero_rg: string;
+  type_dossier: string | null;
+  etape: string | null;
 };
 
 export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppProps) {
@@ -192,7 +194,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
       void getPowerSyncDatabase()
         .then(async (database) => {
           const rows = await database.getAll<DossierLocal>(
-            `SELECT id, nom, chemise, reference, juridiction, numero_rg
+            `SELECT id, nom, chemise, reference, juridiction, numero_rg, type_dossier, etape
              FROM dossiers WHERE id = ? LIMIT 1`,
             [cible],
           );
@@ -206,10 +208,24 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
             parties.find((p) => p.role === "client")?.nom ??
             parties.find((p) => p.role === "demandeur")?.nom ??
             "";
-          const adversaire =
-            parties.find((p) => p.role === "adversaire")?.nom ??
-            parties.find((p) => p.role === "defendeur")?.nom ??
-            "";
+          const adversaire = parties
+            .filter((p) => p.role === "adversaire" || p.role === "defendeur")
+            .map((p) => p.nom)
+            .join(", ");
+          const confrere = parties
+            .filter((p) => p.role === "confrere")
+            .map((p) => p.nom)
+            .join(", ");
+          const liens = await database.getAll<{ nom: string }>(
+            `SELECT d.nom AS nom FROM dossier_liens AS l
+             INNER JOIN dossiers AS d ON d.id = l.lie_a_id
+             WHERE l.dossier_id = ?
+             UNION
+             SELECT d.nom AS nom FROM dossier_liens AS l
+             INNER JOIN dossiers AS d ON d.id = l.dossier_id
+             WHERE l.lie_a_id = ?`,
+            [cible, cible],
+          );
           return {
             id: row.id,
             reference: libelleReferenceDossier(row.reference),
@@ -219,6 +235,10 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
             numeroRg: row.numero_rg || "—",
             client: client || "—",
             adversaire: adversaire || "—",
+            confrere: confrere || "—",
+            typeDossier: row.type_dossier || "—",
+            etape: row.etape || "—",
+            lies: liens.map((l) => l.nom).join(", ") || "—",
           } satisfies DossierVue;
         })
         .then((vue) => {
