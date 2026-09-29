@@ -90,7 +90,8 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 | `intercalaires_restreints` / `intercalaire_elements_restreints` | JOIN `dossier_acces` (`auth.user_id()`) — **sans** filtre sur la `visibilite` fille |
 | `contacts_cabinet` | `contacts` du cabinet (`auth.parameter('cabinet_id')`), sans JOIN `dossiers` |
 | `dossier_liens_publics` | `dossier_liens` JOIN `dossiers` (visibilité publique des deux côtés) |
-| `dossier_liens_restreints` | `dossier_liens` JOIN `dossier_acces` sur le dossier source ; si la cible est restreinte, accès exigé aussi (`EXISTS`) — **sans** filtre sur `dossier_liens.visibilite` |
+| `dossier_liens_restreints` | `dossier_liens` JOIN `dossier_acces` sur le dossier source, cible publique (`lie_restreint = false`) |
+| `dossier_liens_restreints_croises` | les deux dossiers restreints : deux jointures `dossier_acces` (source et cible), même utilisateur |
 
 **Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants (`parties`, `documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, `taux_horaires`, `intercalaires_personnalises`, `intercalaire_elements`, `dossier_liens` ancrés sur ce dossier) dans la SQLite locale. L'annuaire `contacts` est celui du cabinet : il n'est pas un enfant de dossier. Preuve SQLite (fichier `legalos-powersync-*.db` du poste Tauri) : `tests/recette/j5-poste-tauri.mjs` ; couverture par flux : `tests/recette/s5-sqlite-par-flux.mjs` ; contrôle statique des flux : `tests/recette/s5-sync-streams.mjs`. Filtre JOIN Postgres (sans SQLite) : `tests/recette/s9-s5-temps.mjs`.
 

@@ -91,6 +91,7 @@ export function CompleterDossier({ dossierId }: { dossierId: string }) {
           ))}
         </select>
         <input
+          id="partie-nom"
           name="nom"
           required
           data-testid="partie-nom"
@@ -98,6 +99,7 @@ export function CompleterDossier({ dossierId }: { dossierId: string }) {
           className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
         />
         <select
+          id="contact-nature"
           name="nature"
           data-testid="contact-nature"
           className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
@@ -110,24 +112,28 @@ export function CompleterDossier({ dossierId }: { dossierId: string }) {
           ))}
         </select>
         <input
+          id="contact-nom"
           name="contact_nom"
           data-testid="contact-nom"
           placeholder={fr("Contact (facultatif)")}
           className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
         />
         <input
+          id="contact-siren"
           name="siren"
           data-testid="contact-siren"
           placeholder={fr("SIREN")}
           className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
         />
         <input
+          id="contact-tva"
           name="numero_tva"
           data-testid="contact-tva"
           placeholder={fr("N° TVA")}
           className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
         />
         <select
+          id="contact-type"
           name="type_client"
           data-testid="contact-type"
           className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
@@ -149,6 +155,7 @@ export function CompleterDossier({ dossierId }: { dossierId: string }) {
       </form>
       <form className="mt-3" onSubmit={(event) => void lier(event)}>
         <input
+          id="lien-cible"
           name="lie_a_id"
           required
           data-testid="lien-cible"

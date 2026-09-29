@@ -195,11 +195,15 @@ streams:
       FROM dossier_liens
       INNER JOIN dossier_acces ON dossier_liens.dossier_id = dossier_acces.dossier_id
       WHERE dossier_acces.utilisateur_texte = auth.user_id()
-        AND (
-          dossier_liens.lie_restreint = false
-          OR EXISTS (
-            SELECT 1 FROM dossier_acces AS acces_lie
-            WHERE acces_lie.dossier_id = dossier_liens.lie_a_id
-              AND acces_lie.utilisateur_texte = auth.user_id()
-          )
-        )
+        AND dossier_liens.lie_restreint = false
+
+  dossier_liens_restreints_croises:
+    auto_subscribe: true
+    query: |
+      SELECT dossier_liens.id, dossier_liens.cabinet_id, dossier_liens.dossier_id, dossier_liens.lie_a_id, dossier_liens.revision, dossier_liens.visibilite, dossier_liens.restreint, dossier_liens.cree_le::text AS cree_le
+      FROM dossier_liens
+      INNER JOIN dossier_acces AS acces_source ON dossier_liens.dossier_id = acces_source.dossier_id
+      INNER JOIN dossier_acces AS acces_cible ON dossier_liens.lie_a_id = acces_cible.dossier_id
+      WHERE acces_source.utilisateur_texte = auth.user_id()
+        AND acces_cible.utilisateur_texte = auth.user_id()
+        AND dossier_liens.lie_restreint = true

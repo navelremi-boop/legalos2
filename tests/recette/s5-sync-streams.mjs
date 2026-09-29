@@ -54,6 +54,7 @@ const fluxAttendus = [
   "contacts_cabinet",
   "dossier_liens_publics",
   "dossier_liens_restreints",
+  "dossier_liens_restreints_croises",
 ];
 
 /** Extrait le bloc YAML d'un flux nommé (clés de flux : exactement 2 espaces). */
@@ -159,6 +160,7 @@ for (const nom of [
   "intercalaires_restreints",
   "intercalaire_elements_restreints",
   "dossier_liens_restreints",
+  "dossier_liens_restreints_croises",
 ]) {
   const bloc = blocFlux(nom);
   if (!/INNER JOIN dossier_acces/i.test(bloc)) fail(`${nom} : JOIN dossier_acces requis`);

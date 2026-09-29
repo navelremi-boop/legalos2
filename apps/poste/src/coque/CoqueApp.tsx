@@ -208,11 +208,14 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
             parties.find((p) => p.role === "client")?.nom ??
             parties.find((p) => p.role === "demandeur")?.nom ??
             "";
-          const adversaire =
-            parties.find((p) => p.role === "adversaire")?.nom ??
-            parties.find((p) => p.role === "defendeur")?.nom ??
-            "";
-          const confrere = parties.find((p) => p.role === "confrere")?.nom ?? "";
+          const adversaire = parties
+            .filter((p) => p.role === "adversaire" || p.role === "defendeur")
+            .map((p) => p.nom)
+            .join(", ");
+          const confrere = parties
+            .filter((p) => p.role === "confrere")
+            .map((p) => p.nom)
+            .join(", ");
           const liens = await database.getAll<{ nom: string }>(
             `SELECT d.nom AS nom FROM dossier_liens AS l
              INNER JOIN dossiers AS d ON d.id = l.lie_a_id
