@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import type { SubmitEvent } from "react";
-import { ecrireElementAgenda, type TypeAgenda } from "@/agenda/ecrireAgenda";
+import { ecrireElementAgenda, recalculerEcheance, retirerEcheance, type TypeAgenda } from "@/agenda/ecrireAgenda";
+import { murParis } from "@/agenda/fuseauParis";
+import { calculerDelaiComplet } from "@/delais/moteur";
 import { fr } from "@/lib/fr";
 import { getPowerSyncDatabase } from "@/sync/database";
 
@@ -11,7 +13,28 @@ type Ligne = {
   titre: string;
   debut: string;
   rappel_le: string | null;
+  origine_calcul: string | null;
+  jours_calcul: number | null;
+  mois_calcul: number | null;
+  annees_calcul: number | null;
 };
+
+function echeanceAttendue(ligne: Ligne): string | null {
+  if (!ligne.origine_calcul) return null;
+  try {
+    return calculerDelaiComplet({
+      origine: ligne.origine_calcul,
+      jours: ligne.jours_calcul ?? 0,
+      mois: ligne.mois_calcul ?? 0,
+      annees: ligne.annees_calcul ?? 0,
+      siegeJuridiction: "metropole",
+      lieuPartie: "metropole",
+      typeDelai: { augmentationDistance: "oui" },
+    }).echeance;
+  } catch {
+    return null;
+  }
+}
 
 const TYPES: TypeAgenda[] = ["audience", "rendez_vous", "tache"];
 
@@ -23,28 +46,42 @@ function champ(form: FormData, nom: string): string {
 export function EcranAgenda() {
   const [lignes, setLignes] = useState<Ligne[]>([]);
   const [message, setMessage] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [conflit, setConflit] = useState("");
 
   useEffect(() => {
-    let stop = false;
+    const etat = { stop: false };
+    const arrete = () => etat.stop;
     const charger = () => {
       void getPowerSyncDatabase()
         .then((database) =>
           database.getAll<Ligne>(
-            `SELECT id, dossier_id, type_element, titre, debut, rappel_le
+            `SELECT id, dossier_id, type_element, titre, debut, rappel_le,
+                    origine_calcul, jours_calcul, mois_calcul, annees_calcul
              FROM agenda_elements ORDER BY debut ASC`,
           ),
         )
-        .then((rows) => {
-          if (!stop) setLignes(rows);
+        .then(async (rows) => {
+          if (arrete()) return;
+          setLignes(rows);
+          const database = await getPowerSyncDatabase();
+          const journaux = await database.getAll<{ valeur_appliquee: string | null }>(
+            `SELECT valeur_appliquee FROM journal_modifications
+             WHERE table_cible = 'agenda_elements' AND conflit = 1
+             ORDER BY cree_le DESC LIMIT 1`,
+          );
+          if (arrete()) return;
+          const premiere = journaux[0];
+          setConflit(premiere ? (premiere.valeur_appliquee ?? "") : "");
         })
         .catch(() => {
-          if (!stop) setLignes([]);
+          if (!arrete()) setLignes([]);
         });
     };
     charger();
     const timer = window.setInterval(charger, 1_500);
     return () => {
-      stop = true;
+      etat.stop = true;
       window.clearInterval(timer);
     };
   }, []);
@@ -131,12 +168,76 @@ export function EcranAgenda() {
           {message}
         </p>
       </form>
+      {conflit !== "" ? (
+        <p data-testid="agenda-conflit" role="status">
+          {fr(`Conflit d'agenda : « ${conflit} ».`)}
+        </p>
+      ) : null}
       <ul data-testid="agenda-liste">
-        {lignes.map((ligne) => (
-          <li key={ligne.id} data-testid="agenda-element" data-type={ligne.type_element} data-dossier-id={ligne.dossier_id}>
-            {fr(`${ligne.type_element} — ${ligne.titre} — ${ligne.debut}`)}
-          </li>
-        ))}
+        {lignes.map((ligne) => {
+          const attendue = echeanceAttendue(ligne);
+          const mur = murParis(ligne.debut);
+          const perimee = attendue !== null && mur.jour !== attendue;
+          return (
+            <li
+              key={ligne.id}
+              data-testid="agenda-element"
+              data-type={ligne.type_element}
+              data-dossier-id={ligne.dossier_id}
+            >
+              {fr(`${ligne.type_element} — ${ligne.titre} — ${mur.jour} ${mur.heure}:${mur.minute}`)}
+              {perimee ? (
+                <span data-testid="echeance-perimee">{fr(` périmée, attendu ${attendue}`)}</span>
+              ) : null}
+              {ligne.origine_calcul ? (
+                <>
+                  <input
+                    id={`echeance-origine-${ligne.id}`}
+                    data-testid="echeance-origine"
+                    defaultValue={ligne.origine_calcul}
+                  />
+                  <button
+                    type="button"
+                    data-testid="echeance-recalculer"
+                    onClick={() => {
+                      const champOrigine = document.getElementById(
+                        `echeance-origine-${ligne.id}`,
+                      );
+                      const valeur =
+                        champOrigine instanceof HTMLInputElement ? champOrigine.value : "";
+                      void recalculerEcheance(ligne.id, valeur).catch(() => undefined);
+                    }}
+                  >
+                    {fr("Recalculer")}
+                  </button>
+                  {confirmation === ligne.id ? (
+                    <button
+                      type="button"
+                      data-testid="echeance-confirmer"
+                      onClick={() => {
+                        void retirerEcheance(ligne.id).then(() => {
+                          setConfirmation("");
+                        });
+                      }}
+                    >
+                      {fr("Confirmer la suppression")}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      data-testid="echeance-supprimer"
+                      onClick={() => {
+                        setConfirmation(ligne.id);
+                      }}
+                    >
+                      {fr("Supprimer")}
+                    </button>
+                  )}
+                </>
+              ) : null}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

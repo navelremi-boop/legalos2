@@ -266,6 +266,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
         /* base ou permission pas encore prêtes */
       });
     };
+    tick();
     const timer = window.setInterval(tick, 2_000);
     return () => {
       stop = true;

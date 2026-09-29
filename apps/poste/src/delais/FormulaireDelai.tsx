@@ -21,6 +21,8 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
   const [augmentation, setAugmentation] = useState("");
   const [erreur, setErreur] = useState("");
   const [inscrit, setInscrit] = useState("");
+  const [origineRetenue, setOrigineRetenue] = useState("");
+  const [dureeRetenue, setDureeRetenue] = useState({ jours: 0, mois: 0, annees: 0 });
   const [typeId, setTypeId] = useState<TypeId>("libre");
   const [siege, setSiege] = useState<SiegeJuridiction>("metropole");
   const [lieu, setLieu] = useState<LieuPartie>("metropole");
@@ -74,6 +76,8 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
         rolePartie,
       });
       setEcheance(resultat.echeance);
+      setOrigineRetenue(origine);
+      setDureeRetenue({ jours, mois, annees });
       if (resultat.moisAugmentation > 0) {
         setAugmentation(
           fr(`+ ${String(resultat.moisAugmentation)} mois (${resultat.sourceAugmentation})`),
@@ -307,7 +311,11 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
               dossierId,
               typeElement: "tache",
               titre: `Échéance ${echeance}`,
-              debut: `${echeance}T09:00:00.000Z`,
+              debut: `${echeance}T09:00`,
+              origineCalcul: origineRetenue,
+              joursCalcul: dureeRetenue.jours,
+              moisCalcul: dureeRetenue.mois,
+              anneesCalcul: dureeRetenue.annees,
             })
               .then(() => {
                 setInscrit(echeance);

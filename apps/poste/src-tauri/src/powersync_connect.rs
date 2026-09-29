@@ -296,7 +296,7 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
                 .ok_or_else(|| "dossier de l'agenda absent".to_string())?;
             Ok(format!("/api/dossiers/{dossier_id}/agenda"))
         },
-        champs_modifiables: &["titre", "debut", "rappel_le"],
+        champs_modifiables: &["titre", "debut", "rappel_le", "origine_calcul"],
         champs_entiers: &[],
         champs_booleens: &["restreint"],
     };
@@ -330,9 +330,14 @@ fn ressource_suppression(table: &str) -> Option<&'static Suppression> {
         table: "intercalaire_elements",
         chemin: |id| format!("/api/intercalaire-elements/{id}"),
     };
+    static AGENDA: Suppression = Suppression {
+        table: "agenda_elements",
+        chemin: |id| format!("/api/agenda/{id}"),
+    };
     match table {
         "intercalaires_personnalises" => Some(&INTERCALAIRES),
         "intercalaire_elements" => Some(&ELEMENTS),
+        "agenda_elements" => Some(&AGENDA),
         _ => None,
     }
 }
@@ -348,6 +353,9 @@ async fn envoyer_delete(
         "idempotence_cle".into(),
         json!(format!("{}:{}:delete", entry.id, suppression.table)),
     );
+    if suppression.table == "agenda_elements" {
+        body.insert("confirmer".into(), json!(true));
+    }
     let chemin = (suppression.chemin)(&entry.id);
     envoyer_http(
         session,
@@ -712,6 +720,7 @@ mod tests {
         assert!(ressource_connue("inconnue").is_none());
         assert!(ressource_suppression("intercalaires_personnalises").is_some());
         assert!(ressource_suppression("intercalaire_elements").is_some());
+        assert!(ressource_suppression("agenda_elements").is_some());
         assert!(ressource_suppression("dossiers").is_none());
     }
 

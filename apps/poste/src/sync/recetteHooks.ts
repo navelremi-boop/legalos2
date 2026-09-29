@@ -78,6 +78,7 @@ export type RecetteHooks = {
   }) => Promise<void>;
   lireSqlite: (sql: string, params?: unknown[]) => Promise<unknown[]>;
   lireNotifications: () => NotificationEmise[];
+  decalerOrigineSansRecalcul: (id: string, origine: string) => Promise<void>;
   /** Coupe le flux PowerSync sans fermer la base (écritures locales → ps_crud). */
   disconnectSync: () => Promise<void>;
 };
@@ -166,6 +167,13 @@ export function createRecetteHooks(): RecetteHooks {
     },
     lireNotifications() {
       return lireNotificationsEmises();
+    },
+    async decalerOrigineSansRecalcul(id: string, origine: string) {
+      const database = await getPowerSyncDatabase();
+      await database.execute("UPDATE agenda_elements SET origine_calcul = ? WHERE id = ?", [
+        origine,
+        id,
+      ]);
     },
     async disconnectSync() {
       const database = await getPowerSyncDatabase();
