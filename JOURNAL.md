@@ -9,7 +9,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Vue scindée** : VALIDÉ `f393190` (contrôleur, CI [36531714153](https://github.com/navelremi-boop/legalos2/actions/runs/36531714153)). Trois runs : **62** minutes. Consigne du 29/09 : un dossier réel n'affiche plus `CHRONO_DEMO` ; le branchement sur les éléments synchronisés reste dû avant la fin de J9 et de Documents, suite.
 - **Intercalaires personnalisés** : VALIDÉ `9e0aa69` (contrôleur, CI [36561017502](https://github.com/navelremi-boop/legalos2/actions/runs/36561017502)). Trois runs de clôture : **63** minutes.
 - **Dossiers et contacts complets** : VALIDÉ `3482a36` (contrôleur, CI [36572546272](https://github.com/navelremi-boop/legalos2/actions/runs/36572546272)). Trois runs : **54** minutes.
-- **En cours** : **Agenda**.
+- **En cours** : **Agenda** — contrôleur **REFUSÉ** `697bfbd` (critères renforcés `ca8208b` non couverts). CI lot [36577300524](https://github.com/navelremi-boop/legalos2/actions/runs/36577300524) success. Jalon non coché.
 - **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → ~~Intercalaires~~ → ~~Dossiers et contacts~~ → **Agenda** → Documents, suite → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance). Un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` doit exister.
 - **B12 levé** (28/09) : signalement transmis, [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). Quatre exceptions dans `apps/poste/src-tauri/deny.toml`. Constat : `docs/audit-dependances.md`.
@@ -19,6 +19,28 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---
+
+## 2026-09-29 — Agenda : contrôleur REFUSÉ
+
+Contrôleur **REFUSÉ** sur `697bfbd` (branche `lot/agenda`, worktree `.worktrees/agenda`, PR [n° 14](https://github.com/navelremi-boop/legalos2/pull/14)). Jalon non coché. Aucune correction de production par le contrôleur.
+
+**Critères PLAN** : au démarrage du contrôle, `git diff origin/main HEAD -- PLAN.md` était vide (critères 27/09). Pendant le contrôle, `ca8208b` (`plan:`, consigne architecte 29/09) a renforcé Agenda sur `origin/main`. Le lot `697bfbd` conserve encore le texte 27/09 (plus faible). Autorité : critères de `origin/main` après `ca8208b`.
+
+**Commandes exécutées** (worktree au commit `697bfbd`, `CARGO_BUILD_JOBS=2`, instance `http://127.0.0.1:8088`) :
+- `node tests/recette/agenda-tauri.mjs` → exit 0 (~94 s) : audiences / rendez-vous / tâches + rappels ; notification Tauri ; échéance `2026-01-21` inscrite ; invitation refusée (J11) ; restreint absent du SQLite poste B.
+- `node tests/recette/s5-sync-streams.mjs` → exit 0
+- `pnpm --filter @legal-os/poste lint:ci` → exit 0
+
+**CI** : [36577300524](https://github.com/navelremi-boop/legalos2/actions/runs/36577300524) **success** (gouvernance, perimetre, frontend, rust 7m0, facturx 2m21, s1-instance 7m21).
+
+**Écarts bloquants** (critères `origin/main` absents de `697bfbd` / non prouvés) :
+1. rappel échu app fermée / hors ligne notifié au lancement suivant — non couvert par la recette commitée ;
+2. échéance liée au calcul : recalcul ou signal si la date de départ change — absent du `agenda-tauri.mjs` commité ;
+3. suppression d'échéance moteur : confirmation + trace (qui, quand) — absent ;
+4. conflits par champ sur les tables d'agenda — absent ;
+5. `node tests/recette/agenda-fuseau.mjs` → exit 0 — fichier absent de `HEAD` (`exists on disk, but not in 'HEAD'` ; WIP non évalué).
+
+**Non vérifié** : WIP dirty du worktree (modifs locales post-`697bfbd` : `agenda-tauri.mjs`, `agenda-fuseau.mjs`, migration `023`, etc.) — hors périmètre du commit demandé.
 
 ## 2026-09-29 — Consigne de l'architecte : Agenda, Documents, SIREN, garde-fou
 
