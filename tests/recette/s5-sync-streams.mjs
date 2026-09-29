@@ -182,6 +182,8 @@ for (const table of [
   "temps_saisis",
   "brouillons_facture",
   "taux_horaires",
+  "intercalaires_personnalises",
+  "intercalaire_elements",
 ]) {
   if (!new RegExp(`\\b${table}\\b`).test(schema)) fail(`AppSchema : table ${table} absente`);
 }

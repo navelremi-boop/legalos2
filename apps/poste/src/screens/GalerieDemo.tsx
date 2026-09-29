@@ -140,6 +140,7 @@ export function GalerieDemo() {
               onFacturer={() => undefined}
               onCalculerDelai={() => undefined}
               elementsChrono={CHRONO_DEMO}
+              intercalairesSync={false}
             />
           ) : (
             <Journee
