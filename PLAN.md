@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-29 (jalon en cours : **Intercalaires personnalisés**).
+Dernière mise à jour : 2026-09-29 (jalon en cours : **Dossiers et contacts complets**).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -124,17 +124,7 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
 
 - [x] **Vue scindée** — VALIDÉ `f393190` (contrôleur, CI [36531714153](https://github.com/navelremi-boop/legalos2/actions/runs/36531714153))
 
-- [ ] **Intercalaires personnalisés** — § 7.4
-  - **Critères d'acceptation (commandes)** :
-    - `node tests/recette/intercalaires-tauri.mjs` → exit 0 (deux postes Tauri) :
-      - « + Intercalaire » avec saisie du nom ; croix pour retirer un intercalaire personnalisé ;
-      - table synchronisée, soumise aux droits du dossier ;
-      - rattacher un élément ne le retire pas du chrono ;
-      - retirer un intercalaire ne supprime rien : les éléments rattachés restent en base, dans le chrono et sur l'autre poste ;
-      - les intercalaires standards ne se retirent pas ;
-      - conflits par champ comme les autres tables (consigne 2 du 26/09) : révision de base, journal, conflit signalé.
-    - `node tests/recette/s5-sqlite-par-flux.mjs` et `node tests/recette/j5-poste-tauri.mjs` → exit 0 : S5 pour la table des intercalaires ; l'intercalaire d'un dossier restreint est absent du SQLite du poste non autorisé.
-    - `node tests/recette/s5-sync-streams.mjs` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+- [x] **Intercalaires personnalisés** — VALIDÉ `9e0aa69` (contrôleur, CI [36561017502](https://github.com/navelremi-boop/legalos2/actions/runs/36561017502))
 
 - [ ] **Dossiers et contacts complets** — § 4.2 n° 1 et 2, ce que J5 n'a pas livré — critères proposés le 27/09, **à valider par l'architecte**
   - **Critères d'acceptation (commandes)** :
