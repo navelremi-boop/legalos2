@@ -43,31 +43,37 @@ export function FormulaireDossier({
 
   useEffect(() => {
     let stop = false;
-    void getPowerSyncDatabase()
-      .then((database) =>
-        database.getAll<UtilisateurLocal>(
-          "SELECT id, display_name, email FROM users ORDER BY display_name COLLATE NOCASE, email COLLATE NOCASE",
-        ),
-      )
-      .then((rows) => {
-        if (stop) return;
-        const moi = utilisateurIdDepuisJeton(loadSessionTokens().accessToken);
-        setUtilisateurs(rows);
-        const defaut =
-          moi !== null && rows.some((u) => u.id === moi)
-            ? moi
-            : (moi ?? rows[0]?.id ?? "");
-        setResponsableId(defaut);
-      })
-      .catch(() => {
-        if (!stop) {
+    let timer = 0;
+    const charger = () => {
+      void getPowerSyncDatabase()
+        .then((database) =>
+          database.getAll<UtilisateurLocal>(
+            "SELECT id, display_name, email FROM users ORDER BY display_name COLLATE NOCASE, email COLLATE NOCASE",
+          ),
+        )
+        .then((rows) => {
+          if (stop) return;
+          const moi = utilisateurIdDepuisJeton(loadSessionTokens().accessToken);
+          setUtilisateurs(rows);
+          const defaut =
+            moi !== null && (rows.length === 0 || rows.some((u) => u.id === moi))
+              ? moi
+              : (moi ?? rows[0]?.id ?? "");
+          if (defaut !== "") setResponsableId(defaut);
+          else timer = window.setTimeout(charger, 500);
+        })
+        .catch(() => {
+          if (stop) return;
           const moi = utilisateurIdDepuisJeton(loadSessionTokens().accessToken);
           setUtilisateurs([]);
-          setResponsableId(moi ?? "");
-        }
-      });
+          if (moi !== null) setResponsableId(moi);
+          else timer = window.setTimeout(charger, 500);
+        });
+    };
+    charger();
     return () => {
       stop = true;
+      window.clearTimeout(timer);
     };
   }, []);
 

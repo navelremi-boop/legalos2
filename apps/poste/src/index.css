@@ -546,4 +546,311 @@
     padding: 24px;
     box-shadow: var(--ombre-carte);
   }
+
+  /* --- Vue scindée Chrono (§ 7.4) --- */
+  .chrono-liste {
+    padding: 18px 18px 90px 22px;
+    border-right: 1px solid var(--filet);
+    overflow: auto;
+    min-height: 0;
+  }
+
+  .chrono-liste__tete {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 6px 8px;
+  }
+
+  .chrono-liste__tete h3 {
+    margin: 0;
+    font-size: var(--font-size-section);
+    font-weight: 800;
+  }
+
+  .chrono-filtres {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .chrono-filtre {
+    font-size: var(--font-size-meta);
+    padding: 3px 9px;
+    border-radius: 999px;
+    color: var(--graphite);
+    background: var(--feuille-2);
+  }
+
+  .chrono-filtre--actif {
+    background: var(--encre);
+    color: var(--feuille);
+    font-weight: 700;
+  }
+
+  .chrono-groupe {
+    font-size: var(--font-size-meta);
+    color: var(--graphite);
+    margin: 12px 8px 4px;
+  }
+
+  .chrono-item {
+    display: grid;
+    grid-template-columns: 30px 1fr auto;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    align-items: start;
+    transition: background-color var(--duration-hover) ease;
+  }
+
+  .chrono-item:hover {
+    background: var(--survol);
+  }
+
+  .chrono-item:focus-visible {
+    outline: 2px solid var(--chemise-accent, var(--focus));
+    outline-offset: 1px;
+  }
+
+  .chrono-item--sel {
+    background: var(--chemise-teinte);
+  }
+
+  .chrono-tuile {
+    width: 30px;
+    height: 30px;
+    border-radius: var(--radius-tuile);
+    display: grid;
+    place-items: center;
+    background: var(--feuille-2);
+    color: var(--chemise-accent);
+  }
+
+  .chrono-item--sel .chrono-tuile {
+    background: var(--feuille);
+  }
+
+  .chrono-item__titre {
+    font-weight: 700;
+    font-size: 13.5px;
+    line-height: 1.3;
+  }
+
+  .chrono-item__meta {
+    font-size: 12.5px;
+    color: var(--graphite);
+    margin-top: 2px;
+  }
+
+  .chrono-item__droite {
+    text-align: right;
+    font-size: var(--font-size-meta);
+    color: var(--graphite);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+  }
+
+  .chrono-item__heure {
+    white-space: nowrap;
+  }
+
+  .badge-definitif {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 22px;
+    padding: 0 9px;
+    border-radius: 999px;
+    font-size: var(--font-size-meta);
+    font-weight: 700;
+    color: var(--definitif);
+    background: var(--definitif-fond);
+    box-shadow: inset 0 0 0 1px var(--definitif-bord);
+  }
+
+  .badge-definitif svg {
+    width: 11px;
+    height: 11px;
+    flex-shrink: 0;
+  }
+
+  .chrono-apercu {
+    padding: 20px 26px 90px;
+    overflow: auto;
+    min-height: 0;
+  }
+
+  .chrono-apercu__tete {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .chrono-apercu__mono {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-weight: 800;
+    font-size: var(--font-size-dense);
+    background: var(--feuille-2);
+    color: var(--graphite);
+    box-shadow: inset 0 0 0 1px var(--filet);
+    flex-shrink: 0;
+  }
+
+  .chrono-apercu__qui b {
+    display: block;
+  }
+
+  .chrono-apercu__qui span {
+    font-size: 12.5px;
+    color: var(--graphite);
+  }
+
+  .chrono-apercu__quand {
+    margin-left: auto;
+    font-size: 12.5px;
+    color: var(--graphite);
+    white-space: nowrap;
+  }
+
+  .chrono-apercu__titre {
+    font-size: 18px;
+    font-weight: 800;
+    margin: 16px 0 8px;
+    line-height: 1.3;
+  }
+
+  .chrono-apercu__corps {
+    color: var(--encre);
+    font-size: var(--font-size-base);
+    line-height: 1.6;
+    max-width: 62ch;
+  }
+
+  .chrono-apercu__corps p {
+    margin: 0 0 10px;
+  }
+
+  .chrono-pj {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0 16px;
+  }
+
+  .chrono-fichier {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px 6px 6px;
+    border-radius: 10px;
+    background: var(--feuille-2);
+    box-shadow: inset 0 0 0 1px var(--filet);
+    font-size: 12.5px;
+  }
+
+  .chrono-fichier--plus {
+    padding: 6px 12px;
+    color: var(--graphite);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .chrono-fichier i {
+    font-style: normal;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 3px 5px;
+    border-radius: 5px;
+    background: var(--feuille);
+    color: var(--graphite);
+    box-shadow: inset 0 0 0 1px var(--filet);
+  }
+
+  .chrono-encart {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--chemise-teinte);
+    color: var(--chemise-texte);
+  }
+
+  .chrono-encart svg {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+  }
+
+  .chrono-encart b {
+    display: block;
+    color: var(--encre);
+  }
+
+  .chrono-encart button {
+    margin-left: auto;
+    flex: none;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 8px;
+    background: var(--feuille);
+    color: var(--encre);
+    box-shadow: inset 0 0 0 1px var(--filet);
+  }
+
+  .chrono-chiffres {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 14px 0;
+  }
+
+  .chrono-chiffres div {
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: var(--feuille-2);
+  }
+
+  .chrono-chiffres span {
+    display: block;
+    font-size: var(--font-size-meta);
+    color: var(--graphite);
+  }
+
+  .chrono-chiffres b {
+    font-size: var(--font-size-section);
+  }
+
+  .chrono-progres {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--feuille-2);
+    box-shadow: inset 0 0 0 1px var(--filet);
+    overflow: hidden;
+    margin: 10px 0 6px;
+  }
+
+  .chrono-progres i {
+    display: block;
+    height: 100%;
+    background: var(--chemise-accent);
+    border-radius: 999px;
+  }
+
+  .chrono-progres__libelle {
+    font-size: 12.5px;
+    color: var(--graphite);
+    margin: 0 0 14px;
+  }
 }

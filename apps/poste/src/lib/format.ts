@@ -21,3 +21,15 @@ export function formatHeure(date: Date): string {
   const m = date.getMinutes();
   return fr(`${String(h)}${NBSP}h${NBSP}${String(m).padStart(2, "0")}`);
 }
+
+/**
+ * Montant français (§ 7.7) : « 2 400,00 € ».
+ */
+export function formatMontant(centimes: number): string {
+  const euros = centimes / 100;
+  const formate = new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+  }).format(euros);
+  return fr(formate);
+}
