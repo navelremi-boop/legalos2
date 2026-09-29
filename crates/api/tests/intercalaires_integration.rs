@@ -280,7 +280,10 @@ async fn creer_renommer_conflit_retrait_conserve_piece() {
         .fetch_one(&pool)
         .await
         .unwrap();
-    assert_eq!(piece_toujours, 1, "rattacher ne retire pas la piece du chrono");
+    assert_eq!(
+        piece_toujours, 1,
+        "rattacher ne retire pas la piece du chrono"
+    );
 
     let (st, _) = json_auth(
         &app,
@@ -357,5 +360,8 @@ async fn creer_renommer_conflit_retrait_conserve_piece() {
         .fetch_one(&pool)
         .await
         .unwrap();
-    assert_eq!(piece_apres, 1, "retrait intercalaire laisse la piece metier");
+    assert_eq!(
+        piece_apres, 1,
+        "retrait intercalaire laisse la piece metier"
+    );
 }
