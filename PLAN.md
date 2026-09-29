@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-28 (jalon en cours : **Vue scindée**).
+Dernière mise à jour : 2026-09-29 (jalon en cours : **Intercalaires personnalisés**).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -122,15 +122,7 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
 
 - [x] **Coque de l'app** — VALIDÉ `831e398` (contrôleur, CI [36475104465](https://github.com/navelremi-boop/legalos2/actions/runs/36475104465))
 
-- [ ] **Vue scindée** — § 7.4, intercalaire Chrono
-  - **Critères d'acceptation (commandes)** :
-    - `node tests/recette/vue-scindee-tauri.mjs` → exit 0 (app Tauri) :
-      - chrono groupé par période (Aujourd'hui, Cette semaine, Plus tôt) ; filtres (Tout, Mails, Pièces, Factures) ;
-      - chaque ligne : tuile d'icône, titre, métadonnées, puis l'heure ou un badge ; sélection à la teinte de la chemise ;
-      - aperçu selon le type d'élément : mail, pièces, facture, audience, note ;
-      - badges « définitif » (cadenas et libellé : Communiquées, Validée, Encaissée, Envoyé, en `definitif`), réservés à ce qui ne peut plus être modifié.
-    - `node tests/recette/coque-app.mjs --captures` : captures jour et nuit de la vue scindée, comparées au prototype par le contrôleur.
-    - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+- [x] **Vue scindée** — VALIDÉ `f393190` (contrôleur, CI [36531714153](https://github.com/navelremi-boop/legalos2/actions/runs/36531714153))
 
 - [ ] **Intercalaires personnalisés** — § 7.4
   - **Critères d'acceptation (commandes)** :
@@ -217,8 +209,9 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
 - [ ] **Avant J14** : épingler chaque action tierce de la CI sur un hash de commit complet, pas sur une étiquette (la CI manipulera alors les clés de signature) — liste dans `BLOCAGES.md`, contrôle `node tests/recette/workflows-valides.mjs`.
 - [ ] **Avant la fin de la phase 2** : `cargo-deny` (ou `cargo-audit`) en CI sur les deux workspaces ; signalement préparé pour PowerSync / dépendance `time` 0.2.
 - [ ] **Avant la fin de la phase 2** : moteur de délais en TypeScript strict ; licence OFL livrée avec les polices.
-- [ ] **Avant la fin de la phase 2** : la preuve « fausse alerte » de `node tests/recette/conflits-poste-tauri.mjs` aligne `revision_edition` par `fixerRevisionEdition` au lieu d'attendre la reprise réelle du même poste.
-- [ ] **Avant la fin de la phase 2** : `recetteHooks.ts` insère une entrée dans `ps_crud` lorsque le SDK ne journalise pas le PATCH hors ligne ; le chemin d'écriture réel reste à prouver sans cette injection.
+- [x] **Avant la fin de la phase 2** : la preuve « fausse alerte » de `node tests/recette/conflits-poste-tauri.mjs` aligne `revision_edition` par `fixerRevisionEdition` au lieu d'attendre la reprise réelle du même poste.
+- [x] **Avant la fin de la phase 2** : `recetteHooks.ts` insère une entrée dans `ps_crud` lorsque le SDK ne journalise pas le PATCH hors ligne ; le chemin d'écriture réel reste à prouver sans cette injection.
+- [ ] **Avant la fin de la phase 2** : la vue scindée affiche encore le jeu `CHRONO_DEMO` dans un dossier réel ; le brancher sur les éléments synchronisés (mails, pièces, factures) avant la fin de J9 et de Documents, suite.
 - [ ] **Mensuel** : avis de sécurité PowerSync (GHSA, édition 3) relus et consignés dans `docs/versions.md`.
 
 Chaque jalon : recettes + clippy + contrôleur.
