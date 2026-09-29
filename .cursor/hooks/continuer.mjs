@@ -4,7 +4,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { lireEntree, repondre } from './lib.mjs';
 
-const entree = await lireEntree();
+const lu = await lireEntree();
+if (!lu.ok) {
+  console.error(`hook continuer : ${lu.erreur}, pas de relance`);
+  repondre({});
+}
+const entree = lu.valeur;
 const racine = process.env.CURSOR_PROJECT_DIR || process.cwd();
 
 // Pas de relance si l'utilisateur a interrompu l'agent ou en cas d'erreur.

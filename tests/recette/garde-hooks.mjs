@@ -2,11 +2,13 @@
 /**
  * Gardes Cursor : fail-closed si l'entrée stdin est illisible ; refus des secrets / commandes dangereuses,
  * y compris chaînées derrière un préfixe de la liste d'autorisation ; worktrees sous `.worktrees/`.
+ * Couvre aussi `continuer.mjs` (relance). Toute modification de `lib.mjs` repasse ce fichier (CI, job frontend).
  */
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const hooks = join(root, ".cursor/hooks");
@@ -128,5 +130,103 @@ expectDeny("garde-secrets.mjs", "not-json", "illisible");
 expectDeny("garde-secrets.mjs", JSON.stringify({ file_path: "apps/poste/.env" }), "secrets");
 expectAllow("garde-secrets.mjs", JSON.stringify({ file_path: "apps/poste/.env.example" }));
 expectAllow("garde-secrets.mjs", JSON.stringify({ file_path: "PLAN.md" }));
+
+// Relance : exécution réelle de continuer.mjs, dépôt temporaire via CURSOR_PROJECT_DIR.
+function depotTemporaire(plan, avecStop) {
+  const dir = mkdtempSync(join(tmpdir(), "legalos-continuer-"));
+  writeFileSync(join(dir, "PLAN.md"), plan, "utf8");
+  if (avecStop) {
+    mkdirSync(join(dir, ".mission"));
+    writeFileSync(join(dir, ".mission", "STOP"), "", "utf8");
+  }
+  return dir;
+}
+
+function runContinuer(script, stdin, projectDir) {
+  const r = spawnSync(process.execPath, [script], {
+    input: stdin,
+    encoding: "utf8",
+    env: { ...process.env, CURSOR_PROJECT_DIR: projectDir },
+  });
+  if (r.error) fail(`continuer : ${r.error.message}`);
+  let json;
+  try {
+    json = JSON.parse(String(r.stdout || "").trim() || "{}");
+  } catch {
+    fail(`continuer : sortie non JSON (${r.stdout})`);
+  }
+  return { json, stderr: String(r.stderr || "") };
+}
+
+function assertRelance(libelle, stdin, plan, avecStop, attendu) {
+  const dir = depotTemporaire(plan, avecStop);
+  try {
+    const { json, stderr } = runContinuer(join(hooks, "continuer.mjs"), stdin, dir);
+    if (attendu === "reprise") {
+      if (!String(json.followup_message || "").includes("premier jalon non coché")) {
+        fail(`${libelle} : relance de reprise absente (${JSON.stringify(json)})`);
+      }
+    } else if (attendu === "cloture") {
+      if (!String(json.followup_message || "").includes("Tous les jalons sont cochés")) {
+        fail(`${libelle} : relance de clôture absente (${JSON.stringify(json)})`);
+      }
+    } else if (JSON.stringify(json) !== "{}") {
+      fail(`${libelle} : {} attendu, reçu ${JSON.stringify(json)}`);
+    }
+    return stderr;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+const planOuvert = "- [ ] **Vue scindée**\n";
+const planFerme = "- [x] **Vue scindée** — fait\n";
+const entreeCompleted = JSON.stringify({ status: "completed" });
+
+assertRelance("completed + jalon ouvert", entreeCompleted, planOuvert, false, "reprise");
+assertRelance("completed + jalons cochés", entreeCompleted, planFerme, false, "cloture");
+assertRelance("aborted", JSON.stringify({ status: "aborted" }), planOuvert, false, "silence");
+assertRelance("completed + STOP", entreeCompleted, planOuvert, true, "silence");
+{
+  const dir = depotTemporaire(planOuvert, false);
+  try {
+    const { json, stderr } = runContinuer(join(hooks, "continuer.mjs"), "{", dir);
+    if (JSON.stringify(json) !== "{}") fail(`entrée illisible : {} attendu, reçu ${JSON.stringify(json)}`);
+    if (!stderr.includes("hook continuer") || !stderr.includes("pas de relance")) {
+      fail(`entrée illisible : stderr sans message de relance (${stderr})`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// Essai négatif : l'ancien code lit status sur { ok, valeur } et ne relance jamais.
+const ancien = join(tmpdir(), `legalos-continuer-ancien-${process.pid}.mjs`);
+const libUrl = pathToFileURL(join(hooks, "lib.mjs")).href;
+writeFileSync(
+  ancien,
+  `import { lireEntree, repondre } from ${JSON.stringify(libUrl)};
+const entree = await lireEntree();
+if (String(entree.status ?? "").trim() !== "completed") repondre({});
+repondre({ followup_message: "ancien code a relancé" });
+`,
+  "utf8",
+);
+try {
+  const dir = depotTemporaire(planOuvert, false);
+  try {
+    const { json } = runContinuer(ancien, entreeCompleted, dir);
+    if (json.followup_message) {
+      fail("essai négatif muet : l'ancien code a relancé");
+    }
+    if (JSON.stringify(json) !== "{}") {
+      fail(`essai négatif : {} attendu de l'ancien code, reçu ${JSON.stringify(json)}`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+} finally {
+  rmSync(ancien, { force: true });
+}
 
 console.log("garde-hooks: OK");

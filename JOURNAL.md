@@ -17,6 +17,12 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-09-29 — Consigne de l'architecte : hook de relance
+
+Texte reçu (remplace la précédente du 29/09). Priorité : `continuer.mjs` lisait `status` sur le résultat `{ ok, valeur }` de `lireEntree()` (depuis `7945016`), donc ne relançait jamais. Preuve dans `garde-hooks.mjs`, cinq cas, essai négatif sur l'ancien code. Ensuite Vue scindée, et sans la retarder : dettes de preuve des conflits avant les intercalaires ; essai négatif d'une exception `deny.toml` inutile ; suppression des branches `lot/` déjà dans `main`. Tout arrêt est consigné ici avec l'heure et la raison.
+
+Traitement (07:20, heure locale) : correctif commité. `node tests/recette/garde-hooks.mjs` → OK. L'essai `deny-exception-inutile.mjs` est branché sur le job `rust` (cargo-deny 0.20.2, somme SHA-256 du binaire Linux). Vue scindée et dettes de preuve des conflits suivent dans leurs lots.
+
 ## 2026-09-28 — Coque de l'app VALIDÉE
 
 Contrôleur VALIDÉ sur `64cdb1b` (poste) et `958d09a` (CORS). Fusion dans `main` en `831e398`. CI [36475104465](https://github.com/navelremi-boop/legalos2/actions/runs/36475104465) verte. Dettes CORS et onglets de démonstration cochées. Détail dans `docs/journal/phase-2.md`. Jalon suivant : Vue scindée.
