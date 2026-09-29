@@ -114,10 +114,7 @@ pub async fn deposer_octets_url(
     for (cle, valeur) in entetes {
         req = req.header(cle, valeur);
     }
-    let reponse = req
-        .send()
-        .await
-        .map_err(|err| format!("dépôt : {err}"))?;
+    let reponse = req.send().await.map_err(|err| format!("dépôt : {err}"))?;
     if !reponse.status().is_success() {
         return Err(format!("dépôt HTTP {}", reponse.status()));
     }
