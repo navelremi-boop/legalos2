@@ -45,7 +45,7 @@ export async function ecrireDossier(saisie: NouveauDossier): Promise<string> {
         saisie.juridiction.trim(),
         saisie.numeroRg.trim(),
         saisie.restreint ? 1 : 0,
-        saisie.restreint ? "restreint" : "cabinet",
+        saisie.restreint ? "restreint" : "public",
         creeLe,
       ],
     );

@@ -177,6 +177,35 @@ const tauxHoraires = new Table(
   { indexes: { cabinet: ["cabinet_id"], dossier: ["dossier_id"] } },
 );
 
+/** Intercalaires personnalisés (§ 7.4) — hors standards Chrono / Procédure / … */
+const intercalairesPersonnalises = new Table(
+  {
+    cabinet_id: column.text,
+    dossier_id: column.text,
+    nom: column.text,
+    revision: column.integer,
+    visibilite: column.text,
+    restreint: column.integer,
+    cree_le: column.text,
+  },
+  { indexes: { dossier: ["dossier_id"] } },
+);
+
+/** Rattachements (classement supplémentaire ; l'élément reste dans le chrono). */
+const intercalaireElements = new Table(
+  {
+    intercalaire_id: column.text,
+    dossier_id: column.text,
+    type_element: column.text,
+    element_id: column.text,
+    revision: column.integer,
+    visibilite: column.text,
+    restreint: column.integer,
+    cree_le: column.text,
+  },
+  { indexes: { intercalaire: ["intercalaire_id"], dossier: ["dossier_id"] } },
+);
+
 export const AppSchema = new Schema({
   cabinets,
   journal_modifications: journalModifications,
@@ -190,6 +219,8 @@ export const AppSchema = new Schema({
   temps_saisis: tempsSaisis,
   brouillons_facture: brouillonsFacture,
   taux_horaires: tauxHoraires,
+  intercalaires_personnalises: intercalairesPersonnalises,
+  intercalaire_elements: intercalaireElements,
 });
 
 export type Database = (typeof AppSchema)["types"];
@@ -201,3 +232,5 @@ export type PartieRecord = Database["parties"];
 export type TempsSaisiRecord = Database["temps_saisis"];
 export type BrouillonFactureRecord = Database["brouillons_facture"];
 export type TauxHoraireRecord = Database["taux_horaires"];
+export type IntercalairePersonnaliseRecord = Database["intercalaires_personnalises"];
+export type IntercalaireElementRecord = Database["intercalaire_elements"];

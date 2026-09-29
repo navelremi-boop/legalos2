@@ -50,8 +50,8 @@ pub async fn connect_powersync<R: Runtime>(
     let ps = app.powersync();
     let database = ps.database_from_javascript_handle(handle)?;
     let session = Arc::new(Mutex::new(SessionSync {
-        instance_url,
-        access_token,
+        instance_url: instance_url.clone(),
+        access_token: access_token.clone(),
     }));
     let connector = CabinetConnector {
         db: database.clone(),
@@ -70,9 +70,24 @@ pub async fn connect_powersync<R: Runtime>(
             eprintln!("file crud: {n}");
         }
     }
+    // Le SDK ne vide pas la file au redémarrage. L'envoi manuel doit aussi
+    // retirer `ps_updated_rows`, sinon le journal téléchargé ne s'applique pas.
     if let Err(err) = connector.upload_data().await {
         eprintln!("upload file: {err}");
     }
+    // Le téléchargement ne réapplique pas un checkpoint tant que l'acteur d'envoi
+    // n'a pas signalé la fin. L'envoi manuel ne le fait pas : on reconnecte pour
+    // que l'acteur voie une file vide et débloque le journal.
+    database.disconnect().await;
+    database
+        .connect(SyncOptions::new(CabinetConnector {
+            db: database.clone(),
+            session: Arc::new(Mutex::new(SessionSync {
+                instance_url,
+                access_token,
+            })),
+        }))
+        .await;
     Ok(())
 }
 
@@ -99,10 +114,11 @@ impl BackendConnector for CabinetConnector {
         let mut transactions = self.db.crud_transactions();
         while let Some(mut tx) = transactions.try_next().await? {
             let crud = std::mem::take(&mut tx.crud);
-            for entry in crud {
+            for entry in &crud {
                 // Un refus (400/403/404/409, table inconnue, DELETE) est consigné et la file avance.
                 // Seules les erreurs transitoires (réseau, 5xx) bloquent pour réessai.
-                traiter_entree(&self.session, &self.db, &entry).await?;
+                traiter_entree(&self.session, &self.db, entry).await?;
+                oublier_maj_locale(&self.db, &entry.id).await?;
             }
             tx.complete().await?;
         }
@@ -117,6 +133,11 @@ async fn traiter_entree(
 ) -> Result<(), PowerSyncError> {
     match &entry.update_type {
         UpdateType::Delete => {
+            // Intercalaires personnalisés et rattachements : retrait explicite (API DELETE).
+            // Les autres tables : refus consigné, file non bloquée (docs/conflits.md § 5).
+            if let Some(suppression) = ressource_suppression(&entry.table) {
+                return envoyer_delete(session, db, suppression, entry).await;
+            }
             consign_refus(
                 db,
                 &entry.table,
@@ -158,6 +179,8 @@ struct Ressource {
     champs_modifiables: &'static [&'static str],
     /// Champs numériques envoyés en entier JSON.
     champs_entiers: &'static [&'static str],
+    /// Champs booléens (SQLite stocke 0/1).
+    champs_booleens: &'static [&'static str],
 }
 
 fn ressource_connue(table: &str) -> Option<&'static Ressource> {
@@ -167,6 +190,7 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
         put_chemin: |_| Err("création de cabinet non prise en charge depuis le poste".into()),
         champs_modifiables: &["nom", "slug"],
         champs_entiers: &[],
+        champs_booleens: &[],
     };
     static DOSSIERS: Ressource = Ressource {
         table: "dossiers",
@@ -174,6 +198,7 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
         put_chemin: |_| Ok("/api/dossiers".into()),
         champs_modifiables: &["nom", "chemise", "juridiction", "numero_rg"],
         champs_entiers: &[],
+        champs_booleens: &["restreint"],
     };
     static PARTIES: Ressource = Ressource {
         table: "parties",
@@ -185,6 +210,7 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
         },
         champs_modifiables: &["role", "nom"],
         champs_entiers: &[],
+        champs_booleens: &[],
     };
     static TEMPS: Ressource = Ressource {
         table: "temps_saisis",
@@ -192,6 +218,7 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
         put_chemin: |_| Ok("/api/temps".into()),
         champs_modifiables: &["minutes", "libelle", "taux_centimes_heure"],
         champs_entiers: &["minutes", "taux_centimes_heure"],
+        champs_booleens: &[],
     };
     static BROUILLONS: Ressource = Ressource {
         table: "brouillons_facture",
@@ -199,6 +226,7 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
         put_chemin: |_| Ok("/api/brouillons-facture".into()),
         champs_modifiables: &["libelle", "taux_centimes_heure"],
         champs_entiers: &["taux_centimes_heure", "ht_centimes"],
+        champs_booleens: &[],
     };
     static TAUX: Ressource = Ressource {
         table: "taux_horaires",
@@ -206,6 +234,32 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
         put_chemin: |_| Ok("/api/taux-horaires".into()),
         champs_modifiables: &["centimes_par_heure"],
         champs_entiers: &["centimes_par_heure"],
+        champs_booleens: &[],
+    };
+    static INTERCALAIRES: Ressource = Ressource {
+        table: "intercalaires_personnalises",
+        patch_chemin: |id| format!("/api/intercalaires/{id}"),
+        put_chemin: |data| {
+            let dossier_id = json_text(data.get("dossier_id"))
+                .ok_or_else(|| "dossier de l'intercalaire absent".to_string())?;
+            Ok(format!("/api/dossiers/{dossier_id}/intercalaires"))
+        },
+        champs_modifiables: &["nom"],
+        champs_entiers: &[],
+        champs_booleens: &["restreint"],
+    };
+    static INTERCALAIRE_ELEMENTS: Ressource = Ressource {
+        table: "intercalaire_elements",
+        // Pas de PATCH métier (création / détachement seulement).
+        patch_chemin: |id| format!("/api/intercalaire-elements/{id}"),
+        put_chemin: |data| {
+            let intercalaire_id = json_text(data.get("intercalaire_id"))
+                .ok_or_else(|| "intercalaire du rattachement absent".to_string())?;
+            Ok(format!("/api/intercalaires/{intercalaire_id}/elements"))
+        },
+        champs_modifiables: &[],
+        champs_entiers: &[],
+        champs_booleens: &["restreint"],
     };
     match table {
         "cabinets" => Some(&CABINETS),
@@ -214,8 +268,55 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
         "temps_saisis" => Some(&TEMPS),
         "brouillons_facture" => Some(&BROUILLONS),
         "taux_horaires" => Some(&TAUX),
+        "intercalaires_personnalises" => Some(&INTERCALAIRES),
+        "intercalaire_elements" => Some(&INTERCALAIRE_ELEMENTS),
         _ => None,
     }
+}
+
+struct Suppression {
+    table: &'static str,
+    chemin: fn(&str) -> String,
+}
+
+fn ressource_suppression(table: &str) -> Option<&'static Suppression> {
+    static INTERCALAIRES: Suppression = Suppression {
+        table: "intercalaires_personnalises",
+        chemin: |id| format!("/api/intercalaires/{id}"),
+    };
+    static ELEMENTS: Suppression = Suppression {
+        table: "intercalaire_elements",
+        chemin: |id| format!("/api/intercalaire-elements/{id}"),
+    };
+    match table {
+        "intercalaires_personnalises" => Some(&INTERCALAIRES),
+        "intercalaire_elements" => Some(&ELEMENTS),
+        _ => None,
+    }
+}
+
+async fn envoyer_delete(
+    session: &Arc<Mutex<SessionSync>>,
+    db: &PowerSyncDatabase,
+    suppression: &Suppression,
+    entry: &CrudEntry,
+) -> Result<(), PowerSyncError> {
+    let mut body = Map::new();
+    body.insert(
+        "idempotence_cle".into(),
+        json!(format!("{}:{}:delete", entry.id, suppression.table)),
+    );
+    let chemin = (suppression.chemin)(&entry.id);
+    envoyer_http(
+        session,
+        db,
+        suppression.table,
+        &entry.id,
+        "DELETE",
+        &chemin,
+        &body,
+    )
+    .await
 }
 
 fn op_label(op: &UpdateType) -> &'static str {
@@ -304,6 +405,14 @@ async fn envoyer_put(
 }
 
 fn normaliser_valeur(ressource: &Ressource, cle: &str, valeur: Value) -> Value {
+    if ressource.champs_booleens.contains(&cle) {
+        return match &valeur {
+            Value::Bool(_) => valeur,
+            Value::Number(n) => Value::Bool(n.as_i64().unwrap_or(0) != 0),
+            Value::String(s) => Value::Bool(s == "1" || s.eq_ignore_ascii_case("true")),
+            _ => valeur,
+        };
+    }
     if ressource.champs_entiers.contains(&cle) {
         match &valeur {
             Value::Number(_) => valeur,
@@ -343,6 +452,8 @@ async fn envoyer_http(
         "PATCH" => client.patch(&url),
         // PUT local → POST création côté API (idempotence_cle).
         "PUT" => client.post(&url),
+        // DELETE local → DELETE API (corps idempotence_cle) pour intercalaires / rattachements.
+        "DELETE" => client.delete(&url),
         other => {
             consign_refus(
                 db,
@@ -383,9 +494,11 @@ fn est_refus_definitif(status: StatusCode) -> bool {
     matches!(
         status,
         StatusCode::BAD_REQUEST
+            | StatusCode::UNAUTHORIZED
             | StatusCode::FORBIDDEN
             | StatusCode::NOT_FOUND
             | StatusCode::CONFLICT
+            | StatusCode::UNPROCESSABLE_ENTITY
     )
 }
 
@@ -405,6 +518,17 @@ fn message_refus(corps: &str, status: StatusCode) -> String {
         return brut.chars().take(400).collect();
     }
     format!("Modification refusée ({status}).")
+}
+
+/// Lève le marquage local après un envoi réussi, pour que le point de contrôle s'applique.
+async fn oublier_maj_locale(db: &PowerSyncDatabase, id: &str) -> Result<(), PowerSyncError> {
+    let conn = db.writer().await?;
+    conn.execute(
+        "DELETE FROM ps_updated_rows WHERE row_id = ?1",
+        rusqlite::params![id],
+    )
+    .map_err(|err| upload_err(format!("oubli maj locale : {err}")))?;
+    Ok(())
 }
 
 async fn consign_refus(
@@ -488,6 +612,10 @@ async fn lire_revision(
         "temps_saisis" => "SELECT revision FROM temps_saisis WHERE id = ?1",
         "brouillons_facture" => "SELECT revision FROM brouillons_facture WHERE id = ?1",
         "taux_horaires" => "SELECT revision FROM taux_horaires WHERE id = ?1",
+        "intercalaires_personnalises" => {
+            "SELECT revision FROM intercalaires_personnalises WHERE id = ?1"
+        }
+        "intercalaire_elements" => "SELECT revision FROM intercalaire_elements WHERE id = ?1",
         _ => return Ok(depuis_edition.max(1)),
     };
     let depuis_ligne: i64 = conn
@@ -531,15 +659,22 @@ mod tests {
     fn ressource_par_table() {
         assert!(ressource_connue("cabinets").is_some());
         assert!(ressource_connue("taux_horaires").is_some());
+        assert!(ressource_connue("intercalaires_personnalises").is_some());
+        assert!(ressource_connue("intercalaire_elements").is_some());
         assert!(ressource_connue("inconnue").is_none());
+        assert!(ressource_suppression("intercalaires_personnalises").is_some());
+        assert!(ressource_suppression("intercalaire_elements").is_some());
+        assert!(ressource_suppression("dossiers").is_none());
     }
 
     #[test]
     fn refus_http_definitifs() {
         assert!(est_refus_definitif(StatusCode::BAD_REQUEST));
+        assert!(est_refus_definitif(StatusCode::UNAUTHORIZED));
         assert!(est_refus_definitif(StatusCode::FORBIDDEN));
         assert!(est_refus_definitif(StatusCode::NOT_FOUND));
         assert!(est_refus_definitif(StatusCode::CONFLICT));
+        assert!(est_refus_definitif(StatusCode::UNPROCESSABLE_ENTITY));
         assert!(!est_refus_definitif(StatusCode::INTERNAL_SERVER_ERROR));
         assert!(!est_refus_definitif(StatusCode::SERVICE_UNAVAILABLE));
     }

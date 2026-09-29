@@ -41,6 +41,7 @@ const familles = [
   { table: "document_versions", label: "versions" },
   { table: "temps_saisis", label: "temps" },
   { table: "brouillons_facture", label: "brouillons" },
+  { table: "intercalaires_personnalises", label: "intercalaires" },
 ];
 
 const manques = [];
@@ -104,4 +105,6 @@ if (manques.length > 0) {
   fail(`${manques.length} trou(s) de couverture SQLite S5 par flux`);
 }
 
-console.log("s5-sqlite-par-flux: OK — preuves SQLite locales présentes pour dossiers, documents, versions, temps, brouillons");
+console.log(
+  "s5-sqlite-par-flux: OK — preuves SQLite locales présentes pour dossiers, documents, versions, temps, brouillons, intercalaires",
+);

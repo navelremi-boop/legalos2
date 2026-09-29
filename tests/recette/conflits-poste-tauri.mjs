@@ -1178,7 +1178,7 @@ await avecPoste("a", demoEmail, demoPassword, totpSecretB32, "Poste champ seul s
   await sleep(5_000);
 });
 
-for (const table of TABLES_MODIFIABLES) {
+for (const table of Object.keys(attendusChampSeul)) {
   const champ = CHAMP_SEUL_PAR_TABLE[table];
   const attendu = attendusChampSeul[table].replaceAll("'", "''");
   const n = Number(

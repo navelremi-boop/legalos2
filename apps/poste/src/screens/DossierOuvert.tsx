@@ -1,14 +1,27 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EtiquetteDossier } from "@/coque/EtiquetteDossier";
 import { InfosDossier } from "@/coque/InfosDossier";
 import { JaugeEcheance } from "@/coque/JaugeEcheance";
 import { Feuille } from "@/coque/Feuille";
-import { Intercalaires, type IntercalaireId } from "@/coque/Intercalaires";
+import {
+  Intercalaires,
+  INTERCALAIRES_STANDARDS,
+  estIntercalaireStandard,
+  type IntercalaireId,
+  type IntercalaireItem,
+} from "@/coque/Intercalaires";
 import { BarreActions } from "@/coque/BarreActions";
 import { VueScindee } from "@/coque/chrono/VueScindee";
 import type { ChronoItem } from "@/coque/chrono/types";
+import {
+  creerIntercalaire,
+  rattacherElement,
+  renommerIntercalaire,
+  retirerIntercalaire,
+} from "@/dossiers/ecrireIntercalaire";
 import type { ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
+import { getPowerSyncDatabase } from "@/sync/database";
 
 export type DossierVue = {
   id: string;
@@ -28,6 +41,24 @@ export type DossierVue = {
   };
 };
 
+type IntercalaireLocal = {
+  id: string;
+  nom: string;
+};
+
+type ElementLocal = {
+  id: string;
+  intercalaire_id: string;
+  type_element: string;
+  element_id: string;
+};
+
+type ConflitLocal = {
+  champ: string;
+  valeur_remplacee: string | null;
+  valeur_appliquee: string | null;
+};
+
 type DossierOuvertProps = {
   dossier: DossierVue;
   onNouveauMail: () => void;
@@ -36,6 +67,11 @@ type DossierOuvertProps = {
   onCalculerDelai: () => void;
   /** Jeu fictif : galerie et captures seulement, jamais un dossier réel. */
   elementsChrono?: ChronoItem[];
+  /**
+   * Charge et écrit les intercalaires personnalisés (SQLite).
+   * Désactivé pour la galerie démo (identifiants hors base).
+   */
+  intercalairesSync?: boolean;
 };
 
 export function DossierOuvert({
@@ -45,9 +81,101 @@ export function DossierOuvert({
   onFacturer,
   onCalculerDelai,
   elementsChrono,
+  intercalairesSync = true,
 }: DossierOuvertProps) {
   const [intercalaire, setIntercalaire] = useState<IntercalaireId>("chrono");
+  const [personnalises, setPersonnalises] = useState<IntercalaireLocal[]>([]);
+  const [elements, setElements] = useState<ElementLocal[]>([]);
+  const [conflits, setConflits] = useState<ConflitLocal[]>([]);
+  const [brouillonNom, setBrouillonNom] = useState<Record<string, string>>({});
   const chronoActif = intercalaire === "chrono";
+  const persoActif =
+    !estIntercalaireStandard(intercalaire) &&
+    personnalises.some((p) => p.id === intercalaire);
+  const nomEdition =
+    brouillonNom[String(intercalaire)] ??
+    personnalises.find((p) => p.id === intercalaire)?.nom ??
+    "";
+
+  useEffect(() => {
+    if (!intercalairesSync) {
+      return;
+    }
+    let stop = false;
+    const tick = () => {
+      void getPowerSyncDatabase()
+        .then(async (database) => {
+          const rows = await database.getAll<IntercalaireLocal>(
+            `SELECT id, nom FROM intercalaires_personnalises
+             WHERE dossier_id = ? ORDER BY cree_le ASC, nom ASC`,
+            [dossier.id],
+          );
+          const liens = await database.getAll<ElementLocal>(
+            `SELECT id, intercalaire_id, type_element, element_id
+             FROM intercalaire_elements WHERE dossier_id = ?`,
+            [dossier.id],
+          );
+          let journaux: ConflitLocal[] = [];
+          if (!estIntercalaireStandard(intercalaire)) {
+            journaux = await database.getAll<ConflitLocal>(
+              `SELECT champ, valeur_remplacee, valeur_appliquee
+               FROM journal_modifications
+               WHERE table_cible = 'intercalaires_personnalises'
+                 AND conflit = 1
+                 AND enregistrement_id = ?
+               ORDER BY cree_le DESC`,
+              [intercalaire],
+            );
+          }
+          return { rows, liens, journaux };
+        })
+        .then(({ rows, liens, journaux }) => {
+          if (stop) return;
+          setPersonnalises(rows);
+          setElements(liens);
+          setConflits(journaux);
+        })
+        .catch(() => {
+          if (stop) return;
+          setPersonnalises([]);
+          setElements([]);
+          setConflits([]);
+        });
+    };
+    tick();
+    const timer = window.setInterval(tick, 1_500);
+    return () => {
+      stop = true;
+      window.clearInterval(timer);
+    };
+  }, [dossier.id, intercalaire, intercalairesSync]);
+
+  const onglets: IntercalaireItem[] = [
+    ...INTERCALAIRES_STANDARDS.map((s) =>
+      s.id === "chrono" && elementsChrono
+        ? { ...s, compteur: elementsChrono.length }
+        : { ...s },
+    ),
+    ...personnalises.map((p) => ({
+      id: p.id,
+      label: p.nom,
+      compteur: elements.filter((e) => e.intercalaire_id === p.id).length,
+      personnalise: true as const,
+    })),
+  ];
+
+  const elementsActifs = elements.filter((e) => e.intercalaire_id === intercalaire);
+
+  const titreStandard =
+    intercalaire === "procedure"
+      ? "Procédure"
+      : intercalaire === "pieces"
+        ? "Pièces"
+        : intercalaire === "mails"
+          ? "Mails"
+          : intercalaire === "factures"
+            ? "Factures"
+            : "Chrono";
 
   return (
     <div
@@ -86,18 +214,89 @@ export function DossierOuvert({
         <Feuille uneColonne={!chronoActif} className="h-full min-h-[360px]">
           {chronoActif ? (
             <VueScindee items={elementsChrono ?? []} />
+          ) : persoActif ? (
+            <div className="p-[22px] pb-24" data-testid="vue-intercalaire-perso">
+              {conflits.length > 0 ? (
+                <div
+                  className="mb-4 rounded-[var(--radius-control)] bg-survol px-3 py-2 text-[length:var(--font-size-dense)]"
+                  data-testid="intercalaire-conflit"
+                  role="status"
+                >
+                  {fr(
+                    `Conflit de synchronisation sur le nom : « ${conflits[0]?.valeur_remplacee ?? ""} » remplacé par « ${conflits[0]?.valeur_appliquee ?? ""} ».`,
+                  )}
+                </div>
+              ) : null}
+              <label className="mb-2 block text-[length:var(--font-size-dense)] text-graphite">
+                {fr("Nom de l'intercalaire")}
+              </label>
+              <input
+                className="mb-4 w-full max-w-md rounded-[var(--radius-control)] border border-filet bg-feuille px-3 py-2 text-encre"
+                data-testid="intercalaire-renommer"
+                value={nomEdition}
+                maxLength={24}
+                onChange={(event) => {
+                  const valeur = event.target.value;
+                  setBrouillonNom((prev) => ({
+                    ...prev,
+                    [String(intercalaire)]: valeur,
+                  }));
+                }}
+                onBlur={() => {
+                  const actuel = personnalises.find((p) => p.id === intercalaire)?.nom ?? "";
+                  if (nomEdition.trim() !== "" && nomEdition.trim() !== actuel) {
+                    void renommerIntercalaire(String(intercalaire), nomEdition);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    (event.target as HTMLInputElement).blur();
+                  }
+                }}
+              />
+              <p className="mb-4 text-graphite">
+                {fr(
+                  "Intercalaire créé pour ce dossier. Rattachez-y des éléments du chrono : ils resteront aussi visibles dans le chrono.",
+                )}
+              </p>
+              <ul className="mb-4 space-y-2" data-testid="intercalaire-elements">
+                {elementsActifs.length === 0 ? (
+                  <li className="text-graphite">{fr("Aucun élément rattaché.")}</li>
+                ) : (
+                  elementsActifs.map((el) => (
+                    <li
+                      key={el.id}
+                      className="rounded-[var(--radius-control)] border border-filet px-3 py-2"
+                      data-testid="intercalaire-element"
+                      data-element-id={el.element_id}
+                      data-type={el.type_element}
+                    >
+                      {fr(el.type_element)}{" "}
+                      <span className="text-graphite">{el.element_id.slice(0, 8)}</span>
+                    </li>
+                  ))
+                )}
+              </ul>
+              <button
+                type="button"
+                className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                data-testid="intercalaire-rattacher-note"
+                onClick={() => {
+                  void rattacherElement({
+                    intercalaireId: String(intercalaire),
+                    dossierId: dossier.id,
+                    typeElement: "note",
+                    elementId: crypto.randomUUID(),
+                  });
+                }}
+              >
+                {fr("Rattacher une note")}
+              </button>
+            </div>
           ) : (
             <div className="p-[22px] pb-24">
               <h3 className="mb-2 text-[length:var(--font-size-section)] font-extrabold">
-                {fr(
-                  intercalaire === "procedure"
-                    ? "Procédure"
-                    : intercalaire === "pieces"
-                      ? "Pièces"
-                      : intercalaire === "mails"
-                        ? "Mails"
-                        : "Factures",
-                )}
+                {fr(titreStandard)}
               </h3>
               <p className="text-graphite">
                 {fr("Vue non détaillée dans cette version.")}
@@ -105,7 +304,28 @@ export function DossierOuvert({
             </div>
           )}
         </Feuille>
-        <Intercalaires actif={intercalaire} onChanger={setIntercalaire} />
+        <Intercalaires
+          items={onglets}
+          actif={intercalaire}
+          onChanger={setIntercalaire}
+          onCreer={
+            intercalairesSync
+              ? async (nom) => {
+                  const id = await creerIntercalaire(dossier.id, nom);
+                  setIntercalaire(id);
+                }
+              : undefined
+          }
+          onRetirer={
+            intercalairesSync
+              ? async (id) => {
+                  if (estIntercalaireStandard(id)) return;
+                  await retirerIntercalaire(String(id));
+                  if (intercalaire === id) setIntercalaire("chrono");
+                }
+              : undefined
+          }
+        />
       </div>
 
       <BarreActions

@@ -10,6 +10,7 @@ export const TABLES_MODIFIABLES = [
   "temps_saisis",
   "brouillons_facture",
   "taux_horaires",
+  "intercalaires_personnalises",
 ] as const;
 
 export type TableModifiable = (typeof TABLES_MODIFIABLES)[number];
@@ -22,6 +23,7 @@ export const CHAMPS_PAR_TABLE: Record<TableModifiable, readonly string[]> = {
   temps_saisis: ["minutes", "libelle", "taux_centimes_heure"],
   brouillons_facture: ["libelle", "taux_centimes_heure"],
   taux_horaires: ["centimes_par_heure"],
+  intercalaires_personnalises: ["nom"],
 };
 
 /** Champ unique utilisé pour la preuve « un champ seul par table ». */
@@ -32,6 +34,7 @@ export const CHAMP_SEUL_PAR_TABLE: Record<TableModifiable, string> = {
   temps_saisis: "libelle",
   brouillons_facture: "libelle",
   taux_horaires: "centimes_par_heure",
+  intercalaires_personnalises: "nom",
 };
 
 export type OperationCrud = "PUT" | "PATCH" | "DELETE";
@@ -54,6 +57,8 @@ export function cheminPatch(table: TableModifiable, id: string): string {
       return `/api/brouillons-facture/${id}`;
     case "taux_horaires":
       return `/api/taux-horaires/${id}`;
+    case "intercalaires_personnalises":
+      return `/api/intercalaires/${id}`;
   }
 }
 

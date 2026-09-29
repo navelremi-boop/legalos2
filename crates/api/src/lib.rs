@@ -67,6 +67,7 @@ pub fn couche_cors_selon_developpement(developpement: bool) -> CorsLayer {
             Method::POST,
             Method::PUT,
             Method::PATCH,
+            Method::DELETE,
             Method::OPTIONS,
         ])
         .allow_headers(Any)
