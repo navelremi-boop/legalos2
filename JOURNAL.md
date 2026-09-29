@@ -30,7 +30,7 @@ CI lue par `gh run view 36622021205` : completed, success. perimetre, frontend, 
 
 Écart assumé : table `document_versions_en_cours` (réservation de numéro), absente des flux. Dépendances `pdf-extract` 0.12.1, `zip` 8.6.0, `quick-xml` 0.42.0.
 
-Le lot poste est dans `.worktrees/documents-poste` et doit intégrer `3889e91` avant la recette Tauri. Run [36618225538](https://github.com/navelremi-boop/legalos2/actions/runs/36618225538) annulé par concurrence ; [36619287466](https://github.com/navelremi-boop/legalos2/actions/runs/36619287466) vert, jobs de code sautés (journal seul).
+Lot poste fusionné avec le contrat serveur : `9d00855`, puis rustfmt `d836807` sur `lot/documents-poste`, PR [n° 16](https://github.com/navelremi-boop/legalos2/pull/16). CI lue par `gh run view 36625485423` : completed, success, les six jobs. Le contrôleur durcit `documents-suite.mjs` (PDF avec couche texte, divergence signalée) et l'exécute ; pas de verdict encore. Run [36618225538](https://github.com/navelremi-boop/legalos2/actions/runs/36618225538) annulé par concurrence ; [36619287466](https://github.com/navelremi-boop/legalos2/actions/runs/36619287466) vert, jobs de code sautés (journal seul).
 
 ## 2026-09-29 — Agenda VALIDÉ
 
