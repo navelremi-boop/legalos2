@@ -56,7 +56,7 @@ Fichier déployé : `instance/powersync/sync-config.yaml`, monté via `sync_conf
 | `journal_modifications` | Trois flux : `journal_cabinet` (`dossier_id` nul), `journal_publics`, `journal_restreints` |
 | `dossiers` | Métadonnées dossier (chemise, `reference` nullable § 3.4, flag restreint) |
 | `parties` | Parties du dossier |
-| `documents` / `document_versions` | Métadonnées ; `visibilite` en SELECT, auth via dossier |
+| `documents` / `document_versions` / `repertoires` | Métadonnées et arborescence ; `visibilite` en SELECT, auth via dossier ; documents portent `repertoire_id` et `revision` ; versions portent `texte` (extrait) et `parent_numero` |
 | `temps_saisis` / `brouillons_facture` / `taux_horaires` | J8 — flux publics / restreints (+ `taux_cabinet` sans dossier) |
 | `intercalaires_personnalises` / `intercalaire_elements` | Intercalaires personnalisés (§ 7.4) — flux publics / restreints |
 | `contacts` | Annuaire du cabinet (SIREN, n° TVA, type de client F8) — un flux, pas un seau par dossier |
@@ -80,10 +80,12 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 | `dossiers_restreints` | `dossiers` JOIN `dossier_acces` où `utilisateur_texte = auth.user_id()` — SELECT inclut `reference`, `responsable_id`, `type_dossier`, `etape` |
 | `parties_publics` | `parties` JOIN `dossiers` (visibilité publique + cabinet) |
 | `parties_restreints` | `parties` JOIN `dossier_acces` (`auth.user_id()`) |
-| `documents_publics` | `documents` JOIN `dossiers` (visibilité publique + cabinet) |
-| `documents_restreints` | `documents` JOIN `dossier_acces` — **sans** filtre sur `documents.visibilite` |
-| `document_versions_publics` | idem JOIN `dossiers` |
-| `document_versions_restreints` | idem JOIN `dossier_acces` — **sans** filtre sur `document_versions.visibilite` |
+| `documents_publics` | `documents` JOIN `dossiers` (visibilité publique + cabinet) — SELECT inclut `repertoire_id`, `revision` |
+| `documents_restreints` | `documents` JOIN `dossier_acces` — **sans** filtre sur `documents.visibilite` — SELECT inclut `repertoire_id`, `revision` |
+| `document_versions_publics` | idem JOIN `dossiers` — SELECT inclut `texte`, `parent_numero` |
+| `document_versions_restreints` | idem JOIN `dossier_acces` — **sans** filtre sur `document_versions.visibilite` — SELECT inclut `texte`, `parent_numero` |
+| `repertoires_publics` | `repertoires` JOIN `dossiers` (visibilité publique + cabinet) |
+| `repertoires_restreints` | `repertoires` JOIN `dossier_acces` — **sans** filtre sur `repertoires.visibilite` |
 | `temps_publics` / `brouillons_publics` / `taux_publics` | JOIN `dossiers` (visibilité publique + cabinet) |
 | `temps_restreints` / `brouillons_restreints` / `taux_restreints` | JOIN `dossier_acces` (`auth.user_id()`) — **sans** filtre sur la `visibilite` fille |
 | `taux_cabinet` | `taux_horaires` où `dossier_id IS NULL` et `cabinet_id` du JWT |
@@ -96,7 +98,7 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 | `agenda_publics` | `agenda_elements` JOIN `dossiers` (visibilité publique + cabinet) |
 | `agenda_restreints` | `agenda_elements` JOIN `dossier_acces` (`auth.user_id()`) — **sans** filtre sur `agenda_elements.visibilite` |
 
-**Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants (`parties`, `documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, `taux_horaires`, `intercalaires_personnalises`, `intercalaire_elements`, `dossier_liens` ancrés sur ce dossier) dans la SQLite locale. L'annuaire `contacts` est celui du cabinet : il n'est pas un enfant de dossier. Preuve SQLite (fichier `legalos-powersync-*.db` du poste Tauri) : `tests/recette/j5-poste-tauri.mjs` ; couverture par flux : `tests/recette/s5-sqlite-par-flux.mjs` ; contrôle statique des flux : `tests/recette/s5-sync-streams.mjs`. Filtre JOIN Postgres (sans SQLite) : `tests/recette/s9-s5-temps.mjs`.
+**Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants (`parties`, `repertoires`, `documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, `taux_horaires`, `intercalaires_personnalises`, `intercalaire_elements`, `dossier_liens` ancrés sur ce dossier) dans la SQLite locale. L'annuaire `contacts` est celui du cabinet : il n'est pas un enfant de dossier. Preuve SQLite (fichier `legalos-powersync-*.db` du poste Tauri) : `tests/recette/j5-poste-tauri.mjs` ; couverture par flux : `tests/recette/s5-sqlite-par-flux.mjs` ; contrôle statique des flux : `tests/recette/s5-sync-streams.mjs`. Filtre JOIN Postgres (sans SQLite) : `tests/recette/s9-s5-temps.mjs`.
 
 ---
 

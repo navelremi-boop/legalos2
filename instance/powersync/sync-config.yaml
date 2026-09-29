@@ -57,10 +57,26 @@ streams:
       INNER JOIN dossier_acces ON parties.dossier_id = dossier_acces.dossier_id
       WHERE dossier_acces.utilisateur_texte = auth.user_id()
 
+  repertoires_publics:
+    auto_subscribe: true
+    query: |
+      SELECT repertoires.id, repertoires.cabinet_id, repertoires.dossier_id, repertoires.parent_id, repertoires.nom, repertoires.visibilite, repertoires.revision, repertoires.cree_le::text AS cree_le
+      FROM repertoires
+      INNER JOIN dossiers ON repertoires.dossier_id = dossiers.id
+      WHERE dossiers.visibilite = 'public' AND dossiers.cabinet_id::text = auth.parameter('cabinet_id')
+
+  repertoires_restreints:
+    auto_subscribe: true
+    query: |
+      SELECT repertoires.id, repertoires.cabinet_id, repertoires.dossier_id, repertoires.parent_id, repertoires.nom, repertoires.visibilite, repertoires.revision, repertoires.cree_le::text AS cree_le
+      FROM repertoires
+      INNER JOIN dossier_acces ON repertoires.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
+
   documents_publics:
     auto_subscribe: true
     query: |
-      SELECT documents.id, documents.cabinet_id, documents.dossier_id, documents.nom, documents.visibilite, documents.cree_le::text AS cree_le
+      SELECT documents.id, documents.cabinet_id, documents.dossier_id, documents.repertoire_id, documents.nom, documents.visibilite, documents.revision, documents.cree_le::text AS cree_le
       FROM documents
       INNER JOIN dossiers ON documents.dossier_id = dossiers.id
       WHERE dossiers.visibilite = 'public' AND dossiers.cabinet_id::text = auth.parameter('cabinet_id')
@@ -68,7 +84,7 @@ streams:
   documents_restreints:
     auto_subscribe: true
     query: |
-      SELECT documents.id, documents.cabinet_id, documents.dossier_id, documents.nom, documents.visibilite, documents.cree_le::text AS cree_le
+      SELECT documents.id, documents.cabinet_id, documents.dossier_id, documents.repertoire_id, documents.nom, documents.visibilite, documents.revision, documents.cree_le::text AS cree_le
       FROM documents
       INNER JOIN dossier_acces ON documents.dossier_id = dossier_acces.dossier_id
       WHERE dossier_acces.utilisateur_texte = auth.user_id()
@@ -76,7 +92,7 @@ streams:
   document_versions_publics:
     auto_subscribe: true
     query: |
-      SELECT document_versions.id, document_versions.document_id, document_versions.cabinet_id, document_versions.dossier_id, document_versions.numero, document_versions.empreinte, document_versions.taille, document_versions.auteur_id, document_versions.visibilite, document_versions.cree_le::text AS cree_le
+      SELECT document_versions.id, document_versions.document_id, document_versions.cabinet_id, document_versions.dossier_id, document_versions.numero, document_versions.empreinte, document_versions.taille, document_versions.auteur_id, document_versions.visibilite, document_versions.texte, document_versions.parent_numero, document_versions.cree_le::text AS cree_le
       FROM document_versions
       INNER JOIN dossiers ON document_versions.dossier_id = dossiers.id
       WHERE dossiers.visibilite = 'public' AND dossiers.cabinet_id::text = auth.parameter('cabinet_id')
@@ -84,7 +100,7 @@ streams:
   document_versions_restreints:
     auto_subscribe: true
     query: |
-      SELECT document_versions.id, document_versions.document_id, document_versions.cabinet_id, document_versions.dossier_id, document_versions.numero, document_versions.empreinte, document_versions.taille, document_versions.auteur_id, document_versions.visibilite, document_versions.cree_le::text AS cree_le
+      SELECT document_versions.id, document_versions.document_id, document_versions.cabinet_id, document_versions.dossier_id, document_versions.numero, document_versions.empreinte, document_versions.taille, document_versions.auteur_id, document_versions.visibilite, document_versions.texte, document_versions.parent_numero, document_versions.cree_le::text AS cree_le
       FROM document_versions
       INNER JOIN dossier_acces ON document_versions.dossier_id = dossier_acces.dossier_id
       WHERE dossier_acces.utilisateur_texte = auth.user_id()

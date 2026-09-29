@@ -70,7 +70,13 @@ pub fn router(state: Arc<AppState>) -> Router {
             delete(intercalaires::detacher_element),
         )
         .route("/collaborateurs", post(collaborateurs::creer_collaborateur))
+        .route("/repertoires", post(documents::creer_repertoire))
+        .route(
+            "/repertoires/{repertoire_id}",
+            patch(documents::patch_repertoire),
+        )
         .route("/documents", post(documents::creer_document))
+        .route("/documents/{document_id}", patch(documents::patch_document))
         .route(
             "/documents/{document_id}/versions",
             post(documents::preparer_version),

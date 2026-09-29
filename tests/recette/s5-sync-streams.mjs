@@ -36,6 +36,8 @@ const fluxAttendus = [
   "dossiers_restreints",
   "parties_publics",
   "parties_restreints",
+  "repertoires_publics",
+  "repertoires_restreints",
   "documents_publics",
   "documents_restreints",
   "document_versions_publics",
@@ -136,6 +138,7 @@ if (!/\breference\b/.test(dossiersRestreints)) {
 
 for (const nom of [
   "parties_publics",
+  "repertoires_publics",
   "documents_publics",
   "document_versions_publics",
   "temps_publics",
@@ -155,6 +158,7 @@ for (const nom of [
 
 for (const nom of [
   "parties_restreints",
+  "repertoires_restreints",
   "documents_restreints",
   "document_versions_restreints",
   "temps_restreints",
@@ -170,7 +174,7 @@ for (const nom of [
   if (!/INNER JOIN dossier_acces/i.test(bloc)) fail(`${nom} : JOIN dossier_acces requis`);
   if (!/auth\.user_id\(\)/.test(bloc)) fail(`${nom} : auth.user_id() requis`);
   if (
-    /WHERE[\s\S]*\b(documents|document_versions|parties|temps_saisis|brouillons_facture|taux_horaires|intercalaires_personnalises|intercalaire_elements|dossier_liens|agenda_elements)\.visibilite\s*=/.test(
+    /WHERE[\s\S]*\b(documents|document_versions|repertoires|parties|temps_saisis|brouillons_facture|taux_horaires|intercalaires_personnalises|intercalaire_elements|dossier_liens|agenda_elements)\.visibilite\s*=/.test(
       bloc,
     )
   ) {
@@ -199,6 +203,7 @@ const schema = readFileSync(join(root, "apps/poste/src/sync/AppSchema.ts"), "utf
 for (const table of [
   "dossiers",
   "parties",
+  "repertoires",
   "documents",
   "document_versions",
   "temps_saisis",
@@ -232,7 +237,7 @@ const requetes = [...yaml.matchAll(/(?:^|\n)\s{4,}-\s*(SELECT[\s\S]*?)(?=\n\s{4}
   )
   .filter((q) => /\bSELECT\b/i.test(q));
 
-if (requetes.length < 23) fail(`requêtes Sync Streams insuffisantes (${requetes.length})`);
+if (requetes.length < 25) fail(`requêtes Sync Streams insuffisantes (${requetes.length})`);
 for (const sql of requetes) {
   const n = compterTables(sql);
   if (n > 2) fail(`requête > 2 tables (${n}) : ${sql.slice(0, 80).replace(/\s+/g, " ")}…`);
@@ -257,5 +262,5 @@ if (existsSync(join(root, "docs/sync-rules.md"))) {
 }
 
 console.log(
-  "s5-sync-streams: OK — flux Sync Streams (cabinet, journal ×3, dossiers, parties, documents, versions, temps, brouillons, taux, intercalaires, éléments)",
+  "s5-sync-streams: OK — flux Sync Streams (cabinet, journal ×3, dossiers, parties, repertoires, documents, versions, temps, brouillons, taux, intercalaires, éléments)",
 );

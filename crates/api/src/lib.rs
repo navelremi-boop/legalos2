@@ -10,6 +10,7 @@ pub mod pdf_facturx;
 pub mod plateforme;
 pub mod routes;
 pub mod state;
+pub mod texte_document;
 
 use std::sync::Arc;
 
