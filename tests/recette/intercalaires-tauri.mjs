@@ -378,7 +378,41 @@ async function login(send, email, password, secret, nomAppareil) {
         return Boolean(document.querySelector("[data-testid=barre-haut]"));
       })()`,
     );
-    if (deja) return;
+    if (deja) {
+      const nFile = await evaluate(
+        send,
+        `(async () => {
+          const rows = await window.__legalosRecette.lireSqlite("SELECT COUNT(*) AS n FROM ps_crud");
+          return Number(rows?.[0]?.n ?? 0);
+        })()`,
+      );
+      if (Number(nFile) === 0) return;
+      // Reprise : la coque est là, la file ne part que si l'on se reconnecte.
+      await evaluate(
+        send,
+        `(() => {
+          const compte = [...document.querySelectorAll("button")].find((b) =>
+            /^Compte$/i.test((b.textContent || "").trim()),
+          );
+          compte?.click();
+          return Boolean(compte);
+        })()`,
+      );
+      await sleep(400);
+      await evaluate(
+        send,
+        `(() => {
+          const reglages = [...document.querySelectorAll("button")].find((b) =>
+            /réglages|reglages/i.test(b.textContent || ""),
+          );
+          reglages?.click();
+          return Boolean(reglages);
+        })()`,
+      );
+      await sleep(400);
+      await evaluate(send, `document.querySelector("[data-testid=se-reconnecter]")?.click()`);
+      await sleep(500);
+    }
 
     ecran = await ecranAuth(send);
     if (ecran === "login" || ecran === "creds" || ecran === "totp") break;
@@ -534,18 +568,34 @@ async function ouvrirDossierListe(send, dossierId, nom) {
     send,
     `([...document.querySelectorAll("button")].find((b) => /^Dossiers$/u.test((b.textContent || "").trim())) || null)?.click()`,
   );
-  await sleep(500);
-  const clique = await evaluate(
-    send,
-    `(() => {
-      const boutons = [...document.querySelectorAll("[data-testid=liste-dossier]")];
-      const cible = boutons.find((b) => (b.textContent || "").includes(${JSON.stringify(nom)}));
-      if (!cible) return false;
-      cible.click();
-      return true;
-    })()`,
-  );
-  if (!clique) throw new Error(`ligne dossier absente (${nom})`);
+  await sleep(300);
+  await evaluate(send, `document.getElementById("ouvrir-palette")?.click()`);
+  const debutPalette = Date.now();
+  while (Date.now() - debutPalette < 10_000) {
+    if (await evaluate(send, `Boolean(document.getElementById("palette-recherche"))`)) break;
+    await evaluate(send, `document.getElementById("ouvrir-palette")?.click()`);
+    await sleep(200);
+  }
+  await setField(send, "palette-recherche", nom);
+  const debutListe = Date.now();
+  let clique = false;
+  while (Date.now() - debutListe < 20_000) {
+    clique = Boolean(
+      await evaluate(
+        send,
+        `(() => {
+          const boutons = [...document.querySelectorAll("[data-testid=palette-resultat]")];
+          const cible = boutons.find((b) => b.getAttribute("data-dossier-id") === ${JSON.stringify(dossierId)});
+          if (!cible) return false;
+          cible.click();
+          return true;
+        })()`,
+      ),
+    );
+    if (clique) break;
+    await sleep(300);
+  }
+  if (!clique) throw new Error(`dossier absent de la palette (${nom})`);
   const debut = Date.now();
   while (Date.now() - debut < 30_000) {
     const ouvert = await evaluate(
@@ -784,6 +834,26 @@ async function main() {
     const pieceAvant = await sqlServeur(`SELECT COUNT(*) FROM documents WHERE id = '${pieceId}'`);
     if (pieceAvant !== "1") fail("pièce absente avant retrait");
     ok("pièce rattachée ; document métier présent");
+    const debutPieceA = Date.now();
+    let pieceSurA = 0;
+    while (Date.now() - debutPieceA < 90_000) {
+      pieceSurA = Number(
+        await evaluate(
+          a.send,
+          `(async () => {
+            const r = await window.__legalosRecette.lireSqlite(
+              "SELECT COUNT(*) AS n FROM documents WHERE id = ?",
+              [${JSON.stringify(pieceId)}],
+            );
+            return Number(r?.[0]?.n ?? 0);
+          })()`,
+        ),
+      );
+      if (pieceSurA === 1) break;
+      await sleep(500);
+    }
+    if (pieceSurA !== 1) fail("pièce absente du poste qui l'a déposée");
+    ok("pièce présente sur le poste A");
 
     const b = await lancer("ib", "copie");
     await login(b.send, demoEmail, demoPassword, totpSecretB32, `Inter B ${marque}`);
@@ -808,52 +878,43 @@ async function main() {
     if (!vuB) fail("intercalaire absent du poste B");
     ok("table synchronisée sur le poste B");
 
-    // Conflit par champ (révision de base) : deux postes via l'API, signal dans l'app.
-    const jetonPosteA = await accessToken(api, {
-      email: demoEmail,
-      password: demoPassword,
-      totpSecret: totpSecretB32,
-      nomAppareil: `Inter conf A ${marque}`,
-    });
-    const jetonPosteB = await accessToken(api, {
-      email: demoEmail,
-      password: demoPassword,
-      totpSecret: totpSecretB32,
-      nomAppareil: `Inter conf B ${marque}`,
-    });
-    const revCourante = Number(
-      await sqlServeur(
-        `SELECT revision FROM intercalaires_personnalises WHERE id = '${intercalaireId}'`,
-      ),
+    // Conflit hors ligne, même chemin que les autres tables : file du poste, révision de base.
+    await evaluate(a.send, `window.__legalosRecette.disconnectSync()`);
+    await evaluate(b.send, `window.__legalosRecette.disconnectSync()`);
+    await sleep(400);
+    await evaluate(
+      a.send,
+      `window.__legalosRecette.patchChamp("intercalaires_personnalises", ${JSON.stringify(intercalaireId)}, "nom", ${JSON.stringify(`NomA-${marque}`)})`,
     );
-    const patchA = await fetch(`${api}/intercalaires/${intercalaireId}`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${jetonPosteA}`,
-        "Content-Type": "application/json",
-        "X-Poste-Id": `inter-conf-a-${marque}`,
-      },
-      body: JSON.stringify({
-        base_revision: revCourante,
-        idempotence_cle: `conf-a-${marque}`,
-        nom: `NomA-${marque}`,
-      }),
-    });
-    if (!patchA.ok) fail(`patch A conflit → ${patchA.status} ${await patchA.text()}`);
-    const patchB = await fetch(`${api}/intercalaires/${intercalaireId}`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${jetonPosteB}`,
-        "Content-Type": "application/json",
-        "X-Poste-Id": `inter-conf-b-${marque}`,
-      },
-      body: JSON.stringify({
-        base_revision: revCourante,
-        idempotence_cle: `conf-b-${marque}`,
-        nom: `NomB-${marque}`,
-      }),
-    });
-    if (!patchB.ok) fail(`patch B conflit → ${patchB.status} ${await patchB.text()}`);
+    await evaluate(
+      b.send,
+      `window.__legalosRecette.patchChamp("intercalaires_personnalises", ${JSON.stringify(intercalaireId)}, "nom", ${JSON.stringify(`NomB-${marque}`)})`,
+    );
+    for (const session of [a, b]) {
+      const nFile = await evaluate(
+        session.send,
+        `(async () => {
+          const rows = await window.__legalosRecette.lireSqlite("SELECT COUNT(*) AS n FROM ps_crud");
+          return Number(rows?.[0]?.n ?? 0);
+        })()`,
+      );
+      if (Number(nFile) < 1) fail("file du poste vide après écriture hors ligne");
+    }
+    ok("écritures hors ligne dans la file du poste");
+    // Un seul `tauri dev` à la fois (le serveur Vite). Chaque poste renvoie sa file à la reprise.
+    await arreter(b);
+    await arreter(a);
+    const a2 = await lancer("ia", "dev");
+    await login(a2.send, demoEmail, demoPassword, totpSecretB32, `Inter A2 ${marque}`);
+    await attendreSql(
+      `SELECT nom FROM intercalaires_personnalises WHERE id = '${intercalaireId}'`,
+      (v) => v === `NomA-${marque}` || v === `NomB-${marque}`,
+      90_000,
+    );
+    ok("premier envoi hors ligne arrivé au serveur");
+    await arreter(a2);
+    const b2 = await lancer("ib", "dev");
+    await login(b2.send, demoEmail, demoPassword, totpSecretB32, `Inter B2 ${marque}`);
 
     await attendreSql(
       `SELECT COUNT(*) FROM journal_modifications
@@ -861,38 +922,84 @@ async function main() {
          AND champ = 'nom' AND conflit
          AND enregistrement_id = '${intercalaireId}'`,
       (v) => Number(v) >= 1,
-      60_000,
+      90_000,
     );
     ok("conflit par champ journalisé");
+
+    // Le flux s'est ouvert avant l'écriture du conflit : une reprise télécharge le journal.
+    await evaluate(
+      b2.send,
+      `(() => {
+        const compte = [...document.querySelectorAll("button")].find((b) =>
+          /^Compte$/i.test((b.textContent || "").trim()),
+        );
+        compte?.click();
+        return Boolean(compte);
+      })()`,
+    );
+    await sleep(400);
+    await evaluate(
+      b2.send,
+      `(() => {
+        const reglages = [...document.querySelectorAll("button")].find((b) =>
+          /réglages|reglages/i.test(b.textContent || ""),
+        );
+        reglages?.click();
+        return Boolean(reglages);
+      })()`,
+    );
+    await sleep(400);
+    await evaluate(b2.send, `document.querySelector("[data-testid=se-reconnecter]")?.click()`);
+    const debutAuth = Date.now();
+    while (Date.now() - debutAuth < 15_000) {
+      const ecran = await ecranAuth(b2.send);
+      if (ecran === "login" || ecran === "creds" || ecran === "totp") break;
+      await sleep(200);
+    }
+    await login(b2.send, demoEmail, demoPassword, totpSecretB32, `Inter B3 ${marque}`);
 
     // Laisser PowerSync descendre le journal, puis ouvrir l'intercalaire.
     await sleep(6_000);
     const dejaSurDossier = await evaluate(
-      a.send,
+      b2.send,
       `document.querySelector("[data-testid=ecran-dossier]")?.getAttribute("data-dossier-id") === ${JSON.stringify(dossierId)}`,
     );
     if (!dejaSurDossier) {
-      await ouvrirDossierListe(a.send, dossierId, nomDossier);
+      await ouvrirDossierListe(b2.send, dossierId, nomDossier);
     }
     await evaluate(
-      a.send,
+      b2.send,
       `document.querySelector(${JSON.stringify(`[data-testid=intercalaire-perso-${intercalaireId}]`)})?.click()`,
     );
-    await sleep(1_500);
-    const signal = await evaluate(
-      a.send,
-      `Boolean(document.querySelector("[data-testid=intercalaire-conflit]"))`,
-    );
-    const nLocal = await evaluate(
-      a.send,
-      `window.__legalosRecette.compterJournalConflits("intercalaires_personnalises")`,
-    );
-    if (!signal) fail("conflit non signalé dans l'interface");
-    if (Number(nLocal) < 1) fail("conflit absent du journal local");
+    const debutSignal = Date.now();
+    let signal = false;
+    let nLocal = 0;
+    while (Date.now() - debutSignal < 45_000) {
+      await evaluate(
+        b2.send,
+        `document.querySelector(${JSON.stringify(`[data-testid=intercalaire-perso-${intercalaireId}]`)})?.click()`,
+      );
+      nLocal = Number(
+        await evaluate(
+          b2.send,
+          `window.__legalosRecette.compterJournalConflits("intercalaires_personnalises")`,
+        ),
+      );
+      signal = Boolean(
+        await evaluate(
+          b2.send,
+          `Boolean(document.querySelector("[data-testid=intercalaire-conflit]"))`,
+        ),
+      );
+      if (signal && nLocal >= 1) break;
+      await sleep(500);
+    }
+    if (!signal) fail(`conflit non signalé dans l'interface (journal local ${nLocal})`);
+    if (nLocal < 1) fail("conflit absent du journal local");
     ok("conflit signalé dans l'interface");
 
     const croix = await evaluate(
-      a.send,
+      b2.send,
       `(() => {
         const c = document.querySelector(${JSON.stringify(`[data-testid=intercalaire-retirer-${intercalaireId}]`)});
         if (!c) return false;
@@ -916,7 +1023,7 @@ async function main() {
 
     await sleep(8_000);
     const pieceChezB = await evaluate(
-      b.send,
+      b2.send,
       `(async () => {
         const r = await window.__legalosRecette.lireSqlite(
           "SELECT COUNT(*) AS n FROM documents WHERE id = ?",
@@ -927,7 +1034,7 @@ async function main() {
     );
     if (Number(pieceChezB) !== 1) fail("pièce absente du poste B après retrait");
     const interChezB = await evaluate(
-      b.send,
+      b2.send,
       `(async () => {
         const r = await window.__legalosRecette.lireSqlite(
           "SELECT COUNT(*) AS n FROM intercalaires_personnalises WHERE id = ?",
@@ -938,9 +1045,74 @@ async function main() {
     );
     if (Number(interChezB) !== 0) fail("intercalaire encore présent sur B après retrait");
     ok("poste B : pièce conservée, intercalaire retiré");
+    await arreter(b2);
 
-    await arreter(a);
-    await arreter(b);
+    const a3 = await lancer("ia", "dev");
+    await login(a3.send, demoEmail, demoPassword, totpSecretB32, `Inter A3 ${marque}`);
+    await evaluate(
+      a3.send,
+      `(() => {
+        const compte = [...document.querySelectorAll("button")].find((b) =>
+          /^Compte$/i.test((b.textContent || "").trim()),
+        );
+        compte?.click();
+        return Boolean(compte);
+      })()`,
+    );
+    await sleep(400);
+    await evaluate(
+      a3.send,
+      `(() => {
+        const reglages = [...document.querySelectorAll("button")].find((b) =>
+          /réglages|reglages/i.test(b.textContent || ""),
+        );
+        reglages?.click();
+        return Boolean(reglages);
+      })()`,
+    );
+    await sleep(400);
+    await evaluate(a3.send, `document.querySelector("[data-testid=se-reconnecter]")?.click()`);
+    const debutAuthA3 = Date.now();
+    while (Date.now() - debutAuthA3 < 15_000) {
+      const ecran = await ecranAuth(a3.send);
+      if (ecran === "login" || ecran === "creds" || ecran === "totp") break;
+      await sleep(200);
+    }
+    await login(a3.send, demoEmail, demoPassword, totpSecretB32, `Inter A3b ${marque}`);
+    const debutA3 = Date.now();
+    let pieceChezA = 0;
+    let interChezA = 1;
+    while (Date.now() - debutA3 < 150_000) {
+      pieceChezA = Number(
+        await evaluate(
+          a3.send,
+          `(async () => {
+            const r = await window.__legalosRecette.lireSqlite(
+              "SELECT COUNT(*) AS n FROM documents WHERE id = ?",
+              [${JSON.stringify(pieceId)}],
+            );
+            return Number(r?.[0]?.n ?? 0);
+          })()`,
+        ),
+      );
+      interChezA = Number(
+        await evaluate(
+          a3.send,
+          `(async () => {
+            const r = await window.__legalosRecette.lireSqlite(
+              "SELECT COUNT(*) AS n FROM intercalaires_personnalises WHERE id = ?",
+              [${JSON.stringify(intercalaireId)}],
+            );
+            return Number(r?.[0]?.n ?? 0);
+          })()`,
+        ),
+      );
+      if (pieceChezA === 1) break;
+      await sleep(500);
+    }
+    if (pieceChezA !== 1) fail("pièce absente de l'autre poste après retrait");
+    ok("autre poste : pièce conservée");
+    await arreter(a3);
 
     // ——— S5 : intercalaire d'un dossier restreint absent chez le collab non autorisé ———
     const idRestreint = randomUUID();

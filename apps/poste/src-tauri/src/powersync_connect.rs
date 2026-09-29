@@ -50,8 +50,8 @@ pub async fn connect_powersync<R: Runtime>(
     let ps = app.powersync();
     let database = ps.database_from_javascript_handle(handle)?;
     let session = Arc::new(Mutex::new(SessionSync {
-        instance_url,
-        access_token,
+        instance_url: instance_url.clone(),
+        access_token: access_token.clone(),
     }));
     let connector = CabinetConnector {
         db: database.clone(),
@@ -70,9 +70,24 @@ pub async fn connect_powersync<R: Runtime>(
             eprintln!("file crud: {n}");
         }
     }
+    // Le SDK ne vide pas la file au redémarrage. L'envoi manuel doit aussi
+    // retirer `ps_updated_rows`, sinon le journal téléchargé ne s'applique pas.
     if let Err(err) = connector.upload_data().await {
         eprintln!("upload file: {err}");
     }
+    // Le téléchargement ne réapplique pas un checkpoint tant que l'acteur d'envoi
+    // n'a pas signalé la fin. L'envoi manuel ne le fait pas : on reconnecte pour
+    // que l'acteur voie une file vide et débloque le journal.
+    database.disconnect().await;
+    database
+        .connect(SyncOptions::new(CabinetConnector {
+            db: database.clone(),
+            session: Arc::new(Mutex::new(SessionSync {
+                instance_url,
+                access_token,
+            })),
+        }))
+        .await;
     Ok(())
 }
 
@@ -99,10 +114,11 @@ impl BackendConnector for CabinetConnector {
         let mut transactions = self.db.crud_transactions();
         while let Some(mut tx) = transactions.try_next().await? {
             let crud = std::mem::take(&mut tx.crud);
-            for entry in crud {
+            for entry in &crud {
                 // Un refus (400/403/404/409, table inconnue, DELETE) est consigné et la file avance.
                 // Seules les erreurs transitoires (réseau, 5xx) bloquent pour réessai.
-                traiter_entree(&self.session, &self.db, &entry).await?;
+                traiter_entree(&self.session, &self.db, entry).await?;
+                oublier_maj_locale(&self.db, &entry.id).await?;
             }
             tx.complete().await?;
         }
@@ -502,6 +518,17 @@ fn message_refus(corps: &str, status: StatusCode) -> String {
         return brut.chars().take(400).collect();
     }
     format!("Modification refusée ({status}).")
+}
+
+/// Lève le marquage local après un envoi réussi, pour que le point de contrôle s'applique.
+async fn oublier_maj_locale(db: &PowerSyncDatabase, id: &str) -> Result<(), PowerSyncError> {
+    let conn = db.writer().await?;
+    conn.execute(
+        "DELETE FROM ps_updated_rows WHERE row_id = ?1",
+        rusqlite::params![id],
+    )
+    .map_err(|err| upload_err(format!("oubli maj locale : {err}")))?;
+    Ok(())
 }
 
 async fn consign_refus(

@@ -6,7 +6,7 @@
  */
 import { createHash, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +14,13 @@ import { demoAccessToken, demoEmail, demoPassword, totpNow } from "./lib/demo-au
 
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "../..");
 const poste = join(root, "apps/poste");
+
+function racineInstance() {
+  if (existsSync(join(root, ".env"))) return root;
+  const principal = join(root, "..", "..");
+  if (existsSync(join(principal, ".env"))) return principal;
+  return root;
+}
 const instanceUrl = process.env.LEGALOS_INSTANCE_URL ?? "http://127.0.0.1:8088";
 const api = `${instanceUrl}/api`;
 const marque = String(Date.now()).slice(-6);
@@ -271,7 +278,7 @@ function sqlServeur(requete) {
         "-tAc",
         requete,
       ],
-      { cwd: root, stdio: ["ignore", "pipe", "pipe"] },
+      { cwd: racineInstance(), stdio: ["ignore", "pipe", "pipe"] },
     );
     let out = "";
     child.stdout.on("data", (chunk) => {
@@ -290,7 +297,7 @@ function compose(args) {
     const child = spawn(
       "docker",
       ["compose", "-f", "instance/docker-compose.yml", "--env-file", ".env", ...args],
-      { cwd: root, stdio: "ignore" },
+      { cwd: racineInstance(), stdio: "ignore" },
     );
     child.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`compose ${args[0]}`))));
   });
@@ -298,7 +305,15 @@ function compose(args) {
 
 /** Référence affichée par la palette pour un dossier (relance la requête en alternant la saisie). */
 async function referencePalette(send, rg, dossierId, bascule) {
-  const ouverte = await evaluate(send, `Boolean(document.getElementById("palette-recherche"))`);
+  let ouverte = await evaluate(send, `Boolean(document.getElementById("palette-recherche"))`);
+  if (!ouverte && !(await evaluate(send, `Boolean(document.getElementById("ouvrir-palette"))`))) {
+    await evaluate(
+      send,
+      `([...document.querySelectorAll("button")].find((b) => /^Dossiers$/u.test((b.textContent || "").trim())) || null)?.click()`,
+    );
+    await sleep(400);
+  }
+  ouverte = await evaluate(send, `Boolean(document.getElementById("palette-recherche"))`);
   if (!ouverte) {
     await evaluate(send, `document.getElementById("ouvrir-palette")?.click()`);
     await sleep(300);
@@ -419,6 +434,7 @@ async function peuplerDossierRestreint(jeton, dossierId) {
 }
 
 async function creerDossier(send, { nom, rg, restreint, precedent = "" }) {
+  await ouvrirFormulaireDossier(send);
   await setField(send, "dossier-nom", nom);
   await setField(send, "dossier-juridiction", "TJ de Lyon");
   await setField(send, "dossier-rg", rg);
@@ -432,10 +448,17 @@ async function creerDossier(send, { nom, rg, restreint, precedent = "" }) {
   );
   await evaluate(send, `document.getElementById("dossier-nom")?.closest("form")?.requestSubmit()`);
   const debut = Date.now();
-  while (Date.now() - debut < 20_000) {
+  while (Date.now() - debut < 45_000) {
     const cree = await evaluate(send, `document.querySelector("[data-testid=dossier-cree]")?.textContent ?? ""`);
     const texte = String(cree).trim();
     if (/[0-9a-f-]{36}/i.test(texte) && texte !== precedent) return texte;
+    const ouvert = String(
+      await evaluate(
+        send,
+        `document.querySelector("[data-testid=ecran-dossier]")?.getAttribute("data-dossier-id") ?? ""`,
+      ) ?? "",
+    ).trim();
+    if (/^[0-9a-f-]{36}$/i.test(ouvert) && ouvert !== precedent) return ouvert;
     await sleep(200);
   }
   const texte = await evaluate(
@@ -472,6 +495,11 @@ try {
     rg: rgPublic,
     restreint: false,
   });
+  await evaluate(
+    send,
+    `([...document.querySelectorAll("button")].find((b) => /^Dossiers$/u.test((b.textContent || "").trim())) || null)?.click()`,
+  );
+  await sleep(400);
   await evaluate(send, `document.getElementById("ouvrir-palette")?.click()`);
   await setField(send, "palette-recherche", rgPublic);
   const debutPalette = Date.now();
