@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-29 (jalon en cours : **Agenda**).
+Dernière mise à jour : 2026-09-29 (jalon en cours : **Documents, suite**).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -128,20 +128,7 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
 
 - [x] **Dossiers et contacts complets** — VALIDÉ `3482a36` (contrôleur, CI [36572546272](https://github.com/navelremi-boop/legalos2/actions/runs/36572546272))
 
-- [ ] **Agenda** — § 4.2 n° 4, ce que J6 n'a pas livré — critères validés par l'architecte le 29/09/2026
-  - **Critères d'acceptation (commandes)** :
-    - `node tests/recette/agenda-tauri.mjs` → exit 0 (app Tauri, deux postes) :
-      - audiences, rendez-vous et tâches rattachés à un dossier, avec rappels ;
-      - une notification Tauri est émise pour un rappel échu ;
-      - un rappel échu pendant que l'app était fermée ou le poste hors ligne est notifié au lancement suivant ;
-      - une échéance calculée par le moteur de délais s'inscrit à l'agenda ;
-      - une échéance issue du moteur garde le lien vers son calcul : si la date de départ change, l'échéance est recalculée ou signalée, jamais laissée périmée en silence ;
-      - supprimer une échéance issue du moteur exige une confirmation et laisse une trace consultable (qui, quand) ;
-      - conflits par champ sur les tables d'agenda (révision de base, journal, signal dans l'app), comme les autres tables ;
-      - les invitations reçues par mail restent au jalon J11.
-    - `node tests/recette/agenda-fuseau.mjs` → exit 0 : heures stockées avec le fuseau Europe/Paris ; un rendez-vous fixé à 9 h 30 le 27/10/2026 reste à 9 h 30 après le passage à l'heure d'hiver du 25/10 ; essai négatif (un instant naïf ou un décalage d'été ne vaut pas cette heure-là).
-    - `node tests/recette/s5-sync-streams.mjs` → exit 0 : un élément d'agenda d'un dossier restreint est absent du SQLite du poste non autorisé.
-    - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+- [x] **Agenda** — VALIDÉ `57fd4dc` (contrôleur sur `635714e`, CI [36586753618](https://github.com/navelremi-boop/legalos2/actions/runs/36586753618))
 
 - [ ] **Documents, suite** — § 4.2 n° 6, ce que J7 n'a pas livré — critères validés par l'architecte le 29/09/2026
   - **Critères d'acceptation (commandes)** :
