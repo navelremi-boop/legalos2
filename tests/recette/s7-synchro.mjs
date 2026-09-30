@@ -2,7 +2,7 @@
 /**
  * S7 / J9 étape 3 — boîte nominative contre GreenMail.
  * Relève incrémentale, IDLE, resynchronisation si l'UIDVALIDITY change,
- * lu / déplacement / suppression / drapeau, HTML nettoyé, recherche.
+ * HTML nettoyé, recherche, 50 000 messages (QRESYNC et repli).
  */
 import { createConnection } from "node:net";
 import { randomUUID } from "node:crypto";
@@ -235,7 +235,61 @@ async function main() {
   );
   if (!encore.texte.includes(mot)) fail("resynchronisation a perdu le message");
 
-  console.log(`s7-synchro: OK chemin=${premiere.chemin} idle=${notif.chemin}`);
+  const composeVolume = join(root, "instance/imap-test/docker-compose.yml");
+  const up = spawnSync(
+    "docker",
+    ["compose", "-f", composeVolume, "up", "-d", "dovecot"],
+    { encoding: "utf8" },
+  );
+  if (up.status !== 0) fail(`dovecot ${up.stderr?.slice(0, 200) ?? up.status}`);
+  const gen = spawnSync(
+    "docker",
+    [
+      "cp",
+      join(root, "tests/recette/generer-volume.pl"),
+      "legalos-imap-test-dovecot-1:/tmp/generer-volume.pl",
+    ],
+    { encoding: "utf8" },
+  );
+  if (gen.status !== 0) fail("copie du générateur");
+  const perl = spawnSync(
+    "docker",
+    ["exec", "legalos-imap-test-dovecot-1", "perl", "/tmp/generer-volume.pl"],
+    { encoding: "utf8" },
+  );
+  if (perl.status !== 0) fail(perl.stderr?.slice(0, 200) || "générateur");
+  spawnSync("docker", [
+    "exec",
+    "legalos-imap-test-dovecot-1",
+    "chown",
+    "-R",
+    "dovecot:dovecot",
+    "/tmp/mail/capa",
+  ]);
+  const mesure = spawnSync(
+    "cargo",
+    [
+      "test",
+      "-p",
+      "legalos-messagerie",
+      "--test",
+      "volume_50k",
+      "--",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1",
+    ],
+    { cwd: root, encoding: "utf8" },
+  );
+  const sortie = `${mesure.stdout}\n${mesure.stderr}`;
+  const ligne = sortie.match(/volume messages=(\d+) repli_ms=(\d+) qresync_ms=(\d+)/);
+  if (mesure.status !== 0 || !ligne) {
+    fail(`volume 50 000 ${sortie.slice(-400)}`);
+  }
+  if (Number(ligne[1]) < 50_000) fail(`volume ${ligne[1]} messages`);
+  console.log(
+    `s7-synchro: OK chemin=${premiere.chemin} idle=${notif.chemin} volume=${ligne[1]} repli_ms=${ligne[2]} qresync_ms=${ligne[3]}`,
+  );
 }
 
 main().catch((err) => {

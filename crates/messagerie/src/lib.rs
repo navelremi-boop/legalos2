@@ -15,9 +15,7 @@ pub use classement::{
     decider, integrer_releve, DecisionClassement, DossierPourClassement, EntreeClassement,
     MessageReleve, ReleveConnue,
 };
-pub use file_envoi::{
-    appliquer, decider_action, ActionEnvoi, EntreeFileEnvoi, EtatFileEnvoi,
-};
+pub use file_envoi::{appliquer, decider_action, ActionEnvoi, EntreeFileEnvoi, EtatFileEnvoi};
 pub use html::{nettoyer_html, texte_depuis_html};
 pub use imap::{CorpsLu, EnteteRecu};
 pub use smtp::{envoyer_message_fixe, octets_rfc822, ParametresSmtp};
@@ -99,16 +97,16 @@ impl SessionActions {
         self.interne.appender(dossier, octets)
     }
 
-    pub fn lire_corps(
-        &mut self,
-        dossier: &str,
-        uid: u32,
-    ) -> Result<imap::CorpsLu, ErreurMail> {
+    pub fn lire_corps(&mut self, dossier: &str, uid: u32) -> Result<imap::CorpsLu, ErreurMail> {
         self.interne.lire_corps(dossier, uid)
     }
 
     pub fn lire_lu(&mut self, dossier: &str, uid: u32) -> Result<bool, ErreurMail> {
         self.interne.lire_lu(dossier, uid)
+    }
+
+    pub fn compter_entetes(&mut self, qresync: bool) -> Result<usize, ErreurMail> {
+        self.interne.compter_entetes(qresync)
     }
 }
 

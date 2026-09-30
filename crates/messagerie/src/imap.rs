@@ -159,6 +159,61 @@ impl Session {
         Ok(())
     }
 
+    /// Compte les en-têtes par paquets. `qresync` active QRESYNC et `CHANGEDSINCE 1`.
+    /// Le repli n'utilise aucun modificateur : comparaison de tous les UID.
+    pub fn compter_entetes(&mut self, qresync: bool) -> Result<usize, ErreurMail> {
+        if qresync {
+            let atome = io_imap::types::core::Atom::try_from("QRESYNC".to_owned())
+                .map_err(|_| ErreurMail::Protocole)?;
+            let capacites = Vec1::try_from(vec![
+                io_imap::types::extensions::enable::CapabilityEnable::from(atome),
+            ])
+            .map_err(|_| ErreurMail::Protocole)?;
+            self.client
+                .enable(capacites)
+                .map_err(|_| ErreurMail::Protocole)?;
+        }
+        self.selectionner("INBOX")?;
+        let criteres = Vec1::try_from(vec![SearchKey::All]).map_err(|_| ErreurMail::Protocole)?;
+        let mut uids = self
+            .client
+            .search(criteres, ImapMessageSearchOptions { uid: true })
+            .map_err(|_| ErreurMail::Protocole)?;
+        uids.sort_unstable();
+        let mut total = 0usize;
+        let mut indice = 0usize;
+        while indice < uids.len() {
+            let fin = (indice + 999).min(uids.len() - 1);
+            let jeu: SequenceSet = format!("{}:{}", uids[indice].get(), uids[fin].get())
+                .parse()
+                .map_err(|_| ErreurMail::Protocole)?;
+            let modifiers = if qresync {
+                vec![io_imap::types::command::FetchModifier::ChangedSince(
+                    core::num::NonZeroU64::MIN,
+                )]
+            } else {
+                Vec::new()
+            };
+            let fetched = self
+                .client
+                .fetch(
+                    jeu,
+                    MacroOrMessageDataItemNames::MessageDataItemNames(vec![
+                        MessageDataItemName::Uid,
+                        MessageDataItemName::Rfc822Header,
+                    ]),
+                    ImapMessageFetchOptions {
+                        uid: true,
+                        modifiers,
+                    },
+                )
+                .map_err(|_| ErreurMail::Protocole)?;
+            total += fetched.len();
+            indice = fin + 1;
+        }
+        Ok(total)
+    }
+
     /// Relève les en-têtes (UID FETCH RFC822.HEADER + `mail-parser`) des messages
     /// d'UID strictement supérieur à `apres_uid`. `limite` coupe la relève pour
     /// simuler une interruption. ENVELOPE est évité : GreenMail y casse les sujets
@@ -266,9 +321,9 @@ impl Session {
                 match item {
                     MessageDataItem::Rfc822(valeur) => octets = Some(nstring_octets(&valeur)),
                     MessageDataItem::Flags(drapeaux) => {
-                        lu = drapeaux
-                            .iter()
-                            .any(|d| matches!(d, io_imap::types::flag::FlagFetch::Flag(Flag::Seen)));
+                        lu = drapeaux.iter().any(|d| {
+                            matches!(d, io_imap::types::flag::FlagFetch::Flag(Flag::Seen))
+                        });
                     }
                     _ => {}
                 }
@@ -380,9 +435,9 @@ impl Session {
             },
         ];
         for variante in &variantes {
-            let champ = AString::try_from("Message-ID".to_owned()).map_err(|_| ErreurMail::Protocole)?;
-            let valeur =
-                AString::try_from(variante.clone()).map_err(|_| ErreurMail::Protocole)?;
+            let champ =
+                AString::try_from("Message-ID".to_owned()).map_err(|_| ErreurMail::Protocole)?;
+            let valeur = AString::try_from(variante.clone()).map_err(|_| ErreurMail::Protocole)?;
             let criteres = Vec1::try_from(vec![SearchKey::Header(champ, valeur)])
                 .map_err(|_| ErreurMail::Protocole)?;
             let uids = self

@@ -31,7 +31,9 @@ Branche `lot/j9`, worktree `.worktrees/j9`. `PLAN.md` non modifié.
 
 **Étape 2** commit `f9f6fd1` : file d'envoi § 3.8.3 (`lettre`, APPEND Sent, Message-ID unique, coupure après SMTP). Preuve : `node tests/recette/s7-envoi.mjs` → exit 0 (~2,3 s).
 
-**Reste** : étape 3 (`s7-synchro`, 50 000 messages, ammonia, FTS), `s7-poste-tauri`, clippy, contrôleur, CI.
+**Reste** : `s7-poste-tauri` (S5 SQLite, compte nominatif, aucun identifiant sur le poste), clippy workspace, contrôleur, CI.
+
+**Étape 3** : `node tests/recette/s7-synchro.mjs` → exit 0. Dovecot, 50 000 messages : repli par comparaison **5720 ms**, chemin QRESYNC **1100 ms** (`volume messages=50000`).
 
 ## 2026-09-30 — Groupes d'accès et annuaire contacts
 
