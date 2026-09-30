@@ -61,6 +61,7 @@ const fluxAttendus = [
   "agenda_restreints",
   "messages_publics",
   "messages_restreints",
+  "comptes_nominatifs",
 ];
 
 /** Extrait le bloc YAML d'un flux nommé (clés de flux : exactement 2 espaces). */
@@ -234,6 +235,17 @@ if (/\bdossier_id\b/.test(contactsCabinet)) {
 if (!/\bnom\b/.test(contactsCabinet) || !/\bsiren\b/.test(contactsCabinet)) {
   fail("contacts_cabinet : nom et SIREN requis (annuaire commun)");
 }
+if (/secret_ref|mot_de_passe|imap_password/i.test(yaml)) {
+  fail("sync-config : identifiant de messagerie exposé");
+}
+const comptes = blocFlux("comptes_nominatifs");
+if (!/type_compte\s*=\s*'nominatif'/.test(comptes)) {
+  fail("comptes_nominatifs : type nominatif requis");
+}
+if (!/titulaire_id::text\s*=\s*auth\.user_id\(\)/.test(comptes)) {
+  fail("comptes_nominatifs : titulaire = auth.user_id() requis");
+}
+if (/secret_ref/.test(comptes)) fail("comptes_nominatifs : secret_ref interdit");
 
 const schema = readFileSync(join(root, "apps/poste/src/sync/AppSchema.ts"), "utf8");
 for (const table of [
@@ -250,6 +262,8 @@ for (const table of [
   "contacts",
   "dossier_liens",
   "agenda_elements",
+  "messages",
+  "comptes_mail",
 ]) {
   if (!new RegExp(`\\b${table}\\b`).test(schema)) fail(`AppSchema : table ${table} absente`);
 }

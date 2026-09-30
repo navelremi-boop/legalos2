@@ -31,13 +31,15 @@ Branche `lot/j9`, worktree `.worktrees/j9`. `PLAN.md` non modifié.
 
 **Étape 2** commit `f9f6fd1` : file d'envoi § 3.8.3 (`lettre`, APPEND Sent, Message-ID unique, coupure après SMTP). Preuve : `node tests/recette/s7-envoi.mjs` → exit 0 (~2,3 s).
 
-**Reste** : `s7-poste-tauri` (S5 SQLite, compte nominatif, aucun identifiant sur le poste), clippy workspace, contrôleur, CI.
+**Reste** : clippy workspace, contrôleur, CI.
 
 **Étape 3** : `node tests/recette/s7-synchro.mjs` → exit 0. Dovecot, 50 000 messages : repli par comparaison **5720 ms**, chemin QRESYNC **1100 ms** (`volume messages=50000`).
 
+**Poste** : `node tests/recette/s7-poste-tauri.mjs` → exit 0 (~377 s). Le titulaire voit le mail du dossier restreint et son compte nominatif. Le collaborateur non autorisé n'a ni ce mail, ni le compte d'autrui. Aucune colonne `secret_ref` dans le SQLite.
+
 ## 2026-09-30 — Groupes d'accès et annuaire contacts
 
-Consigne architecte, validée par le commandement. PowerSync plafonne à 1 000 buckets (PSYNC_S2305). Les flux restreints ne joignent plus `dossier_acces` : un groupe est l'ensemble exact des utilisateurs autorisés, partagé par les dossiers identiques, et les filles portent `groupe_acces` tenu par déclencheur. Les flux publics de `journal_modifications` et `intercalaire_elements` filtrent `visibilite` et `cabinet_id` sans jointure. Aucune autre table du J9 que `messages` n'entre dans `sync-config.yaml` avant le contrôleur.
+Consigne architecte, validée par le commandement. PowerSync plafonne à 1 000 buckets (PSYNC_S2305). Les flux restreints ne joignent plus `dossier_acces` : un groupe est l'ensemble exact des utilisateurs autorisés, partagé par les dossiers identiques, et les filles portent `groupe_acces` tenu par déclencheur. Les flux publics de `journal_modifications` et `intercalaire_elements` filtrent `visibilite` et `cabinet_id` sans jointure. Aucune table de contenu de message ni la file d'envoi n'entre dans `sync-config.yaml`. Le compte nominatif y est, sans `secret_ref`, filtré par titulaire (un bucket par titulaire, pas par dossier).
 
 **Contacts** : annuaire commun à tout le cabinet, y compris un contact créé depuis un dossier restreint. Risque accepté : le nom et le SIREN sont visibles de tous les collaborateurs, sans lien vers le dossier. L'historique (liste des dossiers, table `parties`) reste filtré par le groupe d'accès. `s5-sync-streams.mjs` vérifie que l'annuaire n'expose pas `dossier_id` et que `parties_restreints` passe par le groupe.
 

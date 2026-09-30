@@ -277,7 +277,18 @@ const agendaElements = new Table(
   { indexes: { dossier: ["dossier_id"], debut: ["debut"] } },
 );
 
-/** Mails classés / à classer (étape 1) — chrono du dossier ; pas d'identifiants IMAP. */
+/** Compte nominatif du titulaire. Pas de secret IMAP. */
+const comptesMail = new Table(
+  {
+    cabinet_id: column.text,
+    type_compte: column.text,
+    titulaire_id: column.text,
+    adresse: column.text,
+    revision: column.integer,
+    cree_le: column.text,
+  },
+  { indexes: { titulaire: ["titulaire_id"] } },
+);
 const messages = new Table(
   {
     cabinet_id: column.text,
@@ -315,6 +326,7 @@ export const AppSchema = new Schema({
   dossier_liens: dossierLiens,
   agenda_elements: agendaElements,
   messages,
+  comptes_mail: comptesMail,
 });
 
 export type Database = (typeof AppSchema)["types"];

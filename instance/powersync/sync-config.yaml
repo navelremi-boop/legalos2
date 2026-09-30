@@ -243,3 +243,12 @@ streams:
       FROM messages
       INNER JOIN groupe_acces_membres ON messages.groupe_acces = groupe_acces_membres.groupe_id
       WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
+
+  comptes_nominatifs:
+    auto_subscribe: true
+    query: |
+      SELECT id, cabinet_id, type_compte, titulaire_id, adresse, revision, cree_le::text AS cree_le
+      FROM comptes_mail
+      WHERE type_compte = 'nominatif'
+        AND titulaire_id::text = auth.user_id()
+        AND cabinet_id::text = auth.parameter('cabinet_id')
