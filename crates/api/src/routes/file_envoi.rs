@@ -58,13 +58,14 @@ pub async fn creer_envoi(
     if !dossier_visible(&state, claims.cabinet_id, claims.sub, body.dossier_id).await? {
         return Err(ApiError::not_found("Dossier introuvable"));
     }
-    let parametres = state.messagerie.as_ref().ok_or_else(|| {
-        ApiError::bad_request("Messagerie non configurée")
-    })?;
+    let parametres = state
+        .messagerie
+        .as_ref()
+        .ok_or_else(|| ApiError::bad_request("Messagerie non configurée"))?;
     let compte_id = assurer_compte_classement(&state.pool, claims.cabinet_id, parametres).await?;
-    let message_id = body.message_id.unwrap_or_else(|| {
-        format!("<envoi-{}@cabinet.example>", Uuid::now_v7())
-    });
+    let message_id = body
+        .message_id
+        .unwrap_or_else(|| format!("<envoi-{}@cabinet.example>", Uuid::now_v7()));
     let message_id = if message_id.starts_with('<') {
         message_id
     } else {
@@ -131,7 +132,9 @@ pub async fn annuler_envoi(
 ) -> Result<Json<FileEnvoiResponse>, ApiError> {
     let entree = charger_entree(&state, claims.cabinet_id, id).await?;
     if entree.etat != EtatFileEnvoi::EnAttente {
-        return Err(ApiError::bad_request("Seul un envoi en attente est annulable"));
+        return Err(ApiError::bad_request(
+            "Seul un envoi en attente est annulable",
+        ));
     }
     sqlx::query(
         r#"
@@ -153,12 +156,14 @@ pub async fn traiter_envoi(
     Path(id): Path<Uuid>,
     Query(query): Query<TraiterQuery>,
 ) -> Result<Json<FileEnvoiResponse>, ApiError> {
-    let smtp = state.messagerie_smtp.as_ref().ok_or_else(|| {
-        ApiError::bad_request("SMTP de messagerie non configuré")
-    })?;
-    let imap = state.messagerie.as_ref().ok_or_else(|| {
-        ApiError::bad_request("IMAP de messagerie non configuré")
-    })?;
+    let smtp = state
+        .messagerie_smtp
+        .as_ref()
+        .ok_or_else(|| ApiError::bad_request("SMTP de messagerie non configuré"))?;
+    let imap = state
+        .messagerie
+        .as_ref()
+        .ok_or_else(|| ApiError::bad_request("IMAP de messagerie non configuré"))?;
     let (couper_smtp, forcer_echec) = match query.couper_apres.as_deref() {
         Some(v) if v.eq_ignore_ascii_case("smtp") => (true, false),
         Some(v) if v.eq_ignore_ascii_case("echec") => (false, true),
@@ -382,9 +387,10 @@ async fn classer_copie(
     .fetch_one(&state.pool)
     .await
     .map_err(|_| ApiError::internal("Visibilité dossier"))?;
-    let parametres = state.messagerie.as_ref().ok_or_else(|| {
-        ApiError::bad_request("IMAP non configuré")
-    })?;
+    let parametres = state
+        .messagerie
+        .as_ref()
+        .ok_or_else(|| ApiError::bad_request("IMAP non configuré"))?;
     let smtp = state.messagerie_smtp.as_ref();
     let expediteur = smtp
         .map(|s| s.adresse_from.clone())

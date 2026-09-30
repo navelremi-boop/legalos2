@@ -157,13 +157,7 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/messagerie/nominatif/drapeau",
             post(synchro::poser_drapeau),
         )
-        .route(
-            "/messagerie/nominatif/recherche",
-            get(synchro::rechercher),
-        )
-        .route(
-            "/messagerie/nominatif/contenu",
-            get(synchro::lire_contenu),
-        )
+        .route("/messagerie/nominatif/recherche", get(synchro::rechercher))
+        .route("/messagerie/nominatif/contenu", get(synchro::lire_contenu))
         .with_state(state)
 }

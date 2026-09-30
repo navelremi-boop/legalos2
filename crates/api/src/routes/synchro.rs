@@ -81,7 +81,8 @@ pub async fn relever_nominatif(
         .as_ref()
         .ok_or_else(|| ApiError::bad_request("Messagerie non configurée"))?;
     let compte = assurer_compte_classement(&state.pool, claims.cabinet_id, imap).await?;
-    let mut session = SessionActions::connecter(imap).map_err(|_| ApiError::internal("Connexion IMAP"))?;
+    let mut session =
+        SessionActions::connecter(imap).map_err(|_| ApiError::internal("Connexion IMAP"))?;
     let caps = session
         .capacites()
         .map_err(|_| ApiError::internal("Capacités IMAP"))?;
@@ -104,11 +105,7 @@ pub async fn relever_nominatif(
         }
     };
     let (_, entetes) = session
-        .relever_entetes(
-            "INBOX",
-            apres.filter(|uid| *uid > 0),
-            None,
-        )
+        .relever_entetes("INBOX", apres.filter(|uid| *uid > 0), None)
         .map_err(|_| ApiError::internal("Relève IMAP"))?;
     let mut ajoutes = 0usize;
     let mut max_uid = 0u32;
@@ -207,7 +204,8 @@ pub async fn marquer_lu(
         .messagerie
         .as_ref()
         .ok_or_else(|| ApiError::bad_request("Messagerie non configurée"))?;
-    let mut session = SessionActions::connecter(imap).map_err(|_| ApiError::internal("Connexion IMAP"))?;
+    let mut session =
+        SessionActions::connecter(imap).map_err(|_| ApiError::internal("Connexion IMAP"))?;
     match session.marquer_lu("INBOX", corps.uid, lu) {
         Ok(()) => {
             let _ = sqlx::query(
@@ -243,7 +241,8 @@ pub async fn deplacer_message(
         .messagerie
         .as_ref()
         .ok_or_else(|| ApiError::bad_request("Messagerie non configurée"))?;
-    let mut session = SessionActions::connecter(imap).map_err(|_| ApiError::internal("Connexion IMAP"))?;
+    let mut session =
+        SessionActions::connecter(imap).map_err(|_| ApiError::internal("Connexion IMAP"))?;
     match session.deplacer("INBOX", corps.uid, &destination) {
         Ok(()) => {
             let _ = sqlx::query(
@@ -275,7 +274,8 @@ pub async fn supprimer_message(
         .messagerie
         .as_ref()
         .ok_or_else(|| ApiError::bad_request("Messagerie non configurée"))?;
-    let mut session = SessionActions::connecter(imap).map_err(|_| ApiError::internal("Connexion IMAP"))?;
+    let mut session =
+        SessionActions::connecter(imap).map_err(|_| ApiError::internal("Connexion IMAP"))?;
     match session.supprimer("INBOX", corps.uid) {
         Ok(()) => {
             let _ = sqlx::query("DELETE FROM messages WHERE cabinet_id = $1 AND uid = $2 AND dossier_imap = 'INBOX'")
@@ -308,7 +308,8 @@ pub async fn poser_drapeau(
         .messagerie
         .as_ref()
         .ok_or_else(|| ApiError::bad_request("Messagerie non configurée"))?;
-    let mut session = SessionActions::connecter(imap).map_err(|_| ApiError::internal("Connexion IMAP"))?;
+    let mut session =
+        SessionActions::connecter(imap).map_err(|_| ApiError::internal("Connexion IMAP"))?;
     match session.poser_drapeau("INBOX", corps.uid, &drapeau) {
         Ok(()) => Ok(Json(ActionNominatif {
             applique: true,

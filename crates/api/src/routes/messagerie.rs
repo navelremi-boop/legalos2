@@ -140,7 +140,18 @@ pub async fn lister_messages(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
 ) -> Result<Json<Vec<MessageResponse>>, ApiError> {
-    let rows = sqlx::query_as::<_, (Uuid, Option<Uuid>, String, Option<Uuid>, String, String, String)>(
+    let rows = sqlx::query_as::<
+        _,
+        (
+            Uuid,
+            Option<Uuid>,
+            String,
+            Option<Uuid>,
+            String,
+            String,
+            String,
+        ),
+    >(
         r#"
         SELECT id, dossier_id, etat_classement, suggestion_dossier_id, objet, expediteur, message_id
         FROM messages
@@ -349,13 +360,12 @@ async fn charger_releve(pool: &PgPool, compte_id: Uuid) -> Result<ReleveConnue, 
     .await
     .map_err(|_| ApiError::internal("Lecture curseur relève"))?;
 
-    let identifiants = sqlx::query_scalar::<_, String>(
-        r#"SELECT message_id FROM messages WHERE compte_id = $1"#,
-    )
-    .bind(compte_id)
-    .fetch_all(pool)
-    .await
-    .map_err(|_| ApiError::internal("Lecture identifiants relève"))?;
+    let identifiants =
+        sqlx::query_scalar::<_, String>(r#"SELECT message_id FROM messages WHERE compte_id = $1"#)
+            .bind(compte_id)
+            .fetch_all(pool)
+            .await
+            .map_err(|_| ApiError::internal("Lecture identifiants relève"))?;
 
     let (uid_validity, dernier_uid) = row.unwrap_or((0, 0));
     Ok(ReleveConnue {
@@ -365,7 +375,11 @@ async fn charger_releve(pool: &PgPool, compte_id: Uuid) -> Result<ReleveConnue, 
     })
 }
 
-async fn sauver_releve(pool: &PgPool, compte_id: Uuid, connue: &ReleveConnue) -> Result<(), ApiError> {
+async fn sauver_releve(
+    pool: &PgPool,
+    compte_id: Uuid,
+    connue: &ReleveConnue,
+) -> Result<(), ApiError> {
     sqlx::query(
         r#"
         INSERT INTO releve_curseurs (compte_id, dossier_imap, uid_validity, dernier_uid)
