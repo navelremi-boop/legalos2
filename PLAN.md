@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-30 (jalon en cours : **J9**).
+Dernière mise à jour : 2026-09-30 (jalon en cours : **J10**).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -132,28 +132,9 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
 
 - [x] **Documents, suite** — VALIDÉ `6f5f757` (contrôleur sur `8e962d7`, CI [36687786819](https://github.com/navelremi-boop/legalos2/actions/runs/36687786819))
 
-- [ ] **J9** — Mail, étapes 1 à 3 du § 3.8.6 (S7). Étapes 1 et 2 : critères du 27/09/2026, inchangés. Étape 3 : critères du 27/09 retirés le 30/09/2026 (validation à tort) et remplacés par la consigne du même jour.
-  - **Critères d'acceptation (commandes)** :
-    - Étape 1, boîte de classement : `node tests/recette/s7-classement.mjs` → exit 0 (serveur de test GreenMail) :
-      - un mail adressé à l'adresse de classement d'un dossier (forme normalisée de la référence) est rattaché à ce dossier ;
-      - un mail portant la référence dans l'objet, sous sa forme d'origine ou normalisée, est classé automatiquement ; de même pour un correspondant lié à un seul dossier actif ; la reconnaissance couvre les références produites par tous les modèles utilisés par le cabinet (deux modèles successifs) ;
-      - sinon, suggestion à valider d'un clic, puis corbeille « À classer » ;
-      - une relève de la boîte de classement interrompue puis reprise ne perd aucun message et n'en crée aucun doublon ;
-      - mail classé visible dans le chrono du dossier, sur le poste.
-    - Étape 2, envoi depuis un dossier : `node tests/recette/s7-envoi.mjs` → exit 0 :
-      - cycle de vie du § 3.8.3 visible dans l'app : brouillon, en attente (annulable), envoyé, copie dans « Envoyés » confirmée, échec avec nouvelle tentative ;
-      - coupure réseau simulée pendant l'envoi : ni perte, ni doublon (identifiant de message généré une seule fois, vérification dans « Envoyés » avant toute nouvelle tentative) ;
-      - copie classée dans le dossier.
-    - Étape 3, moteur de synchronisation — `node tests/recette/s7-compte-nominatif.mjs`, `node tests/recette/s7-moteur.mjs`, `node tests/recette/s7-sync-bidirectionnelle.mjs`, `node tests/recette/j9-imap-hors-handler.mjs`, `node tests/recette/s7-poste-tauri.mjs` → exit 0. Essai négatif dans chaque recette :
-      - un collaborateur ajoute son compte (adresse, serveur, identifiant, mot de passe) ; le secret est chiffré côté serveur. Deux titulaires, deux boîtes, chacune absente du SQLite de l'autre. Essai négatif : le mot de passe n'est ni dans la réponse HTTP ni dans le SQLite du poste ;
-      - une tâche par compte, démarrée avec l'API, sans poste connecté : un mail arrivé est en base en moins de 30 s (veille IDLE, `ImapMailboxWatch`). Les autres dossiers, dont Envoyés, sont relevés. Essai négatif : un compte non enregistré ne reçoit rien ; couper le moteur puis le relancer reprend sans doublon ;
-      - un lu, un drapeau, un déplacement ou une suppression faits sur le serveur de test hors LEGAL OS se retrouvent en base puis sur le poste. QRESYNC : `CHANGEDSINCE` sur le dernier MODSEQ connu et `VANISHED`, contre Dovecot. Repli : comparaison des UID et des drapeaux, contre GreenMail qui n'annonce pas QRESYNC. Essai négatif : le chemin QRESYNC n'est pas étiqueté sur GreenMail, et le repli n'émet pas `CHANGEDSINCE` ;
-      - `node tests/recette/j9-imap-hors-handler.mjs` refuse un appel IMAP direct dans un handler async, une synchronisation complète dans une requête HTTP, et une requête SQL par message dans la boucle de relève ;
-      - 50 000 messages sur le moteur réel : durée jusqu'en base (en-têtes et métadonnées, corps à la demande) et durée d'un réveil après une seule modification, pour chaque chemin, consignées au journal ;
-      - `cargo test -p legalos-messagerie` s'exécute en CI contre le serveur de test déclaré en service de conteneur du workflow. Essai négatif : sans ce service, le job rust ne peut pas passer.
-    - `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ; ni protocole IMAP ni décodeur MIME écrit à la main ; contrôleur VALIDÉ ; CI verte.
+- [x] **J9** — VALIDÉ `a036e24` (contrôleur [étape 3](f0db1509-4bcf-4701-a6dd-eb44db4835ca), CI [36751876546](https://github.com/navelremi-boop/legalos2/actions/runs/36751876546))
 
-- [ ] **J10** — Écrans restants du § 7.6, après la Coque — critères validés par l'architecte le 27/09/2026 — suspendu le 30/09/2026 jusqu'à la reprise de l'étape 3 de J9 ; critères inchangés ; branche `lot/j10` conservée, non fusionnée
+- [ ] **J10** — Écrans restants du § 7.6, après la Coque — critères validés par l'architecte le 27/09/2026 — reprise après l'étape 3 de J9 ; critères inchangés ; branche `lot/j10` conservée, non fusionnée
   - **Critères d'acceptation (commandes)** :
     - `node tests/recette/j10-ecrans-tauri.mjs` → exit 0 (app Tauri) :
       - La journée, Dossiers, Mails, Agenda, Facturation et Réglages : barre du haut, espace de travail, feuille, barre d'actions ; hors dossier, fond `neutre` sans étiquette de dossier ;
