@@ -30,7 +30,9 @@ CI lue par `gh run view 36622021205` : completed, success. perimetre, frontend, 
 
 Écart assumé : table `document_versions_en_cours` (réservation de numéro), absente des flux. Dépendances `pdf-extract` 0.12.1, `zip` 8.6.0, `quick-xml` 0.42.0.
 
-Lot poste fusionné avec le contrat serveur : `9d00855`, puis rustfmt `d836807` sur `lot/documents-poste`, PR [n° 16](https://github.com/navelremi-boop/legalos2/pull/16). CI lue par `gh run view 36625485423` : completed, success, les six jobs. Le contrôleur durcit `documents-suite.mjs` (PDF avec couche texte, divergence signalée) et l'exécute ; pas de verdict encore. Run [36618225538](https://github.com/navelremi-boop/legalos2/actions/runs/36618225538) annulé par concurrence ; [36619287466](https://github.com/navelremi-boop/legalos2/actions/runs/36619287466) vert, jobs de code sautés (journal seul).
+Lot poste fusionné avec le contrat serveur : `9d00855`, puis rustfmt `d836807`, PR [n° 16](https://github.com/navelremi-boop/legalos2/pull/16). CI lue par `gh run view 36625485423` : completed, success, les six jobs.
+
+Contrôleur **REFUSÉ** sur `d836807` : `documents-suite.mjs` passe une fois puis `coque absente après auth`. Cause : `PSYNC_S2305`, 1049 buckets (limite 1000). Chaque flux public qui joint `dossiers` ouvre un bucket par dossier (52). Correctif `8e962d7` : les filles qui portent `visibilite` et `cabinet_id` filtrent sans jointure. `journal_publics` et `intercalaire_elements_publics` gardent la jointure. `documents-suite.mjs` durcie (PDF, divergence) : exit 0 deux fois de suite, aucun `S2305` dans les journaux PowerSync. Recontrôle en cours. Run [36618225538](https://github.com/navelremi-boop/legalos2/actions/runs/36618225538) annulé par concurrence ; [36619287466](https://github.com/navelremi-boop/legalos2/actions/runs/36619287466) vert, jobs de code sautés (journal seul).
 
 ## 2026-09-29 — Agenda VALIDÉ
 
