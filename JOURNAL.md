@@ -17,12 +17,18 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **CI** : l'état d'un run se lit par `gh run view` à chaque fois. Attendre = `gh run watch <id> --exit-status`. Deux relances consécutives sans commande ni commit créent `.mission/STOP` (ordre § 4.7).
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance). Un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` doit exister.
 - **B12 levé** (28/09) : signalement transmis, [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). Quatre exceptions dans `apps/poste/src-tauri/deny.toml`. Constat : `docs/audit-dependances.md`.
-- **Sync** : Streams édition 3, service 1.26.1. Dette mensuelle avis PowerSync.
+- **Sync** : Streams édition 3, service 1.26.1. Relecture GHSA du 2026-09-30 : un seul avis, déjà corrigé dans 1.26.1. La ligne mensuelle du plan reste ouverte.
 - **Coque** corrigée (`22d765e`), non cochée : points médians de La journée (consigne 3), onglets de démonstration (dette). La journée est validée par l'architecte sous réserve des captures régénérées (consigne du 27/09, point 2).
 - **B11 levé**. Contrôleur d'abord REFUSÉ (affichage du numéro minimal). Recette `reference-modele-ecran.mjs` : exit 0, numéro `1000000000`. Second verdict **VALIDÉ** sur `03ca364`.
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---
+
+## 2026-09-30 — Relecture mensuelle des avis PowerSync
+
+J10 reste ouvert (B9). La dette mensuelle n'est pas cochée : elle se rejoue chaque mois.
+
+Le 2026-09-30, la recherche `powersync` + `GHSA` dans `github/advisory-database` ne renvoie qu'un fichier, `GHSA-q6wc-xx4m-92fj` (CVE-2026-30870, modifié le 2026-03-23). OSV pour `@powersync/service-core` renvoie le même avis, corrigé en 1.20.1. Le service en place est `journeyapps/powersync-service:1.26.1` (dernière release GitHub, 2026-09-11). Le correctif des conditions OR de sous-requêtes est la 1.20.2 (PR #556), pas la 1.23.3 ; les deux versions suivantes l'incluent. `docs/versions.md` consigne cette relecture. Aucune montée de version.
 
 ## 2026-09-30 — SIREN et n° TVA FR
 
