@@ -21,6 +21,12 @@ const INTERDITS = [
   [/\bTRUNCATE\b/i, "supprime des données (TRUNCATE)"],
   [/\bDELETE\s+FROM\b/i, "supprime des données (DELETE)"],
 ];
+// Consigne du 30/09/2026 : plus de DEFAULT sur la visibilité d'une fille,
+// déclencheur remplacé dans le même fichier, groupes d'accès orphelins retirés.
+const DROP_DEFAULT = /\bALTER\s+COLUMN\s+[\w"]+\s+DROP\s+DEFAULT\b/i;
+const DROP_TRIGGER = /\bDROP\s+TRIGGER\s+(?:IF\s+EXISTS\s+)?([\w".]+)/i;
+const DELETE_GROUPE_ORPHELIN =
+  /\bDELETE\s+FROM\s+groupes_acces\b[\s\S]*\bNOT\s+EXISTS\b/i;
 const SET_NOT_NULL = /\bALTER\s+COLUMN\s+([\w"]+)\s+SET\s+NOT\s+NULL\b/gi;
 const ADD_COLUMN = /\bADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?([\w"]+)/gi;
 const ALTER_TABLE = /^\s*ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:ONLY\s+)?([\w."]+)/i;
@@ -67,7 +73,16 @@ for (const fichier of fichiers) {
     const ligneInstruction = ligne + sql.slice(0, decalage).split("\n").length - 1;
     const chemin = relative(root, join(dossier, fichier)).replace(/\\/g, "/");
     for (const [motif, raison] of INTERDITS) {
-      if (motif.test(sql)) erreurs.push(`${chemin}:${ligneInstruction} ${raison} — ${sql.trim().split("\n")[0]}`);
+      if (!motif.test(sql)) continue;
+      if (motif.source.includes("DROP") && DROP_DEFAULT.test(sql) && !/\bDROP\s+(?!DEFAULT\b)/i.test(sql)) {
+        continue;
+      }
+      const trigger = DROP_TRIGGER.exec(sql);
+      if (trigger && new RegExp(`\\bCREATE\\s+TRIGGER\\s+${nom(trigger[1])}\\b`, "i").test(texte)) {
+        continue;
+      }
+      if (DELETE_GROUPE_ORPHELIN.test(sql)) continue;
+      erreurs.push(`${chemin}:${ligneInstruction} ${raison} — ${sql.trim().split("\n")[0]}`);
     }
     const table = ALTER_TABLE.exec(sql);
     for (const m of sql.matchAll(SET_NOT_NULL)) {
