@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-30 (jalon en cours : **J9**).
+Dernière mise à jour : 2026-09-30 (jalon en cours : **J10**).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -132,25 +132,7 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
 
 - [x] **Documents, suite** — VALIDÉ `6f5f757` (contrôleur sur `8e962d7`, CI [36687786819](https://github.com/navelremi-boop/legalos2/actions/runs/36687786819))
 
-- [ ] **J9** — Mail, étapes 1 à 3 du § 3.8.6 (S7) — critères validés par l'architecte le 27/09/2026
-  - **Critères d'acceptation (commandes)** :
-    - Étape 1, boîte de classement : `node tests/recette/s7-classement.mjs` → exit 0 (serveur de test GreenMail) :
-      - un mail adressé à l'adresse de classement d'un dossier (forme normalisée de la référence) est rattaché à ce dossier ;
-      - un mail portant la référence dans l'objet, sous sa forme d'origine ou normalisée, est classé automatiquement ; de même pour un correspondant lié à un seul dossier actif ; la reconnaissance couvre les références produites par tous les modèles utilisés par le cabinet (deux modèles successifs) ;
-      - sinon, suggestion à valider d'un clic, puis corbeille « À classer » ;
-      - une relève de la boîte de classement interrompue puis reprise ne perd aucun message et n'en crée aucun doublon ;
-      - mail classé visible dans le chrono du dossier, sur le poste.
-    - Étape 2, envoi depuis un dossier : `node tests/recette/s7-envoi.mjs` → exit 0 :
-      - cycle de vie du § 3.8.3 visible dans l'app : brouillon, en attente (annulable), envoyé, copie dans « Envoyés » confirmée, échec avec nouvelle tentative ;
-      - coupure réseau simulée pendant l'envoi : ni perte, ni doublon (identifiant de message généré une seule fois, vérification dans « Envoyés » avant toute nouvelle tentative) ;
-      - copie classée dans le dossier.
-    - Étape 3, boîtes nominatives : `node tests/recette/s7-synchro.mjs` → exit 0 :
-      - synchronisation incrémentale, notification immédiate sur la boîte de réception, resynchronisation complète si le serveur l'impose ;
-      - lu, déplacement, suppression, drapeau appliqués au serveur IMAP ; retour à l'état réel en cas de refus ;
-      - HTML nettoyé (`ammonia`) avant stockage ; recherche hors ligne (FTS5) et sur tout l'historique côté serveur (index Postgres en français) ;
-      - boîte de test d'au moins 50 000 messages générés (ordre § 6) : durée de synchronisation mesurée et consignée, une fois pour le chemin QRESYNC et une fois pour le repli par comparaison.
-    - `node tests/recette/s7-poste-tauri.mjs` → exit 0 : S5, les mails d'un dossier restreint sont absents du SQLite du poste non autorisé ; un compte nominatif n'est visible que de son titulaire ; aucun identifiant de messagerie sur le poste.
-    - `cargo test -p legalos-messagerie` (contre GreenMail) et `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ; ni protocole IMAP ni décodeur MIME écrit à la main (bibliothèques consignées dans `docs/versions.md`) ; contrôleur VALIDÉ ; CI verte.
+- [x] **J9** — VALIDÉ `bb9578a` (contrôleur sur `4ca1103`, CI [36724502312](https://github.com/navelremi-boop/legalos2/actions/runs/36724502312))
 
 - [ ] **J10** — Écrans restants du § 7.6, après la Coque — critères validés par l'architecte le 27/09/2026
   - **Critères d'acceptation (commandes)** :
@@ -178,7 +160,7 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
 - [ ] **Avant la fin de la phase 2** : moteur de délais en TypeScript strict ; licence OFL livrée avec les polices.
 - [x] **Avant la fin de la phase 2** : la preuve « fausse alerte » de `node tests/recette/conflits-poste-tauri.mjs` aligne `revision_edition` par `fixerRevisionEdition` au lieu d'attendre la reprise réelle du même poste.
 - [x] **Avant la fin de la phase 2** : `recetteHooks.ts` insère une entrée dans `ps_crud` lorsque le SDK ne journalise pas le PATCH hors ligne ; le chemin d'écriture réel reste à prouver sans cette injection.
-- [ ] **Avant la fin de J9 et de Documents, suite** : brancher la vue scindée sur les éléments synchronisés (mails, pièces, factures), sans réintroduire de jeu fictif dans le dossier réel ni dans le build distribué.
+- [x] **Avant la fin de J9 et de Documents, suite** : brancher la vue scindée sur les éléments synchronisés (mails, pièces, factures), sans réintroduire de jeu fictif dans le dossier réel ni dans le build distribué.
 - [ ] **Mensuel** : avis de sécurité PowerSync (GHSA, édition 3) relus et consignés dans `docs/versions.md`.
 
 Chaque jalon : recettes + clippy + contrôleur.
