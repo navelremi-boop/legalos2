@@ -1932,6 +1932,7 @@ dependencies = [
  "imap-codec",
  "io-imap",
  "io-sasl",
+ "legalos-domaine",
  "pimalaya-stream",
  "thiserror",
  "tokio",

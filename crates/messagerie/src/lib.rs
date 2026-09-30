@@ -2,10 +2,15 @@
 //! l'appelant ne voit que [`FournisseurMail`].
 
 mod chemin;
+mod classement;
 mod imap;
 
 pub use chemin::{
     chemin_veille, suite_uid_validity, Capacites, CheminVeille, CurseurDossier, SuiteDossier,
+};
+pub use classement::{
+    decider, integrer_releve, DecisionClassement, DossierPourClassement, EntreeClassement,
+    MessageReleve, ReleveConnue,
 };
 
 use thiserror::Error;
