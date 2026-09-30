@@ -9,14 +9,27 @@ import { demoAccessToken, demoEmail, demoPassword, totpSecretB32 } from "./lib/d
 import { creerSession, sleep, sqliteLocal, sqlServeur } from "./lib/poste-session.mjs";
 
 const session = creerSession("s7-poste");
-const { api, fail, ok, resetPostes, startApp, stopApp, waitCdp, connectCdp, login, fermer } =
-  session;
+const {
+  api,
+  fail,
+  ok,
+  resetPostes,
+  startApp,
+  stopApp,
+  waitCdp,
+  connectCdp,
+  login,
+  evaluate,
+  setField,
+  fermer,
+} = session;
 
 const marque = String(Date.now()).slice(-6);
 const collabEmail = `s7-collab-${marque}@cabinet-fictif.example`;
 const collabPassword = "MotDePasseCollab123!";
 const collabTotp = "NB2W45DFOJXXE4ZAMFXGI2LTORUGS4ZA";
 const messageId = `<s7-poste-${randomUUID()}@cabinet.example>`;
+const motRecherche = `fenetre${marque}`;
 const adresseDemo = `demo.nominatif.${marque}@cabinet.example`;
 const adresseCollab = `collab.nominatif.${marque}@cabinet.example`;
 
@@ -85,10 +98,11 @@ async function main() {
   await sqlServeur(
     `INSERT INTO messages (
        id, cabinet_id, compte_id, dossier_id, message_id, uid_validity, uid,
-       objet, expediteur, etat_classement
+       objet, expediteur, etat_classement, texte_brut
      ) VALUES (
        '${msg}', '${cabinet}', '${compteDemo}', '${dossierId}', '${messageId}',
-       1, ${Date.now() % 1_000_000_000}, 'Objet restreint', 'tiers@example.com', 'classe'
+       1, ${Date.now() % 1_000_000_000}, 'Objet restreint', 'tiers@example.com', 'classe',
+       '${motRecherche} dans le corps'
      )`,
   );
   const groupe = await sqlServeur(
@@ -125,7 +139,87 @@ async function main() {
       "SELECT COUNT(*) FROM sqlite_master WHERE sql LIKE '%secret_ref%' OR sql LIKE '%mot_de_passe%' OR sql LIKE '%imap_password%'",
     );
     if (secretsA !== "0") fail("schéma SQLite avec un secret de messagerie");
-    ok("poste titulaire : mail restreint et compte nominatif, sans secret");
+    const texteLocal = await sqliteLocal(
+      "s7a",
+      `SELECT texte_brut FROM messages WHERE message_id = '${messageId}'`,
+    );
+    if (!texteLocal.includes(motRecherche)) fail("texte du mail absent du poste");
+    await attendre(
+      "s7a",
+      `SELECT COUNT(*) FROM dossiers WHERE id = '${dossierId}'`,
+      (v) => v === "1",
+    );
+    await evaluate(cdpA.send, `document.querySelector("[data-testid=nav-dossiers]")?.click()`);
+    const debutPalette = Date.now();
+    while (Date.now() - debutPalette < 20_000) {
+      const bouton = Boolean(await evaluate(cdpA.send, `Boolean(document.getElementById("ouvrir-palette"))`));
+      if (bouton) break;
+      await sleep(200);
+    }
+    await evaluate(cdpA.send, `document.getElementById("ouvrir-palette")?.click()`);
+    await setField(cdpA.send, "palette-recherche", `Restreint mail ${marque}`);
+    const debutChoix = Date.now();
+    let choisi = false;
+    while (Date.now() - debutChoix < 20_000) {
+      choisi = Boolean(
+        await evaluate(
+          cdpA.send,
+          `(() => {
+            const b = document.querySelector("[data-testid=palette-resultat][data-dossier-id='${dossierId}']");
+            if (!b) return false;
+            b.click();
+            return true;
+          })()`,
+        ),
+      );
+      if (choisi) break;
+      await sleep(300);
+    }
+    if (!choisi) fail("dossier absent de la palette");
+    const debutOuvert = Date.now();
+    while (Date.now() - debutOuvert < 15_000) {
+      const ouvert = Boolean(
+        await evaluate(
+          cdpA.send,
+          `document.querySelector("[data-testid=ecran-dossier]")?.getAttribute("data-dossier-id") === "${dossierId}"`,
+        ),
+      );
+      if (ouvert) break;
+      await sleep(200);
+    }
+    const debutChrono = Date.now();
+    let chrono = "";
+    while (Date.now() - debutChrono < 20_000) {
+      chrono = String((await evaluate(cdpA.send, `document.body?.innerText ?? ""`)) ?? "");
+      if (chrono.includes("Objet restreint")) break;
+      await sleep(300);
+    }
+    if (!chrono.includes("Objet restreint")) fail("mail classé absent du chrono du dossier");
+    if (chrono.includes("Communication de pièces adverses")) fail("jeu fictif dans le chrono réel");
+    const debutNav = Date.now();
+    while (Date.now() - debutNav < 15_000) {
+      const present = Boolean(
+        await evaluate(cdpA.send, `Boolean(document.getElementById("recherche-mails"))`),
+      );
+      if (present) break;
+      await evaluate(cdpA.send, `document.querySelector("[data-testid=nav-mails]")?.click()`);
+      await sleep(300);
+    }
+    await setField(cdpA.send, "recherche-mails", motRecherche);
+    const debutRecherche = Date.now();
+    let trouve = false;
+    while (Date.now() - debutRecherche < 20_000) {
+      trouve = Boolean(
+        await evaluate(
+          cdpA.send,
+          `[...document.querySelectorAll("[data-testid=recherche-mail-hit]")].some((n) => (n.textContent || "").includes("Objet restreint"))`,
+        ),
+      );
+      if (trouve) break;
+      await sleep(400);
+    }
+    if (!trouve) fail("recherche FTS5 hors ligne muette");
+    ok("poste titulaire : mail restreint, chrono, recherche hors ligne, sans secret");
     cdpA.ws.close();
   } finally {
     await stopApp(posteA);

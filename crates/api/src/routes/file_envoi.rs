@@ -380,13 +380,6 @@ async fn classer_copie(
     let Some(dossier_id) = row.1 else {
         return Ok(());
     };
-    let (visibilite, restreint) = sqlx::query_as::<_, (String, bool)>(
-        r#"SELECT visibilite, restreint FROM dossiers WHERE id = $1"#,
-    )
-    .bind(dossier_id)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(|_| ApiError::internal("Visibilité dossier"))?;
     let parametres = state
         .messagerie
         .as_ref()
@@ -407,9 +400,9 @@ async fn classer_copie(
         r#"
         INSERT INTO messages (
             id, cabinet_id, compte_id, dossier_id, message_id, uid_validity, uid,
-            objet, expediteur, etat_classement, suggestion_dossier_id, visibilite, restreint
+            objet, expediteur, etat_classement, suggestion_dossier_id
         ) VALUES (
-            $1, $2, $3, $4, $5, 0, $6, $7, $8, 'classe', NULL, $9, $10
+            $1, $2, $3, $4, $5, 0, $6, $7, $8, 'classe', NULL
         )
         ON CONFLICT (compte_id, message_id) DO NOTHING
         "#,
@@ -422,8 +415,6 @@ async fn classer_copie(
     .bind(i64::from(uid_synthetique))
     .bind(&row.2)
     .bind(&expediteur)
-    .bind(visibilite)
-    .bind(restreint)
     .execute(&state.pool)
     .await
     .map_err(|_| ApiError::internal("Insertion copie classée"))?;

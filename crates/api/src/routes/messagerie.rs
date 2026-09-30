@@ -425,26 +425,13 @@ async fn inserer_message(
         DecisionClassement::AClasser => ("a_classer", None, None),
     };
 
-    let (visibilite, restreint) = if let Some(dossier) = dossier_id {
-        let row = sqlx::query_as::<_, (String, bool)>(
-            r#"SELECT visibilite, restreint FROM dossiers WHERE id = $1"#,
-        )
-        .bind(dossier)
-        .fetch_one(pool)
-        .await
-        .map_err(|_| ApiError::internal("Visibilité dossier"))?;
-        row
-    } else {
-        ("public".to_owned(), false)
-    };
-
     sqlx::query(
         r#"
         INSERT INTO messages (
             id, cabinet_id, compte_id, dossier_id, message_id, uid_validity, uid,
-            objet, expediteur, etat_classement, suggestion_dossier_id, visibilite, restreint
+            objet, expediteur, etat_classement, suggestion_dossier_id
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
         )
         ON CONFLICT (compte_id, message_id) DO NOTHING
         "#,
@@ -460,8 +447,6 @@ async fn inserer_message(
     .bind(expediteur)
     .bind(etat)
     .bind(suggestion)
-    .bind(visibilite)
-    .bind(restreint)
     .execute(pool)
     .await
     .map_err(|_| ApiError::internal("Insertion message"))?;

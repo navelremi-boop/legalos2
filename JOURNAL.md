@@ -23,6 +23,19 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-09-30 — J9 : refus du contrôleur, chrono et file d'envoi dans l'app
+
+Contrôleur **REFUSÉ** sur `4790a58` (branche `lot/j9`). Critères de `PLAN.md` non affaiblis. Recettes d'acceptation en exit 0, trois écarts bloquants : chrono d'un dossier réel vide, FTS5 seulement via Python, cycle d'envoi visible seulement dans l'API.
+
+Complété sans retirer de critère :
+
+- le chrono du dossier réel lit les mails classés, les pièces et les brouillons de facture du SQLite synchronisé ;
+- la recherche hors ligne utilise FTS5 (`@sqlite.org/sqlite-wasm` 3.53.4-build1, Apache-2.0) parce que le SQLite PowerSync n'a pas FTS5 et que sql.js 1.14.2 ne l'embarque pas ;
+- l'écran Mails affiche la file d'envoi (brouillon, en attente annulable, envoyé, copie dans Envoyés confirmée, échec avec nouvelle tentative) ;
+- `texte_brut` et `titulaire_id` sont tenus par déclencheur ; les flux nominatif et « à classer » ne créent pas un seau par dossier ; l'API n'écrit plus la visibilité des messages.
+
+Preuves du 30/09, worktree `.worktrees/j9`, après migration 029 : `node tests/recette/s7-classement.mjs` exit 0 ; `node tests/recette/s7-envoi.mjs` exit 0 (états vus dans l'app) ; `node tests/recette/s7-poste-tauri.mjs` exit 0 (chrono, recherche hors ligne, absence chez le non autorisé) ; `node tests/recette/s5-sync-streams.mjs` exit 0 ; `cargo clippy --workspace --all-targets -- -D warnings` exit 0. Jalon non coché : second contrôle et CI.
+
 ## 2026-09-30 — J9 messagerie étapes 1–2 (lot/j9)
 
 Branche `lot/j9`, worktree `.worktrees/j9`. `PLAN.md` non modifié.

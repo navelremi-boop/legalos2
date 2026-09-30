@@ -16,6 +16,7 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 | @powersync/tauri-plugin | **0.0.6** | https://www.npmjs.com/package/@powersync/tauri-plugin — vérifié npm le 2026-09-25 |
 | @powersync/common | **2.0.0** | dépendance exacte de `@powersync/tauri-plugin` 0.0.6 (npm, 2026-09-25) |
 | @tabler/icons-react | **3.48.0** | https://www.npmjs.com/package/@tabler/icons-react — vérifié npm le 2026-09-26 (icônes contour § 7.3) |
+| @sqlite.org/sqlite-wasm | **3.53.4-build1** | https://www.npmjs.com/package/@sqlite.org/sqlite-wasm — vérifié npm le 2026-09-30 ; licence Apache-2.0 ; SQLite 3.53.4 avec FTS5 (le SQLite PowerSync ne compile pas FTS5). sql.js 1.14.2 ne contient pas FTS5. |
 | tauri-plugin-powersync | **0.0.6** | https://crates.io/crates/tauri-plugin-powersync — vérifié le 2026-09-25 ; dépend de `powersync` ^0.0.7 |
 | tauri-plugin-notification | **2.5.0** | https://crates.io/crates/tauri-plugin-notification — vérifié le 2026-09-29 ; stable 2.x, pas la 3.0 alpha |
 | @tauri-apps/plugin-notification | **2.5.0** | https://www.npmjs.com/package/@tauri-apps/plugin-notification — vérifié npm le 2026-09-29 |

@@ -20,3 +20,4 @@ Une copie ou un portage de code sous MIT, Apache-2.0 ou BSD ajoute ici l'en-têt
 | quick-xml | 0.42.0 | MIT | https://crates.io/crates/quick-xml/0.42.0 |
 | zip | 8.6.0 | MIT | https://crates.io/crates/zip/8.6.0 |
 | pdf-extract | 0.12.1 | MIT | https://crates.io/crates/pdf-extract/0.12.1 |
+| @sqlite.org/sqlite-wasm | 3.53.4-build1 | Apache-2.0 | https://www.npmjs.com/package/@sqlite.org/sqlite-wasm |

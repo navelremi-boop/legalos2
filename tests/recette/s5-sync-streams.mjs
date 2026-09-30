@@ -61,6 +61,8 @@ const fluxAttendus = [
   "agenda_restreints",
   "messages_publics",
   "messages_restreints",
+  "messages_a_classer",
+  "messages_nominatifs",
   "comptes_nominatifs",
 ];
 
@@ -247,6 +249,24 @@ if (!/titulaire_id::text\s*=\s*auth\.user_id\(\)/.test(comptes)) {
 }
 if (/secret_ref/.test(comptes)) fail("comptes_nominatifs : secret_ref interdit");
 
+for (const nom of ["messages_publics", "messages_restreints", "messages_a_classer", "messages_nominatifs"]) {
+  if (!/texte_brut/.test(blocFlux(nom))) fail(`${nom} : texte_brut requis`);
+}
+const messagesPublics = blocFlux("messages_publics");
+if (!/dossier_id IS NOT NULL/.test(messagesPublics)) {
+  fail("messages_publics : dossier classé seulement (le nominatif a son flux)");
+}
+const aClasser = blocFlux("messages_a_classer");
+if (/JOIN/i.test(aClasser)) fail("messages_a_classer : jointure interdite");
+if (!/dossier_id IS NULL/.test(aClasser) || !/titulaire_id IS NULL/.test(aClasser)) {
+  fail("messages_a_classer : boîte de classement sans titulaire");
+}
+const nominatifs = blocFlux("messages_nominatifs");
+if (/JOIN/i.test(nominatifs)) fail("messages_nominatifs : jointure interdite (un seau par titulaire)");
+if (!/titulaire_id::text\s*=\s*auth\.user_id\(\)/.test(nominatifs)) {
+  fail("messages_nominatifs : titulaire = auth.user_id() requis");
+}
+
 const schema = readFileSync(join(root, "apps/poste/src/sync/AppSchema.ts"), "utf8");
 for (const table of [
   "dossiers",
@@ -267,6 +287,7 @@ for (const table of [
 ]) {
   if (!new RegExp(`\\b${table}\\b`).test(schema)) fail(`AppSchema : table ${table} absente`);
 }
+if (!/texte_brut/.test(schema)) fail("AppSchema : texte_brut absent");
 
 const doc = readFileSync(join(root, "docs/sync-streams.md"), "utf8");
 if (!/edition:\s*3|édition 3/i.test(doc)) fail("docs/sync-streams.md : édition 3 absente");

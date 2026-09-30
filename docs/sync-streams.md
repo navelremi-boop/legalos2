@@ -98,8 +98,10 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 | `dossier_liens_restreints_croises` | les deux dossiers restreints : `groupe_acces` est l'intersection des deux ensembles, une jointure `groupe_acces_membres` |
 | `agenda_publics` | `agenda_elements` où `visibilite = 'public'` et cabinet du jeton |
 | `agenda_restreints` | `agenda_elements` JOIN `groupe_acces_membres` — **sans** filtre sur `agenda_elements.visibilite` |
-| `messages_publics` | `messages` où `visibilite = 'public'` et cabinet du jeton — sans jointure |
-| `messages_restreints` | `messages` JOIN `groupe_acces_membres` (`auth.user_id()`) — un bucket par groupe, pas par dossier |
+| `messages_publics` | `messages` classés (`dossier_id` non nul) où `visibilite = 'public'` et cabinet du jeton — sans jointure ; `texte_brut` copié |
+| `messages_restreints` | `messages` JOIN `groupe_acces_membres` (`auth.user_id()`) — un bucket par groupe, pas par dossier ; `texte_brut` copié |
+| `messages_a_classer` | boîte de classement (`dossier_id` nul, `titulaire_id` nul), un bucket par cabinet |
+| `messages_nominatifs` | messages du titulaire (`titulaire_id = auth.user_id()`), sans secret — un bucket par titulaire, pas par dossier |
 | `comptes_nominatifs` | `comptes_mail` nominatif du titulaire (`titulaire_id = auth.user_id()`), sans `secret_ref` — un bucket par titulaire, pas par dossier |
 
 **Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants (`parties`, `repertoires`, `documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, `taux_horaires`, `intercalaires_personnalises`, `intercalaire_elements`, `dossier_liens` ancrés sur ce dossier) dans la SQLite locale. L'annuaire `contacts` est celui du cabinet : il n'est pas un enfant de dossier. Preuve SQLite (fichier `legalos-powersync-*.db` du poste Tauri) : `tests/recette/j5-poste-tauri.mjs` ; couverture par flux : `tests/recette/s5-sqlite-par-flux.mjs` ; contrôle statique des flux : `tests/recette/s5-sync-streams.mjs`. Filtre JOIN Postgres (sans SQLite) : `tests/recette/s9-s5-temps.mjs`.
@@ -125,4 +127,4 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 | JOIN | Autorisés (contrat : ≤ 2 tables par requête de flux) |
 | Auth restreinte | `dossier_acces.utilisateur_texte = auth.user_id()` |
 | Copie `visibilite` enfants | Conservée en base / SELECT ; non utilisée pour filtrer les flux restreints |
-| Mail | Flux à définir sur le même modèle JOIN / sous-requête |
+| Mail | Publics sans jointure, restreints par groupe, nominatif par titulaire ; pas de seau par dossier |

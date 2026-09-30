@@ -130,8 +130,8 @@ pub async fn relever_nominatif(
             r#"
             INSERT INTO messages (
                 id, cabinet_id, compte_id, dossier_id, message_id, uid_validity, uid,
-                objet, expediteur, etat_classement, visibilite, restreint, dossier_imap, lu
-            ) VALUES ($1,$2,$3,NULL,$4,$5,$6,$7,$8,'a_classer','public',false,'INBOX',$9)
+                objet, expediteur, etat_classement, dossier_imap, lu
+            ) VALUES ($1,$2,$3,NULL,$4,$5,$6,$7,$8,'a_classer','INBOX',$9)
             "#,
         )
         .bind(id)

@@ -185,6 +185,7 @@ export function BarreHaut({
                   : "rounded-[8px] px-2.5 py-1.5 text-barre-texte-muet hover:text-barre-texte"
               }
               aria-current={estActif ? "page" : undefined}
+              data-testid={`nav-${item.id}`}
               onClick={() => {
                 onNaviguer(item.id);
               }}

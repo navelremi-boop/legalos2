@@ -301,9 +301,13 @@ const messages = new Table(
     visibilite: column.text,
     restreint: column.integer,
     revision: column.integer,
+    /** Texte déjà nettoyé, copié par le serveur pour la recherche hors ligne. */
+    texte_brut: column.text,
+    /** Déduit du compte mail. Un flux nominatif filtre dessus, sans secret. */
+    titulaire_id: column.text,
     cree_le: column.text,
   },
-  { indexes: { dossier: ["dossier_id"], etat: ["etat_classement"] } },
+  { indexes: { dossier: ["dossier_id"], etat: ["etat_classement"], titulaire: ["titulaire_id"] } },
 );
 
 export const AppSchema = new Schema({

@@ -15,10 +15,11 @@
   "dependencies": {
     "@powersync/common": "2.0.0",
     "@powersync/tauri-plugin": "0.0.6",
+    "@sqlite.org/sqlite-wasm": "3.53.4-build1",
     "@tabler/icons-react": "3.48.0",
     "@tauri-apps/api": "^2.10.0",
-    "@tauri-apps/plugin-opener": "^2.5.0",
     "@tauri-apps/plugin-notification": "2.5.0",
+    "@tauri-apps/plugin-opener": "^2.5.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

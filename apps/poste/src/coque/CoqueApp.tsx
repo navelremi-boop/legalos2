@@ -25,6 +25,7 @@ import { instanceReachable } from "@/lib/instanceReachable";
 import { libelleReferenceDossier } from "@/lib/referenceDossier";
 import { DossierOuvert, type DossierVue } from "@/screens/DossierOuvert";
 import { Dossiers } from "@/screens/Dossiers";
+import { EcranMails } from "@/messagerie/EcranMails";
 import { EcranStub } from "@/screens/EcranStub";
 import { Journee } from "@/screens/Journee";
 import { Reglages, type ThemeMode } from "@/screens/Reglages";
@@ -371,7 +372,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
       />
     );
   } else if (nav === "mails") {
-    contenu = <EcranStub titre="Mails" testId="ecran-mails" />;
+    contenu = <EcranMails instanceUrl={instanceUrl} />;
   } else if (nav === "agenda") {
     contenu = <EcranAgenda />;
   } else if (nav === "facturation") {

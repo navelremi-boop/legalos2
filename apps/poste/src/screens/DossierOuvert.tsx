@@ -11,6 +11,7 @@ import {
   type IntercalaireItem,
 } from "@/coque/Intercalaires";
 import { BarreActions } from "@/coque/BarreActions";
+import { chargerChrono } from "@/coque/chrono/chargerChrono";
 import { VueScindee } from "@/coque/chrono/VueScindee";
 import type { ChronoItem } from "@/coque/chrono/types";
 import {
@@ -97,6 +98,7 @@ export function DossierOuvert({
   const [conflitContact, setConflitContact] = useState<ConflitLocal | null>(null);
   const [historique, setHistorique] = useState<ConflitLocal[]>([]);
   const [brouillonNom, setBrouillonNom] = useState<Record<string, string>>({});
+  const [chronoSync, setChronoSync] = useState<ChronoItem[]>([]);
   const chronoActif = intercalaire === "chrono";
   const persoActif =
     !estIntercalaireStandard(intercalaire) &&
@@ -197,11 +199,31 @@ export function DossierOuvert({
     };
   }, [dossier.id, intercalaire, intercalairesSync]);
 
+  useEffect(() => {
+    if (elementsChrono !== undefined) return;
+    let stop = false;
+    const tick = () => {
+      void chargerChrono(dossier.id)
+        .then((items) => {
+          if (!stop) setChronoSync(items);
+        })
+        .catch(() => {
+          if (!stop) setChronoSync([]);
+        });
+    };
+    tick();
+    const timer = window.setInterval(tick, 1_500);
+    return () => {
+      stop = true;
+      window.clearInterval(timer);
+    };
+  }, [dossier.id, elementsChrono]);
+
+  const chronoItems = elementsChrono ?? chronoSync;
+
   const onglets: IntercalaireItem[] = [
     ...INTERCALAIRES_STANDARDS.map((s) =>
-      s.id === "chrono" && elementsChrono
-        ? { ...s, compteur: elementsChrono.length }
-        : { ...s },
+      s.id === "chrono" ? { ...s, compteur: chronoItems.length } : { ...s },
     ),
     ...personnalises.map((p) => ({
       id: p.id,
@@ -286,7 +308,7 @@ export function DossierOuvert({
       <div className="relative mt-6 min-h-0 flex-1">
         <Feuille uneColonne={!chronoActif} className="h-full min-h-[360px]">
           {chronoActif ? (
-            <VueScindee items={elementsChrono ?? []} />
+            <VueScindee items={chronoItems} />
           ) : persoActif ? (
             <div className="p-[22px] pb-24" data-testid="vue-intercalaire-perso">
               {conflits.length > 0 ? (
