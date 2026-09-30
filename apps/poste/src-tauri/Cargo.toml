@@ -20,6 +20,7 @@ tauri-plugin-notification = "2.5.0"
 tauri-plugin-powersync = "0.0.6"
 keyring = { version = "3.6.3", features = ["apple-native", "windows-native"] }
 powersync = "0.0.7"
+notify = "8.2.0"
 rusqlite = { version = "0.39", default-features = false, features = ["load_extension"] }
 async-trait = "0.1"
 futures-lite = "2"

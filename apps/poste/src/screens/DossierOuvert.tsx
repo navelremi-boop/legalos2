@@ -19,6 +19,7 @@ import {
   renommerIntercalaire,
   retirerIntercalaire,
 } from "@/dossiers/ecrireIntercalaire";
+import { ArborescencePieces } from "@/documents/ArborescencePieces";
 import { CompleterDossier } from "@/dossiers/CompleterDossier";
 import type { ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
@@ -365,6 +366,8 @@ export function DossierOuvert({
                 {fr("Rattacher une note")}
               </button>
             </div>
+          ) : intercalaire === "pieces" ? (
+            <ArborescencePieces dossierId={dossier.id} />
           ) : (
             <div className="p-[22px] pb-24">
               <h3 className="mb-2 text-[length:var(--font-size-section)] font-extrabold">

@@ -36,6 +36,8 @@ const fluxAttendus = [
   "dossiers_restreints",
   "parties_publics",
   "parties_restreints",
+  "repertoires_publics",
+  "repertoires_restreints",
   "documents_publics",
   "documents_restreints",
   "document_versions_publics",
@@ -134,27 +136,37 @@ if (!/\breference\b/.test(dossiersRestreints)) {
   fail("dossiers_restreints : colonne reference requise (§ 3.4)");
 }
 
+// Un JOIN dossiers crée un bucket PowerSync par dossier (PSYNC_S2305, limite 1000).
+// La visibilité copiée sur la fille, tenue par le déclencheur, suffit : un seul bucket par cabinet.
 for (const nom of [
   "parties_publics",
+  "repertoires_publics",
   "documents_publics",
   "document_versions_publics",
   "temps_publics",
   "brouillons_publics",
   "taux_publics",
   "intercalaires_publics",
-  "intercalaire_elements_publics",
   "dossier_liens_publics",
   "agenda_publics",
 ]) {
   const bloc = blocFlux(nom);
-  if (!/INNER JOIN dossiers/i.test(bloc) && !/IN\s*\(\s*SELECT[\s\S]*FROM dossiers/i.test(bloc)) {
-    fail(`${nom} : JOIN ou sous-requête dossiers requis`);
-  }
-  if (!/visibilite\s*=\s*'public'/.test(bloc)) fail(`${nom} : filtre dossiers publics requis`);
+  if (/JOIN\s+dossiers/i.test(bloc)) fail(`${nom} : JOIN dossiers interdit (un bucket par dossier)`);
+  if (!/visibilite\s*=\s*'public'/.test(bloc)) fail(`${nom} : visibilite publique requise`);
+  if (!/auth\.parameter\('cabinet_id'\)/.test(bloc)) fail(`${nom} : auth.parameter('cabinet_id') requis`);
+}
+
+const elementsPublics = blocFlux("intercalaire_elements_publics");
+if (!/INNER JOIN dossiers/i.test(elementsPublics)) {
+  fail("intercalaire_elements_publics : JOIN dossiers requis (pas de cabinet_id sur la fille)");
+}
+if (!/visibilite\s*=\s*'public'/.test(elementsPublics)) {
+  fail("intercalaire_elements_publics : filtre dossiers publics requis");
 }
 
 for (const nom of [
   "parties_restreints",
+  "repertoires_restreints",
   "documents_restreints",
   "document_versions_restreints",
   "temps_restreints",
@@ -170,7 +182,7 @@ for (const nom of [
   if (!/INNER JOIN dossier_acces/i.test(bloc)) fail(`${nom} : JOIN dossier_acces requis`);
   if (!/auth\.user_id\(\)/.test(bloc)) fail(`${nom} : auth.user_id() requis`);
   if (
-    /WHERE[\s\S]*\b(documents|document_versions|parties|temps_saisis|brouillons_facture|taux_horaires|intercalaires_personnalises|intercalaire_elements|dossier_liens|agenda_elements)\.visibilite\s*=/.test(
+    /WHERE[\s\S]*\b(documents|document_versions|repertoires|parties|temps_saisis|brouillons_facture|taux_horaires|intercalaires_personnalises|intercalaire_elements|dossier_liens|agenda_elements)\.visibilite\s*=/.test(
       bloc,
     )
   ) {
@@ -199,6 +211,7 @@ const schema = readFileSync(join(root, "apps/poste/src/sync/AppSchema.ts"), "utf
 for (const table of [
   "dossiers",
   "parties",
+  "repertoires",
   "documents",
   "document_versions",
   "temps_saisis",
@@ -232,7 +245,7 @@ const requetes = [...yaml.matchAll(/(?:^|\n)\s{4,}-\s*(SELECT[\s\S]*?)(?=\n\s{4}
   )
   .filter((q) => /\bSELECT\b/i.test(q));
 
-if (requetes.length < 23) fail(`requêtes Sync Streams insuffisantes (${requetes.length})`);
+if (requetes.length < 25) fail(`requêtes Sync Streams insuffisantes (${requetes.length})`);
 for (const sql of requetes) {
   const n = compterTables(sql);
   if (n > 2) fail(`requête > 2 tables (${n}) : ${sql.slice(0, 80).replace(/\s+/g, " ")}…`);
@@ -257,5 +270,5 @@ if (existsSync(join(root, "docs/sync-rules.md"))) {
 }
 
 console.log(
-  "s5-sync-streams: OK — flux Sync Streams (cabinet, journal ×3, dossiers, parties, documents, versions, temps, brouillons, taux, intercalaires, éléments)",
+  "s5-sync-streams: OK — flux Sync Streams (cabinet, journal ×3, dossiers, parties, repertoires, documents, versions, temps, brouillons, taux, intercalaires, éléments)",
 );

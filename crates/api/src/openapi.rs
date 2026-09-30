@@ -10,7 +10,9 @@ use crate::routes::cabinets::{
 };
 use crate::routes::collaborateurs::{CollaborateurResponse, CreerCollaborateurRequest};
 use crate::routes::documents::{
-    CreerDocumentRequest, DepotDocument, LectureDocument, ScellerVersionRequest, VersionScellee,
+    CreerDocumentRequest, CreerRepertoireRequest, DepotDocument, DocumentResponse, LectureDocument,
+    PatchDocumentRequest, PatchRepertoireRequest, PreparerVersionRequest, RepertoireResponse,
+    ScellerVersionRequest, VersionScellee,
 };
 use crate::routes::dossiers::{
     CreerDossierRequest, CreerPartieRequest, DossierResponse, PartieResponse,
@@ -46,7 +48,10 @@ use crate::routes::intercalaires::{
         crate::routes::intercalaires::rattacher_element,
         crate::routes::intercalaires::detacher_element,
         crate::routes::collaborateurs::creer_collaborateur,
+        crate::routes::documents::creer_repertoire,
+        crate::routes::documents::patch_repertoire,
         crate::routes::documents::creer_document,
+        crate::routes::documents::patch_document,
         crate::routes::documents::preparer_version,
         crate::routes::documents::sceller_version,
         crate::routes::documents::lire_version,
@@ -76,8 +81,14 @@ use crate::routes::intercalaires::{
         DetacherElementRequest,
         CreerCollaborateurRequest,
         CollaborateurResponse,
+        CreerRepertoireRequest,
+        PatchRepertoireRequest,
+        RepertoireResponse,
         CreerDocumentRequest,
+        PatchDocumentRequest,
+        DocumentResponse,
         DepotDocument,
+        PreparerVersionRequest,
         ScellerVersionRequest,
         VersionScellee,
         LectureDocument,
