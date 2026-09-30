@@ -4,6 +4,7 @@
 mod chemin;
 mod classement;
 mod file_envoi;
+mod html;
 mod imap;
 mod smtp;
 
@@ -17,6 +18,7 @@ pub use classement::{
 pub use file_envoi::{
     appliquer, decider_action, ActionEnvoi, EntreeFileEnvoi, EtatFileEnvoi,
 };
+pub use html::nettoyer_html;
 pub use imap::EnteteRecu;
 pub use smtp::{envoyer_message_fixe, octets_rfc822, ParametresSmtp};
 
