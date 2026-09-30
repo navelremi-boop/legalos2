@@ -33,6 +33,18 @@ pub struct EnteteRecu {
     pub destinataires: Vec<String>,
 }
 
+/// Corps d'un message relevé. `html` est déjà passé par `ammonia`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CorpsLu {
+    pub uid: u32,
+    pub message_id: String,
+    pub objet: String,
+    pub expediteur: String,
+    pub html: String,
+    pub texte: String,
+    pub lu: bool,
+}
+
 pub struct Session {
     client: ImapClientStd,
 }
@@ -127,6 +139,7 @@ impl Session {
         uid: u32,
         destination: &str,
     ) -> Result<(), ErreurMail> {
+        self.assurer_dossier(destination)?;
         self.selectionner(dossier)?;
         let jeu = sequence_un(uid)?;
         let vers = boite(destination)?;
@@ -226,6 +239,120 @@ impl Session {
         Ok((etat.uid_validity, messages))
     }
 
+    /// RFC822 d'un UID : HTML nettoyé, texte, lu. Le décodage MIME reste `mail-parser`.
+    pub fn lire_corps(&mut self, dossier: &str, uid: u32) -> Result<CorpsLu, ErreurMail> {
+        self.selectionner(dossier)?;
+        let jeu = sequence_un(uid)?;
+        let items = MacroOrMessageDataItemNames::MessageDataItemNames(vec![
+            MessageDataItemName::Uid,
+            MessageDataItemName::Flags,
+            MessageDataItemName::Rfc822,
+        ]);
+        let fetched = self
+            .client
+            .fetch(
+                jeu,
+                items,
+                ImapMessageFetchOptions {
+                    uid: true,
+                    modifiers: Vec::new(),
+                },
+            )
+            .map_err(|_| ErreurMail::Protocole)?;
+        let mut octets = None;
+        let mut lu = false;
+        for (_cle, morceaux) in fetched {
+            for item in morceaux {
+                match item {
+                    MessageDataItem::Rfc822(valeur) => octets = Some(nstring_octets(&valeur)),
+                    MessageDataItem::Flags(drapeaux) => {
+                        lu = drapeaux
+                            .iter()
+                            .any(|d| matches!(d, io_imap::types::flag::FlagFetch::Flag(Flag::Seen)));
+                    }
+                    _ => {}
+                }
+            }
+        }
+        let Some(octets) = octets else {
+            return Err(ErreurMail::Protocole);
+        };
+        let analyse = MessageParser::default().parse(&octets);
+        let html_brut = analyse
+            .as_ref()
+            .and_then(|m| m.body_html(0))
+            .map(|c| c.to_string())
+            .unwrap_or_default();
+        let html = crate::nettoyer_html(&html_brut);
+        let texte = analyse
+            .as_ref()
+            .and_then(|m| m.body_text(0))
+            .map(|c| c.to_string())
+            .filter(|t| !t.trim().is_empty())
+            .unwrap_or_else(|| crate::texte_depuis_html(&html));
+        let message_id = analyse
+            .as_ref()
+            .and_then(|m| m.message_id())
+            .map(normaliser_message_id)
+            .filter(|id| !id.is_empty())
+            .unwrap_or_else(|| format!("<uid-corps-{uid}@legalos.local>"));
+        let objet = analyse
+            .as_ref()
+            .and_then(|m| m.subject())
+            .unwrap_or_default()
+            .to_owned();
+        let expediteur = analyse
+            .as_ref()
+            .and_then(|m| m.from())
+            .and_then(|a| a.first())
+            .and_then(|a| a.address.as_deref())
+            .unwrap_or_default()
+            .to_owned();
+        Ok(CorpsLu {
+            uid,
+            message_id,
+            objet,
+            expediteur,
+            html,
+            texte,
+            lu,
+        })
+    }
+
+    pub fn lire_lu(&mut self, dossier: &str, uid: u32) -> Result<bool, ErreurMail> {
+        self.selectionner(dossier)?;
+        let jeu = sequence_un(uid)?;
+        let items = MacroOrMessageDataItemNames::MessageDataItemNames(vec![
+            MessageDataItemName::Uid,
+            MessageDataItemName::Flags,
+        ]);
+        let fetched = self
+            .client
+            .fetch(
+                jeu,
+                items,
+                ImapMessageFetchOptions {
+                    uid: true,
+                    modifiers: Vec::new(),
+                },
+            )
+            .map_err(|_| ErreurMail::Protocole)?;
+        if fetched.is_empty() {
+            return Err(ErreurMail::Protocole);
+        }
+        let mut lu = false;
+        for (_cle, morceaux) in fetched {
+            for item in morceaux {
+                if let MessageDataItem::Flags(drapeaux) = item {
+                    lu = drapeaux
+                        .iter()
+                        .any(|d| matches!(d, io_imap::types::flag::FlagFetch::Flag(Flag::Seen)));
+                }
+            }
+        }
+        Ok(lu)
+    }
+
     /// Crée le dossier s'il n'existe pas (NO ignoré).
     pub fn assurer_dossier(&mut self, dossier: &str) -> Result<(), ErreurMail> {
         let boite = boite(dossier)?;
@@ -313,6 +440,19 @@ impl Session {
 /// Flux de veille. Le type io-imap reste dans ce module.
 pub struct FluxVeille {
     _flux: io_imap::client::ImapMailboxWatchStream,
+}
+
+impl FluxVeille {
+    /// Vrai si la boîte a bougé avant la fin du délai.
+    pub fn attendre(&self, timeout: std::time::Duration) -> Result<bool, ErreurMail> {
+        use std::sync::mpsc::RecvTimeoutError;
+        match self._flux.recv_timeout(timeout) {
+            Ok(Ok(_)) => Ok(true),
+            Ok(Err(_)) => Err(ErreurMail::Protocole),
+            Err(RecvTimeoutError::Timeout) => Ok(false),
+            Err(RecvTimeoutError::Disconnected) => Err(ErreurMail::Connexion),
+        }
+    }
 }
 
 fn boite(nom: &str) -> Result<Mailbox<'static>, ErreurMail> {

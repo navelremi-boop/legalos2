@@ -18,8 +18,8 @@ pub use classement::{
 pub use file_envoi::{
     appliquer, decider_action, ActionEnvoi, EntreeFileEnvoi, EtatFileEnvoi,
 };
-pub use html::nettoyer_html;
-pub use imap::EnteteRecu;
+pub use html::{nettoyer_html, texte_depuis_html};
+pub use imap::{CorpsLu, EnteteRecu};
 pub use smtp::{envoyer_message_fixe, octets_rfc822, ParametresSmtp};
 
 use thiserror::Error;
@@ -98,6 +98,18 @@ impl SessionActions {
     pub fn appender(&mut self, dossier: &str, octets: &[u8]) -> Result<(), ErreurMail> {
         self.interne.appender(dossier, octets)
     }
+
+    pub fn lire_corps(
+        &mut self,
+        dossier: &str,
+        uid: u32,
+    ) -> Result<imap::CorpsLu, ErreurMail> {
+        self.interne.lire_corps(dossier, uid)
+    }
+
+    pub fn lire_lu(&mut self, dossier: &str, uid: u32) -> Result<bool, ErreurMail> {
+        self.interne.lire_lu(dossier, uid)
+    }
 }
 
 impl FournisseurMail for SessionActions {
@@ -167,6 +179,11 @@ impl VeilleReception {
 
     pub fn chemin(&self) -> CheminVeille {
         self.chemin
+    }
+
+    /// Attend une notification IDLE (nouveau message, drapeau, retrait).
+    pub fn attendre(&self, timeout: std::time::Duration) -> Result<bool, ErreurMail> {
+        self._flux.attendre(timeout)
     }
 }
 
