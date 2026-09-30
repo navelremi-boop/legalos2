@@ -4,6 +4,7 @@ pub mod conflits;
 pub mod db;
 pub mod error;
 pub mod facturation;
+pub mod identifiants;
 pub mod install;
 pub mod moteur_mail;
 pub mod oauth_mail;

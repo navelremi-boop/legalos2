@@ -1,3 +1,4 @@
+import { verifierSirenTva } from "@/dossiers/identifiants";
 import { getPowerSyncDatabase } from "@/sync/database";
 
 export type NatureContact = "physique" | "morale";
@@ -42,6 +43,7 @@ export async function ecrireContact(saisie: {
 }): Promise<string> {
   const nom = saisie.nom.trim();
   if (nom === "") throw new Error("Nom de contact requis");
+  verifierSirenTva(saisie.siren, saisie.numeroTva);
   const cabinetId = await cabinetCourant();
   const id = crypto.randomUUID();
   const creeLe = new Date().toISOString();

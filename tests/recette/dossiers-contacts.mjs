@@ -84,11 +84,11 @@ const moral = await creer("/contacts", {
   idempotence_cle: `dc-cm-${contactMoral}`,
   nature: "morale",
   nom: `Societe ${session.marque}`,
-  siren: "123456789",
-  numero_tva: "FR00123456789",
+  siren: "100000009",
+  numero_tva: "FR88100000009",
   type_client: "professionnel",
 });
-if (moral.siren !== "123456789" || moral.type_client !== "professionnel") {
+if (moral.siren !== "100000009" || moral.type_client !== "professionnel") {
   fail("SIREN ou type professionnel non renvoyé");
 }
 await creer("/contacts", {
@@ -267,8 +267,8 @@ try {
     `Contact UI ${session.marque}`,
     "morale",
     "professionnel",
-    "987654321",
-    "FR00987654321",
+    "100000025",
+    "FR39100000025",
   );
   await ajouterPartie(
     "confrere",
@@ -298,10 +298,10 @@ try {
     ))()`,
   );
   const ligneContact = Array.isArray(contactLocal) ? contactLocal[0] : null;
-  if (!ligneContact || ligneContact.nature !== "morale" || ligneContact.siren !== "987654321") {
+  if (!ligneContact || ligneContact.nature !== "morale" || ligneContact.siren !== "100000025") {
     fail(`contact local incomplet (${JSON.stringify(ligneContact)})`);
   }
-  if (ligneContact.type_client !== "professionnel" || ligneContact.numero_tva !== "FR00987654321") {
+  if (ligneContact.type_client !== "professionnel" || ligneContact.numero_tva !== "FR39100000025") {
     fail(`facturation locale (${JSON.stringify(ligneContact)})`);
   }
   const etrangerLocal = await session.evaluate(

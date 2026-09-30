@@ -42,3 +42,7 @@ Typst n'est pas une bibliothèque liée dans le binaire Rust de l'API : à la va
 ## F8 — Type client et canal d'émission
 
 `type_client` sur la facture : `professionnel` → dépôt Factur-X sur la PA ; `particulier` ou `etranger` → `PlateformeAgreee::e_reporter` (pas de facture électronique, cahier § 3.7). L'annuaire PA est exposé en stub `GET /annuaire/{siren}`. **Retenu par l'architecte (27/09/2026).** Les clients publics (Chorus Pro) ne sont pas couverts ; c'est un point ouvert du cahier § 6.
+
+## F9 — SIREN et n° TVA FR
+
+Le SIREN saisi est refusé s'il n'a pas 9 chiffres dont la clé de Luhn. Un n° de TVA commençant par FR est `FR` + clé sur deux chiffres + SIREN, avec clé = `(12 + 3 × (SIREN mod 97)) mod 97` (critère de PLAN.md). Cas fictif : `100000009` / `FR88100000009`. Un n° qui ne commence pas par FR n'est pas contrôlé par cette clé. **À valider par l'avocat.**

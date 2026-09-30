@@ -41,8 +41,8 @@ await creer("/contacts", {
   idempotence_cle: `dcc-c-${contactId}`,
   nature: "morale",
   nom: `Contact conflit ${session.marque}`,
-  siren: "111222333",
-  numero_tva: "FR00111222333",
+  siren: "100000017",
+  numero_tva: "FR15100000017",
   type_client: "professionnel",
 });
 await creer(`/dossiers/${dossierId}/parties`, {

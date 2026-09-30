@@ -304,15 +304,15 @@ async fn dossier_contact_lien_historique_conflit() {
             "idempotence_cle": format!("dc-c-{contact_id}"),
             "nature": "morale",
             "nom": "Societe Fictive",
-            "siren": "123456789",
-            "numero_tva": "FR00123456789",
+            "siren": "100000009",
+            "numero_tva": "FR88100000009",
             "type_client": "professionnel"
         }),
     )
     .await;
     assert_eq!(st, StatusCode::OK, "{contact:?}");
     assert_eq!(contact["type_client"], "professionnel");
-    assert_eq!(contact["siren"], "123456789");
+    assert_eq!(contact["siren"], "100000009");
 
     let contact_phys = Uuid::now_v7();
     let (st, _) = json_auth(

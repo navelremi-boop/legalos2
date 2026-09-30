@@ -93,6 +93,7 @@ pub async fn creer_contact(
     if !TYPES_CLIENT.contains(&body.type_client.as_str()) {
         return Err(ApiError::bad_request("type_client inconnu"));
     }
+    crate::identifiants::verifier_siren_tva(body.siren.as_deref(), body.numero_tva.as_deref())?;
     let mut tx = state
         .pool
         .begin()
@@ -254,6 +255,9 @@ pub async fn patch_contact(
     let nom_f = body.nom.as_deref().unwrap_or(&courant.0);
     let siren_f = body.siren.as_deref().or(courant.1.as_deref());
     let tva_f = body.numero_tva.as_deref().or(courant.2.as_deref());
+    if body.siren.is_some() || body.numero_tva.is_some() {
+        crate::identifiants::verifier_siren_tva(siren_f, tva_f)?;
+    }
     let type_f = body.type_client.as_deref().unwrap_or(&courant.3);
     if revision != courant.4 {
         sqlx::query(
