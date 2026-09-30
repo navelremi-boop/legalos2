@@ -144,6 +144,13 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
     - `node tests/recette/points-medians.mjs` et `pnpm --filter @legal-os/poste lint:ci` → exit 0.
     - `node tests/recette/coque-app.mjs --captures` : captures jour et nuit de chaque nouvel écran, revues par le contrôleur au regard du § 7, validées par l'architecte ; le commandement garde son veto (B9).
     - Contrôleur VALIDÉ ; CI verte.
+    - Corrections du 30/09 (captures refusées par l'architecte, B9) ; les critères ci-dessus restent :
+      - Mails : trois volets (dossiers et comptes ; liste avec expéditeur, objet, date et extrait ; lecture avec expéditeur, destinataires, date, corps nettoyé, pièces jointes, bouton de classement). Dossiers IMAP en français (« Boîte de réception », « Envoyés »). Recherche en haut de la liste. File d'envoi hors du volet de lecture. Badge égal au nombre de mails à classer.
+      - Dossiers : la liste est l'écran ; la création s'ouvre dans un panneau à la demande. Valeurs affichées avec leur libellé (« Contentieux », « Instruction »).
+      - Agenda : vue du jour et de la semaine (audiences, rendez-vous, tâches, échéances) ; création à la demande ; date et heure par des sélecteurs ; rappel par une liste de délais. Titre au même niveau que les autres écrans.
+      - Facturation et les autres écrans : captures avec un jeu de démonstration fictif, chargé seulement en mode développement ; aucune capture d'un état vide, sauf capture dédiée de l'état vide.
+      - Barre d'actions : aucun bouton affiché comme sélectionné hors de son contexte.
+      - Nouvelles captures jour et nuit, puis validation de l'architecte.
 
 ### Dettes transverses (§ 4.4)
 
@@ -163,6 +170,10 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
 - [x] **Avant la fin de J9 et de Documents, suite** : brancher la vue scindée sur les éléments synchronisés (mails, pièces, factures), sans réintroduire de jeu fictif dans le dossier réel ni dans le build distribué.
 - [x] **Avant J11** : authentification OAuth pour Microsoft 365 et Gmail (secret côté serveur, renouvellement du jeton) — `node tests/recette/oauth-messagerie.mjs`.
 - [ ] **Mensuel** : avis de sécurité PowerSync (GHSA, édition 3) relus et consignés dans `docs/versions.md`.
+- [ ] **Avant le premier compte réel (B8)** : échecs de connexion IMAP — temporisation croissante ; après un refus d'authentification, arrêt des tentatives et état « identifiants refusés » visible par le titulaire ; aucune boucle sans délai. Essai négatif compris — `node tests/recette/s7-connexions.mjs`.
+- [ ] **Avant le premier compte réel (B8)** : veille IDLE renouvelée avant 29 minutes (RFC 2177) ; une session de relève réutilisée pour tous les dossiers ; relève au réveil et au plus toutes les 10 minutes sans réveil — `node tests/recette/s7-connexions.mjs`.
+- [ ] **Avant le premier compte réel (B8)** : serveur CONDSTORE sans QRESYNC — drapeaux par CHANGEDSINCE, suppressions par UID SEARCH ; relève complète seulement si le serveur n'offre ni l'un ni l'autre, et jamais plus d'une fois par cycle de 10 minutes — `node tests/recette/s7-connexions.mjs`.
+- [ ] **Avant le premier compte réel (B8)** : un compte modifié ou supprimé arrête ou redémarre sa tâche avec les nouveaux paramètres — `node tests/recette/s7-connexions.mjs`.
 
 Chaque jalon : recettes + clippy + contrôleur.
 
