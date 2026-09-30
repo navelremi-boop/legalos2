@@ -23,6 +23,16 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-09-30 — J9 messagerie étapes 1–2 (lot/j9)
+
+Branche `lot/j9`, worktree `.worktrees/j9`. `PLAN.md` non modifié.
+
+**Étape 1** commit `14ce268` : relève IMAP (SEARCH + FETCH RFC822.HEADER + `mail-parser`), classement. Preuve : `node tests/recette/s7-classement.mjs` → exit 0 (~2,9 s) contre GreenMail compose.
+
+**Étape 2** commit `f9f6fd1` : file d'envoi § 3.8.3 (`lettre`, APPEND Sent, Message-ID unique, coupure après SMTP). Preuve : `node tests/recette/s7-envoi.mjs` → exit 0 (~2,3 s).
+
+**Reste** : étape 3 (`s7-synchro`, 50 000 messages, ammonia, FTS), `s7-poste-tauri`, clippy, contrôleur, CI.
+
 ## 2026-09-29 — Documents, suite : contrat serveur livré, pas fusionné
 
 [API arborescence](f70a4356-d103-4529-b136-1203c7cec6ff) : commit `3889e91` sur `lot/documents-api`, PR [n° 15](https://github.com/navelremi-boop/legalos2/pull/15). Pas de fusion dans `main` : le contrôleur du jalon attend le lot poste.
