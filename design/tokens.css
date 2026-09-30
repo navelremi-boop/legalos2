@@ -3,33 +3,14 @@
  * Couleurs autorisées uniquement ici ; Tailwind les réexpose via apps/poste/src/index.css.
  */
 
-/* --- Atkinson Hyperlegible Next (OFL), embarquée — pas de Google Fonts en prod --- */
+/* --- Atkinson Hyperlegible Next (OFL 1.1), fichier variable officiel — pas de Google Fonts en prod --- */
 @font-face {
   font-family: "Atkinson Hyperlegible Next";
   font-style: normal;
-  font-weight: 400;
+  font-weight: 400 800;
   font-display: swap;
-  src: url("/fonts/atkinson-hyperlegible-next/AtkinsonHyperlegibleNext-Regular.woff2")
-    format("woff2");
-}
-
-@font-face {
-  font-family: "Atkinson Hyperlegible Next";
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("/fonts/atkinson-hyperlegible-next/AtkinsonHyperlegibleNext-Bold.woff2")
-    format("woff2");
-}
-
-/* Graisse 800 : ExtraBold non embarqué — Bold synthétique jusqu’à disponibilité du woff2 */
-@font-face {
-  font-family: "Atkinson Hyperlegible Next";
-  font-style: normal;
-  font-weight: 800;
-  font-display: swap;
-  src: url("/fonts/atkinson-hyperlegible-next/AtkinsonHyperlegibleNext-Bold.woff2")
-    format("woff2");
+  src: url("/fonts/atkinson-hyperlegible-next/AtkinsonHyperlegibleNext-Variable.ttf")
+    format("truetype");
 }
 
 :root,

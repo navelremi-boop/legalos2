@@ -12,7 +12,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Agenda** : VALIDÉ `57fd4dc` (contrôleur sur `635714e`, CI [36586753618](https://github.com/navelremi-boop/legalos2/actions/runs/36586753618)). Trois runs : **65** minutes. Premier contrôle REFUSÉ sur `697bfbd`.
 - **Documents, suite** : VALIDÉ `6f5f757` (contrôleur sur `8e962d7`, CI [36687786819](https://github.com/navelremi-boop/legalos2/actions/runs/36687786819)). Premier contrôle REFUSÉ sur `d836807` (`PSYNC_S2305`). Cinq runs : **99** minutes.
 - **J9** : VALIDÉ `a036e24` (contrôleur [étape 3](f0db1509-4bcf-4701-a6dd-eb44db4835ca), CI [36751876546](https://github.com/navelremi-boop/legalos2/actions/runs/36751876546)). Run de reprise : **22** minutes (jobs arrondis à la minute supérieure).
-- **En cours** : **J10**. Contrôleur [écrans](0c95a661-b4fd-4e05-b03a-6ccbaa41951c) **VALIDÉ** sur `197b345`. CI [36731054836](https://github.com/navelremi-boop/legalos2/actions/runs/36731054836) verte. Jalon non coché : les captures attendent la validation de l'architecte (B9). Dette OAuth mail (avant J11) : `oauth-messagerie.mjs` exit 0, jeton chiffré et renouvelé, absent des réponses.
+- **En cours** : **J10**. Contrôleur [écrans](0c95a661-b4fd-4e05-b03a-6ccbaa41951c) **VALIDÉ** sur `197b345`. CI [36731054836](https://github.com/navelremi-boop/legalos2/actions/runs/36731054836) verte. Jalon non coché : les captures attendent la validation de l'architecte (B9). Dette de fin de phase 2 : moteur de délais en TypeScript strict (`s8-delais.mjs` exit 0) ; Atkinson Hyperlegible Next variable et sa licence OFL 1.1 sont dans `apps/poste/public/fonts/atkinson-hyperlegible-next/`.
 - **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → ~~Intercalaires~~ → ~~Dossiers et contacts~~ → ~~Agenda~~ → ~~Documents, suite~~ → ~~J9~~ → **J10**. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
 - **CI** : l'état d'un run se lit par `gh run view` à chaque fois. Attendre = `gh run watch <id> --exit-status`. Deux relances consécutives sans commande ni commit créent `.mission/STOP` (ordre § 4.7).
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance). Un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` doit exister.
@@ -31,6 +31,8 @@ Contrôleur [écrans](0c95a661-b4fd-4e05-b03a-6ccbaa41951c) **VALIDÉ** sur `197
 CI du commit lue ensuite par `gh run view 36731054836` : completed, success. Le premier passage du job rust était bloqué depuis 14 h 45 sur la vérification Tauri ; le run a été annulé puis relancé. Jalon non coché : validation des captures par l'architecte, veto du commandement (B9).
 
 OAuth Microsoft 365 et Gmail (`oauth2` 5.0.0, XOAUTH2 via `io-imap` 0.6.1) : le rafraîchissement est chiffré sur le serveur. Contre un simulateur RFC 6749 local, `node tests/recette/oauth-messagerie.mjs` exit 0. Le jeton n'est pas dans les réponses HTTP. Un fournisseur inconnu et un état inconnu sont refusés.
+
+Dette de fin de phase 2 : le moteur de délais est `apps/poste/src/delais/moteur.ts`, contrôlé par `tsc --strict` du poste. `node tests/recette/s8-delais.mjs` exit 0. Atkinson Hyperlegible Next (fichier variable officiel, dépôt Google Fonts) et `OFL.txt` 1.1 sont dans `apps/poste/public/fonts/atkinson-hyperlegible-next/`.
 
 ## 2026-09-30 — J9 étape 3 rouverte
 

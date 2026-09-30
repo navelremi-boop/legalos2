@@ -16,7 +16,7 @@ import {
   ecrireDate,
   joursFeriesMetropole,
   moisAugmentationDistance,
-} from "../../apps/poste/src/delais/moteur.mjs";
+} from "../../apps/poste/src/delais/moteur.ts";
 
 function fail(message) {
   console.error(`s8: FAIL — ${message}`);

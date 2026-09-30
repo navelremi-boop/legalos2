@@ -3,10 +3,40 @@
  * Chaque règle est reprise dans docs/hypotheses-delais.md, « à valider par l'avocat ».
  */
 
-/** @typedef {'metropole' | 'collectivite-644'} SiegeJuridiction */
-/** @typedef {'metropole' | 'outre-mer' | 'etranger'} LieuPartie */
-/** @typedef {'oui' | 'non' | 'regime-special'} AugmentationDistance */
-/** @typedef {'expediteur' | 'destinataire'} RolePartie */
+export type SiegeJuridiction = "metropole" | "collectivite-644";
+export type LieuPartie = "metropole" | "outre-mer" | "etranger";
+export type AugmentationDistance = "oui" | "non" | "regime-special";
+export type RolePartie = "expediteur" | "destinataire";
+
+export type TypeDelai = {
+  jours?: number;
+  mois?: number;
+  annees?: number;
+  augmentationDistance?: AugmentationDistance;
+};
+
+export type SaisieDelai = {
+  origine?: string;
+  jours?: number;
+  mois?: number;
+  annees?: number;
+  moisDistance?: number;
+  siegeJuridiction?: SiegeJuridiction;
+  departementSiege?: string;
+  lieuPartie?: LieuPartie;
+  collectivite?: string;
+  departement?: string;
+  typeDelai?: TypeDelai;
+  dateExpedition?: string;
+  dateRemise?: string;
+  rolePartie?: RolePartie;
+};
+
+export type ResultatDelai = {
+  echeance: string;
+  moisAugmentation: number;
+  sourceAugmentation: string;
+};
 
 /**
  * Bibliothèque minimale de délais (source : docs/hypotheses-delais.md).
@@ -20,14 +50,22 @@
  *   source: string,
  * }[]}
  */
-export const BIBLIOTHEQUE_DELAIS = Object.freeze([
+export const BIBLIOTHEQUE_DELAIS: readonly {
+  id: string;
+  label: string;
+  jours: number;
+  mois: number;
+  annees: number;
+  augmentationDistance: AugmentationDistance;
+  source: string;
+}[] = Object.freeze([
   {
     id: "libre",
     label: "Saisie libre",
     jours: 0,
     mois: 0,
     annees: 0,
-    augmentationDistance: /** @type {AugmentationDistance} */ ("oui"),
+    augmentationDistance: "oui",
     source: "",
   },
   {
@@ -36,7 +74,7 @@ export const BIBLIOTHEQUE_DELAIS = Object.freeze([
     jours: 0,
     mois: 1,
     annees: 0,
-    augmentationDistance: /** @type {AugmentationDistance} */ ("oui"),
+    augmentationDistance: "oui",
     source: "art. 538",
   },
   {
@@ -45,7 +83,7 @@ export const BIBLIOTHEQUE_DELAIS = Object.freeze([
     jours: 0,
     mois: 3,
     annees: 0,
-    augmentationDistance: /** @type {AugmentationDistance} */ ("regime-special"),
+    augmentationDistance: "regime-special",
     source: "art. 908, 915-4",
   },
   {
@@ -54,7 +92,7 @@ export const BIBLIOTHEQUE_DELAIS = Object.freeze([
     jours: 0,
     mois: 1,
     annees: 0,
-    augmentationDistance: /** @type {AugmentationDistance} */ ("oui"),
+    augmentationDistance: "oui",
     source: "art. 538",
   },
   {
@@ -63,7 +101,7 @@ export const BIBLIOTHEQUE_DELAIS = Object.freeze([
     jours: 15,
     mois: 0,
     annees: 0,
-    augmentationDistance: /** @type {AugmentationDistance} */ ("oui"),
+    augmentationDistance: "oui",
     source: "",
   },
   {
@@ -72,7 +110,7 @@ export const BIBLIOTHEQUE_DELAIS = Object.freeze([
     jours: 0,
     mois: 2,
     annees: 0,
-    augmentationDistance: /** @type {AugmentationDistance} */ ("oui"),
+    augmentationDistance: "oui",
     source: "",
   },
   {
@@ -81,13 +119,13 @@ export const BIBLIOTHEQUE_DELAIS = Object.freeze([
     jours: 0,
     mois: 2,
     annees: 0,
-    augmentationDistance: /** @type {AugmentationDistance} */ ("non"),
+    augmentationDistance: "non",
     source: "Cass. 2e civ. 4 février 2021",
   },
 ]);
 
 /** @param {number} annee */
-export function dimancheDePaques(annee) {
+export function dimancheDePaques(annee: number): Date {
   const a = annee % 19;
   const b = Math.floor(annee / 100);
   const c = annee % 100;
@@ -106,7 +144,7 @@ export function dimancheDePaques(annee) {
 }
 
 /** @param {string} iso YYYY-MM-DD */
-export function lireDate(iso) {
+export function lireDate(iso: string): Date {
   const morceaux = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
   if (!morceaux) {
     throw new Error("date attendue AAAA-MM-JJ");
@@ -122,19 +160,19 @@ export function lireDate(iso) {
 }
 
 /** @param {Date} date */
-export function ecrireDate(date) {
+export function ecrireDate(date: Date): string {
   const mois = String(date.getUTCMonth() + 1).padStart(2, "0");
   const jour = String(date.getUTCDate()).padStart(2, "0");
-  return `${date.getUTCFullYear()}-${mois}-${jour}`;
+  return `${String(date.getUTCFullYear())}-${mois}-${jour}`;
 }
 
 /** @param {number} annee @param {number} mois 1-12 @param {number} jour */
-function dateUtc(annee, mois, jour) {
+function dateUtc(annee: number, mois: number, jour: number): Date {
   return new Date(Date.UTC(annee, mois - 1, jour));
 }
 
 /** @param {Date} date @param {number} jours */
-function decalerJours(date, jours) {
+function decalerJours(date: Date, jours: number): Date {
   const copie = new Date(date.getTime());
   copie.setUTCDate(copie.getUTCDate() + jours);
   return copie;
@@ -145,7 +183,7 @@ function decalerJours(date, jours) {
  * @param {Date} origine
  * @param {number} mois
  */
-export function ajouterMois(origine, mois) {
+export function ajouterMois(origine: Date, mois: number): Date {
   const annee = origine.getUTCFullYear();
   const moisOrigine = origine.getUTCMonth();
   const quantieme = origine.getUTCDate();
@@ -160,7 +198,7 @@ export function ajouterMois(origine, mois) {
  * @param {Date} origine
  * @param {number} annees
  */
-export function ajouterAnnees(origine, annees) {
+export function ajouterAnnees(origine: Date, annees: number): Date {
   const annee = origine.getUTCFullYear() + annees;
   const moisOrigine = origine.getUTCMonth();
   const quantieme = origine.getUTCDate();
@@ -171,7 +209,7 @@ export function ajouterAnnees(origine, annees) {
 }
 
 /** @param {number} annee */
-export function joursFeriesMetropole(annee) {
+export function joursFeriesMetropole(annee: number): Set<string> {
   const paques = dimancheDePaques(annee);
   const dates = [
     dateUtc(annee, 1, 1),
@@ -190,14 +228,14 @@ export function joursFeriesMetropole(annee) {
 }
 
 /** @param {Date} date */
-export function estOuvrable(date) {
+export function estOuvrable(date: Date): boolean {
   const jour = date.getUTCDay();
   if (jour === 0 || jour === 6) return false;
   return !joursFeriesMetropole(date.getUTCFullYear()).has(ecrireDate(date));
 }
 
 /** Art. 642 al. 2 : premier jour ouvrable suivant. @param {Date} date */
-export function prorogerAuJourOuvrable(date) {
+export function prorogerAuJourOuvrable(date: Date): Date {
   let courant = date;
   while (!estOuvrable(courant)) {
     courant = decalerJours(courant, 1);
@@ -210,7 +248,7 @@ export function prorogerAuJourOuvrable(date) {
  * @param {AugmentationDistance} mode
  * @param {SiegeJuridiction} siege
  */
-function sourcePour(mode, siege) {
+function sourcePour(mode: AugmentationDistance, siege: SiegeJuridiction): string {
   if (mode === "regime-special") return "art. 915-4";
   if (siege === "collectivite-644") return "art. 644";
   return "art. 643";
@@ -228,7 +266,14 @@ function sourcePour(mode, siege) {
  * }} saisie
  * @returns {{ mois: number, source: string }}
  */
-export function moisAugmentationDistance(saisie) {
+export function moisAugmentationDistance(saisie: {
+  siegeJuridiction?: SiegeJuridiction;
+  departementSiege?: string;
+  lieuPartie?: LieuPartie;
+  departement?: string;
+  collectivite?: string;
+  augmentationDistance?: AugmentationDistance;
+}): { mois: number; source: string } {
   const mode = saisie.augmentationDistance ?? "oui";
   if (mode === "non") {
     return { mois: 0, source: "" };
@@ -253,13 +298,10 @@ export function moisAugmentationDistance(saisie) {
   if (lieu === "metropole") {
     return { mois: 1, source };
   }
-  if (lieu === "outre-mer") {
-    if (depSiege !== "" && depPartie !== "" && depSiege === depPartie) {
-      return { mois: 0, source: "" };
-    }
-    return { mois: 1, source };
+  if (depSiege !== "" && depPartie !== "" && depSiege === depPartie) {
+    return { mois: 0, source: "" };
   }
-  return { mois: 0, source: "" };
+  return { mois: 1, source };
 }
 
 /**
@@ -271,7 +313,12 @@ export function moisAugmentationDistance(saisie) {
  *   rolePartie?: RolePartie,
  * }} saisie
  */
-export function dateOrigineNotification(saisie) {
+export function dateOrigineNotification(saisie: {
+  origine?: string;
+  dateExpedition?: string;
+  dateRemise?: string;
+  rolePartie?: RolePartie;
+}): string {
   const role = saisie.rolePartie;
   if (role === "expediteur" && saisie.dateExpedition) {
     return saisie.dateExpedition;
@@ -290,7 +337,10 @@ export function dateOrigineNotification(saisie) {
  * @param {string} origineIso
  * @param {{ jours?: number, mois?: number, annees?: number }} duree
  */
-function appliquerDuree(origineIso, duree) {
+function appliquerDuree(
+  origineIso: string,
+  duree: { jours?: number; mois?: number; annees?: number },
+): string {
   const jours = duree.jours ?? 0;
   const mois = duree.mois ?? 0;
   const annees = duree.annees ?? 0;
@@ -338,7 +388,7 @@ function appliquerDuree(origineIso, duree) {
  * }} saisie
  * @returns {{ echeance: string, moisAugmentation: number, sourceAugmentation: string }}
  */
-export function calculerDelaiComplet(saisie) {
+export function calculerDelaiComplet(saisie: SaisieDelai): ResultatDelai {
   const type = saisie.typeDelai ?? {};
   const mode = type.augmentationDistance ?? "oui";
 
@@ -391,7 +441,23 @@ export function calculerDelaiComplet(saisie) {
  *   rolePartie?: RolePartie,
  * }} saisie
  */
-export function calculerChaineAppelConclusions(saisie) {
+export function calculerChaineAppelConclusions(saisie: {
+  origine: string;
+  siegeJuridiction?: SiegeJuridiction;
+  departementSiege?: string;
+  lieuPartie?: LieuPartie;
+  departement?: string;
+  collectivite?: string;
+  dateDeclarationAppel?: string;
+  dateExpedition?: string;
+  dateRemise?: string;
+  rolePartie?: RolePartie;
+}): {
+  appel: ResultatDelai;
+  conclusions: ResultatDelai;
+  moisConclusions: number;
+  dateDeclarationAppel: string;
+} {
   const commun = {
     siegeJuridiction: saisie.siegeJuridiction,
     departementSiege: saisie.departementSiege,
@@ -450,7 +516,7 @@ export function calculerChaineAppelConclusions(saisie) {
  * }} saisie
  * @returns {string}
  */
-export function calculerEcheance(saisie) {
+export function calculerEcheance(saisie: SaisieDelai & { origine: string }): string {
   if (
     saisie.siegeJuridiction !== undefined ||
     saisie.lieuPartie !== undefined ||
