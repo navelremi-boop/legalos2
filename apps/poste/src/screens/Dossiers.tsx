@@ -24,6 +24,8 @@ type DossiersProps = {
   onNouveauDossier?: () => void;
   onNouveauMail?: () => void;
   onSaisirTemps?: () => void;
+  /** Galerie : liste fixe, sans PowerSync. */
+  lignesFixes?: LigneDossier[];
 };
 
 export function Dossiers({
@@ -31,10 +33,13 @@ export function Dossiers({
   onNouveauDossier,
   onNouveauMail,
   onSaisirTemps,
+  lignesFixes,
 }: DossiersProps) {
-  const [lignes, setLignes] = useState<LigneDossier[]>([]);
+  const [lignesSync, setLignesSync] = useState<LigneDossier[]>([]);
+  const lignes = lignesFixes ?? lignesSync;
 
   useEffect(() => {
+    if (lignesFixes) return;
     let stop = false;
     const tick = () => {
       void getPowerSyncDatabase()
@@ -44,10 +49,10 @@ export function Dossiers({
           ),
         )
         .then((rows) => {
-          if (!stop) setLignes(rows);
+          if (!stop) setLignesSync(rows);
         })
         .catch(() => {
-          if (!stop) setLignes([]);
+          if (!stop) setLignesSync([]);
         });
     };
     tick();
@@ -56,7 +61,7 @@ export function Dossiers({
       stop = true;
       window.clearInterval(timer);
     };
-  }, []);
+  }, [lignesFixes]);
 
   return (
     <div

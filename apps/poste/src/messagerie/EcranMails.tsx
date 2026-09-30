@@ -69,17 +69,30 @@ async function poster(instanceUrl: string, chemin: string): Promise<void> {
   });
 }
 
+export type DemonstrationMails = {
+  comptes: CompteLocal[];
+  mails: MailLocal[];
+  dossiers: DossierLocal[];
+};
+
 type EcranMailsProps = {
   instanceUrl: string;
   onNouveauDossier?: () => void;
   onSaisirTemps?: () => void;
+  /** Galerie seulement : pas d'appel PowerSync. */
+  demonstration?: DemonstrationMails;
 };
 
 /**
  * Trois volets (§ 7.6) : comptes et dossiers IMAP, liste, lecture.
  * La file d'envoi et la recherche hors ligne restent dans le volet de lecture.
  */
-export function EcranMails({ instanceUrl, onNouveauDossier, onSaisirTemps }: EcranMailsProps) {
+export function EcranMails({
+  instanceUrl,
+  onNouveauDossier,
+  onSaisirTemps,
+  demonstration,
+}: EcranMailsProps) {
   const [lignes, setLignes] = useState<LigneEnvoi[]>([]);
   const [terme, setTerme] = useState("");
   const [hits, setHits] = useState<ResultatRechercheMail[]>([]);
@@ -87,9 +100,13 @@ export function EcranMails({ instanceUrl, onNouveauDossier, onSaisirTemps }: Ecr
   const [mails, setMails] = useState<MailLocal[]>([]);
   const [dossiers, setDossiers] = useState<DossierLocal[]>([]);
   const [dossierImap, setDossierImap] = useState(DOSSIERS_IMAP[0] ?? "INBOX");
-  const [selection, setSelection] = useState<string | null>(null);
+  const [selection, setSelection] = useState<string | null>(() => {
+    const aClasser = demonstration?.mails.find((mail) => mail.etat_classement !== "classe");
+    return aClasser?.id ?? demonstration?.mails[0]?.id ?? null;
+  });
 
   useEffect(() => {
+    if (demonstration) return;
     let stop = false;
     const tick = () => {
       void lireFile(instanceUrl).then((rows) => {
@@ -126,7 +143,7 @@ export function EcranMails({ instanceUrl, onNouveauDossier, onSaisirTemps }: Ecr
       stop = true;
       window.clearInterval(timer);
     };
-  }, [instanceUrl]);
+  }, [instanceUrl, demonstration]);
 
   useEffect(() => {
     let stop = false;
@@ -142,8 +159,11 @@ export function EcranMails({ instanceUrl, onNouveauDossier, onSaisirTemps }: Ecr
     };
   }, [terme]);
 
-  const parId = new Map(dossiers.map((dossier) => [dossier.id, dossier]));
-  const choisi = mails.find((mail) => mail.id === selection) ?? mails[0] ?? null;
+  const comptesAffiches = demonstration?.comptes ?? comptes;
+  const mailsAffiches = demonstration?.mails ?? mails;
+  const dossiersAffiches = demonstration?.dossiers ?? dossiers;
+  const parId = new Map(dossiersAffiches.map((dossier) => [dossier.id, dossier]));
+  const choisi = mailsAffiches.find((mail) => mail.id === selection) ?? mailsAffiches[0] ?? null;
   const classe = choisi?.etat_classement === "classe";
   const dossierClasse = choisi?.dossier_id ? parId.get(choisi.dossier_id) : undefined;
   const suggestionId = choisi?.suggestion_dossier_id ?? choisi?.dossier_id ?? null;
@@ -159,11 +179,11 @@ export function EcranMails({ instanceUrl, onNouveauDossier, onSaisirTemps }: Ecr
         <div className="grid h-full min-h-[420px] grid-cols-[200px_minmax(0,1fr)_minmax(0,1.2fr)]" data-testid="mails-trois-volets">
           <aside className="border-r border-filet p-3" data-testid="mails-comptes">
             <h2 className="mb-2 text-[length:var(--font-size-dense)] font-extrabold">{fr("Comptes")}</h2>
-            {comptes.length === 0 ? (
+            {comptesAffiches.length === 0 ? (
               <p className="mb-3 text-graphite">{fr("Aucun compte synchronisé.")}</p>
             ) : (
               <ul className="mb-3">
-                {comptes.map((compte) => (
+                {comptesAffiches.map((compte) => (
                   <li key={compte.id} data-testid="compte-mail">
                     {fr(compte.adresse)}
                   </li>
@@ -191,11 +211,11 @@ export function EcranMails({ instanceUrl, onNouveauDossier, onSaisirTemps }: Ecr
           </aside>
           <section className="border-r border-filet p-3" data-testid="mails-liste">
             <h2 className="mb-2 text-[length:var(--font-size-dense)] font-extrabold">{fr(dossierImap)}</h2>
-            {mails.length === 0 ? (
+            {mailsAffiches.length === 0 ? (
               <p className="text-graphite">{fr("Aucun message dans cette boîte.")}</p>
             ) : (
               <ul>
-                {mails.map((mail) => {
+                {mailsAffiches.map((mail) => {
                   const dossier = mail.dossier_id ? parId.get(mail.dossier_id) : undefined;
                   return (
                     <li key={mail.id}>
