@@ -83,11 +83,7 @@ pub fn decider_action(entree: &EntreeFileEnvoi, deja_dans_envoyes: bool) -> Acti
 }
 
 /// Applique le résultat d'une action (sans I/O).
-pub fn appliquer(
-    entree: &mut EntreeFileEnvoi,
-    action: ActionEnvoi,
-    succes: bool,
-) -> EtatFileEnvoi {
+pub fn appliquer(entree: &mut EntreeFileEnvoi, action: ActionEnvoi, succes: bool) -> EtatFileEnvoi {
     match action {
         ActionEnvoi::Rien => {}
         ActionEnvoi::ConfirmerCopie => {
@@ -130,22 +126,13 @@ mod tests {
     #[test]
     fn message_id_unique_et_verification_envoyes_avant_retry() {
         let mut e = entree(EtatFileEnvoi::EnAttente);
-        assert_eq!(
-            decider_action(&e, false),
-            ActionEnvoi::EnvoyerSmtp
-        );
+        assert_eq!(decider_action(&e, false), ActionEnvoi::EnvoyerSmtp);
         appliquer(&mut e, ActionEnvoi::EnvoyerSmtp, true);
         assert_eq!(e.etat, EtatFileEnvoi::Envoye);
         // Coupure après SMTP : retry voit Envoyés vide → APPEND seulement.
-        assert_eq!(
-            decider_action(&e, false),
-            ActionEnvoi::CopierDansEnvoyes
-        );
+        assert_eq!(decider_action(&e, false), ActionEnvoi::CopierDansEnvoyes);
         // Si la copie est déjà là (fournisseur ou tentative précédente) : confirmer.
-        assert_eq!(
-            decider_action(&e, true),
-            ActionEnvoi::ConfirmerCopie
-        );
+        assert_eq!(decider_action(&e, true), ActionEnvoi::ConfirmerCopie);
         appliquer(&mut e, ActionEnvoi::ConfirmerCopie, true);
         assert!(!e.etat.dans_la_file());
         assert_eq!(e.message_id, "<fixe@cabinet.example>");

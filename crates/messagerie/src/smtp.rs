@@ -31,7 +31,10 @@ pub fn envoyer_message_fixe(
         .parse()
         .map_err(|_| ErreurMail::Protocole)?;
     let to: Mailbox = destinataire.parse().map_err(|_| ErreurMail::Protocole)?;
-    let id = message_id.trim().trim_start_matches('<').trim_end_matches('>');
+    let id = message_id
+        .trim()
+        .trim_start_matches('<')
+        .trim_end_matches('>');
     let message = Message::builder()
         .from(from)
         .to(to)
@@ -65,13 +68,7 @@ fn envoyer_brut(parametres: &ParametresSmtp, message: &Message) -> Result<(), Er
 }
 
 /// Octets RFC822 pour APPEND IMAP (même Message-ID).
-pub fn octets_rfc822(
-    de: &str,
-    a: &str,
-    objet: &str,
-    message_id: &str,
-    corps: &str,
-) -> Vec<u8> {
+pub fn octets_rfc822(de: &str, a: &str, objet: &str, message_id: &str, corps: &str) -> Vec<u8> {
     let id = if message_id.starts_with('<') {
         message_id.to_owned()
     } else {

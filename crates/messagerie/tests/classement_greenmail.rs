@@ -24,12 +24,7 @@ fn parametres() -> (ParametresCompte, u16) {
             13025,
         )
     } else {
-        (
-            "capa".into(),
-            "MotDePasseCapa123!".into(),
-            3143,
-            3025,
-        )
+        ("capa".into(), "MotDePasseCapa123!".into(), 3143, 3025)
     };
     (
         ParametresCompte {
