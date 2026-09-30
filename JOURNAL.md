@@ -24,6 +24,10 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-09-30 — Actions tierces épinglées par hash
+
+Dette « Avant J14 ». Les trois actions tierces de `.github/workflows/ci.yml` sont des commits complets, relevés le 2026-09-30 : `dtolnay/rust-toolchain` `6bed0761d98439e5a578e2877258200ad565ba87` (étiquette `stable`), `Swatinem/rust-cache` `82a92a6e8fbeee089604da2575dc567ae9ddeaab` (`v2.7.5`), `pnpm/action-setup` `a7487c7e89a18df4991f7f222e4898a00d66ddda` (`v4.1.0`). `BLOCAGES.md` porte les mêmes hash. `node tests/recette/workflows-valides.mjs` exit 0. Les actions `actions/*` restent sur leur étiquette : elles sont créées par GitHub, hors du tableau des tierces.
+
 ## 2026-09-30 — Relecture mensuelle des avis PowerSync
 
 J10 reste ouvert (B9). La dette mensuelle n'est pas cochée : elle se rejoue chaque mois.

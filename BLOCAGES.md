@@ -18,13 +18,13 @@
 
 ## Actions tierces autorisées
 
-GitHub Actions n'exécute que les actions créées par GitHub (`actions/`, `github/`) et ce tableau. Une action absente, ou une version différente de celle du tableau, fait échouer `node tests/recette/workflows-valides.mjs`. Le commandement ajoute la ligne. Aucun contournement : script téléchargé ou copie de l'action dans le dépôt. Avant J14, chaque ligne sera un hash de commit complet.
+GitHub Actions n'exécute que les actions créées par GitHub (`actions/`, `github/`) et ce tableau. Une action absente, ou une version différente de celle du tableau, fait échouer `node tests/recette/workflows-valides.mjs`. Le commandement ajoute la ligne. Aucun contournement : script téléchargé ou copie de l'action dans le dépôt. Chaque ligne tierce est un hash de commit complet (2026-09-30).
 
 | Action | Version en CI | Justification |
 | --- | --- | --- |
-| dtolnay/rust-toolchain | stable | Chaîne Rust du dépôt (`rust-toolchain.toml`), sans l'installer à la main sur le runner |
-| Swatinem/rust-cache | v2.7.5 | Cache des compilations Rust |
-| pnpm/action-setup | v4.1.0 | Installation de pnpm avant `pnpm install` |
+| dtolnay/rust-toolchain | 6bed0761d98439e5a578e2877258200ad565ba87 | Commit de l'étiquette `stable` au 2026-09-30. Chaîne Rust du dépôt (`rust-toolchain.toml`), sans l'installer à la main sur le runner |
+| Swatinem/rust-cache | 82a92a6e8fbeee089604da2575dc567ae9ddeaab | Commit de l'étiquette `v2.7.5`. Cache des compilations Rust |
+| pnpm/action-setup | a7487c7e89a18df4991f7f222e4898a00d66ddda | Commit de l'étiquette `v4.1.0`. Installation de pnpm avant `pnpm install` |
 
 **Levé ou contourné** : Git 2.55, rustup, pnpm, Windows SDK, polices Atkinson, MSVC (B2/B2b), scripts `bootstrap-path.ps1` / `clippy.ps1`, quota Actions (B13, dépôt public), actions créées par GitHub (B14).
 
