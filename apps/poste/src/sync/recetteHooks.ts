@@ -1,4 +1,11 @@
 import { lireNotificationsEmises, type NotificationEmise } from "@/agenda/rappels";
+import {
+  cheminCacheDocument,
+  ouvrirDocument,
+  renvoyerVersionDepuisCache,
+} from "@/documents/ouvrirDocument";
+import { estFichierIgnorePourVersion } from "@/documents/filtreTemporaire";
+import { fts5Disponible } from "@/documents/rechercheDocuments";
 import { DEMO_CABINET_ID } from "@/sync/demoCabinet";
 import { getPowerSyncDatabase } from "@/sync/database";
 import {
@@ -81,6 +88,14 @@ export type RecetteHooks = {
   decalerOrigineSansRecalcul: (id: string, origine: string) => Promise<void>;
   /** Coupe le flux PowerSync sans fermer la base (écritures locales → ps_crud). */
   disconnectSync: () => Promise<void>;
+  cheminCacheDocument: (documentId: string) => Promise<string | null>;
+  ouvrirDocument: (documentId: string) => Promise<string>;
+  renvoyerVersionDocument: (
+    documentId: string,
+    baseNumero: number,
+  ) => Promise<{ numero: number; divergence: boolean } | null>;
+  estFichierIgnorePourVersion: (nom: string) => boolean;
+  fts5Disponible: () => Promise<boolean>;
 };
 
 export function createRecetteHooks(): RecetteHooks {
@@ -178,6 +193,23 @@ export function createRecetteHooks(): RecetteHooks {
     async disconnectSync() {
       const database = await getPowerSyncDatabase();
       await database.disconnect();
+    },
+    async cheminCacheDocument(documentId: string) {
+      return cheminCacheDocument(documentId);
+    },
+    async ouvrirDocument(documentId: string) {
+      return ouvrirDocument(documentId);
+    },
+    async renvoyerVersionDocument(documentId: string, baseNumero: number) {
+      const resultat = await renvoyerVersionDepuisCache(documentId, baseNumero);
+      if (!resultat) return null;
+      return { numero: resultat.numero, divergence: resultat.divergence };
+    },
+    estFichierIgnorePourVersion(nom: string) {
+      return estFichierIgnorePourVersion(nom);
+    },
+    async fts5Disponible() {
+      return fts5Disponible();
     },
   };
 }

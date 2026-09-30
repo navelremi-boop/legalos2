@@ -13,6 +13,7 @@ export default tseslint.config(
       "node_modules/**",
       "eslint-rules/**",
       "eslint.config.js",
+      "src/**/*.test.ts",
     ],
   },
   {

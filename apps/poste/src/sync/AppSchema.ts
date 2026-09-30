@@ -98,11 +98,13 @@ const documents = new Table(
   {
     cabinet_id: column.text,
     dossier_id: column.text,
+    repertoire_id: column.text,
     nom: column.text,
     visibilite: column.text,
+    revision: column.integer,
     cree_le: column.text,
   },
-  { indexes: { dossier: ["dossier_id"] } },
+  { indexes: { dossier: ["dossier_id"], repertoire: ["repertoire_id"] } },
 );
 
 const documentVersions = new Table(
@@ -115,9 +117,25 @@ const documentVersions = new Table(
     taille: column.integer,
     auteur_id: column.text,
     visibilite: column.text,
+    texte: column.text,
+    parent_numero: column.integer,
     cree_le: column.text,
   },
   { indexes: { document: ["document_id"] } },
+);
+
+/** Arborescence de fichiers par dossier (contrat serveur documents phase 2). */
+const repertoires = new Table(
+  {
+    cabinet_id: column.text,
+    dossier_id: column.text,
+    parent_id: column.text,
+    nom: column.text,
+    visibilite: column.text,
+    revision: column.integer,
+    cree_le: column.text,
+  },
+  { indexes: { dossier: ["dossier_id"], parent: ["parent_id"] } },
 );
 
 const parties = new Table(
@@ -267,6 +285,7 @@ export const AppSchema = new Schema({
   postes,
   dossiers,
   parties,
+  repertoires,
   documents,
   document_versions: documentVersions,
   temps_saisis: tempsSaisis,
