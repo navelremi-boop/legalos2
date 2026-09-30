@@ -28,7 +28,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 Dette « Avant Facturation, suite », pendant que J10 attend la validation des captures (B9). La clé retenue est celle du plan : Luhn sur 9 chiffres ; pour un n° commençant par FR, clé = `(12 + 3 × (SIREN mod 97)) mod 97`. Un champ vide reste accepté. Un n° qui ne commence pas par FR n'est pas soumis à cette clé. Messages : « SIREN invalide. » et « Numéro de TVA invalide. ».
 
-Le poste refuse avant l'écriture SQLite (`verifierSirenTva` dans `ecrireContact`). L'API refuse `POST /contacts` et un `PATCH` qui touche le SIREN ou le n° TVA. Cas fictif `100000009` / `FR88100000009`. `node tests/recette/siren-tva.mjs` exit 0 contre l'instance locale. `cargo clippy -p legalos-api --all-targets -- -D warnings` exit 0. Hypothèse F9 dans `docs/hypotheses-facturation.md`, marquée à valider par l'avocat. J10 non coché.
+Le poste refuse avant l'écriture SQLite (`verifierSirenTva` dans `ecrireContact`). L'API refuse `POST /contacts` et un `PATCH` qui touche le SIREN ou le n° TVA. Cas fictif `100000009` / `FR88100000009`. `node tests/recette/siren-tva.mjs` exit 0 contre l'instance locale. `cargo clippy -p legalos-api --all-targets -- -D warnings` exit 0. Hypothèse F9 dans `docs/hypotheses-facturation.md`, marquée à valider par l'avocat. Le premier run [36769027375](https://github.com/navelremi-boop/legalos2/actions/runs/36769027375) échoue au `cargo fmt`. Après rustfmt, `gh run view 36769184976` : completed, success. J10 non coché.
 
 ## 2026-09-30 — J10 : contrôleur validé, captures en attente de l'architecte
 
