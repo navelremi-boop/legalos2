@@ -3,7 +3,9 @@
 
 mod chemin;
 mod classement;
+mod file_envoi;
 mod imap;
+mod smtp;
 
 pub use chemin::{
     chemin_veille, suite_uid_validity, Capacites, CheminVeille, CurseurDossier, SuiteDossier,
@@ -12,7 +14,11 @@ pub use classement::{
     decider, integrer_releve, DecisionClassement, DossierPourClassement, EntreeClassement,
     MessageReleve, ReleveConnue,
 };
+pub use file_envoi::{
+    appliquer, decider_action, ActionEnvoi, EntreeFileEnvoi, EtatFileEnvoi,
+};
 pub use imap::EnteteRecu;
+pub use smtp::{envoyer_message_fixe, octets_rfc822, ParametresSmtp};
 
 use thiserror::Error;
 
@@ -75,6 +81,20 @@ impl SessionActions {
         Ok(Self {
             interne: imap::Session::connecter(parametres)?,
         })
+    }
+
+    /// Recherche Message-ID dans un dossier IMAP (Envoyés).
+    pub fn message_id_present(
+        &mut self,
+        dossier: &str,
+        message_id: &str,
+    ) -> Result<bool, ErreurMail> {
+        self.interne.message_id_present(dossier, message_id)
+    }
+
+    /// APPEND RFC822 dans un dossier IMAP.
+    pub fn appender(&mut self, dossier: &str, octets: &[u8]) -> Result<(), ErreurMail> {
+        self.interne.appender(dossier, octets)
     }
 }
 

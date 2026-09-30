@@ -6,6 +6,7 @@ pub mod contacts;
 pub mod documents;
 pub mod dossiers;
 pub mod factures;
+pub mod file_envoi;
 pub mod health;
 pub mod intercalaires;
 pub mod messagerie;
@@ -119,6 +120,20 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route(
             "/dossiers/{dossier_id}/chrono-mails",
             get(messagerie::chrono_mails_dossier),
+        )
+        .route("/messagerie/file-envoi", get(file_envoi::lister_file_envoi))
+        .route("/messagerie/file-envoi", post(file_envoi::creer_envoi))
+        .route(
+            "/messagerie/file-envoi/{id}/mettre-en-attente",
+            post(file_envoi::mettre_en_attente),
+        )
+        .route(
+            "/messagerie/file-envoi/{id}/annuler",
+            post(file_envoi::annuler_envoi),
+        )
+        .route(
+            "/messagerie/file-envoi/{id}/traiter",
+            post(file_envoi::traiter_envoi),
         )
         .with_state(state)
 }

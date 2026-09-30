@@ -119,5 +119,14 @@ pub async fn build_app_state(
                 tls: m.tls,
             }
         }),
+        messagerie_smtp: config.messagerie.as_ref().map(|m| {
+            legalos_messagerie::ParametresSmtp {
+                hote: m.smtp_hote.clone(),
+                port: m.smtp_port,
+                utilisateur: m.utilisateur.clone(),
+                mot_de_passe: m.mot_de_passe.clone(),
+                adresse_from: m.adresse_from.clone(),
+            }
+        }),
     }))
 }

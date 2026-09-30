@@ -2,12 +2,13 @@
 
 use io_imap::client::{ImapClient, ImapClientStd};
 use io_imap::has_imap_capability;
+use io_imap::rfc3501::append::ImapMessageAppendOptions;
 use io_imap::rfc3501::fetch::ImapMessageFetchOptions;
 use io_imap::rfc3501::search::ImapMessageSearchOptions;
 use io_imap::rfc3501::store::ImapMessageStoreOptions;
 use io_imap::rfc6851::r#move::ImapMessageMoveOptions;
 use io_imap::session::ImapSessionOpenOptions;
-use io_imap::types::core::{NString, Vec1};
+use io_imap::types::core::{AString, NString, Vec1};
 use io_imap::types::fetch::{MacroOrMessageDataItemNames, MessageDataItem, MessageDataItemName};
 use io_imap::types::flag::{Flag, StoreType};
 use io_imap::types::mailbox::Mailbox;
@@ -223,6 +224,59 @@ impl Session {
         }
         messages.sort_by_key(|m| m.uid);
         Ok((etat.uid_validity, messages))
+    }
+
+    /// Crée le dossier s'il n'existe pas (NO ignoré).
+    pub fn assurer_dossier(&mut self, dossier: &str) -> Result<(), ErreurMail> {
+        let boite = boite(dossier)?;
+        match self.client.create(boite) {
+            Ok(()) => Ok(()),
+            Err(_) => Ok(()),
+        }
+    }
+
+    /// Vrai si un message portant cet identifiant est déjà dans le dossier.
+    pub fn message_id_present(
+        &mut self,
+        dossier: &str,
+        message_id: &str,
+    ) -> Result<bool, ErreurMail> {
+        self.assurer_dossier(dossier)?;
+        self.selectionner(dossier)?;
+        let id = message_id.trim();
+        let variantes = [
+            id.to_owned(),
+            id.trim_start_matches('<').trim_end_matches('>').to_owned(),
+            {
+                let nu = id.trim_start_matches('<').trim_end_matches('>');
+                format!("<{nu}>")
+            },
+        ];
+        for variante in &variantes {
+            let champ = AString::try_from("Message-ID".to_owned()).map_err(|_| ErreurMail::Protocole)?;
+            let valeur =
+                AString::try_from(variante.clone()).map_err(|_| ErreurMail::Protocole)?;
+            let criteres = Vec1::try_from(vec![SearchKey::Header(champ, valeur)])
+                .map_err(|_| ErreurMail::Protocole)?;
+            let uids = self
+                .client
+                .search(criteres, ImapMessageSearchOptions { uid: true })
+                .map_err(|_| ErreurMail::Protocole)?;
+            if !uids.is_empty() {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// APPEND dans le dossier (typiquement « Sent » / Envoyés).
+    pub fn appender(&mut self, dossier: &str, octets: &[u8]) -> Result<(), ErreurMail> {
+        self.assurer_dossier(dossier)?;
+        let boite = boite(dossier)?;
+        self.client
+            .append(boite, octets, ImapMessageAppendOptions::default())
+            .map_err(|_| ErreurMail::Protocole)?;
+        Ok(())
     }
 
     fn selectionner(&mut self, dossier: &str) -> Result<(), ErreurMail> {

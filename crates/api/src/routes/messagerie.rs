@@ -265,7 +265,7 @@ pub async fn chrono_mails_dossier(
     ))
 }
 
-async fn assurer_compte_classement(
+pub async fn assurer_compte_classement(
     pool: &PgPool,
     cabinet_id: Uuid,
     parametres: &ParametresCompte,

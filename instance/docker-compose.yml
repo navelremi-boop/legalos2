@@ -52,6 +52,9 @@ services:
       MESSAGERIE_IMAP_USER: demo
       MESSAGERIE_IMAP_PASSWORD: ${GREENMAIL_PASSWORD}
       MESSAGERIE_IMAP_TLS: "false"
+      MESSAGERIE_SMTP_HOTE: greenmail
+      MESSAGERIE_SMTP_PORT: "3025"
+      MESSAGERIE_FROM: demo@cabinet.example
       LEGALOS_MODE: ${LEGALOS_MODE:-}
       JWT_KEY_ID: ${JWT_KEY_ID:-legalos-dev-1}
       JWT_ISSUER: ${JWT_ISSUER:-legalos-api}

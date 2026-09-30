@@ -24,8 +24,11 @@ pub struct Config {
 pub struct ParametresMessagerie {
     pub imap_hote: String,
     pub imap_port: u16,
+    pub smtp_hote: String,
+    pub smtp_port: u16,
     pub utilisateur: String,
     pub mot_de_passe: String,
+    pub adresse_from: String,
     pub tls: bool,
 }
 
@@ -112,18 +115,27 @@ fn parametres_messagerie() -> Option<ParametresMessagerie> {
     };
     let imap_hote = lire("MESSAGERIE_IMAP_HOTE")?;
     let imap_port = lire("MESSAGERIE_IMAP_PORT")?.parse().ok()?;
+    let smtp_hote = lire("MESSAGERIE_SMTP_HOTE").unwrap_or_else(|| imap_hote.clone());
+    let smtp_port = lire("MESSAGERIE_SMTP_PORT")
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(3025);
     let utilisateur = lire("MESSAGERIE_IMAP_USER")
         .or_else(|| lire("GREENMAIL_USER"))?;
     let mot_de_passe = lire("MESSAGERIE_IMAP_PASSWORD")
         .or_else(|| lire("GREENMAIL_PASSWORD"))?;
+    let adresse_from = lire("MESSAGERIE_FROM")
+        .unwrap_or_else(|| format!("{utilisateur}@cabinet.example"));
     let tls = lire("MESSAGERIE_IMAP_TLS")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
     Some(ParametresMessagerie {
         imap_hote,
         imap_port,
+        smtp_hote,
+        smtp_port,
         utilisateur,
         mot_de_passe,
+        adresse_from,
         tls,
     })
 }
