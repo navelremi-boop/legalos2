@@ -11,9 +11,9 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Dossiers et contacts complets** : VALIDÉ `3482a36` (contrôleur, CI [36572546272](https://github.com/navelremi-boop/legalos2/actions/runs/36572546272)). Trois runs : **54** minutes.
 - **Agenda** : VALIDÉ `57fd4dc` (contrôleur sur `635714e`, CI [36586753618](https://github.com/navelremi-boop/legalos2/actions/runs/36586753618)). Trois runs : **65** minutes. Premier contrôle REFUSÉ sur `697bfbd`.
 - **Documents, suite** : VALIDÉ `6f5f757` (contrôleur sur `8e962d7`, CI [36687786819](https://github.com/navelremi-boop/legalos2/actions/runs/36687786819)). Premier contrôle REFUSÉ sur `d836807` (`PSYNC_S2305`). Cinq runs : **99** minutes.
-- **J9** : VALIDÉ sur `4ca1103` (contrôleur), CI de `main` [36724502312](https://github.com/navelremi-boop/legalos2/actions/runs/36724502312) (`bb9578a`). Trois runs : **48** minutes.
-- **En cours** : **J10**.
-- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → ~~Intercalaires~~ → ~~Dossiers et contacts~~ → ~~Agenda~~ → ~~Documents, suite~~ → ~~J9~~ → **J10**. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
+- **J9** : étapes 1 et 2 inchangées. Étape 3 rouverte le 30/09 (la validation du 27/09 est retirée). Non coché tant que le contrôleur et la CI de cette reprise ne sont pas verts.
+- **En cours** : **J9**, étape 3. **J10** suspendu (`lot/j10` conservé, non fusionné).
+- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → ~~Intercalaires~~ → ~~Dossiers et contacts~~ → ~~Agenda~~ → ~~Documents, suite~~ → **J9 étape 3** → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
 - **CI** : l'état d'un run se lit par `gh run view` à chaque fois. Attendre = `gh run watch <id> --exit-status`. Deux relances consécutives sans commande ni commit créent `.mission/STOP` (ordre § 4.7).
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance). Un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` doit exister.
 - **B12 levé** (28/09) : signalement transmis, [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). Quatre exceptions dans `apps/poste/src-tauri/deny.toml`. Constat : `docs/audit-dependances.md`.
@@ -23,6 +23,16 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---
+
+## 2026-09-30 — J9 étape 3 rouverte
+
+Consigne du 30/09 : l'étape 3 relevait le compte de classement, seulement sur appel d'un poste, seulement la boîte de réception, et les deux chemins IMAP ne différaient que par une étiquette. Ces critères remplacent ceux du 27/09 pour l'étape 3. J10 reste suspendu.
+
+Le moteur tourne dans l'API, une tâche par compte nominatif, indépendante des postes. La veille est `VeilleReception`, qui ouvre `ImapMailboxWatch` d'io-imap 0.6.1 sur une connexion dédiée. Les autres dossiers, dont `Sent` et `Envoyés`, sont relevés à chaque cycle. Le secret IMAP est chiffré avec la même primitive AES-GCM que le secret TOTP, et n'est pas dans les flux PowerSync.
+
+Preuves locales, exit 0 : `s7-compte-nominatif.mjs` (deux titulaires, secret chiffré, mot de passe absent de la réponse), `s7-moteur.mjs` (aucun poste, message en base en 1 311 ms ; compte non enregistré ignoré ; redémarrage de l'API sans doublon), `s7-sync-bidirectionnelle.mjs` (lu, drapeau, déplacement, suppression faits sur le serveur de test ; repli sans `CHANGEDSINCE` sur GreenMail ; `CHANGEDSINCE` sur le MODSEQ connu avec Dovecot ; reflet du lu et du drapeau sur le poste), `j9-imap-hors-handler.mjs`, `s7-poste-tauri.mjs` (mot de passe absent du SQLite). `cargo test -p legalos-messagerie` : 22 tests exécutés, chemins GreenMail et Dovecot compris. `cargo clippy --workspace --all-targets -- -D warnings` : exit 0.
+
+Mesure 50 000 sur le moteur, en-têtes et métadonnées jusqu'en base, corps non chargé : QRESYNC (Dovecot 2.3.21.1, port 1143) synchronisation initiale 6 675 ms, réveil après un message ajouté 1 487 ms. Repli (Dovecot 2.3.21.1 annoncé sans QRESYNC, `instance/imap-test/dovecot-repli.conf`, port 2143) initiale 8 799 ms, réveil 1 522 ms. GreenMail reste le serveur du repli fonctionnel ; un FETCH de 500 en-têtes n'y répondait pas en 30 s, donc le volume du repli n'y a pas été chronométré.
 
 ## 2026-09-30 — J9 fusionné, contrôle des migrations
 

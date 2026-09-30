@@ -6,6 +6,7 @@ mod classement;
 mod file_envoi;
 mod html;
 mod imap;
+mod moteur;
 mod smtp;
 
 pub use chemin::{
@@ -17,7 +18,8 @@ pub use classement::{
 };
 pub use file_envoi::{appliquer, decider_action, ActionEnvoi, EntreeFileEnvoi, EtatFileEnvoi};
 pub use html::{nettoyer_html, texte_depuis_html};
-pub use imap::{CorpsLu, EnteteRecu};
+pub use imap::{CorpsLu, EnteteRecu, EtatUid, ReleveDossier};
+pub use moteur::{diff_repli, Changement, RapportMoteur};
 pub use smtp::{envoyer_message_fixe, octets_rfc822, ParametresSmtp};
 
 use thiserror::Error;
@@ -107,6 +109,23 @@ impl SessionActions {
 
     pub fn compter_entetes(&mut self, qresync: bool) -> Result<usize, ErreurMail> {
         self.interne.compter_entetes(qresync)
+    }
+
+    /// Relève un dossier. Le chemin QRESYNC et le repli n'émettent pas les mêmes commandes.
+    pub fn synchroniser_dossier(
+        &mut self,
+        dossier: &str,
+        modseq_connu: u64,
+    ) -> Result<ReleveDossier, ErreurMail> {
+        self.interne.synchroniser_dossier(dossier, modseq_connu)
+    }
+
+    pub fn entetes_uids(
+        &mut self,
+        dossier: &str,
+        uids: &[u32],
+    ) -> Result<Vec<EnteteRecu>, ErreurMail> {
+        self.interne.entetes_uids(dossier, uids)
     }
 }
 

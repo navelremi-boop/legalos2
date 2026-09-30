@@ -510,6 +510,281 @@ impl FluxVeille {
     }
 }
 
+/// État d'un UID, sans type du codec.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EtatUid {
+    pub uid: u32,
+    pub lu: bool,
+    pub drapeaux: String,
+}
+
+/// Résultat brut d'une relève de dossier. `qresync` dit quel chemin a été exécuté.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReleveDossier {
+    pub qresync: bool,
+    pub uid_validity: u32,
+    pub modseq: u64,
+    pub etats: Vec<EtatUid>,
+    pub retires: Vec<u32>,
+    pub commandes: Vec<String>,
+}
+
+impl Session {
+    /// QRESYNC si le serveur l'annonce et qu'un MODSEQ est déjà connu.
+    /// Sinon comparaison UID + drapeaux. Les deux chemins n'émettent pas les mêmes commandes.
+    pub fn synchroniser_dossier(
+        &mut self,
+        dossier: &str,
+        modseq_connu: u64,
+    ) -> Result<ReleveDossier, ErreurMail> {
+        let caps = self.capacites()?;
+        if caps.qresync && modseq_connu > 0 {
+            self.delta_qresync(dossier, modseq_connu)
+        } else if caps.qresync {
+            self.premiere_qresync(dossier)
+        } else {
+            self.photographie_repli(dossier)
+        }
+    }
+
+    fn activer_qresync(&mut self) -> Result<(), ErreurMail> {
+        let atome = io_imap::types::core::Atom::try_from("QRESYNC".to_owned())
+            .map_err(|_| ErreurMail::Protocole)?;
+        let liste = Vec1::try_from(vec![
+            io_imap::types::extensions::enable::CapabilityEnable::from(atome),
+        ])
+        .map_err(|_| ErreurMail::Protocole)?;
+        self.client
+            .enable(liste)
+            .map_err(|_| ErreurMail::Protocole)?;
+        Ok(())
+    }
+
+    fn premiere_qresync(&mut self, dossier: &str) -> Result<ReleveDossier, ErreurMail> {
+        self.activer_qresync()?;
+        let boite = boite(dossier)?;
+        let selection = self
+            .client
+            .select(boite, Default::default())
+            .map_err(|_| ErreurMail::Protocole)?;
+        let uid_validity = selection
+            .uid_validity
+            .map(|v| v.get())
+            .ok_or(ErreurMail::Protocole)?;
+        let modseq = selection.highest_mod_seq.unwrap_or(0);
+        let etats = self.lire_etats(None)?;
+        Ok(ReleveDossier {
+            qresync: true,
+            uid_validity,
+            modseq,
+            etats,
+            retires: Vec::new(),
+            commandes: vec![
+                "ENABLE QRESYNC".into(),
+                "SELECT".into(),
+                "FETCH INITIAL".into(),
+            ],
+        })
+    }
+
+    fn delta_qresync(
+        &mut self,
+        dossier: &str,
+        modseq_connu: u64,
+    ) -> Result<ReleveDossier, ErreurMail> {
+        self.activer_qresync()?;
+        let annonce = self.examiner(dossier)?;
+        let uid_validity =
+            core::num::NonZeroU32::new(annonce.uid_validity).ok_or(ErreurMail::Protocole)?;
+        let capacites = self
+            .client
+            .capability()
+            .map_err(|_| ErreurMail::Protocole)?;
+        let selection = self
+            .client
+            .select_qresync(boite(dossier)?, uid_validity, modseq_connu, &capacites)
+            .map_err(|_| ErreurMail::Protocole)?;
+        let mut retires = selection
+            .vanished_earlier
+            .iter()
+            .map(|uid| uid.get())
+            .collect::<Vec<_>>();
+        let mut etats = Vec::new();
+        for fetch in selection.changed {
+            if let Some(etat) = etat_dun_fetch(fetch.items) {
+                etats.push(etat);
+            }
+        }
+        let suite = self.lire_etats(Some(modseq_connu))?;
+        etats.extend(suite);
+        etats.sort_by_key(|e| e.uid);
+        etats.dedup_by_key(|e| e.uid);
+        retires.sort_unstable();
+        retires.dedup();
+        let modseq = selection.highest_mod_seq.unwrap_or(modseq_connu);
+        Ok(ReleveDossier {
+            qresync: true,
+            uid_validity: uid_validity.get(),
+            modseq,
+            etats,
+            retires,
+            commandes: vec![
+                "ENABLE QRESYNC".into(),
+                format!("SELECT QRESYNC {modseq_connu}"),
+                format!("FETCH CHANGEDSINCE {modseq_connu}"),
+            ],
+        })
+    }
+
+    fn photographie_repli(&mut self, dossier: &str) -> Result<ReleveDossier, ErreurMail> {
+        let etat = self.examiner(dossier)?;
+        self.selectionner(dossier)?;
+        let etats = self.lire_etats(None)?;
+        Ok(ReleveDossier {
+            qresync: false,
+            uid_validity: etat.uid_validity,
+            modseq: 0,
+            etats,
+            retires: Vec::new(),
+            commandes: vec!["SEARCH".into(), "FETCH FLAGS".into()],
+        })
+    }
+
+    fn lire_etats(&mut self, changed_since: Option<u64>) -> Result<Vec<EtatUid>, ErreurMail> {
+        let criteres = Vec1::try_from(vec![SearchKey::All]).map_err(|_| ErreurMail::Protocole)?;
+        let mut uids = self
+            .client
+            .search(criteres, ImapMessageSearchOptions { uid: true })
+            .map_err(|_| ErreurMail::Protocole)?;
+        uids.sort_unstable();
+        let mut etats = Vec::new();
+        let mut indice = 0usize;
+        while indice < uids.len() {
+            let fin = (indice + 999).min(uids.len() - 1);
+            let jeu: SequenceSet = format!("{}:{}", uids[indice].get(), uids[fin].get())
+                .parse()
+                .map_err(|_| ErreurMail::Protocole)?;
+            let modifiers = match changed_since.and_then(core::num::NonZeroU64::new) {
+                Some(modseq) => vec![io_imap::types::command::FetchModifier::ChangedSince(modseq)],
+                None => Vec::new(),
+            };
+            let fetched = self
+                .client
+                .fetch(
+                    jeu,
+                    MacroOrMessageDataItemNames::MessageDataItemNames(vec![
+                        MessageDataItemName::Uid,
+                        MessageDataItemName::Flags,
+                    ]),
+                    ImapMessageFetchOptions {
+                        uid: true,
+                        modifiers,
+                    },
+                )
+                .map_err(|_| ErreurMail::Protocole)?;
+            for items in fetched.into_values() {
+                if let Some(etat) = etat_dun_fetch(items) {
+                    etats.push(etat);
+                }
+            }
+            indice = fin + 1;
+        }
+        etats.sort_by_key(|e| e.uid);
+        Ok(etats)
+    }
+
+    /// En-têtes par lots. Pas un aller-retour par message.
+    pub fn entetes_uids(
+        &mut self,
+        dossier: &str,
+        uids: &[u32],
+    ) -> Result<Vec<EnteteRecu>, ErreurMail> {
+        if uids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let etat = self.examiner(dossier)?;
+        self.selectionner(dossier)?;
+        let analyseur = MessageParser::default();
+        let mut messages = Vec::new();
+        for lot in uids.chunks(200) {
+            let texte = lot
+                .iter()
+                .map(|uid| uid.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            let jeu: SequenceSet = texte.parse().map_err(|_| ErreurMail::Protocole)?;
+            let fetched = self
+                .client
+                .fetch(
+                    jeu,
+                    MacroOrMessageDataItemNames::MessageDataItemNames(vec![
+                        MessageDataItemName::Uid,
+                        MessageDataItemName::Rfc822Header,
+                    ]),
+                    ImapMessageFetchOptions {
+                        uid: true,
+                        modifiers: Vec::new(),
+                    },
+                )
+                .map_err(|_| ErreurMail::Protocole)?;
+            for (_cle, items) in fetched {
+                let mut uid_lu = None;
+                let mut octets = None;
+                for item in items {
+                    match item {
+                        MessageDataItem::Uid(valeur) => uid_lu = Some(valeur.get()),
+                        MessageDataItem::Rfc822Header(valeur) => {
+                            octets = Some(nstring_octets(&valeur))
+                        }
+                        _ => {}
+                    }
+                }
+                if let (Some(uid_lu), Some(octets)) = (uid_lu, octets) {
+                    messages.push(entete_depuis_rfc822(
+                        etat.uid_validity,
+                        uid_lu,
+                        &octets,
+                        &analyseur,
+                    ));
+                }
+            }
+        }
+        messages.sort_by_key(|m| m.uid);
+        Ok(messages)
+    }
+}
+
+/// UID et drapeaux d'une réponse FETCH, quel que soit l'ordre des champs.
+fn etat_dun_fetch(items: impl IntoIterator<Item = MessageDataItem<'static>>) -> Option<EtatUid> {
+    let mut uid = None;
+    let mut lu = false;
+    let mut noms = Vec::new();
+    for item in items {
+        match item {
+            MessageDataItem::Uid(valeur) => uid = Some(valeur.get()),
+            MessageDataItem::Flags(drapeaux) => {
+                lu = false;
+                noms.clear();
+                for drapeau in &drapeaux {
+                    if let io_imap::types::flag::FlagFetch::Flag(flag) = drapeau {
+                        if matches!(flag, Flag::Seen) {
+                            lu = true;
+                        }
+                        noms.push(format!("{flag:?}"));
+                    }
+                }
+                noms.sort();
+            }
+            _ => {}
+        }
+    }
+    Some(EtatUid {
+        uid: uid?,
+        lu,
+        drapeaux: noms.join(" "),
+    })
+}
+
 fn boite(nom: &str) -> Result<Mailbox<'static>, ErreurMail> {
     Mailbox::try_from(nom.to_owned()).map_err(|_| ErreurMail::Protocole)
 }

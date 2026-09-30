@@ -16,6 +16,7 @@ async fn main() -> anyhow::Result<()> {
     let bind = config.bind;
     let pool = bootstrap_pool(&config).await?;
     let state = build_app_state(&config, pool).await?;
+    legalos_api::moteur_mail::demarrer(state.pool.clone(), state.totp_cipher_key);
 
     let app = build_router(state);
     let listener = tokio::net::TcpListener::bind(bind).await?;

@@ -122,6 +122,10 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/dossiers/{dossier_id}/chrono-mails",
             get(messagerie::chrono_mails_dossier),
         )
+        .route(
+            "/messagerie/comptes",
+            post(messagerie::creer_compte_nominatif),
+        )
         .route("/messagerie/file-envoi", get(file_envoi::lister_file_envoi))
         .route("/messagerie/file-envoi", post(file_envoi::creer_envoi))
         .route(

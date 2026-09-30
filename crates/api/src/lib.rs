@@ -5,6 +5,7 @@ pub mod db;
 pub mod error;
 pub mod facturation;
 pub mod install;
+pub mod moteur_mail;
 pub mod openapi;
 pub mod pdf_facturx;
 pub mod plateforme;

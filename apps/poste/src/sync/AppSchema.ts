@@ -305,6 +305,10 @@ const messages = new Table(
     texte_brut: column.text,
     /** Déduit du compte mail. Un flux nominatif filtre dessus, sans secret. */
     titulaire_id: column.text,
+    /** Lu, dossier IMAP et drapeaux : reflétés depuis le serveur, sans secret. */
+    lu: column.integer,
+    dossier_imap: column.text,
+    drapeaux_texte: column.text,
     cree_le: column.text,
   },
   { indexes: { dossier: ["dossier_id"], etat: ["etat_classement"], titulaire: ["titulaire_id"] } },

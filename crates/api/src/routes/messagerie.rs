@@ -452,3 +452,63 @@ async fn inserer_message(
     .map_err(|_| ApiError::internal("Insertion message"))?;
     Ok(())
 }
+
+#[derive(Debug, Deserialize)]
+pub struct CreerCompte {
+    pub id: Uuid,
+    pub adresse: String,
+    pub hote: String,
+    pub port: u16,
+    pub utilisateur: String,
+    pub mot_de_passe: String,
+    pub tls: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CompteCree {
+    pub id: Uuid,
+    pub adresse: String,
+    pub hote: String,
+    pub port: u16,
+    pub utilisateur: String,
+}
+
+pub async fn creer_compte_nominatif(
+    State(state): State<Arc<AppState>>,
+    AuthAccess(claims): AuthAccess,
+    Json(body): Json<CreerCompte>,
+) -> Result<Json<CompteCree>, ApiError> {
+    if body.mot_de_passe.is_empty() || body.hote.is_empty() || body.utilisateur.is_empty() {
+        return Err(ApiError::bad_request("Compte incomplet"));
+    }
+    let secret =
+        crate::moteur_mail::chiffrer_mot_de_passe(&body.mot_de_passe, &state.totp_cipher_key)
+            .map_err(|_| ApiError::internal("Chiffrement"))?;
+    sqlx::query(
+        r#"
+        INSERT INTO comptes_mail (
+            id, cabinet_id, type_compte, titulaire_id, adresse, secret_ref,
+            hote, port, utilisateur, tls, secret_chiffre
+        ) VALUES ($1, $2, 'nominatif', $3, $4, 'chiffre', $5, $6, $7, $8, $9)
+        "#,
+    )
+    .bind(body.id)
+    .bind(claims.cabinet_id)
+    .bind(claims.sub)
+    .bind(&body.adresse)
+    .bind(&body.hote)
+    .bind(i32::from(body.port))
+    .bind(&body.utilisateur)
+    .bind(body.tls.unwrap_or(false))
+    .bind(&secret)
+    .execute(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("Création compte nominatif"))?;
+    Ok(Json(CompteCree {
+        id: body.id,
+        adresse: body.adresse,
+        hote: body.hote,
+        port: body.port,
+        utilisateur: body.utilisateur,
+    }))
+}

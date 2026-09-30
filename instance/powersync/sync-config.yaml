@@ -232,7 +232,7 @@ streams:
   messages_publics:
     auto_subscribe: true
     query: |
-      SELECT messages.id, messages.cabinet_id, messages.dossier_id, messages.message_id, messages.objet, messages.expediteur, messages.etat_classement, messages.suggestion_dossier_id, messages.visibilite, messages.restreint, messages.revision, messages.texte_brut, messages.titulaire_id, messages.cree_le::text AS cree_le
+      SELECT messages.id, messages.cabinet_id, messages.dossier_id, messages.message_id, messages.objet, messages.expediteur, messages.etat_classement, messages.suggestion_dossier_id, messages.visibilite, messages.restreint, messages.revision, messages.texte_brut, messages.titulaire_id, messages.lu, messages.dossier_imap, messages.drapeaux_texte, messages.cree_le::text AS cree_le
       FROM messages
       WHERE messages.visibilite = 'public'
         AND messages.dossier_id IS NOT NULL
@@ -241,7 +241,7 @@ streams:
   messages_restreints:
     auto_subscribe: true
     query: |
-      SELECT messages.id, messages.cabinet_id, messages.dossier_id, messages.message_id, messages.objet, messages.expediteur, messages.etat_classement, messages.suggestion_dossier_id, messages.visibilite, messages.restreint, messages.revision, messages.texte_brut, messages.titulaire_id, messages.cree_le::text AS cree_le
+      SELECT messages.id, messages.cabinet_id, messages.dossier_id, messages.message_id, messages.objet, messages.expediteur, messages.etat_classement, messages.suggestion_dossier_id, messages.visibilite, messages.restreint, messages.revision, messages.texte_brut, messages.titulaire_id, messages.lu, messages.dossier_imap, messages.drapeaux_texte, messages.cree_le::text AS cree_le
       FROM messages
       INNER JOIN groupe_acces_membres ON messages.groupe_acces = groupe_acces_membres.groupe_id
       WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
@@ -249,7 +249,7 @@ streams:
   messages_a_classer:
     auto_subscribe: true
     query: |
-      SELECT messages.id, messages.cabinet_id, messages.dossier_id, messages.message_id, messages.objet, messages.expediteur, messages.etat_classement, messages.suggestion_dossier_id, messages.visibilite, messages.restreint, messages.revision, messages.texte_brut, messages.titulaire_id, messages.cree_le::text AS cree_le
+      SELECT messages.id, messages.cabinet_id, messages.dossier_id, messages.message_id, messages.objet, messages.expediteur, messages.etat_classement, messages.suggestion_dossier_id, messages.visibilite, messages.restreint, messages.revision, messages.texte_brut, messages.titulaire_id, messages.lu, messages.dossier_imap, messages.drapeaux_texte, messages.cree_le::text AS cree_le
       FROM messages
       WHERE messages.dossier_id IS NULL
         AND messages.titulaire_id IS NULL
@@ -259,7 +259,7 @@ streams:
   messages_nominatifs:
     auto_subscribe: true
     query: |
-      SELECT messages.id, messages.cabinet_id, messages.dossier_id, messages.message_id, messages.objet, messages.expediteur, messages.etat_classement, messages.suggestion_dossier_id, messages.visibilite, messages.restreint, messages.revision, messages.texte_brut, messages.titulaire_id, messages.cree_le::text AS cree_le
+      SELECT messages.id, messages.cabinet_id, messages.dossier_id, messages.message_id, messages.objet, messages.expediteur, messages.etat_classement, messages.suggestion_dossier_id, messages.visibilite, messages.restreint, messages.revision, messages.texte_brut, messages.titulaire_id, messages.lu, messages.dossier_imap, messages.drapeaux_texte, messages.cree_le::text AS cree_le
       FROM messages
       WHERE messages.titulaire_id::text = auth.user_id()
         AND messages.cabinet_id::text = auth.parameter('cabinet_id')

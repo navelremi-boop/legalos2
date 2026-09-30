@@ -5,6 +5,9 @@
  */
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { demoAccessToken, demoEmail, demoPassword, totpSecretB32 } from "./lib/demo-auth.mjs";
 import { creerSession, sleep, sqliteLocal, sqlServeur } from "./lib/poste-session.mjs";
 
@@ -62,11 +65,38 @@ async function attendre(id, sql, predicat, delai = 120_000) {
   fail(`SQLite ${id} : ${dernier}`);
 }
 
+function sqliteContientMot(id, secret) {
+  const roaming = process.env.APPDATA ?? join(homedir(), "AppData", "Roaming");
+  const fichier = join(roaming, "fr.legalos.poste", `legalos-powersync-${id}.db`);
+  return readFileSync(fichier).includes(Buffer.from(secret));
+}
+
 async function main() {
   const sante = await fetch(`${api.replace(/\/api$/, "")}/health`).catch(() => null);
   if (!sante?.ok) fail("instance injoignable");
 
   const jeton = await demoAccessToken(api, `s7-poste-${marque}`);
+  const motCompte = `SentinelleS7${marque}Xk9`;
+  const idCompte = randomUUID();
+  const reponseCompte = await fetch(`${api}/messagerie/comptes`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${jeton}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      id: idCompte,
+      adresse: `http.${marque}@cabinet.example`,
+      hote: "injoignable.example",
+      port: 143,
+      utilisateur: "aucun",
+      mot_de_passe: motCompte,
+      tls: false,
+    }),
+  });
+  const texteCompte = await reponseCompte.text();
+  if (!reponseCompte.ok) fail(`création compte ${reponseCompte.status} ${texteCompte.slice(0, 180)}`);
+  if (texteCompte.includes(motCompte)) fail("mot de passe dans la réponse HTTP");
   const collab = await json("/collaborateurs", jeton, "POST", {
     email: collabEmail,
     password: collabPassword,
@@ -139,6 +169,12 @@ async function main() {
       "SELECT COUNT(*) FROM sqlite_master WHERE sql LIKE '%secret_ref%' OR sql LIKE '%mot_de_passe%' OR sql LIKE '%imap_password%'",
     );
     if (secretsA !== "0") fail("schéma SQLite avec un secret de messagerie");
+    await attendre(
+      "s7a",
+      `SELECT COUNT(*) FROM comptes_mail WHERE adresse = 'http.${marque}@cabinet.example'`,
+      (v) => v === "1",
+    );
+    if (sqliteContientMot("s7a", motCompte)) fail("mot de passe dans le SQLite du poste");
     const texteLocal = await sqliteLocal(
       "s7a",
       `SELECT texte_brut FROM messages WHERE message_id = '${messageId}'`,
@@ -251,6 +287,7 @@ async function main() {
       "SELECT COUNT(*) FROM sqlite_master WHERE sql LIKE '%secret_ref%' OR sql LIKE '%mot_de_passe%' OR sql LIKE '%imap_password%'",
     );
     if (secretsB !== "0") fail("schéma SQLite collaborateur avec un secret");
+    if (sqliteContientMot("s7b", motCompte)) fail("mot de passe dans le SQLite du collaborateur");
     ok("poste non autorisé : ni mail restreint, ni compte d'autrui, ni secret");
     cdpB.ws.close();
   } finally {
