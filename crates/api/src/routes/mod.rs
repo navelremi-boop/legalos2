@@ -126,6 +126,18 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/messagerie/comptes",
             post(messagerie::creer_compte_nominatif),
         )
+        .route(
+            "/messagerie/oauth/autorisation",
+            post(crate::oauth_mail::autorisation),
+        )
+        .route(
+            "/messagerie/oauth/echange",
+            post(crate::oauth_mail::echange),
+        )
+        .route(
+            "/messagerie/oauth/renouveler",
+            post(crate::oauth_mail::renouveler),
+        )
         .route("/messagerie/file-envoi", get(file_envoi::lister_file_envoi))
         .route("/messagerie/file-envoi", post(file_envoi::creer_envoi))
         .route(

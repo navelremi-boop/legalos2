@@ -46,6 +46,7 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 | mail-parser | **0.11.9** (épinglée exacte) | https://crates.io/crates/mail-parser/0.11.9 — vérifié le 2026-09-30 ; licence Apache-2.0 OR MIT ; décodage MIME / en-têtes pour la relève de classement. |
 | lettre | **0.11.23** (épinglée exacte) | https://crates.io/crates/lettre/0.11.23 — vérifié le 2026-09-30 ; licence MIT ; SMTP de la file d'envoi (`smtp-transport`, `builder`, sans TLS natif en test GreenMail). |
 | ammonia | **4.2.0** (épinglée exacte) | https://crates.io/crates/ammonia/4.2.0 — vérifié le 2026-09-30 ; licence MIT OR Apache-2.0 ; nettoyage HTML avant stockage. |
+| oauth2 | **5.0.0** (épinglée exacte) | https://crates.io/crates/oauth2/5.0.0 — vérifié le 2026-09-30 ; publié le 2025-01-21 ; licence MIT OR Apache-2.0 ; RFC 6749. XOAUTH2 IMAP reste `io-imap` 0.6.1 (`Sasl::Xoauth2`). |
 | Dovecot (second serveur IMAP de test, chemin QRESYNC) | **dovecot/dovecot:2.3.21.1** | https://hub.docker.com/r/dovecot/dovecot — `instance/imap-test/` |
 | Axum | **0.8.9** | https://crates.io/crates/axum |
 | sqlx | **0.8.5** | https://crates.io/crates/sqlx |

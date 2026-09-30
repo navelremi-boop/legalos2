@@ -85,6 +85,18 @@ impl SessionActions {
         })
     }
 
+    pub fn connecter_xoauth2(
+        hote: &str,
+        port: u16,
+        tls: bool,
+        utilisateur: &str,
+        jeton_acces: &str,
+    ) -> Result<Self, ErreurMail> {
+        Ok(Self {
+            interne: imap::Session::connecter_xoauth2(hote, port, tls, utilisateur, jeton_acces)?,
+        })
+    }
+
     /// Recherche Message-ID dans un dossier IMAP (Envoyés).
     pub fn message_id_present(
         &mut self,

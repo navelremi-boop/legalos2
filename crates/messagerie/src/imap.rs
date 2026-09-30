@@ -15,8 +15,10 @@ use io_imap::types::mailbox::Mailbox;
 use io_imap::types::search::SearchKey;
 use io_imap::types::sequence::SequenceSet;
 use io_sasl::mechanism::Sasl;
+use io_sasl::xoauth2::SaslXoauth2Creds;
 use mail_parser::MessageParser;
 use pimalaya_stream::tls::Tls;
+use secrecy::SecretString;
 use url::Url;
 
 use crate::chemin::Capacites;
@@ -75,6 +77,31 @@ impl Session {
                 Default::default(),
             )
             .map_err(|_| ErreurMail::Authentification)?;
+        Ok(Self { client })
+    }
+
+    /// AUTHENTICATE XOAUTH2. Le jeton d'accès n'est pas journalisé.
+    pub fn connecter_xoauth2(
+        hote: &str,
+        port: u16,
+        tls: bool,
+        utilisateur: &str,
+        jeton_acces: &str,
+    ) -> Result<Self, ErreurMail> {
+        let scheme = if tls { "imaps" } else { "imap" };
+        let url =
+            Url::parse(&format!("{scheme}://{hote}:{port}")).map_err(|_| ErreurMail::Connexion)?;
+        let sasl = Sasl::from(SaslXoauth2Creds {
+            username: utilisateur.to_owned(),
+            token: SecretString::from(jeton_acces.to_owned()),
+        });
+        let (client, _) = ImapClientStd::connect(
+            &url,
+            &Tls::default(),
+            Some(sasl),
+            ImapSessionOpenOptions::default(),
+        )
+        .map_err(|_| ErreurMail::Authentification)?;
         Ok(Self { client })
     }
 
