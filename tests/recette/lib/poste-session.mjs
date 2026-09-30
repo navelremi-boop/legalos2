@@ -169,7 +169,11 @@ export function creerSession(etiquette) {
       VITE_LEGALOS_RECETTE_HOOKS: "1",
       LIBCLANG_PATH: process.env.LIBCLANG_PATH ?? "C:\\Program Files\\LLVM\\bin",
     };
-    delete env.CARGO_TARGET_DIR;
+    if (process.env.LEGALOS_CARGO_TARGET) {
+      env.CARGO_TARGET_DIR = process.env.LEGALOS_CARGO_TARGET;
+    } else {
+      delete env.CARGO_TARGET_DIR;
+    }
     let child;
     if (mode === "copie") {
       const src = cheminBinairePoste();

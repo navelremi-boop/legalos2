@@ -16,6 +16,7 @@ import {
 import { FormulaireDelai } from "@/delais/FormulaireDelai";
 import { EcranAgenda } from "@/agenda/EcranAgenda";
 import { emettreRappelsEchus } from "@/agenda/rappels";
+import { EcranFacturation } from "@/facturation/EcranFacturation";
 import { FormulaireTemps } from "@/facturation/FormulaireTemps";
 import { FormulaireDossier } from "@/dossiers/FormulaireDossier";
 import { PaletteCommandes } from "@/dossiers/PaletteCommandes";
@@ -26,7 +27,6 @@ import { libelleReferenceDossier } from "@/lib/referenceDossier";
 import { DossierOuvert, type DossierVue } from "@/screens/DossierOuvert";
 import { Dossiers } from "@/screens/Dossiers";
 import { EcranMails } from "@/messagerie/EcranMails";
-import { EcranStub } from "@/screens/EcranStub";
 import { Journee } from "@/screens/Journee";
 import { Reglages, type ThemeMode } from "@/screens/Reglages";
 import { getPowerSyncDatabase } from "@/sync/database";
@@ -340,6 +340,12 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
         onNouveauDossier={() => {
           setPanneau("dossier-form");
         }}
+        onNouveauMail={() => {
+          setNav("mails");
+        }}
+        onSaisirTemps={() => {
+          setPanneau("temps");
+        }}
       />
     );
   } else if (nav === "reglages") {
@@ -351,6 +357,15 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
         onReconnect={onReconnect}
         instanceUrl={instanceUrl}
         horsLigne={horsLigne}
+        onNouveauDossier={() => {
+          setPanneau("dossier-form");
+        }}
+        onNouveauMail={() => {
+          setNav("mails");
+        }}
+        onSaisirTemps={() => {
+          setPanneau("temps");
+        }}
       />
     );
   } else if (nav === "dossier" && dossierActif) {
@@ -372,11 +387,45 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
       />
     );
   } else if (nav === "mails") {
-    contenu = <EcranMails instanceUrl={instanceUrl} />;
+    contenu = (
+      <EcranMails
+        instanceUrl={instanceUrl}
+        onNouveauDossier={() => {
+          setPanneau("dossier-form");
+        }}
+        onSaisirTemps={() => {
+          setPanneau("temps");
+        }}
+      />
+    );
   } else if (nav === "agenda") {
-    contenu = <EcranAgenda />;
+    contenu = (
+      <EcranAgenda
+        onNouveauDossier={() => {
+          setPanneau("dossier-form");
+        }}
+        onNouveauMail={() => {
+          setNav("mails");
+        }}
+        onSaisirTemps={() => {
+          setPanneau("temps");
+        }}
+      />
+    );
   } else if (nav === "facturation") {
-    contenu = <EcranStub titre="Facturation" testId="ecran-facturation" />;
+    contenu = (
+      <EcranFacturation
+        onNouveauDossier={() => {
+          setPanneau("dossier-form");
+        }}
+        onNouveauMail={() => {
+          setNav("mails");
+        }}
+        onSaisirTemps={() => {
+          setPanneau("temps");
+        }}
+      />
+    );
   } else if (nav === "dossier") {
     contenu = (
       <div className="fond-neutre flex h-full items-center justify-center" data-testid="ecran-dossier-chargement">
@@ -406,6 +455,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
         className="barre-haut__pilule"
         aria-expanded={menuCompteOuvert}
         aria-haspopup="menu"
+        data-testid="menu-compte"
         onClick={() => {
           setMenuCompteOuvert((v) => !v);
         }}
@@ -435,6 +485,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
               type="button"
               role="menuitem"
               className="w-full rounded-[var(--radius-control)] px-3 py-2 text-left hover:bg-survol"
+              data-testid="menu-reglages"
               onClick={() => {
                 naviguer("reglages");
               }}

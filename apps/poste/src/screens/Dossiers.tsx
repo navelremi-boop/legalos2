@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { BarreActions } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
 import { FormulaireDossier } from "@/dossiers/FormulaireDossier";
 import { PaletteCommandes } from "@/dossiers/PaletteCommandes";
@@ -21,9 +22,16 @@ type DossiersProps = {
     reference?: string | null,
   ) => void;
   onNouveauDossier?: () => void;
+  onNouveauMail?: () => void;
+  onSaisirTemps?: () => void;
 };
 
-export function Dossiers({ onOuvrirDossier, onNouveauDossier }: DossiersProps) {
+export function Dossiers({
+  onOuvrirDossier,
+  onNouveauDossier,
+  onNouveauMail,
+  onSaisirTemps,
+}: DossiersProps) {
   const [lignes, setLignes] = useState<LigneDossier[]>([]);
 
   useEffect(() => {
@@ -51,7 +59,11 @@ export function Dossiers({ onOuvrirDossier, onNouveauDossier }: DossiersProps) {
   }, []);
 
   return (
-    <div className="fond-neutre relative flex h-full min-h-0 flex-col px-[42px] pt-[28px]" data-testid="ecran-dossiers">
+    <div
+      className="fond-neutre relative flex h-full min-h-0 flex-col px-[42px] pt-[28px]"
+      data-testid="ecran-dossiers"
+      data-fond="neutre"
+    >
       <h1 className="mb-4 text-[length:var(--font-size-journee)] font-extrabold text-sur-chemise">
         {fr("Dossiers")}
       </h1>
@@ -123,6 +135,32 @@ export function Dossiers({ onOuvrirDossier, onNouveauDossier }: DossiersProps) {
           </section>
         </div>
       </Feuille>
+      <BarreActions
+        actions={[
+          {
+            id: "nouveau-dossier",
+            label: "Nouveau dossier",
+            primaire: true,
+            onClick: () => {
+              onNouveauDossier?.();
+            },
+          },
+          {
+            id: "nouveau-mail",
+            label: "Nouveau mail",
+            onClick: () => {
+              onNouveauMail?.();
+            },
+          },
+          {
+            id: "saisir-temps",
+            label: "Saisir du temps",
+            onClick: () => {
+              onSaisirTemps?.();
+            },
+          },
+        ]}
+      />
     </div>
   );
 }

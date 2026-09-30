@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { BarreActions } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
 import { fr } from "@/lib/fr";
 import {
@@ -28,6 +29,9 @@ type ReglagesProps = {
   onReconnect?: () => void;
   instanceUrl: string;
   horsLigne: boolean;
+  onNouveauDossier?: () => void;
+  onNouveauMail?: () => void;
+  onSaisirTemps?: () => void;
 };
 
 function estRemise(valeur: string): valeur is RemiseAZero {
@@ -41,6 +45,9 @@ export function Reglages({
   onReconnect,
   instanceUrl,
   horsLigne,
+  onNouveauDossier,
+  onNouveauMail,
+  onSaisirTemps,
 }: ReglagesProps) {
   const [nom, setNom] = useState("");
   const [slug, setSlug] = useState("");
@@ -208,7 +215,11 @@ export function Reglages({
   }
 
   return (
-    <div className="fond-neutre relative flex h-full min-h-0 flex-col px-[42px] pt-[28px]" data-testid="ecran-reglages">
+    <div
+      className="fond-neutre relative flex h-full min-h-0 flex-col px-[42px] pt-[28px]"
+      data-testid="ecran-reglages"
+      data-fond="neutre"
+    >
       <h1 className="mb-4 text-[length:var(--font-size-journee)] font-extrabold text-sur-chemise">
         {fr("Réglages")}
       </h1>
@@ -451,6 +462,32 @@ export function Reglages({
           </div>
         </div>
       </Feuille>
+      <BarreActions
+        actions={[
+          {
+            id: "nouveau-dossier",
+            label: "Nouveau dossier",
+            onClick: () => {
+              onNouveauDossier?.();
+            },
+          },
+          {
+            id: "nouveau-mail",
+            label: "Nouveau mail",
+            onClick: () => {
+              onNouveauMail?.();
+            },
+          },
+          {
+            id: "saisir-temps",
+            label: "Saisir du temps",
+            primaire: true,
+            onClick: () => {
+              onSaisirTemps?.();
+            },
+          },
+        ]}
+      />
     </div>
   );
 }
