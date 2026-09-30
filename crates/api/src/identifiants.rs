@@ -38,7 +38,9 @@ fn cle_tva(siren: &str) -> Option<u32> {
 /// `FR` + clé sur deux chiffres + SIREN. Les espaces sont ignorés.
 fn tva_fr(brut: &str) -> Option<(u32, String)> {
     let compact: String = brut.chars().filter(|c| !c.is_whitespace()).collect();
-    let reste = compact.strip_prefix("FR").or_else(|| compact.strip_prefix("fr"))?;
+    let reste = compact
+        .strip_prefix("FR")
+        .or_else(|| compact.strip_prefix("fr"))?;
     if reste.len() != 11 || !reste.chars().all(|c| c.is_ascii_digit()) {
         return None;
     }
