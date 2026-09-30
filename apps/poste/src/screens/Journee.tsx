@@ -196,7 +196,7 @@ export function Journee({
       </Feuille>
       <BarreActions
         actions={[
-          { id: "nouveau-dossier", label: "Nouveau dossier", primaire: true, onClick: onNouveauDossier },
+          { id: "nouveau-dossier", label: "Nouveau dossier", onClick: onNouveauDossier },
           { id: "nouveau-mail", label: "Nouveau mail", onClick: onNouveauMail },
           { id: "saisir-temps", label: "Saisir du temps", raccourci: "T", onClick: onSaisirTemps },
         ]}

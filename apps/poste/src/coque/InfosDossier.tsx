@@ -1,3 +1,4 @@
+import { libelleEtapeDossier, libelleTypeDossier } from "@/dossiers/libellesDossier";
 import { fr } from "@/lib/fr";
 
 type InfosDossierProps = {
@@ -45,11 +46,11 @@ export function InfosDossier({
       </div>
       <div>
         <dt>{fr("Type")}</dt>
-        <dd data-testid="dossier-type-affiche">{fr(typeDossier || "—")}</dd>
+        <dd data-testid="dossier-type-affiche">{fr(libelleTypeDossier(typeDossier))}</dd>
       </div>
       <div>
         <dt>{fr("Étape")}</dt>
-        <dd data-testid="dossier-etape-affiche">{fr(etape || "—")}</dd>
+        <dd data-testid="dossier-etape-affiche">{fr(libelleEtapeDossier(etape))}</dd>
       </div>
       <div>
         <dt>{fr("Dossiers liés")}</dt>

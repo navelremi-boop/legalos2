@@ -72,6 +72,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
   const [panneau, setPanneau] = useState<Panneau>("aucun");
   const [menuCompteOuvert, setMenuCompteOuvert] = useState(false);
   const [enAttente, setEnAttente] = useState(0);
+  const [mailsAClasser, setMailsAClasser] = useState(0);
   const [navigateurHorsLigne, setNavigateurHorsLigne] = useState(!navigator.onLine);
   const [instanceHorsLigne, setInstanceHorsLigne] = useState(false);
 
@@ -122,6 +123,30 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
         })
         .catch(() => {
           if (!stop) setEnAttente(0);
+        });
+    };
+    tick();
+    const timer = window.setInterval(tick, 3_000);
+    return () => {
+      stop = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    let stop = false;
+    const tick = () => {
+      void getPowerSyncDatabase()
+        .then((database) =>
+          database.getAll<{ n: number }>(
+            "SELECT COUNT(*) AS n FROM messages WHERE etat_classement = 'a_classer'",
+          ),
+        )
+        .then((rows) => {
+          if (!stop) setMailsAClasser(rows[0]?.n ?? 0);
+        })
+        .catch(() => {
+          if (!stop) setMailsAClasser(0);
         });
     };
     tick();
@@ -535,6 +560,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
           });
         }}
         sync={sync}
+        mailsCompteur={mailsAClasser}
         chronoSecondes={nav === "dossier" ? 12 * 60 + 4 : undefined}
         onChrono={() => {
           setPanneau("temps");

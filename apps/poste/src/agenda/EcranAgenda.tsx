@@ -45,19 +45,62 @@ function champ(form: FormData, nom: string): string {
   return typeof valeur === "string" ? valeur.trim() : "";
 }
 
+const LIBELLES_TYPE: Record<string, string> = {
+  audience: "Audience",
+  rendez_vous: "Rendez-vous",
+  tache: "Tâche",
+};
+
+const DELAIS_RAPPEL = [
+  { id: "0", libelle: "Au moment de l'élément" },
+  { id: "15", libelle: "15 minutes avant" },
+  { id: "60", libelle: "1 heure avant" },
+  { id: "1440", libelle: "1 jour avant" },
+  { id: "10080", libelle: "1 semaine avant" },
+];
+
+function jourCivil(date: Date): string {
+  const mois = String(date.getMonth() + 1).padStart(2, "0");
+  const jour = String(date.getDate()).padStart(2, "0");
+  return `${String(date.getFullYear())}-${mois}-${jour}`;
+}
+
+function semaineCourante(): string[] {
+  const maintenant = new Date();
+  const decalage = (maintenant.getDay() + 6) % 7;
+  const lundi = new Date(maintenant);
+  lundi.setDate(maintenant.getDate() - decalage);
+  return Array.from({ length: 7 }, (_, index) => {
+    const jour = new Date(lundi);
+    jour.setDate(lundi.getDate() + index);
+    return jourCivil(jour);
+  });
+}
+
 type EcranAgendaProps = {
   onNouveauDossier?: () => void;
   onNouveauMail?: () => void;
   onSaisirTemps?: () => void;
+  /** Galerie : pas de PowerSync. */
+  lignesFixes?: Ligne[];
 };
 
-export function EcranAgenda({ onNouveauDossier, onNouveauMail, onSaisirTemps }: EcranAgendaProps) {
-  const [lignes, setLignes] = useState<Ligne[]>([]);
+export function EcranAgenda({
+  onNouveauDossier,
+  onNouveauMail,
+  onSaisirTemps,
+  lignesFixes,
+}: EcranAgendaProps) {
+  const [lignesSync, setLignesSync] = useState<Ligne[]>([]);
+  const lignes = lignesFixes ?? lignesSync;
   const [message, setMessage] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [conflit, setConflit] = useState("");
+  const [creation, setCreation] = useState(false);
+  const [vue, setVue] = useState<"jour" | "semaine">("jour");
 
   useEffect(() => {
+    if (lignesFixes) return;
     const etat = { stop: false };
     const arrete = () => etat.stop;
     const charger = () => {
@@ -71,7 +114,7 @@ export function EcranAgenda({ onNouveauDossier, onNouveauMail, onSaisirTemps }: 
         )
         .then(async (rows) => {
           if (arrete()) return;
-          setLignes(rows);
+          setLignesSync(rows);
           const database = await getPowerSyncDatabase();
           const journaux = await database.getAll<{ valeur_appliquee: string | null }>(
             `SELECT valeur_appliquee FROM journal_modifications
@@ -83,7 +126,7 @@ export function EcranAgenda({ onNouveauDossier, onNouveauMail, onSaisirTemps }: 
           setConflit(premiere ? (premiere.valeur_appliquee ?? "") : "");
         })
         .catch(() => {
-          if (!arrete()) setLignes([]);
+          if (!arrete()) setLignesSync([]);
         });
     };
     charger();
@@ -92,7 +135,7 @@ export function EcranAgenda({ onNouveauDossier, onNouveauMail, onSaisirTemps }: 
       etat.stop = true;
       window.clearInterval(timer);
     };
-  }, []);
+  }, [lignesFixes]);
 
   async function ajouter(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -123,10 +166,46 @@ export function EcranAgenda({ onNouveauDossier, onNouveauMail, onSaisirTemps }: 
       data-testid="ecran-agenda"
       data-fond="neutre"
     >
-      <h1 className="mb-4 text-[length:var(--font-size-section)] font-bold">{fr("Agenda")}</h1>
+      <h1 className="mb-4 text-[length:var(--font-size-journee)] font-extrabold text-texte-sur-neutre">
+        {fr("Agenda")}
+      </h1>
       <Feuille uneColonne className="min-h-[360px]">
       <div className="p-[22px] pb-24">
-      <form className="mb-6 max-w-xl" onSubmit={(event) => void ajouter(event)}>
+      <div className="mb-4 flex gap-2">
+        <button
+          type="button"
+          className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
+          data-testid="agenda-vue-jour"
+          aria-pressed={vue === "jour"}
+          onClick={() => {
+            setVue("jour");
+          }}
+        >
+          {fr("Jour")}
+        </button>
+        <button
+          type="button"
+          className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
+          data-testid="agenda-vue-semaine"
+          aria-pressed={vue === "semaine"}
+          onClick={() => {
+            setVue("semaine");
+          }}
+        >
+          {fr("Semaine")}
+        </button>
+        <button
+          type="button"
+          className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
+          data-testid="agenda-creer"
+          onClick={() => {
+            setCreation(true);
+          }}
+        >
+          {fr("Nouvel élément")}
+        </button>
+      </div>
+      <form className={creation ? "mb-6 max-w-xl" : "hidden"} onSubmit={(event) => void ajouter(event)}>
         <select
           id="agenda-type"
           name="type_element"
@@ -156,21 +235,59 @@ export function EcranAgenda({ onNouveauDossier, onNouveauMail, onSaisirTemps }: 
           placeholder={fr("Titre")}
           className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
         />
-        <input
-          id="agenda-debut"
-          name="debut"
-          required
-          data-testid="agenda-debut"
-          placeholder={fr("Début")}
+        <div className="mb-2 flex gap-2">
+          <input
+            type="date"
+            data-testid="agenda-date"
+            aria-label={fr("Date")}
+            className="w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+            onChange={(event) => {
+              const heure = document.getElementById("agenda-heure");
+              const debut = document.getElementById("agenda-debut");
+              const h = heure instanceof HTMLInputElement && heure.value !== "" ? heure.value : "09:00";
+              if (debut instanceof HTMLInputElement && event.target.value !== "") {
+                debut.value = `${event.target.value}T${h}:00`;
+              }
+            }}
+          />
+          <input
+            id="agenda-heure"
+            type="time"
+            data-testid="agenda-heure"
+            aria-label={fr("Heure")}
+            className="w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+            onChange={(event) => {
+              const date = document.querySelector("[data-testid=agenda-date]");
+              const debut = document.getElementById("agenda-debut");
+              const jour = date instanceof HTMLInputElement ? date.value : "";
+              if (debut instanceof HTMLInputElement && jour !== "" && event.target.value !== "") {
+                debut.value = `${jour}T${event.target.value}:00`;
+              }
+            }}
+          />
+        </div>
+        <input id="agenda-debut" name="debut" required data-testid="agenda-debut" className="hidden" />
+        <label className="mb-1 block text-[length:var(--font-size-dense)] text-graphite" htmlFor="agenda-rappel-liste">
+          {fr("Rappel")}
+        </label>
+        <select
+          id="agenda-rappel-liste"
+          data-testid="agenda-rappel-liste"
           className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
-        />
-        <input
-          id="agenda-rappel"
-          name="rappel_le"
-          data-testid="agenda-rappel"
-          placeholder={fr("Rappel")}
-          className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
-        />
+          defaultValue="60"
+          onChange={(event) => {
+            const rappel = document.getElementById("agenda-rappel");
+            const choisi = DELAIS_RAPPEL.find((delai) => delai.id === event.target.value);
+            if (rappel instanceof HTMLInputElement) rappel.value = choisi?.libelle ?? "";
+          }}
+        >
+          {DELAIS_RAPPEL.map((delai) => (
+            <option key={delai.id} value={delai.id}>
+              {fr(delai.libelle)}
+            </option>
+          ))}
+        </select>
+        <input id="agenda-rappel" name="rappel_le" data-testid="agenda-rappel" className="hidden" />
         <button
           type="submit"
           data-testid="agenda-ajouter"
@@ -187,7 +304,30 @@ export function EcranAgenda({ onNouveauDossier, onNouveauMail, onSaisirTemps }: 
           {fr(`Conflit d'agenda : « ${conflit} ».`)}
         </p>
       ) : null}
-      <ul data-testid="agenda-liste">
+      <div data-testid={vue === "jour" ? "agenda-vue-jour-contenu" : "agenda-vue-semaine-contenu"}>
+        {(vue === "jour" ? [jourCivil(new Date())] : semaineCourante()).map((jour) => {
+          const duJour = lignes.filter((ligne) => murParis(ligne.debut).jour === jour);
+          return (
+            <section key={jour} className="mb-3" data-testid="agenda-jour" data-jour={jour}>
+              <h2 className="text-[length:var(--font-size-dense)] font-extrabold">{fr(jour)}</h2>
+              {duJour.length === 0 ? (
+                <p className="text-graphite">{fr("Rien ce jour-là.")}</p>
+              ) : (
+                <ul>
+                  {duJour.map((ligne) => (
+                    <li key={ligne.id}>
+                      {fr(
+                        `${LIBELLES_TYPE[ligne.type_element] ?? ligne.type_element} — ${ligne.titre}${ligne.origine_calcul ? " — échéance" : ""}`,
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          );
+        })}
+      </div>
+      <ul data-testid="agenda-liste" className="sr-only">
         {lignes.map((ligne) => {
           const attendue = echeanceAttendue(ligne);
           const mur = murParis(ligne.debut);
@@ -274,7 +414,6 @@ export function EcranAgenda({ onNouveauDossier, onNouveauMail, onSaisirTemps }: 
           {
             id: "saisir-temps",
             label: "Saisir du temps",
-            primaire: true,
             onClick: () => {
               onSaisirTemps?.();
             },

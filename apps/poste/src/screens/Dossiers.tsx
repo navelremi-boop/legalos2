@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { BarreActions } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
-import { FormulaireDossier } from "@/dossiers/FormulaireDossier";
+import { libelleEtapeDossier, libelleTypeDossier } from "@/dossiers/libellesDossier";
 import { PaletteCommandes } from "@/dossiers/PaletteCommandes";
 import { fr } from "@/lib/fr";
 import { libelleReferenceDossier } from "@/lib/referenceDossier";
@@ -12,6 +12,8 @@ type LigneDossier = {
   nom: string;
   chemise: string;
   reference: string | null;
+  type_dossier?: string | null;
+  etape?: string | null;
 };
 
 type DossiersProps = {
@@ -45,7 +47,7 @@ export function Dossiers({
       void getPowerSyncDatabase()
         .then((database) =>
           database.getAll<LigneDossier>(
-            "SELECT id, nom, chemise, reference FROM dossiers ORDER BY nom LIMIT 50",
+            "SELECT id, nom, chemise, reference, type_dossier, etape FROM dossiers ORDER BY nom LIMIT 50",
           ),
         )
         .then((rows) => {
@@ -90,17 +92,12 @@ export function Dossiers({
               </button>
             ) : null}
           </div>
-          <FormulaireDossier
-            onCree={({ id, nom, chemise, reference }) => {
-              onOuvrirDossier?.(id, nom, chemise, reference);
-            }}
-          />
           <section>
             <h2 className="mb-3 text-[length:var(--font-size-section)] font-extrabold">
               {fr("Dossiers du cabinet")}
             </h2>
             {lignes.length === 0 ? (
-              <p className="text-graphite">{fr("Aucun dossier pour l’instant. Créez-en un ci-dessus.")}</p>
+              <p className="text-graphite">{fr("Aucun dossier pour l'instant.")}</p>
             ) : (
               <ul className="divide-y divide-filet">
                 {lignes.map((ligne) => {
@@ -130,6 +127,14 @@ export function Dossiers({
                             —
                           </span>
                           <span>{fr(ligne.nom)}</span>
+                          <span className="mx-2 text-filet" aria-hidden>
+                            —
+                          </span>
+                          <span data-testid="dossier-libelle-type">{fr(libelleTypeDossier(ligne.type_dossier))}</span>
+                          <span className="mx-2 text-filet" aria-hidden>
+                            —
+                          </span>
+                          <span data-testid="dossier-libelle-etape">{fr(libelleEtapeDossier(ligne.etape))}</span>
                         </span>
                       </button>
                     </li>
@@ -145,7 +150,6 @@ export function Dossiers({
           {
             id: "nouveau-dossier",
             label: "Nouveau dossier",
-            primaire: true,
             onClick: () => {
               onNouveauDossier?.();
             },

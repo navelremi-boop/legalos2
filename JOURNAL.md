@@ -12,7 +12,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Agenda** : VALIDÉ `57fd4dc` (contrôleur sur `635714e`, CI [36586753618](https://github.com/navelremi-boop/legalos2/actions/runs/36586753618)). Trois runs : **65** minutes. Premier contrôle REFUSÉ sur `697bfbd`.
 - **Documents, suite** : VALIDÉ `6f5f757` (contrôleur sur `8e962d7`, CI [36687786819](https://github.com/navelremi-boop/legalos2/actions/runs/36687786819)). Premier contrôle REFUSÉ sur `d836807` (`PSYNC_S2305`). Cinq runs : **99** minutes.
 - **J9** : VALIDÉ `a036e24` (contrôleur [étape 3](f0db1509-4bcf-4701-a6dd-eb44db4835ca), CI [36751876546](https://github.com/navelremi-boop/legalos2/actions/runs/36751876546)). Run de reprise : **22** minutes (jobs arrondis à la minute supérieure).
-- **En cours** : **J10**. Contrôleur [écrans](0c95a661-b4fd-4e05-b03a-6ccbaa41951c) **VALIDÉ** sur `197b345`. CI [36731054836](https://github.com/navelremi-boop/legalos2/actions/runs/36731054836) verte. Jalon non coché : les captures attendent la validation de l'architecte (B9). Dette « Avant Facturation, suite » : SIREN (Luhn) et n° TVA FR contrôlés à la saisie et dans l'API ; `node tests/recette/siren-tva.mjs` exit 0. Formule consignée en F9, à valider par l'avocat.
+- **En cours** : **J10**. Contrôleur [écrans](0c95a661-b4fd-4e05-b03a-6ccbaa41951c) **VALIDÉ** sur `197b345`. CI [36731054836](https://github.com/navelremi-boop/legalos2/actions/runs/36731054836) verte. Captures du 30/09 **refusées** par l'architecte (B9) : jalon non coché. J9 reste VALIDÉ. Dettes nouvelles avant le premier compte réel (B8).
 - **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → ~~Intercalaires~~ → ~~Dossiers et contacts~~ → ~~Agenda~~ → ~~Documents, suite~~ → ~~J9~~ → **J10**. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
 - **CI** : l'état d'un run se lit par `gh run view` à chaque fois. Attendre = `gh run watch <id> --exit-status`. Deux relances consécutives sans commande ni commit créent `.mission/STOP` (ordre § 4.7).
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance). Un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` doit exister.
@@ -23,6 +23,12 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---
+
+## 2026-09-30 — J10 : captures refusées
+
+Consigne de l'architecte : J9 reste VALIDÉ. Quatre dettes de moteur, échéance avant le premier compte réel (B8) : temporisation et arrêt après refus d'authentification ; veille IDLE renouvelée avant 29 minutes et session de relève réutilisée ; CONDSTORE sans QRESYNC (CHANGEDSINCE et UID SEARCH) ; tâche arrêtée ou relancée si le compte change. Chacune sera prouvée contre GreenMail ou Dovecot, essai négatif compris. J10 n'est pas coché.
+
+Les captures du 30/09 sont refusées (B9). Corrections engagées : Mails en trois volets (libellés « Boîte de réception » et « Envoyés », recherche en tête de liste, file d'envoi hors lecture, badge égal aux mails à classer) ; Dossiers limité à la liste, création dans le panneau, libellés « Contentieux » et « Instruction » ; Agenda en jour et semaine, création à la demande, sélecteurs de date et d'heure, liste de rappels, titre aligné ; jeu fictif de la galerie (développement seulement) pour Facturation et les autres écrans ; barre d'actions sans bouton marqué comme sélectionné. Les nouvelles captures restent à produire et à renvoyer à l'architecte.
 
 ## 2026-09-30 — Actions tierces épinglées par hash
 

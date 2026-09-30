@@ -231,9 +231,9 @@ export function FormulaireDossier({
         className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
         defaultValue="contentieux"
       >
-        <option value="contentieux">{fr("contentieux")}</option>
-        <option value="conseil">{fr("conseil")}</option>
-        <option value="autre">{fr("autre")}</option>
+        <option value="contentieux">{fr("Contentieux")}</option>
+        <option value="conseil">{fr("Conseil")}</option>
+        <option value="autre">{fr("Autre")}</option>
       </select>
       <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="dossier-etape">
         {fr("Étape")}
@@ -245,12 +245,12 @@ export function FormulaireDossier({
         className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
         defaultValue="instruction"
       >
-        <option value="ouverture">{fr("ouverture")}</option>
-        <option value="instruction">{fr("instruction")}</option>
-        <option value="plaidoirie">{fr("plaidoirie")}</option>
-        <option value="jugement">{fr("jugement")}</option>
-        <option value="execution">{fr("exécution")}</option>
-        <option value="clos">{fr("clos")}</option>
+        <option value="ouverture">{fr("Ouverture")}</option>
+        <option value="instruction">{fr("Instruction")}</option>
+        <option value="plaidoirie">{fr("Plaidoirie")}</option>
+        <option value="jugement">{fr("Jugement")}</option>
+        <option value="execution">{fr("Exécution")}</option>
+        <option value="clos">{fr("Clos")}</option>
       </select>
       <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="dossier-partie">
         {fr("Partie cliente")}

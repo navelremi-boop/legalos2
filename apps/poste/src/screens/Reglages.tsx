@@ -481,7 +481,6 @@ export function Reglages({
           {
             id: "saisir-temps",
             label: "Saisir du temps",
-            primaire: true,
             onClick: () => {
               onSaisirTemps?.();
             },

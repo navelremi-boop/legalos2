@@ -22,12 +22,17 @@ export function GalerieDemo() {
     "dossier" | "journee" | "dossiers" | "mails" | "agenda" | "facturation" | "reglages"
   >("dossier");
 
-  const mailsDemo = useMemo<DemonstrationMails>(
-    () => ({
+  const mailsDemo = useMemo<DemonstrationMails>(() => {
+    const aujourd = new Date().toISOString().slice(0, 10);
+    return {
       comptes: [
-        { id: "compte-demo", adresse: "classement@cabinet.example", type_compte: "classement" },
+        { id: "compte-demo", adresse: "avocat@cabinet.example", type_compte: "nominatif" },
       ],
       dossiers: [{ id: "ferrand", nom: "Ferrand Métal", chemise: "kraft" }],
+      file: [
+        { id: "envoi-1", objet: "Conclusions en réplique", destinataire: "greffe@example.com", etat: "en_attente" },
+        { id: "envoi-2", objet: "Bordereau de pièces", destinataire: "confrere@example.com", etat: "copie_envoyes_confirmee" },
+      ],
       mails: [
         {
           id: "mail-classe",
@@ -36,6 +41,11 @@ export function GalerieDemo() {
           dossier_id: "ferrand",
           suggestion_dossier_id: null,
           expediteur: "tiers@example.com",
+          destinataires: "avocat@cabinet.example",
+          texte_brut: "Veuillez trouver les pièces communiquées ce jour.",
+          cree_le: `${aujourd}T08:30:00`,
+          dossier_imap: "INBOX",
+          pieces: ["Bordereau.pdf"],
         },
         {
           id: "mail-a-classer",
@@ -43,16 +53,105 @@ export function GalerieDemo() {
           etat_classement: "a_classer",
           dossier_id: null,
           suggestion_dossier_id: "ferrand",
-          expediteur: "autre@example.com",
+          expediteur: "greffe@example.com",
+          destinataires: "avocat@cabinet.example",
+          texte_brut: "Convocation à l'audience du 12 octobre.",
+          cree_le: `${aujourd}T09:15:00`,
+          dossier_imap: "INBOX",
+          pieces: ["Convocation.pdf"],
+        },
+        {
+          id: "mail-envoye",
+          objet: "Note au confrère",
+          etat_classement: "classe",
+          dossier_id: "ferrand",
+          suggestion_dossier_id: null,
+          expediteur: "avocat@cabinet.example",
+          destinataires: "confrere@example.com",
+          texte_brut: "Je vous adresse le projet de protocole.",
+          cree_le: `${aujourd}T11:00:00`,
+          dossier_imap: "Envoyés",
         },
       ],
-    }),
-    [],
-  );
+    };
+  }, []);
+  const aClasser = mailsDemo.mails.filter((mail) => mail.etat_classement === "a_classer").length;
   const dossiersDemo = useMemo(
     () => [
-      { id: "ferrand", nom: "Ferrand Métal", chemise: "kraft", reference: "2026-042" },
-      { id: "lilas", nom: "SCI des Lilas", chemise: "vert-amande", reference: "2026-038" },
+      {
+        id: "ferrand",
+        nom: "Ferrand Métal",
+        chemise: "kraft",
+        reference: "2026-042",
+        type_dossier: "contentieux",
+        etape: "instruction",
+      },
+      {
+        id: "lilas",
+        nom: "SCI des Lilas",
+        chemise: "vert-amande",
+        reference: "2026-038",
+        type_dossier: "conseil",
+        etape: "ouverture",
+      },
+    ],
+    [],
+  );
+  const agendaDemo = useMemo(() => {
+    const base = new Date();
+    const iso = (heure: number) => {
+      const copie = new Date(base);
+      copie.setHours(heure, 0, 0, 0);
+      const mois = String(copie.getMonth() + 1).padStart(2, "0");
+      const jour = String(copie.getDate()).padStart(2, "0");
+      return `${String(copie.getFullYear())}-${mois}-${jour}T${String(heure).padStart(2, "0")}:00:00`;
+    };
+    return [
+      {
+        id: "ag-1",
+        dossier_id: "ferrand",
+        type_element: "audience",
+        titre: "Mise en état",
+        debut: iso(9),
+        rappel_le: null,
+        origine_calcul: null,
+        jours_calcul: null,
+        mois_calcul: null,
+        annees_calcul: null,
+      },
+      {
+        id: "ag-2",
+        dossier_id: "lilas",
+        type_element: "rendez_vous",
+        titre: "Rendez-vous client",
+        debut: iso(14),
+        rappel_le: null,
+        origine_calcul: null,
+        jours_calcul: null,
+        mois_calcul: null,
+        annees_calcul: null,
+      },
+      {
+        id: "ag-3",
+        dossier_id: "ferrand",
+        type_element: "tache",
+        titre: "Déposer les conclusions",
+        debut: iso(16),
+        rappel_le: null,
+        origine_calcul: "2026-09-01",
+        jours_calcul: 15,
+        mois_calcul: 0,
+        annees_calcul: 0,
+      },
+    ];
+  }, []);
+  const facturesDemo = useMemo(
+    () => [
+      { id: "f-brouillon", libelle: "Ferrand Métal — temps de septembre", statut: "Brouillon", montant: "1 200,00 €" },
+      { id: "f-validee", libelle: "SCI des Lilas — provision", statut: "Validée", montant: "800,00 €" },
+      { id: "f-deposee", libelle: "Ferrand Métal — facture 2026-014", statut: "Déposée", montant: "2 400,00 €" },
+      { id: "f-encaissee", libelle: "SCI des Lilas — facture 2026-011", statut: "Encaissée", montant: "600,00 €" },
+      { id: "f-avoir", libelle: "Avoir sur 2026-011", statut: "Avoir", montant: "−120,00 €" },
     ],
     [],
   );
@@ -191,7 +290,7 @@ export function GalerieDemo() {
           chronoSecondes={vue === "dossier" ? 12 * 60 + 4 : undefined}
           onChrono={vue === "dossier" ? () => undefined : undefined}
           onPalette={() => undefined}
-          mailsCompteur={3}
+          mailsCompteur={aClasser}
         />
         <div className="coque-workspace min-h-0 flex-1">
           {vue === "dossier" ? (
@@ -231,6 +330,7 @@ export function GalerieDemo() {
           ) : null}
           {vue === "agenda" ? (
             <EcranAgenda
+              lignesFixes={agendaDemo}
               onNouveauDossier={() => undefined}
               onNouveauMail={() => undefined}
               onSaisirTemps={() => undefined}
@@ -238,6 +338,7 @@ export function GalerieDemo() {
           ) : null}
           {vue === "facturation" ? (
             <EcranFacturation
+              lignes={facturesDemo}
               onNouveauDossier={() => undefined}
               onNouveauMail={() => undefined}
               onSaisirTemps={() => undefined}

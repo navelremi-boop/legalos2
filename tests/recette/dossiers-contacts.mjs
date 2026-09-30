@@ -229,7 +229,7 @@ try {
     ficheUi = await session.texte(a.send, "dossier-type-affiche");
     const etapeUi = await session.texte(a.send, "dossier-etape-affiche");
     const clientUi = await session.texte(a.send, "dossier-client");
-    if (ficheUi.includes("contentieux") && etapeUi.includes("plaidoirie") && clientUi.includes("Client UI")) {
+    if (ficheUi.includes("Contentieux") && etapeUi.includes("Plaidoirie") && clientUi.includes("Client UI")) {
       break;
     }
     await sleep(300);
@@ -237,7 +237,7 @@ try {
   const etapeUi = await session.texte(a.send, "dossier-etape-affiche");
   const clientUi = await session.texte(a.send, "dossier-client");
   const infos = await session.texte(a.send, "infos-dossier");
-  if (!ficheUi.includes("contentieux") || !etapeUi.includes("plaidoirie")) {
+  if (!ficheUi.includes("Contentieux") || !etapeUi.includes("Plaidoirie")) {
     fail(`type ou étape absents de l'écran (${ficheUi} / ${etapeUi})`);
   }
   if (!clientUi.includes("Client UI") || !infos.includes("TJ Lyon") || !infos.includes(`RG${session.marque}`)) {
