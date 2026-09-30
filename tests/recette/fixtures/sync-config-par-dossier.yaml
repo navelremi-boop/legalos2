@@ -18,17 +18,16 @@ streams:
     query: |
       SELECT journal_modifications.id, journal_modifications.cabinet_id, journal_modifications.dossier_id, journal_modifications.table_cible, journal_modifications.enregistrement_id, journal_modifications.champ, journal_modifications.valeur_remplacee, journal_modifications.valeur_appliquee, journal_modifications.revision_base, journal_modifications.revision_appliquee, journal_modifications.conflit, journal_modifications.cree_le::text AS cree_le
       FROM journal_modifications
-      WHERE journal_modifications.visibilite = 'public'
-        AND journal_modifications.dossier_id IS NOT NULL
-        AND journal_modifications.cabinet_id::text = auth.parameter('cabinet_id')
+      INNER JOIN dossiers ON journal_modifications.dossier_id = dossiers.id
+      WHERE dossiers.visibilite = 'public' AND dossiers.cabinet_id::text = auth.parameter('cabinet_id')
 
   journal_restreints:
     auto_subscribe: true
     query: |
       SELECT journal_modifications.id, journal_modifications.cabinet_id, journal_modifications.dossier_id, journal_modifications.table_cible, journal_modifications.enregistrement_id, journal_modifications.champ, journal_modifications.valeur_remplacee, journal_modifications.valeur_appliquee, journal_modifications.revision_base, journal_modifications.revision_appliquee, journal_modifications.conflit, journal_modifications.cree_le::text AS cree_le
       FROM journal_modifications
-      INNER JOIN groupe_acces_membres ON journal_modifications.groupe_acces = groupe_acces_membres.groupe_id
-      WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
+      INNER JOIN dossier_acces ON journal_modifications.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
 
   dossiers_publics:
     auto_subscribe: true
@@ -39,8 +38,8 @@ streams:
     query: |
       SELECT dossiers.id, dossiers.cabinet_id, dossiers.nom, dossiers.chemise, dossiers.juridiction, dossiers.numero_rg, dossiers.type_dossier, dossiers.etape, dossiers.reference, dossiers.restreint, dossiers.revision, dossiers.responsable_id, dossiers.cree_le::text AS cree_le
       FROM dossiers
-      INNER JOIN groupe_acces_membres ON dossiers.groupe_acces = groupe_acces_membres.groupe_id
-      WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
+      INNER JOIN dossier_acces ON dossiers.id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
 
   parties_publics:
     auto_subscribe: true
@@ -54,8 +53,8 @@ streams:
     query: |
       SELECT parties.id, parties.dossier_id, parties.cabinet_id, parties.role, parties.nom, parties.contact_id, parties.revision, parties.cree_le::text AS cree_le
       FROM parties
-      INNER JOIN groupe_acces_membres ON parties.groupe_acces = groupe_acces_membres.groupe_id
-      WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
+      INNER JOIN dossier_acces ON parties.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
 
   repertoires_publics:
     auto_subscribe: true
@@ -69,8 +68,8 @@ streams:
     query: |
       SELECT repertoires.id, repertoires.cabinet_id, repertoires.dossier_id, repertoires.parent_id, repertoires.nom, repertoires.visibilite, repertoires.revision, repertoires.cree_le::text AS cree_le
       FROM repertoires
-      INNER JOIN groupe_acces_membres ON repertoires.groupe_acces = groupe_acces_membres.groupe_id
-      WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
+      INNER JOIN dossier_acces ON repertoires.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
 
   documents_publics:
     auto_subscribe: true
@@ -84,8 +83,8 @@ streams:
     query: |
       SELECT documents.id, documents.cabinet_id, documents.dossier_id, documents.repertoire_id, documents.nom, documents.visibilite, documents.revision, documents.cree_le::text AS cree_le
       FROM documents
-      INNER JOIN groupe_acces_membres ON documents.groupe_acces = groupe_acces_membres.groupe_id
-      WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
+      INNER JOIN dossier_acces ON documents.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
 
   document_versions_publics:
     auto_subscribe: true
@@ -99,8 +98,8 @@ streams:
     query: |
       SELECT document_versions.id, document_versions.document_id, document_versions.cabinet_id, document_versions.dossier_id, document_versions.numero, document_versions.empreinte, document_versions.taille, document_versions.auteur_id, document_versions.visibilite, document_versions.texte, document_versions.parent_numero, document_versions.cree_le::text AS cree_le
       FROM document_versions
-      INNER JOIN groupe_acces_membres ON document_versions.groupe_acces = groupe_acces_membres.groupe_id
-      WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
+      INNER JOIN dossier_acces ON document_versions.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
 
   temps_publics:
     auto_subscribe: true
@@ -114,8 +113,8 @@ streams:
     query: |
       SELECT temps_saisis.id, temps_saisis.cabinet_id, temps_saisis.dossier_id, temps_saisis.intervenant_id, temps_saisis.minutes, temps_saisis.libelle, temps_saisis.taux_centimes_heure, temps_saisis.ht_centimes, temps_saisis.visibilite, temps_saisis.revision, temps_saisis.cree_le::text AS cree_le
       FROM temps_saisis
-      INNER JOIN groupe_acces_membres ON temps_saisis.groupe_acces = groupe_acces_membres.groupe_id
-      WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
+      INNER JOIN dossier_acces ON temps_saisis.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
 
   brouillons_publics:
     auto_subscribe: true
@@ -129,8 +128,8 @@ streams:
     query: |
       SELECT brouillons_facture.id, brouillons_facture.cabinet_id, brouillons_facture.dossier_id, brouillons_facture.temps_id, brouillons_facture.numero, brouillons_facture.ht_centimes, brouillons_facture.libelle, brouillons_facture.intervenant_id, brouillons_facture.taux_centimes_heure, brouillons_facture.visibilite, brouillons_facture.revision, brouillons_facture.cree_le::text AS cree_le
       FROM brouillons_facture
-      INNER JOIN groupe_acces_membres ON brouillons_facture.groupe_acces = groupe_acces_membres.groupe_id
-      WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
+      INNER JOIN dossier_acces ON brouillons_facture.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
 
   taux_cabinet:
     auto_subscribe: true
@@ -151,8 +150,8 @@ streams:
     query: |
       SELECT taux_horaires.id, taux_horaires.cabinet_id, taux_horaires.client_partie_id, taux_horaires.dossier_id, taux_horaires.intervenant_id, taux_horaires.centimes_par_heure, taux_horaires.visibilite, taux_horaires.revision, taux_horaires.cree_le::text AS cree_le
       FROM taux_horaires
-      INNER JOIN groupe_acces_membres ON taux_horaires.groupe_acces = groupe_acces_membres.groupe_id
-      WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
+      INNER JOIN dossier_acces ON taux_horaires.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
 
   intercalaires_publics:
     auto_subscribe: true
@@ -166,24 +165,24 @@ streams:
     query: |
       SELECT intercalaires_personnalises.id, intercalaires_personnalises.cabinet_id, intercalaires_personnalises.dossier_id, intercalaires_personnalises.nom, intercalaires_personnalises.revision, intercalaires_personnalises.visibilite, intercalaires_personnalises.restreint, intercalaires_personnalises.cree_le::text AS cree_le
       FROM intercalaires_personnalises
-      INNER JOIN groupe_acces_membres ON intercalaires_personnalises.groupe_acces = groupe_acces_membres.groupe_id
-      WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
+      INNER JOIN dossier_acces ON intercalaires_personnalises.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
 
   intercalaire_elements_publics:
     auto_subscribe: true
     query: |
       SELECT intercalaire_elements.id, intercalaire_elements.intercalaire_id, intercalaire_elements.dossier_id, intercalaire_elements.type_element, intercalaire_elements.element_id, intercalaire_elements.revision, intercalaire_elements.visibilite, intercalaire_elements.restreint, intercalaire_elements.cree_le::text AS cree_le
       FROM intercalaire_elements
-      WHERE intercalaire_elements.visibilite = 'public'
-        AND intercalaire_elements.cabinet_id::text = auth.parameter('cabinet_id')
+      INNER JOIN dossiers ON intercalaire_elements.dossier_id = dossiers.id
+      WHERE dossiers.visibilite = 'public' AND dossiers.cabinet_id::text = auth.parameter('cabinet_id')
 
   intercalaire_elements_restreints:
     auto_subscribe: true
     query: |
       SELECT intercalaire_elements.id, intercalaire_elements.intercalaire_id, intercalaire_elements.dossier_id, intercalaire_elements.type_element, intercalaire_elements.element_id, intercalaire_elements.revision, intercalaire_elements.visibilite, intercalaire_elements.restreint, intercalaire_elements.cree_le::text AS cree_le
       FROM intercalaire_elements
-      INNER JOIN groupe_acces_membres ON intercalaire_elements.groupe_acces = groupe_acces_membres.groupe_id
-      WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
+      INNER JOIN dossier_acces ON intercalaire_elements.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
 
   contacts_cabinet:
     auto_subscribe: true
@@ -201,8 +200,8 @@ streams:
     query: |
       SELECT dossier_liens.id, dossier_liens.cabinet_id, dossier_liens.dossier_id, dossier_liens.lie_a_id, dossier_liens.revision, dossier_liens.visibilite, dossier_liens.restreint, dossier_liens.cree_le::text AS cree_le
       FROM dossier_liens
-      INNER JOIN groupe_acces_membres ON dossier_liens.groupe_acces = groupe_acces_membres.groupe_id
-      WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
+      INNER JOIN dossier_acces ON dossier_liens.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
         AND dossier_liens.lie_restreint = false
 
   dossier_liens_restreints_croises:
@@ -210,8 +209,10 @@ streams:
     query: |
       SELECT dossier_liens.id, dossier_liens.cabinet_id, dossier_liens.dossier_id, dossier_liens.lie_a_id, dossier_liens.revision, dossier_liens.visibilite, dossier_liens.restreint, dossier_liens.cree_le::text AS cree_le
       FROM dossier_liens
-      INNER JOIN groupe_acces_membres ON dossier_liens.groupe_acces = groupe_acces_membres.groupe_id
-      WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
+      INNER JOIN dossier_acces AS acces_source ON dossier_liens.dossier_id = acces_source.dossier_id
+      INNER JOIN dossier_acces AS acces_cible ON dossier_liens.lie_a_id = acces_cible.dossier_id
+      WHERE acces_source.utilisateur_texte = auth.user_id()
+        AND acces_cible.utilisateur_texte = auth.user_id()
         AND dossier_liens.lie_restreint = true
 
   agenda_publics:
@@ -226,8 +227,8 @@ streams:
     query: |
       SELECT agenda_elements.id, agenda_elements.cabinet_id, agenda_elements.dossier_id, agenda_elements.type_element, agenda_elements.titre, agenda_elements.debut, agenda_elements.rappel_le, agenda_elements.origine_calcul, agenda_elements.jours_calcul, agenda_elements.mois_calcul, agenda_elements.annees_calcul, agenda_elements.revision, agenda_elements.visibilite, agenda_elements.restreint, agenda_elements.cree_le::text AS cree_le
       FROM agenda_elements
-      INNER JOIN groupe_acces_membres ON agenda_elements.groupe_acces = groupe_acces_membres.groupe_id
-      WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
+      INNER JOIN dossier_acces ON agenda_elements.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()
 
   messages_publics:
     auto_subscribe: true
@@ -241,5 +242,5 @@ streams:
     query: |
       SELECT messages.id, messages.cabinet_id, messages.dossier_id, messages.message_id, messages.objet, messages.expediteur, messages.etat_classement, messages.suggestion_dossier_id, messages.visibilite, messages.restreint, messages.revision, messages.cree_le::text AS cree_le
       FROM messages
-      INNER JOIN groupe_acces_membres ON messages.groupe_acces = groupe_acces_membres.groupe_id
-      WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
+      INNER JOIN dossier_acces ON messages.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()

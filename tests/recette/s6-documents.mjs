@@ -108,8 +108,11 @@ function verifierReglesSync() {
   if (!/\bFROM document_versions\b/i.test(yaml)) {
     fail("document_versions absents des Sync Streams");
   }
-  if (!/INNER JOIN dossier_acces/i.test(yaml)) {
-    fail("flux restreints : JOIN dossier_acces requis (S5)");
+  if (!/documents_restreints:[\s\S]*INNER JOIN groupe_acces_membres/i.test(yaml)) {
+    fail("documents_restreints : JOIN groupe_acces_membres requis (un bucket par groupe)");
+  }
+  if (/JOIN\s+dossier_acces/i.test(yaml) || /JOIN\s+dossiers/i.test(yaml)) {
+    fail("sync-config : jointure par dossier interdite");
   }
   const schema = readFileSync(join(root, "apps/poste/src/sync/AppSchema.ts"), "utf8");
   if (!/\bdocuments\b/.test(schema) || !/\bdocument_versions\b/.test(schema)) {

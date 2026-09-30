@@ -30,9 +30,9 @@ Conséquences :
 
 1. **JOIN** (max 2 tables par requête dans notre contrat), **sous-requêtes** et CTE sont supportés ([Writing Queries](https://docs.powersync.com/sync/streams/queries)).
 2. Tous les flux déployés ont `auto_subscribe: true` : le poste reçoit immédiatement le sous-ensemble autorisé.
-3. Les enfants de dossier (`documents`, `document_versions`, …) se filtrent par **JOIN** sur `dossiers` (publics) ou `dossier_acces` (restreints) — plus besoin de seau de paramètres dénormalisé pour l’auth.
-4. La colonne `visibilite` sur les tables filles **reste en SELECT** (additivité / schéma) mais **n’est plus utilisée pour filtrer** les flux restreints ; l’auth passe uniquement par `dossier_acces`.
-5. Toute nouvelle table synchronisée : test **S5** (poste non autorisé → aucune ligne locale).
+3. Les flux publics d'une table fille filtrent `visibilite = 'public'` et `cabinet_id` **sans jointure** : un seul bucket par cabinet. `journal_modifications` et `intercalaire_elements` portent ces colonnes, tenues par déclencheur.
+4. Les flux restreints joignent `groupe_acces_membres` (`utilisateur_texte = auth.user_id()`). Un groupe est l'ensemble exact des utilisateurs autorisés d'un dossier ; deux dossiers au même ensemble partagent le groupe. Cela fait **un bucket par groupe**, pas par dossier. La colonne `groupe_acces` des filles est tenue par la base, jamais fournie par l'API.
+5. Toute nouvelle table synchronisée : test **S5** (poste non autorisé → aucune ligne locale). Aucun flux ne crée un bucket par dossier (`JOIN dossiers` ou `JOIN dossier_acces` interdit).
 
 Fichier déployé : `instance/powersync/sync-config.yaml`, monté via `sync_config.path` dans `instance/powersync/service.yaml`.
 
@@ -74,30 +74,32 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 |------|--------|
 | `cabinet_global` | `cabinets` seulement (dont `reference_modele`, `reference_remise_a_zero`) — plus de journal |
 | `journal_cabinet` | `journal_modifications` où `dossier_id IS NULL` et cabinet du jeton |
-| `journal_publics` | `journal_modifications` JOIN `dossiers` (visibilité publique + cabinet) |
-| `journal_restreints` | `journal_modifications` JOIN `dossier_acces` (`auth.user_id()`) |
+| `journal_publics` | `journal_modifications` où `visibilite = 'public'`, `dossier_id` non nul, cabinet du jeton — sans jointure |
+| `journal_restreints` | `journal_modifications` JOIN `groupe_acces_membres` (`auth.user_id()`) |
 | `dossiers_publics` | `dossiers` où `visibilite = 'public'` et `cabinet_id` du JWT — SELECT inclut `reference`, `responsable_id`, `type_dossier`, `etape` |
-| `dossiers_restreints` | `dossiers` JOIN `dossier_acces` où `utilisateur_texte = auth.user_id()` — SELECT inclut `reference`, `responsable_id`, `type_dossier`, `etape` |
+| `dossiers_restreints` | `dossiers` JOIN `groupe_acces_membres` où `utilisateur_texte = auth.user_id()` — un bucket par groupe |
 | `parties_publics` | `parties` où `visibilite = 'public'` et cabinet du jeton — pas de JOIN `dossiers` (un bucket par dossier, PSYNC_S2305) |
-| `parties_restreints` | `parties` JOIN `dossier_acces` (`auth.user_id()`) |
+| `parties_restreints` | `parties` JOIN `groupe_acces_membres` (`auth.user_id()`) — historique des dossiers d'un contact, filtré par le groupe |
 | `documents_publics` | `documents` où `visibilite = 'public'` et cabinet du jeton — SELECT inclut `repertoire_id`, `revision` |
-| `documents_restreints` | `documents` JOIN `dossier_acces` — **sans** filtre sur `documents.visibilite` — SELECT inclut `repertoire_id`, `revision` |
+| `documents_restreints` | `documents` JOIN `groupe_acces_membres` — **sans** filtre sur `documents.visibilite` |
 | `document_versions_publics` | `document_versions` où `visibilite = 'public'` et cabinet du jeton — SELECT inclut `texte`, `parent_numero` |
-| `document_versions_restreints` | idem JOIN `dossier_acces` — **sans** filtre sur `document_versions.visibilite` — SELECT inclut `texte`, `parent_numero` |
+| `document_versions_restreints` | idem JOIN `groupe_acces_membres` — **sans** filtre sur `document_versions.visibilite` |
 | `repertoires_publics` | `repertoires` où `visibilite = 'public'` et cabinet du jeton |
-| `repertoires_restreints` | `repertoires` JOIN `dossier_acces` — **sans** filtre sur `repertoires.visibilite` |
+| `repertoires_restreints` | `repertoires` JOIN `groupe_acces_membres` — **sans** filtre sur `repertoires.visibilite` |
 | `temps_publics` / `brouillons_publics` / `taux_publics` | visibilité publique copiée et cabinet du jeton (`taux_publics` : `dossier_id` non nul) |
-| `temps_restreints` / `brouillons_restreints` / `taux_restreints` | JOIN `dossier_acces` (`auth.user_id()`) — **sans** filtre sur la `visibilite` fille |
+| `temps_restreints` / `brouillons_restreints` / `taux_restreints` | JOIN `groupe_acces_membres` (`auth.user_id()`) — **sans** filtre sur la `visibilite` fille |
 | `taux_cabinet` | `taux_horaires` où `dossier_id IS NULL` et `cabinet_id` du JWT |
 | `intercalaires_publics` | visibilité publique copiée et cabinet du jeton |
-| `intercalaire_elements_publics` | JOIN `dossiers` (pas de `cabinet_id` sur la fille) |
-| `intercalaires_restreints` / `intercalaire_elements_restreints` | JOIN `dossier_acces` (`auth.user_id()`) — **sans** filtre sur la `visibilite` fille |
-| `contacts_cabinet` | `contacts` du cabinet (`auth.parameter('cabinet_id')`), sans JOIN `dossiers` |
+| `intercalaire_elements_publics` | `intercalaire_elements` où `visibilite = 'public'` et `cabinet_id` de la fille — sans jointure |
+| `intercalaires_restreints` / `intercalaire_elements_restreints` | JOIN `groupe_acces_membres` (`auth.user_id()`) — **sans** filtre sur la `visibilite` fille |
+| `contacts_cabinet` | annuaire du cabinet, y compris un contact né d'un dossier restreint (nom et SIREN visibles de tous, sans lien vers le dossier). L'historique (parties → dossiers) passe par `parties_restreints` |
 | `dossier_liens_publics` | `dossier_liens` où `visibilite = 'public'` (les deux dossiers) et cabinet du jeton |
-| `dossier_liens_restreints` | `dossier_liens` JOIN `dossier_acces` sur le dossier source, cible publique (`lie_restreint = false`) |
-| `dossier_liens_restreints_croises` | les deux dossiers restreints : deux jointures `dossier_acces` (source et cible), même utilisateur |
+| `dossier_liens_restreints` | `dossier_liens` JOIN `groupe_acces_membres`, cible publique (`lie_restreint = false`) |
+| `dossier_liens_restreints_croises` | les deux dossiers restreints : `groupe_acces` est l'intersection des deux ensembles, une jointure `groupe_acces_membres` |
 | `agenda_publics` | `agenda_elements` où `visibilite = 'public'` et cabinet du jeton |
-| `agenda_restreints` | `agenda_elements` JOIN `dossier_acces` (`auth.user_id()`) — **sans** filtre sur `agenda_elements.visibilite` |
+| `agenda_restreints` | `agenda_elements` JOIN `groupe_acces_membres` — **sans** filtre sur `agenda_elements.visibilite` |
+| `messages_publics` | `messages` où `visibilite = 'public'` et cabinet du jeton — sans jointure |
+| `messages_restreints` | `messages` JOIN `groupe_acces_membres` (`auth.user_id()`) — un bucket par groupe, pas par dossier |
 
 **Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants (`parties`, `repertoires`, `documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, `taux_horaires`, `intercalaires_personnalises`, `intercalaire_elements`, `dossier_liens` ancrés sur ce dossier) dans la SQLite locale. L'annuaire `contacts` est celui du cabinet : il n'est pas un enfant de dossier. Preuve SQLite (fichier `legalos-powersync-*.db` du poste Tauri) : `tests/recette/j5-poste-tauri.mjs` ; couverture par flux : `tests/recette/s5-sqlite-par-flux.mjs` ; contrôle statique des flux : `tests/recette/s5-sync-streams.mjs`. Filtre JOIN Postgres (sans SQLite) : `tests/recette/s9-s5-temps.mjs`.
 

@@ -100,19 +100,25 @@ if (!/auth\.parameter\('cabinet_id'\)/.test(journalCabinet)) {
 }
 
 const journalPublics = blocFlux("journal_publics");
-if (!/INNER JOIN dossiers/i.test(journalPublics)) {
-  fail("journal_publics : JOIN dossiers requis");
+if (/JOIN\s+dossiers/i.test(journalPublics)) {
+  fail("journal_publics : JOIN dossiers interdit (un bucket par dossier)");
 }
-if (!/visibilite\s*=\s*'public'/.test(journalPublics)) {
-  fail("journal_publics : filtre dossiers publics requis");
+if (!/journal_modifications\.visibilite\s*=\s*'public'/.test(journalPublics)) {
+  fail("journal_publics : visibilite copiee sur la fille requise");
+}
+if (!/dossier_id\s+IS\s+NOT\s+NULL/i.test(journalPublics)) {
+  fail("journal_publics : dossier_id IS NOT NULL requis");
 }
 if (!/auth\.parameter\('cabinet_id'\)/.test(journalPublics)) {
   fail("journal_publics : auth.parameter('cabinet_id') requis");
 }
 
 const journalRestreints = blocFlux("journal_restreints");
-if (!/INNER JOIN dossier_acces/i.test(journalRestreints)) {
-  fail("journal_restreints : JOIN dossier_acces requis");
+if (!/INNER JOIN groupe_acces_membres/i.test(journalRestreints)) {
+  fail("journal_restreints : JOIN groupe_acces_membres requis");
+}
+if (/JOIN\s+dossier_acces/i.test(journalRestreints)) {
+  fail("journal_restreints : JOIN dossier_acces interdit (un bucket par dossier)");
 }
 if (!/auth\.user_id\(\)/.test(journalRestreints)) {
   fail("journal_restreints : auth.user_id() requis");
@@ -128,8 +134,11 @@ if (!/\breference\b/.test(dossiersPublics)) {
 }
 
 const dossiersRestreints = blocFlux("dossiers_restreints");
-if (!/INNER JOIN dossier_acces/i.test(dossiersRestreints)) {
-  fail("dossiers_restreints : JOIN dossier_acces requis");
+if (!/INNER JOIN groupe_acces_membres/i.test(dossiersRestreints)) {
+  fail("dossiers_restreints : JOIN groupe_acces_membres requis");
+}
+if (/JOIN\s+dossier_acces/i.test(dossiersRestreints)) {
+  fail("dossiers_restreints : JOIN dossier_acces interdit (un bucket par dossier)");
 }
 if (!/auth\.user_id\(\)/.test(dossiersRestreints)) {
   fail("dossiers_restreints : auth.user_id() requis");
@@ -149,8 +158,10 @@ for (const nom of [
   "brouillons_publics",
   "taux_publics",
   "intercalaires_publics",
+  "intercalaire_elements_publics",
   "dossier_liens_publics",
   "agenda_publics",
+  "messages_publics",
 ]) {
   const bloc = blocFlux(nom);
   if (/JOIN\s+dossiers/i.test(bloc)) fail(`${nom} : JOIN dossiers interdit (un bucket par dossier)`);
@@ -159,11 +170,14 @@ for (const nom of [
 }
 
 const elementsPublics = blocFlux("intercalaire_elements_publics");
-if (!/INNER JOIN dossiers/i.test(elementsPublics)) {
-  fail("intercalaire_elements_publics : JOIN dossiers requis (pas de cabinet_id sur la fille)");
+if (/JOIN\s+dossiers/i.test(elementsPublics)) {
+  fail("intercalaire_elements_publics : JOIN dossiers interdit (un bucket par dossier)");
 }
-if (!/visibilite\s*=\s*'public'/.test(elementsPublics)) {
-  fail("intercalaire_elements_publics : filtre dossiers publics requis");
+if (!/intercalaire_elements\.visibilite\s*=\s*'public'/.test(elementsPublics)) {
+  fail("intercalaire_elements_publics : visibilite copiee requise");
+}
+if (!/intercalaire_elements\.cabinet_id/.test(elementsPublics)) {
+  fail("intercalaire_elements_publics : cabinet_id de la fille requis");
 }
 
 for (const nom of [
@@ -182,7 +196,12 @@ for (const nom of [
   "messages_restreints",
 ]) {
   const bloc = blocFlux(nom);
-  if (!/INNER JOIN dossier_acces/i.test(bloc)) fail(`${nom} : JOIN dossier_acces requis`);
+  if (!/INNER JOIN groupe_acces_membres/i.test(bloc)) {
+    fail(`${nom} : JOIN groupe_acces_membres requis (un bucket par groupe)`);
+  }
+  if (/JOIN\s+dossier_acces/i.test(bloc) || /JOIN\s+dossiers/i.test(bloc)) {
+    fail(`${nom} : jointure par dossier interdite`);
+  }
   if (!/auth\.user_id\(\)/.test(bloc)) fail(`${nom} : auth.user_id() requis`);
   if (
     /WHERE[\s\S]*\b(documents|document_versions|repertoires|parties|temps_saisis|brouillons_facture|taux_horaires|intercalaires_personnalises|intercalaire_elements|dossier_liens|agenda_elements)\.visibilite\s*=/.test(
@@ -208,6 +227,12 @@ if (!/auth\.parameter\('cabinet_id'\)/.test(contactsCabinet)) {
 }
 if (!/\bFROM contacts\b/i.test(contactsCabinet)) {
   fail("contacts_cabinet : contacts requis");
+}
+if (/\bdossier_id\b/.test(contactsCabinet)) {
+  fail("contacts_cabinet : l'annuaire ne porte pas le dossier");
+}
+if (!/\bnom\b/.test(contactsCabinet) || !/\bsiren\b/.test(contactsCabinet)) {
+  fail("contacts_cabinet : nom et SIREN requis (annuaire commun)");
 }
 
 const schema = readFileSync(join(root, "apps/poste/src/sync/AppSchema.ts"), "utf8");

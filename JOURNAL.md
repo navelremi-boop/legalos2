@@ -11,7 +11,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Dossiers et contacts complets** : VALIDÉ `3482a36` (contrôleur, CI [36572546272](https://github.com/navelremi-boop/legalos2/actions/runs/36572546272)). Trois runs : **54** minutes.
 - **Agenda** : VALIDÉ `57fd4dc` (contrôleur sur `635714e`, CI [36586753618](https://github.com/navelremi-boop/legalos2/actions/runs/36586753618)). Trois runs : **65** minutes. Premier contrôle REFUSÉ sur `697bfbd`.
 - **Documents, suite** : VALIDÉ `6f5f757` (contrôleur sur `8e962d7`, CI [36687786819](https://github.com/navelremi-boop/legalos2/actions/runs/36687786819)). Premier contrôle REFUSÉ sur `d836807` (`PSYNC_S2305`). Cinq runs : **99** minutes.
-- **En cours** : **J9**.
+- **En cours** : **J9**. Sync : un bucket par groupe d'accès, pas par dossier (consigne du 30/09/2026).
 - **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → ~~Intercalaires~~ → ~~Dossiers et contacts~~ → ~~Agenda~~ → ~~Documents, suite~~ → **J9** → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
 - **CI** : l'état d'un run se lit par `gh run view` à chaque fois. Attendre = `gh run watch <id> --exit-status`. Deux relances consécutives sans commande ni commit créent `.mission/STOP` (ordre § 4.7).
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance). Un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` doit exister.
@@ -32,6 +32,12 @@ Branche `lot/j9`, worktree `.worktrees/j9`. `PLAN.md` non modifié.
 **Étape 2** commit `f9f6fd1` : file d'envoi § 3.8.3 (`lettre`, APPEND Sent, Message-ID unique, coupure après SMTP). Preuve : `node tests/recette/s7-envoi.mjs` → exit 0 (~2,3 s).
 
 **Reste** : étape 3 (`s7-synchro`, 50 000 messages, ammonia, FTS), `s7-poste-tauri`, clippy, contrôleur, CI.
+
+## 2026-09-30 — Groupes d'accès et annuaire contacts
+
+Consigne architecte, validée par le commandement. PowerSync plafonne à 1 000 buckets (PSYNC_S2305). Les flux restreints ne joignent plus `dossier_acces` : un groupe est l'ensemble exact des utilisateurs autorisés, partagé par les dossiers identiques, et les filles portent `groupe_acces` tenu par déclencheur. Les flux publics de `journal_modifications` et `intercalaire_elements` filtrent `visibilite` et `cabinet_id` sans jointure. Aucune autre table du J9 que `messages` n'entre dans `sync-config.yaml` avant le contrôleur.
+
+**Contacts** : annuaire commun à tout le cabinet, y compris un contact créé depuis un dossier restreint. Risque accepté : le nom et le SIREN sont visibles de tous les collaborateurs, sans lien vers le dossier. L'historique (liste des dossiers, table `parties`) reste filtré par le groupe d'accès. `s5-sync-streams.mjs` vérifie que l'annuaire n'expose pas `dossier_id` et que `parties_restreints` passe par le groupe.
 
 ## 2026-09-29 — Documents, suite : contrat serveur livré, pas fusionné
 
