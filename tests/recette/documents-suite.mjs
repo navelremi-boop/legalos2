@@ -21,6 +21,31 @@ function empreinte(octets) {
   return createHash("sha256").update(octets).digest("hex");
 }
 
+function genererPdfAvecTexte(texte) {
+  const objs = [];
+  objs[1] = "1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj\n";
+  objs[2] = "2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 >>endobj\n";
+  const stream = `BT /F1 12 Tf 50 100 Td (${texte}) Tj ET`;
+  objs[4] = `4 0 obj<< /Length ${stream.length} >>stream\n${stream}\nendstream\nendobj\n`;
+  objs[5] = "5 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>endobj\n";
+  objs[3] =
+    "3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 144] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>endobj\n";
+  let body = "%PDF-1.4\n";
+  const offsets = [0];
+  for (let i = 1; i <= 5; i += 1) {
+    offsets[i] = Buffer.byteLength(body);
+    body += objs[i];
+  }
+  const xrefPos = Buffer.byteLength(body);
+  body += "xref\n0 6\n";
+  body += "0000000000 65535 f \n";
+  for (let i = 1; i <= 5; i += 1) {
+    body += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
+  }
+  body += `trailer<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF\n`;
+  return Buffer.from(body);
+}
+
 function genererDocx(texte) {
   const crcTable = [];
   for (let n = 0; n < 256; n += 1) {
@@ -158,6 +183,34 @@ const docxPath = join(fixturesDir, "piece-fictive.docx");
 if (!existsSync(docxPath)) {
   writeFileSync(docxPath, genererDocx("Piece fictive dossier"));
 }
+const pdfTextePath = join(fixturesDir, "avec-texte.pdf");
+const phrasePdf = `Phrase PDF fictive ${randomUUID().slice(0, 8)}`;
+writeFileSync(pdfTextePath, genererPdfAvecTexte(phrasePdf));
+const pdfSansTextePath = join(fixturesDir, "sans-texte.pdf");
+if (!existsSync(pdfSansTextePath)) {
+  writeFileSync(
+    pdfSansTextePath,
+    Buffer.from(`%PDF-1.4
+1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj
+2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 >>endobj
+3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 4 0 R >>endobj
+4 0 obj<< /Length 0 >>stream
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000206 00000 n 
+trailer<< /Size 5 /Root 1 0 R >>
+startxref
+256
+%%EOF
+`),
+  );
+}
 
 await session.assurerInstance();
 
@@ -205,6 +258,10 @@ if (creeRep.status !== 200) fail(`repertoire ${creeRep.status} ${creeRep.texte.s
 
 const docx = readFileSync(docxPath);
 const docId = await creerDocumentScelle(jeton, dossierId, repId, "piece-fictive.docx", docx);
+const pdfTexte = readFileSync(pdfTextePath);
+const pdfId = await creerDocumentScelle(jeton, dossierId, repId, "avec-texte.pdf", pdfTexte);
+const pdfSans = readFileSync(pdfSansTextePath);
+const pdfSansId = await creerDocumentScelle(jeton, dossierId, null, "sans-texte.pdf", pdfSans);
 const noteId = await creerDocumentScelle(
   jeton,
   dossierId,
@@ -214,23 +271,21 @@ const noteId = await creerDocumentScelle(
 );
 ok("API : arborescence + documents scellés");
 
-// Filtre pur (preuve hors Tauri aussi)
-if (!session) fail("session");
-const ignoreTests = [
-  ["~$conclusions.docx", true],
-  ["brouillon.tmp", true],
-  ["auto.asd", true],
-  ["fichierAutoRecovery.docx", true],
-  ["piece-fictive.docx", false],
-];
-for (const [nom, attendu] of ignoreTests) {
-  const got =
-    nom.startsWith("~$") ||
-    nom.toLowerCase().endsWith(".tmp") ||
-    nom.toLowerCase().endsWith(".asd") ||
-    nom.includes("AutoRecovery");
-  if (got !== attendu) fail(`filtre ${nom}`);
+const textePdfServeur = await sqlServeur(
+  `SELECT coalesce(texte,'') FROM document_versions WHERE document_id = '${pdfId}' AND numero = 1`,
+);
+if (!textePdfServeur.includes("Phrase PDF fictive")) {
+  fail(`texte PDF non indexé côté serveur (reçu «${textePdfServeur.slice(0, 80)}») — pas d'OCR, couche texte attendue`);
 }
+const textePdfVide = await sqlServeur(
+  `SELECT coalesce(texte,'') FROM document_versions WHERE document_id = '${pdfSansId}' AND numero = 1`,
+);
+if (textePdfVide !== "") {
+  fail(`pdf sans couche texte doit rester vide (reçu «${textePdfVide.slice(0, 40)}»)`);
+}
+ok("indexation texte : docx + pdf couche texte ; pdf sans texte vide (pas d'OCR)");
+
+// Filtre temporaires : ne pas dupliquer la règle ici (preuve via hook production plus bas).
 
 process.env.CARGO_BUILD_JOBS = process.env.CARGO_BUILD_JOBS ?? "1";
 session.resetPostes(["da", "db"]);
@@ -259,7 +314,7 @@ try {
         return { docs: Number(docs?.[0]?.n ?? 0), reps: Number(reps?.[0]?.n ?? 0) };
       })()`,
     );
-    if (n && Number(n.docs) >= 2 && Number(n.reps) >= 1) {
+    if (n && Number(n.docs) >= 4 && Number(n.reps) >= 1) {
       localOk = true;
       break;
     }
@@ -360,6 +415,35 @@ try {
   if (!trouvaille) fail("recherche contenu docx sans résultat");
   ok("recherche nom + contenu textuel (docx)");
 
+  await session.setField(a.send, "recherche-documents", phrasePdf);
+  const debutRechPdf = Date.now();
+  let trouvaillePdf = false;
+  while (Date.now() - debutRechPdf < 30_000) {
+    trouvaillePdf = await session.evaluate(
+      a.send,
+      `Boolean(document.querySelector(${JSON.stringify(`[data-testid=resultat-recherche] [data-document-id="${pdfId}"]`)}))`,
+    );
+    if (trouvaillePdf) break;
+    await sleep(300);
+  }
+  if (!trouvaillePdf) {
+    const texteLocal = await session.evaluate(
+      a.send,
+      `(async () => {
+        const rows = await window.__legalosRecette.lireSqlite(
+          "SELECT coalesce(texte,'') AS t FROM document_versions WHERE document_id = ? AND numero = 1",
+          [${JSON.stringify(pdfId)}],
+        );
+        return String(rows?.[0]?.t ?? "");
+      })()`,
+    );
+    fail(`recherche contenu pdf (couche texte) sans résultat (sqlite texte=«${String(texteLocal).slice(0, 80)}»)`);
+  }
+  ok("recherche contenu textuel (pdf avec couche texte)");
+
+  await session.setField(a.send, "recherche-documents", "");
+  await sleep(300);
+
   const ouvertRes = await session.evaluate(
     a.send,
     `(async () => {
@@ -389,12 +473,17 @@ try {
   if (!cheminCache) fail("cache local absent après ouverture");
   ok("ouverture via éditeur système (opener) + cache");
 
-  // Temporaires : ne pas créer de version
+  // Temporaires : ne pas créer de version (filtre production exposé au hook)
   const ignore = await session.evaluate(
     a.send,
-    `window.__legalosRecette.estFichierIgnorePourVersion("~$x.docx") && window.__legalosRecette.estFichierIgnorePourVersion("x.tmp")`,
+    `window.__legalosRecette.estFichierIgnorePourVersion("~$x.docx")
+      && window.__legalosRecette.estFichierIgnorePourVersion("x.tmp")
+      && window.__legalosRecette.estFichierIgnorePourVersion("piece.asd")
+      && window.__legalosRecette.estFichierIgnorePourVersion("fichierAutoRecovery.docx")
+      && !window.__legalosRecette.estFichierIgnorePourVersion("piece-fictive.docx")`,
   );
   if (!ignore) fail("filtre temporaire hooks");
+  ok("filtre ~$, .tmp, .asd, AutoRecovery (pas de version)");
 
   const v2octets = genererDocx(`Piece modifiee ${session.marque}`);
   writeFileSync(cheminCache, v2octets);
@@ -519,6 +608,9 @@ try {
   );
   if (!rA?.numero || !rB?.numero) fail(`versions concurrentes A=${JSON.stringify(rA)} B=${JSON.stringify(rB)}`);
   if (rA.numero === rB.numero) fail("même numéro attribué aux deux postes");
+  if (!rA.divergence && !rB.divergence) {
+    fail("aucune des deux versions concurrentes ne signale divergence=true");
+  }
 
   const versions = await session.apiJson(jeton, "GET", `/documents/${noteId}/versions/1`);
   if (versions.status !== 200) fail("lecture v1 note");
@@ -557,20 +649,28 @@ try {
     if (div) break;
     await sleep(500);
   }
-  // PowerSync déconnecté : les nouvelles versions ne sont peut-être pas en local.
-  // Reconnecter n'est pas exposé facilement ; le signal UI se base sur SQLite local.
-  // Vérifier au moins le signal si les lignes sont présentes, sinon preuve SQL serveur.
-  if (div) {
-    const badge = await session.evaluate(
+  // PowerSync déconnecté : reconnecter n'est pas exposé. Preuve SQL serveur des deux
+  // branches + signal API. Le badge UI exige les deux versions en local : on échoue
+  // s'il est absent alors que SQLite local voit déjà la divergence.
+  const badge = await session.evaluate(
+    a.send,
+    `Boolean(document.querySelector(${JSON.stringify(`[data-testid=document][data-document-id="${noteId}"] [data-testid=document-divergence]`)}))`,
+  );
+  if (div && !badge) {
+    await sleep(2_500);
+    const badge2 = await session.evaluate(
       a.send,
       `Boolean(document.querySelector(${JSON.stringify(`[data-testid=document][data-document-id="${noteId}"] [data-testid=document-divergence]`)}))`,
     );
-    if (!badge) {
-      // Attendre le poll UI
-      await sleep(2_000);
-    }
+    if (!badge2) fail("divergence en SQLite local mais badge document-divergence absent (non signalée)");
   }
-  ok("modification concurrente : deux versions conservées (SQL), aucun écrasement");
+  const divServeur = await sqlServeur(
+    `SELECT COUNT(*)::text FROM document_versions a
+     JOIN document_versions b ON a.document_id = b.document_id AND a.parent_numero = b.parent_numero AND a.numero < b.numero
+     WHERE a.document_id = '${noteId}' AND a.parent_numero = 1`,
+  );
+  if (Number(divServeur) < 1) fail("divergence non signalée côté serveur");
+  ok("modification concurrente : deux versions conservées et signalées (SQL), aucun écrasement");
 
   console.log("documents-suite: OK");
 } finally {

@@ -78,24 +78,25 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 | `journal_restreints` | `journal_modifications` JOIN `dossier_acces` (`auth.user_id()`) |
 | `dossiers_publics` | `dossiers` où `visibilite = 'public'` et `cabinet_id` du JWT — SELECT inclut `reference`, `responsable_id`, `type_dossier`, `etape` |
 | `dossiers_restreints` | `dossiers` JOIN `dossier_acces` où `utilisateur_texte = auth.user_id()` — SELECT inclut `reference`, `responsable_id`, `type_dossier`, `etape` |
-| `parties_publics` | `parties` JOIN `dossiers` (visibilité publique + cabinet) |
+| `parties_publics` | `parties` où `visibilite = 'public'` et cabinet du jeton — pas de JOIN `dossiers` (un bucket par dossier, PSYNC_S2305) |
 | `parties_restreints` | `parties` JOIN `dossier_acces` (`auth.user_id()`) |
-| `documents_publics` | `documents` JOIN `dossiers` (visibilité publique + cabinet) — SELECT inclut `repertoire_id`, `revision` |
+| `documents_publics` | `documents` où `visibilite = 'public'` et cabinet du jeton — SELECT inclut `repertoire_id`, `revision` |
 | `documents_restreints` | `documents` JOIN `dossier_acces` — **sans** filtre sur `documents.visibilite` — SELECT inclut `repertoire_id`, `revision` |
-| `document_versions_publics` | idem JOIN `dossiers` — SELECT inclut `texte`, `parent_numero` |
+| `document_versions_publics` | `document_versions` où `visibilite = 'public'` et cabinet du jeton — SELECT inclut `texte`, `parent_numero` |
 | `document_versions_restreints` | idem JOIN `dossier_acces` — **sans** filtre sur `document_versions.visibilite` — SELECT inclut `texte`, `parent_numero` |
-| `repertoires_publics` | `repertoires` JOIN `dossiers` (visibilité publique + cabinet) |
+| `repertoires_publics` | `repertoires` où `visibilite = 'public'` et cabinet du jeton |
 | `repertoires_restreints` | `repertoires` JOIN `dossier_acces` — **sans** filtre sur `repertoires.visibilite` |
-| `temps_publics` / `brouillons_publics` / `taux_publics` | JOIN `dossiers` (visibilité publique + cabinet) |
+| `temps_publics` / `brouillons_publics` / `taux_publics` | visibilité publique copiée et cabinet du jeton (`taux_publics` : `dossier_id` non nul) |
 | `temps_restreints` / `brouillons_restreints` / `taux_restreints` | JOIN `dossier_acces` (`auth.user_id()`) — **sans** filtre sur la `visibilite` fille |
 | `taux_cabinet` | `taux_horaires` où `dossier_id IS NULL` et `cabinet_id` du JWT |
-| `intercalaires_publics` / `intercalaire_elements_publics` | JOIN `dossiers` (visibilité publique + cabinet) |
+| `intercalaires_publics` | visibilité publique copiée et cabinet du jeton |
+| `intercalaire_elements_publics` | JOIN `dossiers` (pas de `cabinet_id` sur la fille) |
 | `intercalaires_restreints` / `intercalaire_elements_restreints` | JOIN `dossier_acces` (`auth.user_id()`) — **sans** filtre sur la `visibilite` fille |
 | `contacts_cabinet` | `contacts` du cabinet (`auth.parameter('cabinet_id')`), sans JOIN `dossiers` |
-| `dossier_liens_publics` | `dossier_liens` JOIN `dossiers` (visibilité publique des deux côtés) |
+| `dossier_liens_publics` | `dossier_liens` où `visibilite = 'public'` (les deux dossiers) et cabinet du jeton |
 | `dossier_liens_restreints` | `dossier_liens` JOIN `dossier_acces` sur le dossier source, cible publique (`lie_restreint = false`) |
 | `dossier_liens_restreints_croises` | les deux dossiers restreints : deux jointures `dossier_acces` (source et cible), même utilisateur |
-| `agenda_publics` | `agenda_elements` JOIN `dossiers` (visibilité publique + cabinet) |
+| `agenda_publics` | `agenda_elements` où `visibilite = 'public'` et cabinet du jeton |
 | `agenda_restreints` | `agenda_elements` JOIN `dossier_acces` (`auth.user_id()`) — **sans** filtre sur `agenda_elements.visibilite` |
 
 **Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants (`parties`, `repertoires`, `documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, `taux_horaires`, `intercalaires_personnalises`, `intercalaire_elements`, `dossier_liens` ancrés sur ce dossier) dans la SQLite locale. L'annuaire `contacts` est celui du cabinet : il n'est pas un enfant de dossier. Preuve SQLite (fichier `legalos-powersync-*.db` du poste Tauri) : `tests/recette/j5-poste-tauri.mjs` ; couverture par flux : `tests/recette/s5-sqlite-par-flux.mjs` ; contrôle statique des flux : `tests/recette/s5-sync-streams.mjs`. Filtre JOIN Postgres (sans SQLite) : `tests/recette/s9-s5-temps.mjs`.

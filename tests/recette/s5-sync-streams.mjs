@@ -136,6 +136,8 @@ if (!/\breference\b/.test(dossiersRestreints)) {
   fail("dossiers_restreints : colonne reference requise (§ 3.4)");
 }
 
+// Un JOIN dossiers crée un bucket PowerSync par dossier (PSYNC_S2305, limite 1000).
+// La visibilité copiée sur la fille, tenue par le déclencheur, suffit : un seul bucket par cabinet.
 for (const nom of [
   "parties_publics",
   "repertoires_publics",
@@ -145,15 +147,21 @@ for (const nom of [
   "brouillons_publics",
   "taux_publics",
   "intercalaires_publics",
-  "intercalaire_elements_publics",
   "dossier_liens_publics",
   "agenda_publics",
 ]) {
   const bloc = blocFlux(nom);
-  if (!/INNER JOIN dossiers/i.test(bloc) && !/IN\s*\(\s*SELECT[\s\S]*FROM dossiers/i.test(bloc)) {
-    fail(`${nom} : JOIN ou sous-requête dossiers requis`);
-  }
-  if (!/visibilite\s*=\s*'public'/.test(bloc)) fail(`${nom} : filtre dossiers publics requis`);
+  if (/JOIN\s+dossiers/i.test(bloc)) fail(`${nom} : JOIN dossiers interdit (un bucket par dossier)`);
+  if (!/visibilite\s*=\s*'public'/.test(bloc)) fail(`${nom} : visibilite publique requise`);
+  if (!/auth\.parameter\('cabinet_id'\)/.test(bloc)) fail(`${nom} : auth.parameter('cabinet_id') requis`);
+}
+
+const elementsPublics = blocFlux("intercalaire_elements_publics");
+if (!/INNER JOIN dossiers/i.test(elementsPublics)) {
+  fail("intercalaire_elements_publics : JOIN dossiers requis (pas de cabinet_id sur la fille)");
+}
+if (!/visibilite\s*=\s*'public'/.test(elementsPublics)) {
+  fail("intercalaire_elements_publics : filtre dossiers publics requis");
 }
 
 for (const nom of [
