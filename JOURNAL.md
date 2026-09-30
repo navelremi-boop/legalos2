@@ -27,6 +27,8 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 Contrôleur [second contrôle J9](b94e334a-fb55-438c-b1a4-44053c0bd8a3) **VALIDÉ** sur `4ca1103`. Fusion fast-forward dans `main`. Run [36722943710](https://github.com/navelremi-boop/legalos2/actions/runs/36722943710) : le job frontend refuse la migration 028 (`DROP DEFAULT`, remplacement de déclencheur, `DELETE` des groupes orphelins), exigée par la consigne du 30/09. `migrations-additives.mjs` autorise ces trois formes et aucune autre suppression. Jalon non coché tant que la CI de ce correctif n'est pas verte.
 
+Run [36723512798](https://github.com/navelremi-boop/legalos2/actions/runs/36723512798) : frontend, gouvernance, périmètre et facturx verts ; `rust` en échec. `classement_greenmail` ouvrait le SMTP sans GreenMail sur le runner. Le test s'arrête si le port est fermé, comme `greenmail_sans_qresync`. La preuve contre GreenMail reste `s7-classement.mjs` (exit 0 en local, serveur présent).
+
 ## 2026-09-30 — J9 : refus du contrôleur, chrono et file d'envoi dans l'app
 
 Contrôleur **REFUSÉ** sur `4790a58` (branche `lot/j9`). Critères de `PLAN.md` non affaiblis. Recettes d'acceptation en exit 0, trois écarts bloquants : chrono d'un dossier réel vide, FTS5 seulement via Python, cycle d'envoi visible seulement dans l'API.
