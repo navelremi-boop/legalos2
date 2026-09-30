@@ -187,3 +187,10 @@ Preuves (2026-09-26) :
 - Premier contrôle **REFUSÉ** sur `697bfbd` (critères `ca8208b` non couverts). Recontrôle **VALIDÉ** sur `635714e` (consigne de l'architecte du 29/09/2026, 21 h). Fusion `57fd4dc`.
 - CI lue par `gh run view` : [36577300524](https://github.com/navelremi-boop/legalos2/actions/runs/36577300524) (`697bfbd`) success ; [36584915520](https://github.com/navelremi-boop/legalos2/actions/runs/36584915520) (`635714e`) success ; [36586753618](https://github.com/navelremi-boop/legalos2/actions/runs/36586753618) (`57fd4dc`, `main`) success, `s1-instance` terminé à 17:13 heure de Paris. Minutes des trois runs : **65**.
 - Jalon coché. Suivant : Documents, suite.
+
+## 2026-09-30 — Documents, suite VALIDÉ
+
+- Arborescence par dossier (`repertoires`), ouverture par l'éditeur du système (`plugin-opener`, pas de Word codé en dur), renvoi de version sur le fichier de cache surveillé (`notify` 8.2.0). Recherche des noms et du texte extrait (docx, pdf avec couche texte ; pdf sans couche : texte vide). Fichiers `~$`, `.tmp`, `.asd` et `AutoRecovery` ignorés. Deux versions concurrentes conservées, `divergence` et badge.
+- Premier contrôle **REFUSÉ** sur `d836807` : `PSYNC_S2305`, 1049 buckets. Correctif `8e962d7` : les flux publics dont la fille porte `visibilite` et `cabinet_id` ne joignent plus `dossiers` (un bucket par cabinet). Recontrôle **VALIDÉ** sur `8e962d7` : `documents-suite.mjs` deux fois exit 0, `s6`, `s5-sync-streams`, clippy, `lint:ci`.
+- Fusion `6f5f757`. CI de `main` [36687786819](https://github.com/navelremi-boop/legalos2/actions/runs/36687786819) verte. Minutes des cinq runs : **99**.
+- Jalon coché. Suivant : J9.

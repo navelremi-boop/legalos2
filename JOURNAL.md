@@ -10,8 +10,9 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Intercalaires personnalisés** : VALIDÉ `9e0aa69` (contrôleur, CI [36561017502](https://github.com/navelremi-boop/legalos2/actions/runs/36561017502)). Trois runs de clôture : **63** minutes.
 - **Dossiers et contacts complets** : VALIDÉ `3482a36` (contrôleur, CI [36572546272](https://github.com/navelremi-boop/legalos2/actions/runs/36572546272)). Trois runs : **54** minutes.
 - **Agenda** : VALIDÉ `57fd4dc` (contrôleur sur `635714e`, CI [36586753618](https://github.com/navelremi-boop/legalos2/actions/runs/36586753618)). Trois runs : **65** minutes. Premier contrôle REFUSÉ sur `697bfbd`.
-- **En cours** : **Documents, suite**.
-- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → ~~Intercalaires~~ → ~~Dossiers et contacts~~ → ~~Agenda~~ → **Documents, suite** → J9 → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
+- **Documents, suite** : VALIDÉ `6f5f757` (contrôleur sur `8e962d7`, CI [36687786819](https://github.com/navelremi-boop/legalos2/actions/runs/36687786819)). Premier contrôle REFUSÉ sur `d836807` (`PSYNC_S2305`). Cinq runs : **99** minutes.
+- **En cours** : **J9**.
+- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → ~~Intercalaires~~ → ~~Dossiers et contacts~~ → ~~Agenda~~ → ~~Documents, suite~~ → **J9** → J10. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
 - **CI** : l'état d'un run se lit par `gh run view` à chaque fois. Attendre = `gh run watch <id> --exit-status`. Deux relances consécutives sans commande ni commit créent `.mission/STOP` (ordre § 4.7).
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance). Un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` doit exister.
 - **B12 levé** (28/09) : signalement transmis, [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). Quatre exceptions dans `apps/poste/src-tauri/deny.toml`. Constat : `docs/audit-dependances.md`.
@@ -32,7 +33,11 @@ CI lue par `gh run view 36622021205` : completed, success. perimetre, frontend, 
 
 Lot poste fusionné avec le contrat serveur : `9d00855`, puis rustfmt `d836807`, PR [n° 16](https://github.com/navelremi-boop/legalos2/pull/16). CI lue par `gh run view 36625485423` : completed, success, les six jobs.
 
-Contrôleur **REFUSÉ** sur `d836807` : `documents-suite.mjs` passe une fois puis `coque absente après auth`. Cause : `PSYNC_S2305`, 1049 buckets (limite 1000). Chaque flux public qui joint `dossiers` ouvre un bucket par dossier (52). Correctif `8e962d7` : les filles qui portent `visibilite` et `cabinet_id` filtrent sans jointure. `journal_publics` et `intercalaire_elements_publics` gardent la jointure. `documents-suite.mjs` durcie (PDF, divergence) : exit 0 deux fois de suite, aucun `S2305` dans les journaux PowerSync. Recontrôle en cours. Run [36618225538](https://github.com/navelremi-boop/legalos2/actions/runs/36618225538) annulé par concurrence ; [36619287466](https://github.com/navelremi-boop/legalos2/actions/runs/36619287466) vert, jobs de code sautés (journal seul).
+Contrôleur **REFUSÉ** sur `d836807` : `documents-suite.mjs` passe une fois puis `coque absente après auth`. Cause : `PSYNC_S2305`, 1049 buckets (limite 1000). Chaque flux public qui joint `dossiers` ouvre un bucket par dossier (52). Correctif `8e962d7` : les filles qui portent `visibilite` et `cabinet_id` filtrent sans jointure. `journal_publics` et `intercalaire_elements_publics` gardent la jointure.
+
+Recontrôle **VALIDÉ** sur `8e962d7` : `documents-suite.mjs` exit 0 deux fois, `s6-documents.mjs`, `s5-sync-streams.mjs`, clippy workspace et poste, `lint:ci`. Critères PLAN non affaiblis. Fusion `6f5f757`. CI de `main` lue par `gh run view 36687786819` : completed, success, les six jobs. `s1-instance` terminé à 10 h 23 (heure de Paris).
+
+Minutes des cinq runs (API, rustfmt refusé, lot `d836807`, correctif, `main`), jobs arrondis à la minute supérieure : 22 + 11 + 21 + 23 + 22 = **99**. Jalon coché. Suivant : J9.
 
 ## 2026-09-29 — Agenda VALIDÉ
 
