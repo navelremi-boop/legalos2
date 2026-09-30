@@ -42,6 +42,7 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 | GreenMail (IMAP/SMTP test) | **greenmail/standalone:2.1.0** | https://hub.docker.com/r/greenmail/standalone — capacités de la 2.1.0 (source `CapabilityCommand`) : LITERAL+, UIDPLUS, SORT, IDLE, MOVE. Pas de QRESYNC. |
 | io-imap | **0.6.1** (version exacte, ne pas monter sans instruction de l'architecte) | https://crates.io/crates/io-imap/0.6.1 — vérifié le 2026-09-27 ; publié le 2026-09-26 ; licence MIT OR Apache-2.0 ; rust 1.88 ; Pimalaya |
 | imap-codec | **2.0.0-alpha.8** (transitive d'io-imap, épinglée en dépendance directe ; ne pas monter sans instruction de l'architecte) | https://crates.io/crates/imap-codec/2.0.0-alpha.8 — vérifié le 2026-09-27 ; publié le 2026-06-03 ; licence MIT OR Apache-2.0. L'exigence d'io-imap est `^2.0.0-alpha.8`, qui accepterait la 2.0.0-alpha.9 du 2026-07-19 : le dépôt la refuse. |
+| mail-parser | **0.11.9** (épinglée exacte) | https://crates.io/crates/mail-parser/0.11.9 — vérifié le 2026-09-30 ; licence Apache-2.0 OR MIT ; décodage MIME / en-têtes pour la relève de classement. |
 | Dovecot (second serveur IMAP de test, chemin QRESYNC) | **dovecot/dovecot:2.3.21.1** | https://hub.docker.com/r/dovecot/dovecot — `instance/imap-test/` |
 | Axum | **0.8.9** | https://crates.io/crates/axum |
 | sqlx | **0.8.5** | https://crates.io/crates/sqlx |

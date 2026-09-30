@@ -8,6 +8,7 @@ pub mod dossiers;
 pub mod factures;
 pub mod health;
 pub mod intercalaires;
+pub mod messagerie;
 pub mod temps;
 
 use std::sync::Arc;
@@ -106,5 +107,18 @@ pub fn router(state: Arc<AppState>) -> Router {
         )
         .route("/taux-horaires", post(temps::creer_taux))
         .route("/taux-horaires/{taux_id}", patch(temps::patch_taux))
+        .route(
+            "/messagerie/classement/relever",
+            post(messagerie::relever_classement),
+        )
+        .route("/messagerie/messages", get(messagerie::lister_messages))
+        .route(
+            "/messagerie/messages/{message_id}/accepter-suggestion",
+            post(messagerie::accepter_suggestion),
+        )
+        .route(
+            "/dossiers/{dossier_id}/chrono-mails",
+            get(messagerie::chrono_mails_dossier),
+        )
         .with_state(state)
 }

@@ -12,6 +12,7 @@ pub use classement::{
     decider, integrer_releve, DecisionClassement, DossierPourClassement, EntreeClassement,
     MessageReleve, ReleveConnue,
 };
+pub use imap::EnteteRecu;
 
 use thiserror::Error;
 
@@ -27,6 +28,7 @@ pub enum ErreurMail {
 }
 
 /// Compte IMAP. Le mot de passe n'est pas journalisé.
+#[derive(Clone)]
 pub struct ParametresCompte {
     pub hote: String,
     pub port: u16,
@@ -54,6 +56,13 @@ pub trait FournisseurMail {
     fn poser_drapeau(&mut self, dossier: &str, uid: u32, drapeau: &str) -> Result<(), ErreurMail>;
     fn deplacer(&mut self, dossier: &str, uid: u32, destination: &str) -> Result<(), ErreurMail>;
     fn supprimer(&mut self, dossier: &str, uid: u32) -> Result<(), ErreurMail>;
+    /// Relève incrémentale des en-têtes (UID > `apres_uid`).
+    fn relever_entetes(
+        &mut self,
+        dossier: &str,
+        apres_uid: Option<u32>,
+        limite: Option<usize>,
+    ) -> Result<(u32, Vec<EnteteRecu>), ErreurMail>;
 }
 
 /// Session d'actions (connexion distincte de la veille).
@@ -102,6 +111,15 @@ impl FournisseurMail for SessionActions {
 
     fn supprimer(&mut self, dossier: &str, uid: u32) -> Result<(), ErreurMail> {
         self.interne.supprimer(dossier, uid)
+    }
+
+    fn relever_entetes(
+        &mut self,
+        dossier: &str,
+        apres_uid: Option<u32>,
+        limite: Option<usize>,
+    ) -> Result<(u32, Vec<EnteteRecu>), ErreurMail> {
+        self.interne.relever_entetes(dossier, apres_uid, limite)
     }
 }
 

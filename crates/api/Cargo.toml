@@ -21,6 +21,7 @@ workspace = true
 [dependencies]
 legalos-domaine = { path = "../domaine" }
 legalos-stockage = { path = "../stockage" }
+legalos-messagerie = { path = "../messagerie" }
 anyhow = { workspace = true }
 argon2 = { workspace = true }
 password-hash = { workspace = true }

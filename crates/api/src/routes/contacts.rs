@@ -28,6 +28,7 @@ pub struct CreerContactRequest {
     pub siren: Option<String>,
     pub numero_tva: Option<String>,
     pub type_client: String,
+    pub email: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -108,8 +109,8 @@ pub async fn creer_contact(
     }
     sqlx::query(
         r#"
-        INSERT INTO contacts (id, cabinet_id, nature, nom, siren, numero_tva, type_client, revision)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, 1)
+        INSERT INTO contacts (id, cabinet_id, nature, nom, siren, numero_tva, type_client, email, revision)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1)
         "#,
     )
     .bind(body.id)
@@ -129,6 +130,13 @@ pub async fn creer_contact(
             .filter(|s| !s.is_empty()),
     )
     .bind(&body.type_client)
+    .bind(
+        body.email
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_ascii_lowercase()),
+    )
     .execute(
         tx.acquire()
             .await

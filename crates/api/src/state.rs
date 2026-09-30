@@ -3,6 +3,7 @@ use std::sync::Arc;
 use sqlx::PgPool;
 
 use crate::auth::jwt::JwtKeys;
+use legalos_messagerie::ParametresCompte;
 use legalos_stockage::StockageFichiers;
 
 #[derive(Clone)]
@@ -16,4 +17,6 @@ pub struct AppState {
     pub session_token_ttl_secs: u64,
     pub refresh_token_ttl_secs: u64,
     pub stockage: Option<StockageFichiers>,
+    /// Compte IMAP de la boîte de classement (jamais exposé au poste).
+    pub messagerie: Option<ParametresCompte>,
 }

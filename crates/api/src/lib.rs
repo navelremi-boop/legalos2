@@ -110,5 +110,14 @@ pub async fn build_app_state(
         access_token_ttl_secs: config.access_token_ttl_secs,
         session_token_ttl_secs: config.session_token_ttl_secs,
         refresh_token_ttl_secs: config.refresh_token_ttl_secs,
+        messagerie: config.messagerie.as_ref().map(|m| {
+            legalos_messagerie::ParametresCompte {
+                hote: m.imap_hote.clone(),
+                port: m.imap_port,
+                utilisateur: m.utilisateur.clone(),
+                mot_de_passe: m.mot_de_passe.clone(),
+                tls: m.tls,
+            }
+        }),
     }))
 }

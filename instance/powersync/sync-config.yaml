@@ -229,3 +229,18 @@ streams:
       FROM agenda_elements
       INNER JOIN dossier_acces ON agenda_elements.dossier_id = dossier_acces.dossier_id
       WHERE dossier_acces.utilisateur_texte = auth.user_id()
+
+  messages_publics:
+    auto_subscribe: true
+    query: |
+      SELECT messages.id, messages.cabinet_id, messages.dossier_id, messages.message_id, messages.objet, messages.expediteur, messages.etat_classement, messages.suggestion_dossier_id, messages.visibilite, messages.restreint, messages.revision, messages.cree_le::text AS cree_le
+      FROM messages
+      WHERE messages.visibilite = 'public' AND messages.cabinet_id::text = auth.parameter('cabinet_id')
+
+  messages_restreints:
+    auto_subscribe: true
+    query: |
+      SELECT messages.id, messages.cabinet_id, messages.dossier_id, messages.message_id, messages.objet, messages.expediteur, messages.etat_classement, messages.suggestion_dossier_id, messages.visibilite, messages.restreint, messages.revision, messages.cree_le::text AS cree_le
+      FROM messages
+      INNER JOIN dossier_acces ON messages.dossier_id = dossier_acces.dossier_id
+      WHERE dossier_acces.utilisateur_texte = auth.user_id()

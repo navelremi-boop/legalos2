@@ -17,6 +17,16 @@ pub struct Config {
     pub session_token_ttl_secs: u64,
     pub refresh_token_ttl_secs: u64,
     pub s3: Option<ParametresS3>,
+    pub messagerie: Option<ParametresMessagerie>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ParametresMessagerie {
+    pub imap_hote: String,
+    pub imap_port: u16,
+    pub utilisateur: String,
+    pub mot_de_passe: String,
+    pub tls: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -56,6 +66,7 @@ impl Config {
         let session_token_ttl_secs = parse_u64_env("JWT_SESSION_TTL_SECS", 600);
         let refresh_token_ttl_secs = parse_u64_env("JWT_REFRESH_TTL_SECS", 2_592_000);
         let s3 = parametres_s3();
+        let messagerie = parametres_messagerie();
 
         Ok(Self {
             bind,
@@ -70,6 +81,7 @@ impl Config {
             session_token_ttl_secs,
             refresh_token_ttl_secs,
             s3,
+            messagerie,
         })
     }
 }
@@ -88,6 +100,31 @@ fn parametres_s3() -> Option<ParametresS3> {
         bucket: lire("S3_BUCKET")?,
         access_key_id: lire("S3_ACCESS_KEY_ID")?,
         secret_access_key: lire("S3_SECRET_ACCESS_KEY")?,
+    })
+}
+
+fn parametres_messagerie() -> Option<ParametresMessagerie> {
+    let lire = |nom: &str| {
+        std::env::var(nom)
+            .ok()
+            .map(|v| v.trim().to_owned())
+            .filter(|v| !v.is_empty())
+    };
+    let imap_hote = lire("MESSAGERIE_IMAP_HOTE")?;
+    let imap_port = lire("MESSAGERIE_IMAP_PORT")?.parse().ok()?;
+    let utilisateur = lire("MESSAGERIE_IMAP_USER")
+        .or_else(|| lire("GREENMAIL_USER"))?;
+    let mot_de_passe = lire("MESSAGERIE_IMAP_PASSWORD")
+        .or_else(|| lire("GREENMAIL_PASSWORD"))?;
+    let tls = lire("MESSAGERIE_IMAP_TLS")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    Some(ParametresMessagerie {
+        imap_hote,
+        imap_port,
+        utilisateur,
+        mot_de_passe,
+        tls,
     })
 }
 

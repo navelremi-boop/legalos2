@@ -46,6 +46,12 @@ services:
       GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET}
       GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN}
       GREENMAIL_PASSWORD: ${GREENMAIL_PASSWORD}
+      GREENMAIL_USER: ${GREENMAIL_USER}
+      MESSAGERIE_IMAP_HOTE: greenmail
+      MESSAGERIE_IMAP_PORT: "3143"
+      MESSAGERIE_IMAP_USER: demo
+      MESSAGERIE_IMAP_PASSWORD: ${GREENMAIL_PASSWORD}
+      MESSAGERIE_IMAP_TLS: "false"
       LEGALOS_MODE: ${LEGALOS_MODE:-}
       JWT_KEY_ID: ${JWT_KEY_ID:-legalos-dev-1}
       JWT_ISSUER: ${JWT_ISSUER:-legalos-api}
@@ -170,7 +176,7 @@ services:
       GREENMAIL_OPTS: >-
         -Dgreenmail.setup.test.all
         -Dgreenmail.hostname=0.0.0.0
-        -Dgreenmail.users=${GREENMAIL_USER}:${GREENMAIL_PASSWORD}
+        -Dgreenmail.users=demo:${GREENMAIL_PASSWORD}@cabinet.example
     expose:
       - "3025"
       - "3110"
@@ -178,6 +184,9 @@ services:
       - "3465"
       - "3993"
       - "3995"
+    ports:
+      - "127.0.0.1:13025:3025"
+      - "127.0.0.1:13143:3143"
     healthcheck:
       test:
         [
