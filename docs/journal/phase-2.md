@@ -194,3 +194,11 @@ Preuves (2026-09-26) :
 - Premier contrôle **REFUSÉ** sur `d836807` : `PSYNC_S2305`, 1049 buckets. Correctif `8e962d7` : les flux publics dont la fille porte `visibilite` et `cabinet_id` ne joignent plus `dossiers` (un bucket par cabinet). Recontrôle **VALIDÉ** sur `8e962d7` : `documents-suite.mjs` deux fois exit 0, `s6`, `s5-sync-streams`, clippy, `lint:ci`.
 - Fusion `6f5f757`. CI de `main` [36687786819](https://github.com/navelremi-boop/legalos2/actions/runs/36687786819) verte. Minutes des cinq runs : **99**.
 - Jalon coché. Suivant : J9.
+
+## 2026-09-30 — J9 VALIDÉ
+
+- Mail, étapes 1 à 3 du § 3.8.6. Classement GreenMail (`s7-classement`), file d'envoi avec coupure après SMTP (`s7-envoi`, cinq états vus dans l'app), boîtes nominatives (`s7-synchro`, 50 000 messages : repli 2 559 ms, QRESYNC 910 ms). HTML nettoyé par ammonia. Recherche hors ligne FTS5 dans l'app (`@sqlite.org/sqlite-wasm` 3.53.4) ; recherche française Postgres sur l'historique. S5 : mail restreint absent du poste non autorisé, compte nominatif visible du seul titulaire, aucun secret IMAP.
+- Sync : un seau par groupe d'accès, pas par dossier. `s5-buckets-volume` : 32 seaux à 300 dossiers et 32 à 3 000 ; l'ancienne configuration est refusée. Le chrono d'un dossier réel lit les mails classés, les pièces et les brouillons de facture synchronisés, sans le jeu fictif.
+- Premier contrôle **REFUSÉ** sur `4790a58` (chrono vide, FTS5 seulement en Python, cycle d'envoi seulement dans l'API). Recontrôle **VALIDÉ** sur `4ca1103`.
+- CI de `main` lue par `gh run view` : [36722943710](https://github.com/navelremi-boop/legalos2/actions/runs/36722943710) échec frontend (migrations) ; [36723512798](https://github.com/navelremi-boop/legalos2/actions/runs/36723512798) échec rust (GreenMail absent du runner) ; [36724502312](https://github.com/navelremi-boop/legalos2/actions/runs/36724502312) (`bb9578a`) success. Minutes des trois runs, jobs arrondis à la minute supérieure : 11 + 12 + 25 = **48**.
+- Jalon coché. Suivant : J10.
