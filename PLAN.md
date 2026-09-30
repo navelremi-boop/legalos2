@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-29 (jalon en cours : **Documents, suite**).
+Dernière mise à jour : 2026-09-30 (jalon en cours : **J9**).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -130,16 +130,7 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
 
 - [x] **Agenda** — VALIDÉ `57fd4dc` (contrôleur sur `635714e`, CI [36586753618](https://github.com/navelremi-boop/legalos2/actions/runs/36586753618))
 
-- [ ] **Documents, suite** — § 4.2 n° 6, ce que J7 n'a pas livré — critères validés par l'architecte le 29/09/2026
-  - **Critères d'acceptation (commandes)** :
-    - `node tests/recette/documents-suite.mjs` → exit 0 (app Tauri, S4) :
-      - arborescence par dossier ;
-      - ouverture dans Word et renvoi automatique de la nouvelle version, quel que soit l'éditeur par défaut ;
-      - recherche dans les noms et le contenu textuel (docx, pdf avec couche texte) ; pas d'OCR ;
-      - les fichiers temporaires de Word (`~$…`, `.tmp`) et les enregistrements automatiques ne créent pas de version ;
-      - modification concurrente hors ligne : les deux versions sont conservées et signalées, aucun écrasement silencieux.
-    - `node tests/recette/s6-documents.mjs` → exit 0 (non-régression des versions).
-    - `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+- [x] **Documents, suite** — VALIDÉ `6f5f757` (contrôleur sur `8e962d7`, CI [36687786819](https://github.com/navelremi-boop/legalos2/actions/runs/36687786819))
 
 - [ ] **J9** — Mail, étapes 1 à 3 du § 3.8.6 (S7) — critères validés par l'architecte le 27/09/2026
   - **Critères d'acceptation (commandes)** :
