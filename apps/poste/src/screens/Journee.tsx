@@ -93,6 +93,7 @@ function Pastille({ chemise }: { chemise: ChemiseId }) {
   return (
     <span
       className="ligne-journee__pastille"
+      data-testid="pastille-dossier"
       data-chemise={chemise}
       aria-hidden
     />
@@ -100,16 +101,18 @@ function Pastille({ chemise }: { chemise: ChemiseId }) {
 }
 
 function Section({
+  id,
   titre,
   lignes,
   vide,
 }: {
+  id: string;
   titre: string;
   lignes: LigneJournee[];
   vide: string;
 }) {
   return (
-    <section>
+    <section data-testid={`section-${id}`}>
       <h2 className="mb-2 text-[length:var(--font-size-section)] font-extrabold">
         {fr(titre)}
       </h2>
@@ -166,21 +169,25 @@ export function Journee({
       <Feuille uneColonne className="min-h-[420px]">
         <div className="grid gap-8 p-[22px] pb-24 md:grid-cols-2">
           <Section
-            titre="Audiences et rendez-vous"
+            id="audiences"
+            titre="Audiences et rendez-vous du jour"
             lignes={audiences}
-            vide="Aucune audience ni rendez-vous aujourd’hui."
+            vide="Aucune audience ni rendez-vous aujourd'hui."
           />
           <Section
+            id="delais"
             titre="Délais"
             lignes={delais}
             vide="Aucun délai à surveiller pour le moment."
           />
           <Section
+            id="mails"
             titre="Mails à classer"
             lignes={mails}
             vide="Aucun mail en attente de classement."
           />
           <Section
+            id="temps"
             titre="Temps à saisir"
             lignes={temps}
             vide="Aucun temps en attente de saisie."

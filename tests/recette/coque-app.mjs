@@ -188,9 +188,10 @@ async function runCaptures() {
     fail("Vite timeout");
   }
 
-  const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 1320, height: 900 } });
+  let browser;
   try {
+    browser = await chromium.launch();
+    const page = await browser.newPage({ viewport: { width: 1320, height: 900 } });
     await page.goto("http://127.0.0.1:1420/?galerie=1", { waitUntil: "networkidle" });
     await page.waitForSelector("[data-testid=galerie-demo]");
 
@@ -257,6 +258,34 @@ async function runCaptures() {
         path: join(outDir, `journee-${theme === "light" ? "jour" : "nuit"}.png`),
       });
 
+      const horsDossier = [
+        ["Dossiers", "ecran-dossiers", "dossiers"],
+        ["Mails", "ecran-mails", "mails"],
+        ["Agenda", "ecran-agenda", "agenda"],
+        ["Facturation", "ecran-facturation", "facturation"],
+        ["Réglages", "ecran-reglages", "reglages"],
+      ];
+      for (const [nom, testid, fichier] of horsDossier) {
+        await commandes.getByRole("button", { name: nom, exact: true }).click();
+        await page.waitForSelector(`[data-testid=${testid}][data-fond=neutre]`);
+        await page.waitForFunction(
+          (attendu) => {
+            const el = document.querySelector("[data-fond=neutre]");
+            return el !== null && getComputedStyle(el).backgroundColor === attendu;
+          },
+          neutre,
+          { timeout: 5_000 },
+        );
+        if (testid === "ecran-mails") {
+          await page.waitForSelector("[data-testid=banniere-classer]");
+          await page.waitForSelector("[data-testid=pastille-mail]");
+        }
+        await page.waitForTimeout(100);
+        await page.locator("[data-testid=galerie-scene]").screenshot({
+          path: join(outDir, `${fichier}-${theme === "light" ? "jour" : "nuit"}.png`),
+        });
+      }
+
       // Vue scindée (§ 7.4) : chrono + aperçu, jour et nuit (chemise kraft).
       await commandes.getByRole("button", { name: "Dossier", exact: true }).click();
       await commandes.getByRole("button", { name: "kraft", exact: true }).click();
@@ -278,7 +307,7 @@ async function runCaptures() {
     }
     ok(`captures écrites dans ${relative(root, outDir)}`);
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
     vite.kill();
   }
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { BarreActions } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
 import { FormulaireDossier } from "@/dossiers/FormulaireDossier";
 import { PaletteCommandes } from "@/dossiers/PaletteCommandes";
@@ -21,12 +22,24 @@ type DossiersProps = {
     reference?: string | null,
   ) => void;
   onNouveauDossier?: () => void;
+  onNouveauMail?: () => void;
+  onSaisirTemps?: () => void;
+  /** Galerie : liste fixe, sans PowerSync. */
+  lignesFixes?: LigneDossier[];
 };
 
-export function Dossiers({ onOuvrirDossier, onNouveauDossier }: DossiersProps) {
-  const [lignes, setLignes] = useState<LigneDossier[]>([]);
+export function Dossiers({
+  onOuvrirDossier,
+  onNouveauDossier,
+  onNouveauMail,
+  onSaisirTemps,
+  lignesFixes,
+}: DossiersProps) {
+  const [lignesSync, setLignesSync] = useState<LigneDossier[]>([]);
+  const lignes = lignesFixes ?? lignesSync;
 
   useEffect(() => {
+    if (lignesFixes) return;
     let stop = false;
     const tick = () => {
       void getPowerSyncDatabase()
@@ -36,10 +49,10 @@ export function Dossiers({ onOuvrirDossier, onNouveauDossier }: DossiersProps) {
           ),
         )
         .then((rows) => {
-          if (!stop) setLignes(rows);
+          if (!stop) setLignesSync(rows);
         })
         .catch(() => {
-          if (!stop) setLignes([]);
+          if (!stop) setLignesSync([]);
         });
     };
     tick();
@@ -48,10 +61,14 @@ export function Dossiers({ onOuvrirDossier, onNouveauDossier }: DossiersProps) {
       stop = true;
       window.clearInterval(timer);
     };
-  }, []);
+  }, [lignesFixes]);
 
   return (
-    <div className="fond-neutre relative flex h-full min-h-0 flex-col px-[42px] pt-[28px]" data-testid="ecran-dossiers">
+    <div
+      className="fond-neutre relative flex h-full min-h-0 flex-col px-[42px] pt-[28px]"
+      data-testid="ecran-dossiers"
+      data-fond="neutre"
+    >
       <h1 className="mb-4 text-[length:var(--font-size-journee)] font-extrabold text-sur-chemise">
         {fr("Dossiers")}
       </h1>
@@ -123,6 +140,32 @@ export function Dossiers({ onOuvrirDossier, onNouveauDossier }: DossiersProps) {
           </section>
         </div>
       </Feuille>
+      <BarreActions
+        actions={[
+          {
+            id: "nouveau-dossier",
+            label: "Nouveau dossier",
+            primaire: true,
+            onClick: () => {
+              onNouveauDossier?.();
+            },
+          },
+          {
+            id: "nouveau-mail",
+            label: "Nouveau mail",
+            onClick: () => {
+              onNouveauMail?.();
+            },
+          },
+          {
+            id: "saisir-temps",
+            label: "Saisir du temps",
+            onClick: () => {
+              onSaisirTemps?.();
+            },
+          },
+        ]}
+      />
     </div>
   );
 }

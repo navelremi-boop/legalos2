@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import type { SubmitEvent } from "react";
 import { ecrireElementAgenda, recalculerEcheance, retirerEcheance, type TypeAgenda } from "@/agenda/ecrireAgenda";
+import { BarreActions } from "@/coque/BarreActions";
+import { Feuille } from "@/coque/Feuille";
 import { murParis } from "@/agenda/fuseauParis";
 import { calculerDelaiComplet } from "@/delais/moteur";
 import { fr } from "@/lib/fr";
@@ -43,7 +45,13 @@ function champ(form: FormData, nom: string): string {
   return typeof valeur === "string" ? valeur.trim() : "";
 }
 
-export function EcranAgenda() {
+type EcranAgendaProps = {
+  onNouveauDossier?: () => void;
+  onNouveauMail?: () => void;
+  onSaisirTemps?: () => void;
+};
+
+export function EcranAgenda({ onNouveauDossier, onNouveauMail, onSaisirTemps }: EcranAgendaProps) {
   const [lignes, setLignes] = useState<Ligne[]>([]);
   const [message, setMessage] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -110,8 +118,14 @@ export function EcranAgenda() {
   }
 
   return (
-    <div className="fond-neutre relative flex h-full min-h-0 flex-col px-[42px] pt-[28px]" data-testid="ecran-agenda">
+    <div
+      className="fond-neutre relative flex h-full min-h-0 flex-col px-[42px] pt-[28px]"
+      data-testid="ecran-agenda"
+      data-fond="neutre"
+    >
       <h1 className="mb-4 text-[length:var(--font-size-section)] font-bold">{fr("Agenda")}</h1>
+      <Feuille uneColonne className="min-h-[360px]">
+      <div className="p-[22px] pb-24">
       <form className="mb-6 max-w-xl" onSubmit={(event) => void ajouter(event)}>
         <select
           id="agenda-type"
@@ -239,6 +253,34 @@ export function EcranAgenda() {
           );
         })}
       </ul>
+      </div>
+      </Feuille>
+      <BarreActions
+        actions={[
+          {
+            id: "nouveau-dossier",
+            label: "Nouveau dossier",
+            onClick: () => {
+              onNouveauDossier?.();
+            },
+          },
+          {
+            id: "nouveau-mail",
+            label: "Nouveau mail",
+            onClick: () => {
+              onNouveauMail?.();
+            },
+          },
+          {
+            id: "saisir-temps",
+            label: "Saisir du temps",
+            primaire: true,
+            onClick: () => {
+              onSaisirTemps?.();
+            },
+          },
+        ]}
+      />
     </div>
   );
 }
