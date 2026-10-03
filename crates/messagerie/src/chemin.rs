@@ -3,6 +3,7 @@
 pub struct Capacites {
     pub idle: bool,
     pub qresync: bool,
+    pub condstore: bool,
     /// Jetons tels qu'annoncés, pour le constat de test. Pas des types du codec.
     pub jetons: Vec<String>,
 }
@@ -59,6 +60,7 @@ mod tests {
         Capacites {
             idle: true,
             qresync,
+            condstore: qresync,
             jetons: Vec::new(),
         }
     }

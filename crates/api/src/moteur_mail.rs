@@ -20,6 +20,17 @@ struct CompteMoteur {
     id: Uuid,
     cabinet_id: Uuid,
     parametres: ParametresCompte,
+    empreinte: String,
+}
+
+/// Renouvellement IDLE avant la coupure des 30 minutes (RFC 2177).
+pub const RENOUVELLEMENT_IDLE_SECS: u64 = 28 * 60;
+/// Relève sans réveil, et photographie complète, au plus une fois par cycle.
+pub const RELEVE_SANS_REVEIL_SECS: u64 = 10 * 60;
+
+pub fn delai_echec(echecs: u32) -> Duration {
+    let pas = u64::from(echecs.min(9));
+    Duration::from_secs((1_u64 << pas).min(RELEVE_SANS_REVEIL_SECS))
 }
 
 pub fn demarrer(pool: PgPool, cle: [u8; 32]) {
@@ -63,12 +74,16 @@ async fn boucle(pool: PgPool, cle: [u8; 32]) {
 }
 
 async fn charger(pool: &PgPool, cle: &[u8; 32]) -> Result<Vec<CompteMoteur>, sqlx::Error> {
-    let rows = sqlx::query_as::<_, (Uuid, Uuid, String, i32, String, bool, String)>(
+    let rows = sqlx::query_as::<_, (Uuid, Uuid, String, i32, String, bool, String, String)>(
         r#"
-        SELECT id, cabinet_id, hote, port, utilisateur, tls, secret_chiffre
+        SELECT id, cabinet_id, hote, port, utilisateur, tls, secret_chiffre, etat_connexion
         FROM comptes_mail
         WHERE hote IS NOT NULL AND port IS NOT NULL AND utilisateur IS NOT NULL
           AND secret_chiffre IS NOT NULL
+          AND (
+            etat_connexion IS DISTINCT FROM 'identifiants_refuses'
+            OR empreinte_refus IS DISTINCT FROM (hote || '|' || port::text || '|' || utilisateur || '|' || secret_chiffre)
+          )
         "#,
     )
     .fetch_all(pool)
@@ -81,6 +96,7 @@ async fn charger(pool: &PgPool, cle: &[u8; 32]) -> Result<Vec<CompteMoteur>, sql
         let Ok(mot_de_passe) = String::from_utf8(secret) else {
             continue;
         };
+        let empreinte = format!("{}|{}|{}|{}", row.2, row.3, row.4, row.6);
         comptes.push(CompteMoteur {
             id: row.0,
             cabinet_id: row.1,
@@ -91,6 +107,7 @@ async fn charger(pool: &PgPool, cle: &[u8; 32]) -> Result<Vec<CompteMoteur>, sql
                 mot_de_passe,
                 tls: row.5,
             },
+            empreinte,
         });
     }
     Ok(comptes)
@@ -110,50 +127,179 @@ async fn lire_modseqs(pool: &PgPool, compte: Uuid) -> HashMap<String, u64> {
 }
 
 async fn tache(pool: PgPool, compte: CompteMoteur) {
-    let mut modseqs = lire_modseqs(&pool, compte.id).await;
+    let handle = tokio::runtime::Handle::current();
+    let _ = tokio::task::spawn_blocking(move || tourner(handle, pool, compte)).await;
+}
+
+fn tourner(handle: tokio::runtime::Handle, pool: PgPool, compte: CompteMoteur) {
+    use std::time::Instant;
+    let mut veille: Option<VeilleReception> = None;
+    let mut veille_depuis = Instant::now();
+    let mut derniere_releve: Option<Instant> = None;
+    let mut derniere_complete: Option<Instant> = None;
+    let mut serveur_qresync = false;
+    let mut serveur_condstore = false;
+    let mut echecs: u32 = 0;
+    let mut reveil = true;
     loop {
-        let parametres = compte.parametres.clone();
-        let modseq_inbox = modseqs.get("INBOX").copied().unwrap_or(0);
-        let resultat = tokio::task::spawn_blocking(move || {
-            let mut session = SessionActions::connecter(&parametres)?;
-            let inbox = session.synchroniser_dossier("INBOX", modseq_inbox)?;
-            Ok::<_, ErreurMail>(inbox)
-        })
-        .await;
-        if let Ok(Ok(inbox)) = resultat {
-            if appliquer_dossier(&pool, &compte, "INBOX", &inbox, modseq_inbox)
-                .await
-                .is_ok()
-            {
-                modseqs.insert("INBOX".into(), inbox.modseq);
-            }
-            for nom in AUTRES_DOSSIERS {
-                let parametres = compte.parametres.clone();
-                let connu = modseqs.get(*nom).copied().unwrap_or(0);
-                let nom_thread = (*nom).to_owned();
-                let autre = tokio::task::spawn_blocking(move || {
-                    let mut session = SessionActions::connecter(&parametres)?;
-                    session.synchroniser_dossier(&nom_thread, connu)
-                })
-                .await;
-                if let Ok(Ok(releve)) = autre {
-                    if appliquer_dossier(&pool, &compte, nom, &releve, connu)
-                        .await
-                        .is_ok()
-                    {
-                        modseqs.insert((*nom).to_owned(), releve.modseq);
+        let empreinte = handle.block_on(empreinte_compte(&pool, compte.id));
+        let Some(empreinte) = empreinte else {
+            break;
+        };
+        if empreinte != compte.empreinte {
+            break;
+        }
+        let modseqs = handle.block_on(lire_modseqs(&pool, compte.id));
+        let fenetre_repli = derniere_complete.is_some_and(|instant| {
+            instant.elapsed() < Duration::from_secs(RELEVE_SANS_REVEIL_SECS)
+        });
+        if reveil && fenetre_repli && !serveur_qresync && !serveur_condstore {
+            reveil = false;
+        }
+        let doit_relever = reveil
+            || derniere_releve.map_or(true, |instant| {
+                instant.elapsed() >= Duration::from_secs(RELEVE_SANS_REVEIL_SECS)
+            });
+        if doit_relever {
+            let parametres = compte.parametres.clone();
+            let resultat = relever_session(&parametres, &modseqs, derniere_complete);
+            match resultat {
+                Ok(lot) => {
+                    echecs = 0;
+                    reveil = false;
+                    derniere_releve = Some(Instant::now());
+                    serveur_qresync = lot.qresync;
+                    serveur_condstore = lot.condstore;
+                    if lot.complet {
+                        derniere_complete = Some(Instant::now());
+                    }
+                    let _ = handle.block_on(noter(&pool, compte.id, "ok"));
+                    let _ = handle.block_on(marquer_etat(&pool, compte.id, "connecte", None));
+                    for (dossier, releve) in lot.releves {
+                        let connu = modseqs.get(&dossier).copied().unwrap_or(0);
+                        let _ = handle
+                            .block_on(appliquer_dossier(&pool, &compte, &dossier, &releve, connu));
                     }
                 }
+                Err(ErreurMail::Authentification) => {
+                    let _ = handle.block_on(noter(&pool, compte.id, "authentification"));
+                    let _ = handle.block_on(marquer_etat(
+                        &pool,
+                        compte.id,
+                        "identifiants_refuses",
+                        Some(&compte.empreinte),
+                    ));
+                    break;
+                }
+                Err(_) => {
+                    let _ = handle.block_on(noter(&pool, compte.id, "connexion"));
+                    echecs = echecs.saturating_add(1);
+                    std::thread::sleep(delai_echec(echecs));
+                    continue;
+                }
             }
-            let parametres = compte.parametres.clone();
-            let _ = tokio::task::spawn_blocking(move || {
-                attendre_idle(&parametres, Duration::from_secs(20))
-            })
-            .await;
-        } else {
-            tokio::time::sleep(Duration::from_secs(5)).await;
+        }
+        if veille.is_none()
+            || veille_depuis.elapsed() >= Duration::from_secs(RENOUVELLEMENT_IDLE_SECS)
+        {
+            match VeilleReception::ouvrir(&compte.parametres) {
+                Ok(ouverte) => {
+                    veille = Some(ouverte);
+                    veille_depuis = Instant::now();
+                    let _ = handle.block_on(noter_idle(&pool, compte.id));
+                }
+                Err(ErreurMail::Authentification) => {
+                    let _ = handle.block_on(noter(&pool, compte.id, "authentification"));
+                    let _ = handle.block_on(marquer_etat(
+                        &pool,
+                        compte.id,
+                        "identifiants_refuses",
+                        Some(&compte.empreinte),
+                    ));
+                    break;
+                }
+                Err(_) => {
+                    veille = None;
+                    let _ = handle.block_on(noter(&pool, compte.id, "connexion"));
+                    echecs = echecs.saturating_add(1);
+                    std::thread::sleep(delai_echec(echecs));
+                    continue;
+                }
+            }
+        }
+        let reste_idle = Duration::from_secs(RENOUVELLEMENT_IDLE_SECS)
+            .saturating_sub(veille_depuis.elapsed())
+            .max(Duration::from_secs(1));
+        let reste_releve = derniere_releve.map_or(Duration::from_secs(0), |instant| {
+            Duration::from_secs(RELEVE_SANS_REVEIL_SECS).saturating_sub(instant.elapsed())
+        });
+        let attente = reste_idle.min(reste_releve).min(Duration::from_secs(20));
+        match veille
+            .as_ref()
+            .and_then(|courante| courante.attendre(attente).ok())
+        {
+            Some(true) => reveil = true,
+            Some(false) => {}
+            None => veille = None,
         }
     }
+}
+
+struct LotReleve {
+    releves: Vec<(String, ReleveDossier)>,
+    complet: bool,
+    qresync: bool,
+    condstore: bool,
+}
+
+fn relever_session(
+    parametres: &ParametresCompte,
+    modseqs: &HashMap<String, u64>,
+    derniere_complete: Option<std::time::Instant>,
+) -> Result<LotReleve, ErreurMail> {
+    let mut session = SessionActions::connecter(parametres)?;
+    let caps = session.capacites()?;
+    let complet_du = derniere_complete.map_or(true, |instant| {
+        instant.elapsed() >= Duration::from_secs(RELEVE_SANS_REVEIL_SECS)
+    });
+    let mut dossiers = vec!["INBOX".to_owned()];
+    dossiers.extend(AUTRES_DOSSIERS.iter().map(|nom| (*nom).to_owned()));
+    let mut releves = Vec::new();
+    let mut complet = false;
+    let session_id = Uuid::new_v4();
+    for dossier in dossiers {
+        let connu = modseqs.get(&dossier).copied().unwrap_or(0);
+        let repli = !caps.qresync && !caps.condstore;
+        if repli && !complet_du {
+            continue;
+        }
+        let mut releve = match session.synchroniser_dossier(&dossier, connu) {
+            Ok(releve) => releve,
+            Err(_) => continue,
+        };
+        if repli {
+            complet = true;
+        }
+        releve.commandes.push(format!("session {session_id}"));
+        releve
+            .commandes
+            .push(format!("IDLE {RENOUVELLEMENT_IDLE_SECS}"));
+        releves.push((dossier, releve));
+    }
+    if releves.is_empty() && !caps.qresync && !caps.condstore && !complet_du {
+        return Ok(LotReleve {
+            releves,
+            complet: false,
+            qresync: caps.qresync,
+            condstore: caps.condstore,
+        });
+    }
+    Ok(LotReleve {
+        releves,
+        complet,
+        qresync: caps.qresync,
+        condstore: caps.condstore,
+    })
 }
 
 fn changements_qresync(connus: &[EtatUid], releve: &ReleveDossier) -> Vec<Changement> {
@@ -169,6 +315,90 @@ fn changements_qresync(connus: &[EtatUid], releve: &ReleveDossier) -> Vec<Change
         }
     }
     changements
+}
+
+fn changements_condstore(connus: &[EtatUid], releve: &ReleveDossier) -> Vec<Changement> {
+    let mut changements = Vec::new();
+    let presents: HashSet<u32> = releve.uids_presents.iter().copied().collect();
+    for connu in connus {
+        if !presents.contains(&connu.uid) {
+            changements.push(Changement::Retire { uid: connu.uid });
+        }
+    }
+    for etat in &releve.etats {
+        if connus.iter().any(|connu| connu.uid == etat.uid) {
+            changements.push(Changement::Drapeaux(etat.clone()));
+        } else {
+            changements.push(Changement::Ajoute(etat.clone()));
+        }
+    }
+    for uid in &releve.uids_presents {
+        let deja = connus.iter().any(|connu| connu.uid == *uid)
+            || releve.etats.iter().any(|etat| etat.uid == *uid);
+        if !deja {
+            changements.push(Changement::Ajoute(EtatUid {
+                uid: *uid,
+                lu: false,
+                drapeaux: String::new(),
+            }));
+        }
+    }
+    changements
+}
+
+async fn empreinte_compte(pool: &PgPool, compte: Uuid) -> Option<String> {
+    let row = sqlx::query_as::<_, (String, i32, String, String)>(
+        r#"
+        SELECT hote, port, utilisateur, secret_chiffre
+        FROM comptes_mail
+        WHERE id = $1 AND hote IS NOT NULL AND secret_chiffre IS NOT NULL
+        "#,
+    )
+    .bind(compte)
+    .fetch_optional(pool)
+    .await
+    .ok()??;
+    Some(format!("{}|{}|{}|{}", row.0, row.1, row.2, row.3))
+}
+
+async fn noter(pool: &PgPool, compte: Uuid, issue: &str) -> Result<(), sqlx::Error> {
+    sqlx::query("INSERT INTO moteur_connexions (compte_id, issue) VALUES ($1, $2)")
+        .bind(compte)
+        .bind(issue)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+async fn marquer_etat(
+    pool: &PgPool,
+    compte: Uuid,
+    etat: &str,
+    empreinte: Option<&str>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE comptes_mail SET etat_connexion = $2, empreinte_refus = $3 WHERE id = $1")
+        .bind(compte)
+        .bind(etat)
+        .bind(empreinte)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+async fn noter_idle(pool: &PgPool, compte: Uuid) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO releve_curseurs (compte_id, dossier_imap, uid_validity, dernier_uid, modseq, chemin, commandes)
+        VALUES ($1, 'INBOX', 0, 0, 0, 'idle', $2)
+        ON CONFLICT (compte_id, dossier_imap) DO UPDATE
+            SET commandes = releve_curseurs.commandes || ' ' || EXCLUDED.commandes
+        "#,
+    )
+    .bind(compte)
+    .bind(format!("IDLE {RENOUVELLEMENT_IDLE_SECS}"))
+    .execute(pool)
+    .await?;
+    Ok(())
 }
 
 async fn appliquer_dossier(
@@ -194,6 +424,9 @@ async fn appliquer_dossier(
     let changements =
         if releve.qresync && modseq_connu > 0 && validity == i64::from(releve.uid_validity) {
             changements_qresync(&connus, releve)
+        } else if releve.condstore && modseq_connu > 0 && validity == i64::from(releve.uid_validity)
+        {
+            changements_condstore(&connus, releve)
         } else {
             diff_repli(&connus, &vus).changements
         };
@@ -551,4 +784,21 @@ pub fn poser_drapeau_imap(
     let mut session = SessionActions::connecter(parametres)?;
     session.poser_drapeau("INBOX", uid, drapeau)?;
     Ok(session.lire_lu("INBOX", uid).unwrap_or(false))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{delai_echec, RELEVE_SANS_REVEIL_SECS, RENOUVELLEMENT_IDLE_SECS};
+
+    #[test]
+    fn delais_de_reprise() {
+        let renouvellement = std::hint::black_box(RENOUVELLEMENT_IDLE_SECS);
+        let releve = std::hint::black_box(RELEVE_SANS_REVEIL_SECS);
+        let court = std::hint::black_box(delai_echec(1));
+        let long = std::hint::black_box(delai_echec(3));
+        assert!(std::hint::black_box(delai_echec(0)) >= std::time::Duration::from_secs(1));
+        assert!(long > court);
+        assert!(renouvellement < 29 * 60);
+        assert_eq!(releve, 10 * 60);
+    }
 }

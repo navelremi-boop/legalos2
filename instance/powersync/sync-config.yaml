@@ -267,7 +267,7 @@ streams:
   comptes_nominatifs:
     auto_subscribe: true
     query: |
-      SELECT id, cabinet_id, type_compte, titulaire_id, adresse, revision, cree_le::text AS cree_le
+      SELECT id, cabinet_id, type_compte, titulaire_id, adresse, etat_connexion, revision, cree_le::text AS cree_le
       FROM comptes_mail
       WHERE type_compte = 'nominatif'
         AND titulaire_id::text = auth.user_id()

@@ -29,7 +29,7 @@ export type MailLocal = {
 };
 
 type DossierLocal = { id: string; nom: string; chemise: string };
-type CompteLocal = { id: string; adresse: string; type_compte: string };
+type CompteLocal = { id: string; adresse: string; type_compte: string; etat_connexion?: string | null };
 
 const LIBELLES: Record<string, string> = {
   brouillon: "Brouillon",
@@ -142,7 +142,9 @@ export function EcranMails({
       void getPowerSyncDatabase()
         .then(async (database) => {
           const [comptesRows, mailRows, dossierRows] = await Promise.all([
-            database.getAll<CompteLocal>("SELECT id, adresse, type_compte FROM comptes_mail ORDER BY adresse"),
+            database.getAll<CompteLocal>(
+              "SELECT id, adresse, type_compte, etat_connexion FROM comptes_mail ORDER BY adresse",
+            ),
             database.getAll<MailLocal>(
               `SELECT id, objet, etat_classement, dossier_id, suggestion_dossier_id, expediteur,
                       texte_brut, cree_le, dossier_imap
@@ -221,9 +223,12 @@ export function EcranMails({
               ) : (
                 <ul className="mb-3">
                   {comptesAffiches.map((compte) => (
-                    <li key={compte.id} data-testid="compte-mail">
-                      {fr(compte.adresse)}
-                    </li>
+                  <li key={compte.id} data-testid="compte-mail">
+                    {fr(compte.adresse)}
+                    {compte.etat_connexion === "identifiants_refuses" ? (
+                      <span data-testid="compte-identifiants-refuses">{fr("Identifiants refusés")}</span>
+                    ) : null}
+                  </li>
                   ))}
                 </ul>
               )}

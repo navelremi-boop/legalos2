@@ -12,7 +12,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Agenda** : VALIDÉ `57fd4dc` (contrôleur sur `635714e`, CI [36586753618](https://github.com/navelremi-boop/legalos2/actions/runs/36586753618)). Trois runs : **65** minutes. Premier contrôle REFUSÉ sur `697bfbd`.
 - **Documents, suite** : VALIDÉ `6f5f757` (contrôleur sur `8e962d7`, CI [36687786819](https://github.com/navelremi-boop/legalos2/actions/runs/36687786819)). Premier contrôle REFUSÉ sur `d836807` (`PSYNC_S2305`). Cinq runs : **99** minutes.
 - **J9** : VALIDÉ `a036e24` (contrôleur [étape 3](f0db1509-4bcf-4701-a6dd-eb44db4835ca), CI [36751876546](https://github.com/navelremi-boop/legalos2/actions/runs/36751876546)). Run de reprise : **22** minutes (jobs arrondis à la minute supérieure).
-- **En cours** : **J10**. Contrôleur [écrans](0c95a661-b4fd-4e05-b03a-6ccbaa41951c) **VALIDÉ** sur `197b345`. CI [36731054836](https://github.com/navelremi-boop/legalos2/actions/runs/36731054836) verte. Captures du 30/09 **refusées** par l'architecte (B9) : jalon non coché. J9 reste VALIDÉ. Dettes nouvelles avant le premier compte réel (B8).
+- **En cours** : **J10**. Contrôleur [écrans](0c95a661-b4fd-4e05-b03a-6ccbaa41951c) **VALIDÉ** sur `197b345`. CI [36731054836](https://github.com/navelremi-boop/legalos2/actions/runs/36731054836) verte. Nouvelles captures du 30/09 dans `design/captures`, en attente de l'architecte (B9). Jalon non coché. Dettes mail avant B8 prouvées par `s7-connexions.mjs`.
 - **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → ~~Intercalaires~~ → ~~Dossiers et contacts~~ → ~~Agenda~~ → ~~Documents, suite~~ → ~~J9~~ → **J10**. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
 - **CI** : l'état d'un run se lit par `gh run view` à chaque fois. Attendre = `gh run watch <id> --exit-status`. Deux relances consécutives sans commande ni commit créent `.mission/STOP` (ordre § 4.7).
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance). Un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` doit exister.
@@ -23,6 +23,14 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---
+
+## 2026-09-30 — Moteur mail : connexions durables
+
+Dettes avant le premier compte réel (B8), J9 restant VALIDÉ. J10 n'est pas coché.
+
+Un refus d'authentification écrit `identifiants_refuses` et n'ouvre plus de session : après 8 s, une seule ligne `authentification`. Un port fermé espace les tentatives (écart d'au moins 1 s, temporisation croissante). La relève des dossiers part d'une même session ; la veille enregistre `IDLE 1680`, sous les 29 minutes. Sans réveil, le compte GreenMail ne relance pas une connexion en boucle. La suppression arrête la tâche. Un changement de port la fait repartir sur les nouveaux paramètres.
+
+CONDSTORE sans QRESYNC (Dovecot, `instance/imap-test/dovecot-condstore.conf`, port 3144) : `UID SEARCH` et `FETCH CHANGEDSINCE`, sans `QRESYNC`. GreenMail n'émet pas `CHANGEDSINCE`. `node tests/recette/s7-connexions.mjs` exit 0. Le libellé « Identifiants refusés » est sur le compte du titulaire.
 
 ## 2026-09-30 — J10 : captures refusées
 

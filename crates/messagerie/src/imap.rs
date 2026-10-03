@@ -112,10 +112,12 @@ impl Session {
             .map_err(|_| ErreurMail::Protocole)?;
         let idle = has_imap_capability!(brutes, Idle);
         let qresync = has_imap_capability!(brutes, QResync);
+        let condstore = has_imap_capability!(brutes, CondStore) || qresync;
         let jetons = brutes.iter().map(|cap| format!("{cap:?}")).collect();
         Ok(Capacites {
             idle,
             qresync,
+            condstore,
             jetons,
         })
     }
@@ -549,9 +551,12 @@ pub struct EtatUid {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReleveDossier {
     pub qresync: bool,
+    pub condstore: bool,
     pub uid_validity: u32,
     pub modseq: u64,
     pub etats: Vec<EtatUid>,
+    /// UID encore présents. Vide hors chemin CONDSTORE : le moteur ne s'en sert pas.
+    pub uids_presents: Vec<u32>,
     pub retires: Vec<u32>,
     pub commandes: Vec<String>,
 }
@@ -569,6 +574,10 @@ impl Session {
             self.delta_qresync(dossier, modseq_connu)
         } else if caps.qresync {
             self.premiere_qresync(dossier)
+        } else if caps.condstore && modseq_connu > 0 {
+            self.delta_condstore(dossier, modseq_connu)
+        } else if caps.condstore {
+            self.premiere_condstore(dossier)
         } else {
             self.photographie_repli(dossier)
         }
@@ -602,9 +611,11 @@ impl Session {
         let etats = self.lire_etats(None)?;
         Ok(ReleveDossier {
             qresync: true,
+            condstore: false,
             uid_validity,
             modseq,
             etats,
+            uids_presents: Vec::new(),
             retires: Vec::new(),
             commandes: vec![
                 "ENABLE QRESYNC".into(),
@@ -651,9 +662,11 @@ impl Session {
         let modseq = selection.highest_mod_seq.unwrap_or(modseq_connu);
         Ok(ReleveDossier {
             qresync: true,
+            condstore: false,
             uid_validity: uid_validity.get(),
             modseq,
             etats,
+            uids_presents: Vec::new(),
             retires,
             commandes: vec![
                 "ENABLE QRESYNC".into(),
@@ -663,15 +676,83 @@ impl Session {
         })
     }
 
+    fn premiere_condstore(&mut self, dossier: &str) -> Result<ReleveDossier, ErreurMail> {
+        let selection = self
+            .client
+            .select(boite(dossier)?, Default::default())
+            .map_err(|_| ErreurMail::Protocole)?;
+        let uid_validity = selection
+            .uid_validity
+            .map(|v| v.get())
+            .ok_or(ErreurMail::Protocole)?;
+        let modseq = selection.highest_mod_seq.unwrap_or(1);
+        let uids = self.lister_uids()?;
+        let etats = self.lire_etats(None)?;
+        Ok(ReleveDossier {
+            qresync: false,
+            condstore: true,
+            uid_validity,
+            modseq,
+            etats,
+            uids_presents: uids,
+            retires: Vec::new(),
+            commandes: vec!["UID SEARCH".into(), "FETCH FLAGS INITIAL".into()],
+        })
+    }
+
+    /// Drapeaux par CHANGEDSINCE, présences par UID SEARCH. Pas de photographie complète.
+    fn delta_condstore(
+        &mut self,
+        dossier: &str,
+        modseq_connu: u64,
+    ) -> Result<ReleveDossier, ErreurMail> {
+        let selection = self
+            .client
+            .select(boite(dossier)?, Default::default())
+            .map_err(|_| ErreurMail::Protocole)?;
+        let uid_validity = selection
+            .uid_validity
+            .map(|v| v.get())
+            .ok_or(ErreurMail::Protocole)?;
+        let modseq = selection.highest_mod_seq.unwrap_or(modseq_connu);
+        let uids = self.lister_uids()?;
+        let etats = self.lire_etats(Some(modseq_connu))?;
+        Ok(ReleveDossier {
+            qresync: false,
+            condstore: true,
+            uid_validity,
+            modseq,
+            etats,
+            uids_presents: uids,
+            retires: Vec::new(),
+            commandes: vec![
+                "UID SEARCH".into(),
+                format!("FETCH CHANGEDSINCE {modseq_connu}"),
+            ],
+        })
+    }
+
+    fn lister_uids(&mut self) -> Result<Vec<u32>, ErreurMail> {
+        let criteres = Vec1::try_from(vec![SearchKey::All]).map_err(|_| ErreurMail::Protocole)?;
+        let mut uids = self
+            .client
+            .search(criteres, ImapMessageSearchOptions { uid: true })
+            .map_err(|_| ErreurMail::Protocole)?;
+        uids.sort_unstable();
+        Ok(uids.into_iter().map(|uid| uid.get()).collect())
+    }
+
     fn photographie_repli(&mut self, dossier: &str) -> Result<ReleveDossier, ErreurMail> {
         let etat = self.examiner(dossier)?;
         self.selectionner(dossier)?;
         let etats = self.lire_etats(None)?;
         Ok(ReleveDossier {
             qresync: false,
+            condstore: false,
             uid_validity: etat.uid_validity,
             modseq: 0,
             etats,
+            uids_presents: Vec::new(),
             retires: Vec::new(),
             commandes: vec!["SEARCH".into(), "FETCH FLAGS".into()],
         })
