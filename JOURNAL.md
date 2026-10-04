@@ -28,7 +28,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 J10 reste ouvert (B9). La relève des en-têtes demande aussi `BODYSTRUCTURE`. Le nom vient du paramètre `filename` ou, à défaut, `name`. Le corps texte sans nom n'est pas listé. La colonne `pieces_texte` et les quatre flux `messages` portent ces noms jusqu'au volet de lecture.
 
-`cargo test -p legalos-messagerie --lib piece_jointe_nommee` : 1 passed. `cargo clippy -p legalos-messagerie --all-targets --offline -- -D warnings` et `cargo clippy -p legalos-api --lib --offline -- -D warnings` : exit 0. `node tests/recette/migrations-additives.mjs` exit 0. `node tests/recette/s7-connexions.mjs` exit 0 : le message CONDSTORE avec `filename="Convocation.pdf"` a ce nom dans `pieces_texte`.
+`cargo test -p legalos-messagerie --lib piece_jointe_nommee` : 1 passed. `cargo clippy -p legalos-messagerie --all-targets --offline -- -D warnings` et `cargo clippy -p legalos-api --lib --offline -- -D warnings` : exit 0. `node tests/recette/migrations-additives.mjs` exit 0. `node tests/recette/s7-connexions.mjs` exit 0 : le message CONDSTORE avec `filename="Convocation.pdf"` a ce nom dans `pieces_texte`. `gh run view 37203693277` : completed, success.
 
 ## 2026-10-04 — Destinataires des mails relevés
 
