@@ -18,6 +18,7 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-notification = "2.5.0"
 tauri-plugin-powersync = "0.0.6"
+tauri-plugin-wdio-webdriver = { version = "=1.4.0", optional = true }
 keyring = { version = "3.6.3", features = ["apple-native", "windows-native"] }
 powersync = "0.0.7"
 notify = "8.2.0"
@@ -30,14 +31,15 @@ serde_json = "1"
 
 [features]
 default = []
-# WebDriver embarqué : réservé aux builds de test CI (§ 22-tauri), absent des builds distribués.
-test-webdriver = []
+# WebDriver embarqué : réservé aux builds de test, absent du build distribué.
+test-webdriver = ["dep:tauri-plugin-wdio-webdriver"]
 
 [workspace]
 
 [patch.crates-io]
 time-macros = { path = "patches/time-macros" }
 time-macros-impl = { path = "patches/time-macros-impl" }
+tauri-plugin-wdio-webdriver = { path = "patches/tauri-plugin-wdio-webdriver" }
 
 [profile.release]
 codegen-units = 1

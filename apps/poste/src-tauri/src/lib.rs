@@ -7,7 +7,7 @@ mod trousseau;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[allow(clippy::expect_used)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_powersync::init())
@@ -27,7 +27,12 @@ pub fn run() {
             document_cache::deposer_octets_url,
             document_cache::surveiller_cache_document,
             document_cache::arreter_surveillance_document
-        ])
+        ]);
+
+    #[cfg(feature = "test-webdriver")]
+    let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
+
+    builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

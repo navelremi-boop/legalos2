@@ -19,6 +19,9 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 | @sqlite.org/sqlite-wasm | **3.53.4-build1** | https://www.npmjs.com/package/@sqlite.org/sqlite-wasm — vérifié npm le 2026-09-30 ; licence Apache-2.0 ; SQLite 3.53.4 avec FTS5 (le SQLite PowerSync ne compile pas FTS5). sql.js 1.14.2 ne contient pas FTS5. |
 | tauri-plugin-powersync | **0.0.6** | https://crates.io/crates/tauri-plugin-powersync — vérifié le 2026-09-25 ; dépend de `powersync` ^0.0.7 |
 | tauri-plugin-notification | **2.5.0** | https://crates.io/crates/tauri-plugin-notification — vérifié le 2026-09-29 ; stable 2.x, pas la 3.0 alpha |
+| tauri-plugin-wdio-webdriver | **1.4.0** | https://crates.io/crates/tauri-plugin-wdio-webdriver — vérifié le 2026-10-04 ; licence MIT ; WebDriver embarqué, feature `test-webdriver` seulement. Copie dans `patches/` : `webview2-com` 0.39 pour compiler avec Tauri 2.12. |
+| @wdio/tauri-service | **1.4.0** | https://www.npmjs.com/package/@wdio/tauri-service — vérifié npm le 2026-10-04 ; licence MIT ; `driverProvider: embedded` |
+| webdriverio | **9.30.1** | https://www.npmjs.com/package/webdriverio — version exigée par `@wdio/tauri-service` 1.4.0 |
 | @tauri-apps/plugin-notification | **2.5.0** | https://www.npmjs.com/package/@tauri-apps/plugin-notification — vérifié npm le 2026-09-29 |
 | notify (crate Rust, surveillance cache documents) | **8.2.0** | https://crates.io/crates/notify/8.2.0 — vérifié le 2026-09-29 ; licence **CC0-1.0** (acceptée `deny.toml`) ; stable, pas la 9.0.0-rc |
 | powersync (crate Rust) | **0.0.7** | https://crates.io/crates/powersync — vérifié le 2026-09-25 |

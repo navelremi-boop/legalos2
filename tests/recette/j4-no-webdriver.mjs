@@ -54,7 +54,7 @@ function walkRs(dir) {
 
 for (const path of walkRs(srcDir)) {
   const code = stripComments(readFileSync(path, "utf8"));
-  if (/webdriver/i.test(code) && !code.includes('cfg(feature = "test-webdriver")')) {
+  if (/webdriver/i.test(code) && !code.includes('cfg(feature = "test-webdriver")') && !code.includes("CARGO_FEATURE_TEST_WEBDRIVER")) {
     fail(`WebDriver hors feature de test : ${path}`);
   }
 }

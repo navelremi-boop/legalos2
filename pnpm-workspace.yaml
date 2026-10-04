@@ -3,4 +3,6 @@ packages:
 
 allowBuilds:
   '@journeyapps/wa-sqlite': true
+  edgedriver: false
   esbuild: true
+  geckodriver: false
