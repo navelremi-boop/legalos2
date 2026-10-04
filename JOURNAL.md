@@ -28,7 +28,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 J10 reste ouvert (B9). La relève des en-têtes ne télécharge pas le corps. À l'ouverture d'un message, `POST /messagerie/messages/{id}/corps` lit le RFC822, nettoie le HTML et enregistre le texte. Le volet de lecture l'affiche. Un second appel relit l'enregistrement, sans nouvelle session IMAP.
 
-`cargo clippy -p legalos-api --lib --offline -- -D warnings` exit 0. `node tests/recette/s7-connexions.mjs` exit 0 : avant l'appel, `texte_brut` ne contient pas « convocation fictive » ; la réponse et la colonne la contiennent ensuite.
+`cargo clippy -p legalos-api --lib --offline -- -D warnings` exit 0. `node tests/recette/s7-connexions.mjs` exit 0 : avant l'appel, `texte_brut` ne contient pas « convocation fictive » ; la réponse et la colonne la contiennent ensuite. `gh run view 37205127307` : completed, success.
 
 ## 2026-10-04 — Noms des pièces jointes
 
