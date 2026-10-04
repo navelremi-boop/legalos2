@@ -17,12 +17,20 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **CI** : l'état d'un run se lit par `gh run view` à chaque fois. Attendre = `gh run watch <id> --exit-status`. Deux relances consécutives sans commande ni commit créent `.mission/STOP` (ordre § 4.7).
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance). Un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` doit exister.
 - **B12 levé** (28/09) : signalement transmis, [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). Quatre exceptions dans `apps/poste/src-tauri/deny.toml`. Constat : `docs/audit-dependances.md`.
-- **Sync** : Streams édition 3, service 1.26.1. Relecture GHSA du 2026-09-30 : un seul avis, déjà corrigé dans 1.26.1. La ligne mensuelle du plan reste ouverte.
+- **Sync** : Streams édition 3, service 1.26.1. Relecture GHSA du 2026-10-04 : toujours le seul avis GHSA-q6wc-xx4m-92fj, corrigé dans 1.26.1. La ligne mensuelle du plan reste ouverte.
 - **Coque** corrigée (`22d765e`), non cochée : points médians de La journée (consigne 3), onglets de démonstration (dette). La journée est validée par l'architecte sous réserve des captures régénérées (consigne du 27/09, point 2).
 - **B11 levé**. Contrôleur d'abord REFUSÉ (affichage du numéro minimal). Recette `reference-modele-ecran.mjs` : exit 0, numéro `1000000000`. Second verdict **VALIDÉ** sur `03ca364`.
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---
+
+## 2026-10-04 — Build distribué et relecture d'octobre
+
+J10 reste ouvert (B9). Les actions tierces sont déjà des commits complets ; `node tests/recette/workflows-valides.mjs` exit 0.
+
+Le build distribué n'active pas la feature `devtools`, les fenêtres ont `devtools: false`, et le source du poste ne pose pas de port de débogage distant. `node tests/recette/build-distribue.mjs` exit 0, y compris l'essai négatif.
+
+Relecture du 2026-10-04 : OSV pour `@powersync/service-core` ne liste que GHSA-q6wc-xx4m-92fj (modifié le 2026-03-23). La release GitHub la plus récente reste `v1.26.1` (2026-09-11). La dette mensuelle n'est pas cochée.
 
 ## 2026-09-30 — Moteur mail : connexions durables
 

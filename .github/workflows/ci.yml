@@ -75,6 +75,7 @@ jobs:
       - run: node tests/recette/s5-sqlite-par-flux.mjs
       - run: node tests/recette/encodage-texte.mjs
       - run: node tests/recette/workflows-valides.mjs
+      - run: node tests/recette/build-distribue.mjs
       - run: node tests/recette/secrets-publies.mjs
       - run: node tests/recette/messagerie-figee.mjs
       - run: node tests/recette/j9-imap-hors-handler.mjs
@@ -156,6 +157,8 @@ jobs:
           node-version: "24"
       - name: J4 — pas de WebDriver dans le build distribué
         run: node tests/recette/j4-no-webdriver.mjs
+      - name: Build distribué sans débogage distant
+        run: node tests/recette/build-distribue.mjs
       - name: cargo-deny 0.20.2
         run: |
           set -eu
