@@ -382,7 +382,7 @@ export function EcranMails({
                   ) : (
                     <ul data-testid="lecture-pieces">
                       {listePieces(choisi).map((piece, index) => (
-                        <li key={`${index}-${piece}`}>{fr(piece)}</li>
+                        <li key={piece + "-" + String(index)}>{fr(piece)}</li>
                       ))}
                     </ul>
                   )}
