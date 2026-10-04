@@ -12,8 +12,8 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Agenda** : VALIDÉ `57fd4dc` (contrôleur sur `635714e`, CI [36586753618](https://github.com/navelremi-boop/legalos2/actions/runs/36586753618)). Trois runs : **65** minutes. Premier contrôle REFUSÉ sur `697bfbd`.
 - **Documents, suite** : VALIDÉ `6f5f757` (contrôleur sur `8e962d7`, CI [36687786819](https://github.com/navelremi-boop/legalos2/actions/runs/36687786819)). Premier contrôle REFUSÉ sur `d836807` (`PSYNC_S2305`). Cinq runs : **99** minutes.
 - **J9** : VALIDÉ `a036e24` (contrôleur [étape 3](f0db1509-4bcf-4701-a6dd-eb44db4835ca), CI [36751876546](https://github.com/navelremi-boop/legalos2/actions/runs/36751876546)). Run de reprise : **22** minutes (jobs arrondis à la minute supérieure).
-- **En cours** : **J10**. Contrôleur [écrans](0c95a661-b4fd-4e05-b03a-6ccbaa41951c) **VALIDÉ** sur `197b345`. CI [36731054836](https://github.com/navelremi-boop/legalos2/actions/runs/36731054836) verte. Nouvelles captures du 30/09 dans `design/captures`, en attente de l'architecte (B9). Jalon non coché. Dettes mail avant B8 prouvées par `s7-connexions.mjs`.
-- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → ~~Intercalaires~~ → ~~Dossiers et contacts~~ → ~~Agenda~~ → ~~Documents, suite~~ → ~~J9~~ → **J10**. Phase 3, avant J14 : Modèles et fusion, Facturation suite, Conventions d'honoraires, Tableau de bord.
+- **En cours** : **J10**. Contrôleur [écrans](0c95a661-b4fd-4e05-b03a-6ccbaa41951c) **VALIDÉ** sur `197b345`. CI [36731054836](https://github.com/navelremi-boop/legalos2/actions/runs/36731054836) verte. Captures du 30/09 validées le 04/10 sous trois conditions (dates françaises, heures d'agenda, captures Mails régénérées), à vérifier par le contrôleur sans nouveau retour à l'architecte. Veto du commandement (B9). Jalon non coché.
+- **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → ~~Intercalaires~~ → ~~Dossiers et contacts~~ → ~~Agenda~~ → ~~Documents, suite~~ → ~~J9~~ → **J10** → Montée PowerSync → J11 → Modèles et fusion → Conventions d'honoraires → Facturation, suite → Tableau de bord → J12 → J13 → J14.
 - **CI** : l'état d'un run se lit par `gh run view` à chaque fois. Attendre = `gh run watch <id> --exit-status`. Deux relances consécutives sans commande ni commit créent `.mission/STOP` (ordre § 4.7).
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance). Un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` doit exister.
 - **B12 levé** (28/09) : signalement transmis, [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). Quatre exceptions dans `apps/poste/src-tauri/deny.toml`. Constat : `docs/audit-dependances.md`.
@@ -23,6 +23,16 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---
+
+## 2026-10-04 — Consigne de l'architecte : J10, PowerSync 0.1.0, phase 3, J11 à J14
+
+Consigne de l'architecte du 04/10/2026. Inscrite dans `PLAN.md` par un commit dédié `plan:` (ce fichier suit, le contrôle de gouvernance refuse un commit de plan qui touche autre chose). Les commandes déjà exigées des jalons non cochés sont conservées ; les critères sont complétés.
+
+- **Ordre** : J10 → Montée PowerSync → J11 → Modèles et fusion → Conventions d'honoraires → Facturation, suite → Tableau de bord → J12 → J13 → J14. Conventions avant Facturation, suite, parce que la facturation reprend les modes de la convention.
+- **J10** : captures du 30/09 validées sous trois conditions, vérifiées par le contrôleur sans nouveau retour à l'architecte. Le commandement garde son veto (B9). Conditions : aucune date AAAA-MM-JJ dans le texte rendu (essai négatif, dates à la française) ; Agenda avec l'heure de chaque élément et captures Jour et Semaine ; captures Mails régénérées après les ajouts du 04/10.
+- **Montée PowerSync**, avant J11 : `tauri-plugin-powersync` 0.1.x et crate `powersync` 0.1.x ; connecteur adapté ; quatre exceptions RustSec et rustines `patches/time-macros` et `patches/time-macros-impl` retirées ; `rand` 0.7.3 absent du `Cargo.lock` ; `docs/versions.md` et `docs/audit-dependances.md` à jour ; B12 clos. Même lot : Playwright en dernière version stable (GHSA-7mvr-c777-76hp), captures S13 relancées. `s5-sync-streams.mjs`, `s6-documents.mjs`, `conflits-poste-tauri.mjs` et `s5-buckets-volume.mjs` verts.
+- **J11** : fait partie de la V1. Critère final : pouvoir fermer Outlook. Critères du 04/10 complétés (rédaction, brouillons IMAP, signatures, modèles, invitations, boîtes, notification, recette `j11-journee-sans-outlook.mjs`).
+- **Modèles et fusion, Conventions, Facturation suite, Tableau de bord, J12, J13, J14** : critères validés avec les ajouts de la consigne. Trois points restent au commandement, sans bloquer J10 : liste des motifs de levée d'alerte (B15), confirmation de la règle d'honoraire de résultat (B16), durée hors ligne proposée à 30 jours (B17).
 
 ## 2026-10-04 — Extrait de la liste
 
