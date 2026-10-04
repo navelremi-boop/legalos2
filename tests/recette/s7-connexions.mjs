@@ -5,7 +5,7 @@
  * CONDSTORE sans QRESYNC, compte modifié ou supprimé.
  */
 import { randomUUID } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { demoAccessToken } from "./lib/demo-auth.mjs";
 import {
@@ -14,7 +14,7 @@ import {
   connecterAuReseauApi,
   conteneur,
 } from "./lib/moteur-mail.mjs";
-import { sleep, sqlServeur } from "./lib/poste-session.mjs";
+import { racineInstance, sleep, sqlServeur } from "./lib/poste-session.mjs";
 
 const instance = process.env.LEGALOS_INSTANCE_URL ?? "http://127.0.0.1:8088";
 const api = `${instance}/api`;
@@ -77,17 +77,55 @@ function lancerCondstore() {
   return nom;
 }
 
+function sqlScript(script) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      "docker",
+      [
+        "compose",
+        "-f",
+        "instance/docker-compose.yml",
+        "--env-file",
+        ".env",
+        "exec",
+        "-T",
+        "postgres",
+        "psql",
+        "-U",
+        "legalos",
+        "-d",
+        "legalos",
+        "-v",
+        "ON_ERROR_STOP=1",
+      ],
+      { cwd: racineInstance() },
+    );
+    let err = "";
+    child.stderr.on("data", (chunk) => {
+      err += chunk.toString();
+    });
+    child.stdin.write(script);
+    child.stdin.end();
+    child.on("exit", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(err.slice(0, 200)));
+    });
+  });
+}
+
 async function main() {
   const sante = await fetch(`${instance}/health`).catch(() => null);
   if (!sante?.ok) fail("instance injoignable");
   const greenmail = conteneur("legalos-imap-test-greenmail")[0];
   if (!greenmail) fail("greenmail de test absent");
   connecterAuReseauApi(greenmail);
-  await sqlServeur(
-    "DELETE FROM moteur_connexions WHERE compte_id IN (SELECT id FROM comptes_mail WHERE adresse LIKE 'cx.%@cabinet.example')",
-  );
-  await sqlServeur("DELETE FROM messages WHERE compte_id IN (SELECT id FROM comptes_mail WHERE adresse LIKE 'cx.%@cabinet.example')");
-  await sqlServeur("DELETE FROM comptes_mail WHERE adresse LIKE 'cx.%@cabinet.example'");
+  await sqlScript(`BEGIN;
+SELECT id FROM comptes_mail WHERE adresse LIKE 'cx.%@cabinet.example' FOR UPDATE;
+DELETE FROM messages WHERE compte_id IN (SELECT id FROM comptes_mail WHERE adresse LIKE 'cx.%@cabinet.example');
+DELETE FROM moteur_connexions WHERE compte_id IN (SELECT id FROM comptes_mail WHERE adresse LIKE 'cx.%@cabinet.example');
+DELETE FROM comptes_mail WHERE adresse LIKE 'cx.%@cabinet.example';
+COMMIT;
+`);
 
   const jeton = await demoAccessToken(api, `cx-${randomUUID().slice(0, 8)}`);
   const refuse = randomUUID();
@@ -164,7 +202,12 @@ async function main() {
   );
   if (Number(okApres) > Number(okAvant) + 1) fail(`boucle de connexion ${okAvant} → ${okApres}`);
 
-  await sqlServeur(`DELETE FROM comptes_mail WHERE id = '${bon}'`);
+  await sqlScript(`BEGIN;
+SELECT id FROM comptes_mail WHERE id = '${bon}' FOR UPDATE;
+DELETE FROM messages WHERE compte_id = '${bon}';
+DELETE FROM comptes_mail WHERE id = '${bon}';
+COMMIT;
+`);
   await sleep(25_000);
   const okSupprime = await sqlServeur(
     `SELECT COUNT(*) FROM moteur_connexions WHERE compte_id = '${bon}' AND issue = 'ok'`,

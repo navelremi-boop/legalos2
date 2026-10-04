@@ -284,11 +284,9 @@ impl Session {
         let analyseur = MessageParser::default();
         let mut messages = Vec::new();
         for uid in uids {
-            let jeu: SequenceSet = uid
-                .get()
-                .to_string()
-                .parse()
-                .map_err(|_| ErreurMail::Protocole)?;
+            let uid_texte = uid.get().to_string();
+            let carte = self.apercus(&uid_texte);
+            let jeu: SequenceSet = uid_texte.parse().map_err(|_| ErreurMail::Protocole)?;
             let fetched = self
                 .client
                 .fetch(
@@ -304,7 +302,6 @@ impl Session {
                 let mut uid_lu = None;
                 let mut en_tetes = None;
                 let mut pieces = Vec::new();
-                let mut apercu = None;
                 for item in items {
                     match item {
                         MessageDataItem::Uid(valeur) => uid_lu = Some(valeur.get()),
@@ -313,9 +310,6 @@ impl Session {
                         }
                         MessageDataItem::BodyStructure(structure) => {
                             pieces = noms_pieces(&structure);
-                        }
-                        MessageDataItem::BodyExt { data, .. } => {
-                            apercu = Some(nstring_octets(&data));
                         }
                         _ => {}
                     }
@@ -329,7 +323,7 @@ impl Session {
                     &octets,
                     &analyseur,
                     pieces,
-                    extrait_depuis(&octets, apercu.as_deref(), &analyseur),
+                    extrait_depuis(&octets, carte.get(&uid_lu).map(Vec::as_slice), &analyseur),
                 ));
             }
         }
@@ -815,6 +809,40 @@ impl Session {
         Ok(etats)
     }
 
+    fn apercus(&mut self, uids: &str) -> std::collections::HashMap<u32, Vec<u8>> {
+        let Ok(jeu) = uids.parse::<SequenceSet>() else {
+            return std::collections::HashMap::new();
+        };
+        let Ok(fetched) = self.client.fetch(
+            jeu,
+            items_apercu(),
+            ImapMessageFetchOptions {
+                uid: true,
+                modifiers: Vec::new(),
+            },
+        ) else {
+            return std::collections::HashMap::new();
+        };
+        let mut carte = std::collections::HashMap::new();
+        for (_cle, morceaux) in fetched {
+            let mut uid = None;
+            let mut data = None;
+            for item in morceaux {
+                match item {
+                    MessageDataItem::Uid(valeur) => uid = Some(valeur.get()),
+                    MessageDataItem::BodyExt { data: valeur, .. } => {
+                        data = Some(nstring_octets(&valeur));
+                    }
+                    _ => {}
+                }
+            }
+            if let (Some(uid), Some(octets)) = (uid, data) {
+                carte.insert(uid, octets);
+            }
+        }
+        carte
+    }
+
     /// En-têtes par lots. Pas un aller-retour par message.
     pub fn entetes_uids(
         &mut self,
@@ -835,6 +863,7 @@ impl Session {
                 .collect::<Vec<_>>()
                 .join(",");
             let jeu: SequenceSet = texte.parse().map_err(|_| ErreurMail::Protocole)?;
+            let carte = self.apercus(&texte);
             let fetched = self
                 .client
                 .fetch(
@@ -850,7 +879,6 @@ impl Session {
                 let mut uid_lu = None;
                 let mut octets = None;
                 let mut pieces = Vec::new();
-                let mut apercu = None;
                 for item in items {
                     match item {
                         MessageDataItem::Uid(valeur) => uid_lu = Some(valeur.get()),
@@ -859,9 +887,6 @@ impl Session {
                         }
                         MessageDataItem::BodyStructure(structure) => {
                             pieces = noms_pieces(&structure);
-                        }
-                        MessageDataItem::BodyExt { data, .. } => {
-                            apercu = Some(nstring_octets(&data));
                         }
                         _ => {}
                     }
@@ -873,7 +898,7 @@ impl Session {
                         &octets,
                         &analyseur,
                         pieces,
-                        extrait_depuis(&octets, apercu.as_deref(), &analyseur),
+                        extrait_depuis(&octets, carte.get(&uid_lu).map(Vec::as_slice), &analyseur),
                     ));
                 }
             }
@@ -923,6 +948,12 @@ fn items_entete() -> MacroOrMessageDataItemNames<'static> {
         MessageDataItemName::Uid,
         MessageDataItemName::Rfc822Header,
         MessageDataItemName::BodyStructure,
+    ])
+}
+
+fn items_apercu() -> MacroOrMessageDataItemNames<'static> {
+    MacroOrMessageDataItemNames::MessageDataItemNames(vec![
+        MessageDataItemName::Uid,
         MessageDataItemName::BodyExt {
             section: Some(Section::Text(None)),
             partial: Some((0, NonZeroU32::new(1024).unwrap_or(NonZeroU32::MIN))),
