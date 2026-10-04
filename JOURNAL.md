@@ -28,7 +28,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 J10 reste ouvert (B9). Le bouton du volet de lecture confirme une suggestion, ou range un mail « à classer » dans un dossier choisi. Le titulaire seul peut classer un mail nominatif. Un mail déjà classé est refusé.
 
-`cargo clippy -p legalos-api --lib --offline -- -D warnings` exit 0. `node tests/recette/s7-connexions.mjs` exit 0 : le message CONDSTORE passe à `classe` avec l'identifiant du dossier créé.
+`cargo clippy -p legalos-api --lib --offline -- -D warnings` exit 0. `node tests/recette/s7-connexions.mjs` exit 0 : le message CONDSTORE passe à `classe` avec l'identifiant du dossier créé. `gh run view 37206908347` : completed, success.
 
 ## 2026-10-04 — Corps nettoyé à l'ouverture
 
