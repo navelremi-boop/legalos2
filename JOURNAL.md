@@ -30,7 +30,7 @@ Dettes avant le premier compte réel (B8), J9 restant VALIDÉ. J10 n'est pas coc
 
 Un refus d'authentification écrit `identifiants_refuses` et n'ouvre plus de session : après 8 s, une seule ligne `authentification`. Un port fermé espace les tentatives (écart d'au moins 1 s, temporisation croissante). La relève des dossiers part d'une même session ; la veille enregistre `IDLE 1680`, sous les 29 minutes. Sans réveil, le compte GreenMail ne relance pas une connexion en boucle. La suppression arrête la tâche. Un changement de port la fait repartir sur les nouveaux paramètres.
 
-CONDSTORE sans QRESYNC (Dovecot, `instance/imap-test/dovecot-condstore.conf`, port 3144) : `UID SEARCH` et `FETCH CHANGEDSINCE`, sans `QRESYNC`. GreenMail n'émet pas `CHANGEDSINCE`. `node tests/recette/s7-connexions.mjs` exit 0. Le libellé « Identifiants refusés » est sur le compte du titulaire.
+CONDSTORE sans QRESYNC (Dovecot, `instance/imap-test/dovecot-condstore.conf`, port 3144) : `UID SEARCH` et `FETCH CHANGEDSINCE`, sans `QRESYNC`. GreenMail n'émet pas `CHANGEDSINCE`. `node tests/recette/s7-connexions.mjs` exit 0. Le libellé « Identifiants refusés » est sur le compte du titulaire. `gh run view 37111961698` : completed, success.
 
 ## 2026-09-30 — J10 : captures refusées
 
