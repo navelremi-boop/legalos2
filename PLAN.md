@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-09-30 (jalon en cours : **J10**).
+Dernière mise à jour : 2026-10-04 (jalon en cours : **J10**).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -108,7 +108,7 @@ Chaque fonctionnalité n° 1 à 14 du § 4.2, et chaque élément de sa colonne 
 
 ## Phase 2 — Lots parallèles
 
-Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams** → **J8** → **Référence de dossier** → **Conflits généralisés** → **Coque** → **Vue scindée** → **Intercalaires personnalisés** → **Dossiers et contacts complets** → **Agenda** → **Documents, suite** → **J9** → **J10**. Phase 3, avant J14 : **Modèles et fusion** → **Facturation, suite** → **Conventions d'honoraires** → **Tableau de bord**.
+Ordre architecte (révisé 2026-10-04) : **Migration Sync Streams** → **J8** → **Référence de dossier** → **Conflits généralisés** → **Coque** → **Vue scindée** → **Intercalaires personnalisés** → **Dossiers et contacts complets** → **Agenda** → **Documents, suite** → **J9** → **J10** → **Montée PowerSync** → **J11** → **Modèles et fusion** → **Conventions d'honoraires** → **Facturation, suite** → **Tableau de bord** → **J12** → **J13** → **J14**. Conventions d'honoraires avant Facturation, suite : la facturation reprend les modes de la convention.
 
 - [x] **J5** — Dossiers, contacts, droits — VALIDÉ `340ac42` (CI [36172577399](https://github.com/navelremi-boop/legalos2/actions/runs/36172577399))
 - [x] **J6** — Agenda et délais — VALIDÉ `bf3bfe3` (CI [36179592258](https://github.com/navelremi-boop/legalos2/actions/runs/36179592258)) ; reprise H1–H13 `0fc0c17` ; H7/H10/H12 → B10
@@ -134,7 +134,7 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
 
 - [x] **J9** — VALIDÉ `a036e24` (contrôleur [étape 3](f0db1509-4bcf-4701-a6dd-eb44db4835ca), CI [36751876546](https://github.com/navelremi-boop/legalos2/actions/runs/36751876546))
 
-- [ ] **J10** — Écrans restants du § 7.6, après la Coque — critères validés par l'architecte le 27/09/2026 — reprise après l'étape 3 de J9 ; critères inchangés ; branche `lot/j10` conservée, non fusionnée
+- [ ] **J10** — Écrans restants du § 7.6, après la Coque — critères validés par l'architecte le 27/09/2026 ; captures du 30/09 validées le 04/10/2026 sous trois conditions, vérifiées par le contrôleur sans nouveau retour à l'architecte ; le commandement garde son veto (B9)
   - **Critères d'acceptation (commandes)** :
     - `node tests/recette/j10-ecrans-tauri.mjs` → exit 0 (app Tauri) :
       - La journée, Dossiers, Mails, Agenda, Facturation et Réglages : barre du haut, espace de travail, feuille, barre d'actions ; hors dossier, fond `neutre` sans étiquette de dossier ;
@@ -142,15 +142,19 @@ Ordre architecte (révisé 2026-09-27, couverture V1) : **Migration Sync Streams
       - Mails : feuille en trois volets (comptes et dossiers IMAP, liste, lecture) ; pastille du dossier sur chaque mail classé ; bandeau « Classer dans … » en tête d'un mail non classé ;
       - Agenda, Facturation, Réglages : feuille unique, construite avec les mêmes composants.
     - `node tests/recette/points-medians.mjs` et `pnpm --filter @legal-os/poste lint:ci` → exit 0.
-    - `node tests/recette/coque-app.mjs --captures` : captures jour et nuit de chaque nouvel écran, revues par le contrôleur au regard du § 7, validées par l'architecte ; le commandement garde son veto (B9).
+    - `node tests/recette/dates-ecrans.mjs` → exit 0 : aucune date au format AAAA-MM-JJ dans le texte rendu des écrans (essai négatif) ; dates à la française (« 30 sept. », « mardi 30 septembre »).
+    - `node tests/recette/coque-app.mjs --captures` : captures jour et nuit de chaque écran, revues par le contrôleur au regard du § 7. Les captures du 30/09 sont validées sous les trois conditions du 04/10 ; le commandement garde son veto (B9).
     - Contrôleur VALIDÉ ; CI verte.
-    - Corrections du 30/09 (captures refusées par l'architecte, B9) ; les critères ci-dessus restent :
+    - Corrections du 30/09, conservées :
       - Mails : trois volets (dossiers et comptes ; liste avec expéditeur, objet, date et extrait ; lecture avec expéditeur, destinataires, date, corps nettoyé, pièces jointes, bouton de classement). Dossiers IMAP en français (« Boîte de réception », « Envoyés »). Recherche en haut de la liste. File d'envoi hors du volet de lecture. Badge égal au nombre de mails à classer.
       - Dossiers : la liste est l'écran ; la création s'ouvre dans un panneau à la demande. Valeurs affichées avec leur libellé (« Contentieux », « Instruction »).
       - Agenda : vue du jour et de la semaine (audiences, rendez-vous, tâches, échéances) ; création à la demande ; date et heure par des sélecteurs ; rappel par une liste de délais. Titre au même niveau que les autres écrans.
       - Facturation et les autres écrans : captures avec un jeu de démonstration fictif, chargé seulement en mode développement ; aucune capture d'un état vide, sauf capture dédiée de l'état vide.
       - Barre d'actions : aucun bouton affiché comme sélectionné hors de son contexte.
-      - Nouvelles captures jour et nuit, puis validation de l'architecte.
+    - Conditions du 04/10, en plus des corrections :
+      - aucune date au format AAAA-MM-JJ dans le texte rendu ; dates à la française (« 30 sept. », « mardi 30 septembre ») ;
+      - Agenda : heure affichée pour chaque élément ; captures des vues Jour et Semaine ;
+      - captures Mails régénérées après les ajouts du 04/10 (extrait, destinataires, pièces jointes, corps nettoyé, classement).
 
 ### Dettes transverses (§ 4.4)
 
@@ -181,54 +185,92 @@ Chaque jalon : recettes + clippy + contrôleur.
 
 ## Phase 3 — Intégration avancée
 
-- [ ] **Modèles et fusion** — § 4.2 n° 7 — critères proposés le 27/09, **à valider par l'architecte**
+Critères validés par l'architecte le 04/10/2026. Ordre : **Montée PowerSync** → **J11** → **Modèles et fusion** → **Conventions d'honoraires** → **Facturation, suite** → **Tableau de bord** → **J12** → **J13** → **J14**.
+
+- [ ] **Montée PowerSync** — avant J11 — critères validés par l'architecte le 04/10/2026
   - **Critères d'acceptation (commandes)** :
-    - `node tests/recette/modeles-fusion.mjs` → exit 0 (app Tauri) : un courrier, une convention et un acte sont générés depuis les données du dossier (docxtemplater) ; le modèle est modifiable sans recompiler le binaire.
+    - `node tests/recette/powersync-0-1.mjs` → exit 0 : `tauri-plugin-powersync` 0.1.x et crate `powersync` 0.1.x ; connecteur adapté ; les quatre exceptions RustSec absentes de `deny.toml` ; `patches/time-macros` et `patches/time-macros-impl` absents ; `rand` 0.7.3 absent du `Cargo.lock` ; `docs/versions.md` et `docs/audit-dependances.md` à jour ; B12 clos.
+    - `node tests/recette/s5-sync-streams.mjs`, `node tests/recette/s6-documents.mjs`, `node tests/recette/conflits-poste-tauri.mjs` et `node tests/recette/s5-buckets-volume.mjs` → exit 0.
+    - Playwright en dernière version stable (GHSA-7mvr-c777-76hp) ; `node tests/recette/coque-app.mjs --captures` → exit 0 (captures S13 relancées).
+    - Contrôleur VALIDÉ ; CI verte.
+
+- [ ] **J11** — Mail étapes 4–5 — fait partie de la V1 ; critère final : pouvoir fermer Outlook — critères validés par l'architecte le 04/10/2026
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/j11-redaction.mjs` → exit 0 (app Tauri, GreenMail) :
+      - réponse, réponse à tous et transfert avec l'historique cité, lisible dans Outlook et Gmail ; pièces jointes conservées au transfert ;
+      - à, cc et cci avec complétion depuis les contacts et les mails déjà échangés ;
+      - mise en forme simple (gras, italique, listes, liens) ; texte collé depuis Word nettoyé ;
+      - pièces jointes par glisser-déposer, avec taille maximale annoncée ;
+      - brouillon enregistré automatiquement, stocké dans le dossier Brouillons du serveur IMAP (visible depuis un client de test jouant le téléphone et le webmail), repris sur un autre poste, disponible hors ligne ;
+      - signature : une par compte, insérée à la rédaction, modifiable dans Réglages ;
+      - modèle de message réutilisé sans recompiler ;
+      - l'envoi passe par la file jusqu'à « copie dans Envoyés confirmée ».
+    - `node tests/recette/j11-invitation.mjs` → exit 0 : une invitation reçue (demande, mise à jour, annulation) est reflétée dans l'agenda du titulaire, et pas chez un autre collaborateur ; réponse accepter, refuser ou peut-être envoyée à l'organisateur ; fuseaux Europe/Paris et fuseau étranger respectés.
+    - `node tests/recette/j11-boites.mjs` → exit 0 : deux comptes nominatifs ne sont visibles que par leur titulaire ; une boîte partagée est visible par ses membres et absente chez un non-membre ; le tableau de santé montre la dernière relève, un refus d'authentification et un envoi en échec ; notification de bureau à l'arrivée d'un mail.
+    - `node tests/recette/j11-journee-sans-outlook.mjs` → exit 0 (app Tauri, GreenMail et Dovecot) : recevoir, lire, classer, répondre avec historique, transférer avec pièce jointe, rédiger un mail neuf avec pièce jointe et signature, reprendre un brouillon sur un second poste, accepter une invitation, retrouver un ancien mail par la recherche ; tout depuis l'app, sans autre client mail.
     - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
-- [ ] **Facturation, suite** — § 4.2 n° 10, ce que J8 n'a pas livré — critères proposés le 27/09, **à valider par l'architecte**
+- [ ] **Modèles et fusion** — § 4.2 n° 7 — critères validés par l'architecte le 04/10/2026
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/modeles-fusion.mjs` → exit 0 (app Tauri) :
+      - un courrier, une convention et un acte sont générés depuis les données du dossier (docxtemplater, cœur gratuit uniquement, aucun module payant) ; format compatible avec l'insertion future de blocs par `{@rawXml}` ;
+      - le modèle est modifiable sans recompiler le binaire ; modèles stockés par cabinet, remplacés depuis Réglages ; génération possible hors ligne ;
+      - catalogue des champs dans le document `modeles-champs.md` (répertoire docs) ; un champ absent ou vide arrête la génération et liste les champs manquants ; aucune balise résiduelle dans le document produit ;
+      - le document produit devient un document versionné du dossier ; styles, polices et retraits du modèle conservés à l'identique.
+    - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+
+- [ ] **Conventions d'honoraires** — § 4.2 n° 12 — critères validés par l'architecte le 04/10/2026 — après Modèles et fusion, avant Facturation, suite
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/conventions-honoraires.mjs` → exit 0 (app Tauri) :
+      - une convention est produite par Modèles et fusion, rattachée au dossier ;
+      - statuts brouillon, envoyée, signée (dépôt de l'exemplaire signé) ;
+      - modes temps passé, forfait, résultat complémentaire, repris par la facturation ;
+      - alerte à l'ouverture du dossier et à la création d'une facture tant qu'aucune convention n'est signée ; levée possible avec un motif consigné. Liste des motifs proposée au commandement (B15), non inventée en silence.
+    - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+
+- [ ] **Facturation, suite** — § 4.2 n° 10, ce que J8 n'a pas livré — critères validés par l'architecte le 04/10/2026
   - **Critères d'acceptation (commandes)** :
     - `node tests/recette/facturation-suite.mjs` → exit 0 (API, Postgres réel, puis app) :
       - facture au forfait et au résultat ;
-      - provisions ;
+      - précédence des taux documentée et testée : intervenant sur le dossier, puis dossier, puis client, puis défaut du cabinet ; taux figé à la saisie : modifier un taux ne change ni les temps saisis ni les brouillons ;
+      - honoraire de résultat seulement en complément d'un honoraire principal et si la convention du dossier le prévoit ; sinon, refus avec message (règle à confirmer par le commandement, B16) ;
+      - provisions : appel, encaissement, imputation sur la facture finale ; TVA selon les hypothèses F (`docs/hypotheses-facturation.md`, revue B10) ;
       - conditions tarifaires par client, par dossier et par intervenant ;
-      - relances ;
-      - encours et impayés.
+      - relances : modèle par niveau, historique par facture, envoi uniquement après validation de l'utilisateur, par la file d'envoi ;
+      - encours et impayés par client et par ancienneté (0–30, 31–60, 61–90, plus de 90 jours) ; total égal aux factures moins les encaissements, vérifié sur un jeu de test.
     - `node tests/recette/s9-factures.mjs` → exit 0 (non-régression du temps, des débours, des avoirs et de la facturation électronique).
     - `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
-- [ ] **Conventions d'honoraires** — § 4.2 n° 12 — critères proposés le 27/09, **à valider par l'architecte**
+- [ ] **Tableau de bord** — § 4.2 n° 13 — critères validés par l'architecte le 04/10/2026
   - **Critères d'acceptation (commandes)** :
-    - `node tests/recette/conventions-honoraires.mjs` → exit 0 (app Tauri) : une convention est produite depuis un modèle, rattachée au dossier ; l'ouverture d'un dossier sans convention signée affiche une alerte.
+    - `node tests/recette/tableau-de-bord.mjs` → exit 0 (app Tauri, requêtes locales) :
+      - chiffre d'affaires, encours, temps non facturé, rentabilité par dossier et par client, factures en erreur ou en attente sur la plateforme agréée, mails à classer ;
+      - définition écrite de chaque indicateur dans le document `tableau-de-bord.md` (répertoire docs) : période, HT ou TTC, facturé ou encaissé ;
+      - jeu fixe dont les valeurs attendues sont calculées à la main dans le test, indépendamment du code ;
+      - requêtes dans un module de données, jamais dans les composants ; mention visible : chiffres calculés sur les dossiers accessibles à l'utilisateur.
     - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
-- [ ] **Tableau de bord** — § 4.2 n° 13 — critères proposés le 27/09, **à valider par l'architecte**
+- [ ] **J12** — Révocation postes (S10) — critères validés par l'architecte le 04/10/2026
   - **Critères d'acceptation (commandes)** :
-    - `node tests/recette/tableau-de-bord.mjs` → exit 0 (app Tauri, requêtes locales) : chiffre d'affaires, encours, temps non facturé, rentabilité par dossier et par client, factures en erreur ou en attente sur la plateforme agréée, mails à classer.
-    - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
-
-Critères de chaque jalon à proposer à l'architecte avant l'ouverture de la phase 3.
-
-- [ ] **J11** — Mail étapes 4–5 — critères proposés le 04/10, **à valider par l'architecte**
-  - **Critères d'acceptation (commandes)** :
-    - `node tests/recette/j11-redaction.mjs` → exit 0 (app Tauri, GreenMail) : un brouillon est repris ; la signature du titulaire est jointe ; l'envoi passe par la file jusqu'à « copie dans Envoyés confirmée » ; un modèle de message est réutilisé sans recompiler.
-    - `node tests/recette/j11-invitation.mjs` → exit 0 : une invitation reçue par mail crée un élément d'agenda pour le titulaire, et pas pour un autre collaborateur.
-    - `node tests/recette/j11-boites.mjs` → exit 0 : deux comptes nominatifs ne sont visibles que par leur titulaire ; une boîte partagée est visible par ses membres et absente chez un non-membre ; le tableau de santé montre la dernière relève, un refus d'authentification et un envoi en échec.
-    - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
-
-- [ ] **J12** — Révocation postes (S10) — critères proposés le 04/10, **à valider par l'architecte**
-  - **Critères d'acceptation (commandes)** :
-    - `node tests/recette/s10-revocation.mjs` → exit 0 : après révocation, la connexion suivante efface la base locale, le cache de fichiers et le jeton ; le poste révoqué n'écrit plus.
+    - `node tests/recette/s10-revocation.mjs` → exit 0 :
+      - jeton du poste révoqué refusé par l'API dès la révocation ; aucune écriture de sa file appliquée ; refus consigné ;
+      - à la connexion suivante : effacement de la base locale, du cache de fichiers, du jeton et des secrets du trousseau ; le poste révoqué n'écrit plus ;
+      - verrouillage d'un poste resté hors ligne au-delà de 30 jours (proposition au commandement, B17) ;
+      - révocation journalisée.
     - `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
-- [ ] **J13** — Export complet (S12) — critères proposés le 04/10, **à valider par l'architecte**
+- [ ] **J13** — Export complet (S12) — critères validés par l'architecte le 04/10/2026
   - **Critères d'acceptation (commandes)** :
-    - `node tests/recette/s12-export.mjs` → exit 0 : l'export du cabinet se lit sans l'application ; les noms de fichiers et de dossiers utilisent la forme normalisée de la référence (R0).
+    - `node tests/recette/s12-export.mjs` → exit 0 :
+      - export de toutes les données du cabinet, des documents (dernière version et historique), des mails classés (`.eml`), des factures (PDF et Factur-X) et des journaux ;
+      - formats ouverts ; page d'index lisible sans l'application ; manifeste SHA-256 vérifié par le test ;
+      - noms de fichiers et de dossiers en forme normalisée de la référence (R0) ;
+      - réservé à un administrateur et journalisé ; testé sur le jeu de 3 000 dossiers.
     - Contrôleur VALIDÉ ; CI verte.
 
-- [ ] **J14** — Mises à jour à chaud et distribution (S11, S14a) — critères proposés le 04/10, **à valider par l'architecte**
+- [ ] **J14** — Mises à jour à chaud et distribution (S11, S14a) — critères validés par l'architecte le 04/10/2026
   - **Critères d'acceptation (commandes)** :
-    - `node tests/recette/s11-maj.mjs` → exit 0 : une archive d'interface signée est appliquée ; une archive falsifiée est refusée ; un échec revient à la version précédente.
+    - `node tests/recette/s11-maj.mjs` → exit 0 : une archive d'interface signée est appliquée ; elle déclare la plage de versions du binaire compatible ; une archive incompatible, falsifiée ou tronquée est refusée et la version précédente est conservée ; un échec revient à la version précédente ; clé privée de signature hors du dépôt (secret de CI), rotation documentée ; aucune mise à jour appliquée pendant une saisie.
     - `node tests/recette/s14a-install.mjs` → exit 0 (Windows) : l'installateur s'installe, l'application construite démarre, le scénario de fumée passe.
     - Contrôleur VALIDÉ ; CI verte.
 
