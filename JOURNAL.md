@@ -28,7 +28,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 J10 reste ouvert (B9). Les actions tierces sont déjà des commits complets ; `node tests/recette/workflows-valides.mjs` exit 0.
 
-Le build distribué n'active pas la feature `devtools`, les fenêtres ont `devtools: false`, et le source du poste ne pose pas de port de débogage distant. `node tests/recette/build-distribue.mjs` exit 0, y compris l'essai négatif.
+Le build distribué n'active pas la feature `devtools`, les fenêtres ont `devtools: false`, et le source du poste ne pose pas de port de débogage distant. `node tests/recette/build-distribue.mjs` exit 0, y compris l'essai négatif. `gh run view 37197462177` : completed, success.
 
 Relecture du 2026-10-04 : OSV pour `@powersync/service-core` ne liste que GHSA-q6wc-xx4m-92fj (modifié le 2026-03-23). La release GitHub la plus récente reste `v1.26.1` (2026-09-11). La dette mensuelle n'est pas cochée.
 
