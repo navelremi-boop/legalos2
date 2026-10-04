@@ -22,6 +22,7 @@ export type MailLocal = {
   suggestion_dossier_id: string | null;
   expediteur: string | null;
   destinataires?: string | null;
+  destinataires_texte?: string | null;
   texte_brut?: string | null;
   cree_le?: string | null;
   dossier_imap?: string | null;
@@ -147,7 +148,7 @@ export function EcranMails({
             ),
             database.getAll<MailLocal>(
               `SELECT id, objet, etat_classement, dossier_id, suggestion_dossier_id, expediteur,
-                      texte_brut, cree_le, dossier_imap
+                      destinataires_texte, texte_brut, cree_le, dossier_imap
                FROM messages ORDER BY cree_le DESC`,
             ),
             database.getAll<DossierLocal>("SELECT id, nom, chemise FROM dossiers"),
@@ -326,7 +327,11 @@ export function EcranMails({
                     {fr(choisi.expediteur || "—")}
                   </p>
                   <p className="text-graphite" data-testid="lecture-destinataires">
-                    {fr(choisi.destinataires?.trim() || "—")}
+                    {fr(
+                      choisi.destinataires?.trim() ||
+                        choisi.destinataires_texte?.trim() ||
+                        "—",
+                    )}
                   </p>
                   <p className="mb-3 text-[length:var(--font-size-meta)] text-graphite" data-testid="lecture-date">
                     {fr(dateCourte(choisi.cree_le) || "—")}

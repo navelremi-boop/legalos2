@@ -193,6 +193,7 @@ async function main() {
   );
 
   const condstore = lancerCondstore();
+  const mid = `<cx-${randomUUID().slice(0, 8)}@legalos.test>`;
   agirImap({
     hote: "127.0.0.1",
     port: 3144,
@@ -200,7 +201,7 @@ async function main() {
     action: "ajouter",
     uid: "1",
     sujet: "condstore",
-    messageId: `<cx-${randomUUID().slice(0, 8)}@legalos.test>`,
+    messageId: mid,
   });
   const idCond = randomUUID();
   await creer(jeton, {
@@ -216,6 +217,11 @@ async function main() {
     `SELECT commandes FROM releve_curseurs WHERE compte_id = '${idCond}' AND commandes LIKE '%UID SEARCH%'`,
     (v) => v.includes("UID SEARCH") && !v.includes("QRESYNC"),
     40_000,
+  );
+  await attendre(
+    `SELECT destinataires_texte FROM messages WHERE compte_id = '${idCond}' AND message_id = '${mid}'`,
+    (v) => v.includes("capa@localhost"),
+    20_000,
   );
   agirImap({
     hote: "127.0.0.1",

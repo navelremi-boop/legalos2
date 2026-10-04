@@ -24,6 +24,12 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-10-04 — Destinataires des mails relevés
+
+J10 reste ouvert (B9). Les en-têtes IMAP portaient déjà les destinataires ; l'enregistrement les jetait. La colonne `destinataires_texte` les conserve (migration 034) et les quatre flux `messages` les synchronisent. L'écran Mails les affiche dans le volet de lecture. Les noms de pièces jointes ne sont pas dans l'en-tête seul : ils ne sont pas inventés.
+
+`cargo test -p legalos-api --lib destinataires_rejoints` : 1 passed. `cargo clippy -p legalos-api --lib --offline -- -D warnings` exit 0. `node tests/recette/migrations-additives.mjs` exit 0. `node tests/recette/s7-connexions.mjs` exit 0 : le message CONDSTORE ajouté avec `To: capa@localhost` a cette adresse dans `destinataires_texte`.
+
 ## 2026-10-04 — J10 : commandes techniques encore vertes
 
 `node tests/recette/points-medians.mjs` exit 0. `pnpm --filter @legal-os/poste lint:ci` exit 0. `node tests/recette/j10-ecrans-tauri.mjs` exit 0 (journée, dossiers, mails, agenda, facturation, réglages). J10 n'est pas coché : les captures corrigées attendent l'architecte (B9).

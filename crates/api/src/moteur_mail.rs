@@ -561,6 +561,13 @@ struct Lignes {
     uids: Vec<i64>,
     lus: Vec<bool>,
     drapeaux: Vec<String>,
+    destinataires: Vec<String>,
+}
+
+fn texte_destinataires(entete: Option<&EnteteRecu>) -> String {
+    entete
+        .map(|entete| entete.destinataires.join(", "))
+        .unwrap_or_default()
 }
 
 fn lignes_ajouts(ajouts: &[EtatUid], entetes: &[EnteteRecu], uid_validity: u32) -> Lignes {
@@ -575,6 +582,7 @@ fn lignes_ajouts(ajouts: &[EtatUid], entetes: &[EnteteRecu], uid_validity: u32) 
         uids: Vec::with_capacity(ajouts.len()),
         lus: Vec::with_capacity(ajouts.len()),
         drapeaux: Vec::with_capacity(ajouts.len()),
+        destinataires: Vec::with_capacity(ajouts.len()),
     };
     for etat in ajouts {
         let entete = par_uid.get(&etat.uid);
@@ -600,6 +608,9 @@ fn lignes_ajouts(ajouts: &[EtatUid], entetes: &[EnteteRecu], uid_validity: u32) 
         lignes.uids.push(i64::from(etat.uid));
         lignes.lus.push(etat.lu);
         lignes.drapeaux.push(etat.drapeaux.clone());
+        lignes
+            .destinataires
+            .push(texte_destinataires(entete.copied()));
     }
     lignes
 }
@@ -625,19 +636,23 @@ async fn inserer_ajouts(
             r#"
             INSERT INTO messages (
                 id, cabinet_id, compte_id, message_id, uid_validity, uid,
-                objet, expediteur, etat_classement, dossier_imap, lu, drapeaux
+                objet, expediteur, destinataires_texte, etat_classement, dossier_imap, lu, drapeaux
             )
             SELECT t.id, t.cabinet_id, t.compte_id, t.message_id, t.uid_validity, t.uid,
-                   t.objet, t.expediteur, t.etat_classement, t.dossier_imap, t.lu,
+                   t.objet, t.expediteur, t.destinataires_texte, t.etat_classement, t.dossier_imap, t.lu,
                    CASE WHEN t.drapeaux = '' THEN '{}'::text[] ELSE string_to_array(t.drapeaux, ' ') END
             FROM unnest(
                 $1::uuid[], $2::uuid[], $3::uuid[], $4::text[], $5::bigint[], $6::bigint[],
-                $7::text[], $8::text[], $9::text[], $10::text[], $11::boolean[], $12::text[]
-            ) AS t(id, cabinet_id, compte_id, message_id, uid_validity, uid, objet, expediteur, etat_classement, dossier_imap, lu, drapeaux)
+                $7::text[], $8::text[], $9::text[], $10::text[], $11::text[], $12::boolean[], $13::text[]
+            ) AS t(id, cabinet_id, compte_id, message_id, uid_validity, uid, objet, expediteur, destinataires_texte, etat_classement, dossier_imap, lu, drapeaux)
             ON CONFLICT (compte_id, message_id) DO UPDATE
                 SET lu = EXCLUDED.lu,
                     drapeaux = EXCLUDED.drapeaux,
                     dossier_imap = EXCLUDED.dossier_imap,
+                    destinataires_texte = CASE
+                        WHEN EXCLUDED.destinataires_texte <> '' THEN EXCLUDED.destinataires_texte
+                        ELSE messages.destinataires_texte
+                    END,
                     uid = EXCLUDED.uid,
                     uid_validity = EXCLUDED.uid_validity,
                     revision = messages.revision + 1
@@ -651,6 +666,7 @@ async fn inserer_ajouts(
         .bind(lignes.uids[debut..fin].to_vec())
         .bind(lignes.objets[debut..fin].to_vec())
         .bind(lignes.expediteurs[debut..fin].to_vec())
+        .bind(lignes.destinataires[debut..fin].to_vec())
         .bind(vec!["a_classer".to_owned(); taille])
         .bind(vec![dossier.to_owned(); taille])
         .bind(lignes.lus[debut..fin].to_vec())
@@ -788,7 +804,26 @@ pub fn poser_drapeau_imap(
 
 #[cfg(test)]
 mod tests {
-    use super::{delai_echec, RELEVE_SANS_REVEIL_SECS, RENOUVELLEMENT_IDLE_SECS};
+    use super::{
+        delai_echec, texte_destinataires, RELEVE_SANS_REVEIL_SECS, RENOUVELLEMENT_IDLE_SECS,
+    };
+    use legalos_messagerie::EnteteRecu;
+
+    #[test]
+    fn destinataires_rejoints() {
+        let entete = EnteteRecu {
+            uid: 1,
+            message_id: "<a@legalos.test>".into(),
+            objet: "objet".into(),
+            expediteur: "de@example.com".into(),
+            destinataires: vec!["un@example.com".into(), "deux@example.com".into()],
+        };
+        assert_eq!(
+            texte_destinataires(Some(&entete)),
+            "un@example.com, deux@example.com"
+        );
+        assert_eq!(texte_destinataires(None), "");
+    }
 
     #[test]
     fn delais_de_reprise() {
