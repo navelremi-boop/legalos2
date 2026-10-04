@@ -26,7 +26,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ## 2026-10-04 — WebDriver embarqué
 
-J10 reste ouvert (B9). La feature `test-webdriver` enregistre `tauri-plugin-wdio-webdriver` 1.4.0 (MIT), absente du build par défaut (`j4-no-webdriver.mjs` exit 0). Le plugin publié ne compile pas avec `webview2-com` 0.39 de Tauri 2.12 : la copie dans `patches/` aligne cette dépendance. WebdriverIO 9.30.1, fournisseur `embedded`. Scénario local : le premier écran demande l'adresse de l'instance, 1 passant. Le binaire de debug charge Vite sur le port 1420. Le même scénario est le job `webdriver-macos`.
+J10 reste ouvert (B9). La feature `test-webdriver` enregistre `tauri-plugin-wdio-webdriver` 1.4.0 (MIT), absente du build par défaut (`j4-no-webdriver.mjs` exit 0). Le plugin publié ne compile pas avec `webview2-com` 0.39 de Tauri 2.12 : la copie dans `patches/` aligne cette dépendance. WebdriverIO 9.30.1, fournisseur `embedded`. Scénario local : le premier écran demande l'adresse de l'instance, 1 passant. Le binaire de debug charge Vite sur le port 1420. Le même scénario est le job `webdriver-macos`. `gh run view 37199494702` : completed, success, y compris ce job.
 
 ## 2026-10-04 — Build distribué et relecture d'octobre
 
