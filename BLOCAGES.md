@@ -9,7 +9,7 @@
 | B6 | Compte Apple Developer | Non disponible | S14b ad hoc |
 | B7 | SUPER PDP réel | Simulateur dans `instance/` | Prod |
 | B8 | Boîtes mail réelles | GreenMail | Tests mail |
-| B9 | Écrans non maquettés (cahier § 7.6) | **La journée** : validée par l'architecte le 27/09/2026, sous réserve des captures régénérées sans points médians (validation de la Coque). **J10** : captures du 30/09 validées le 04/10/2026 sous trois conditions, vérifiées par le contrôleur sans nouveau retour à l'architecte. Conditions : aucune date AAAA-MM-JJ dans le texte rendu (dates à la française) ; heure affichée pour chaque élément d'agenda, captures Jour et Semaine ; captures Mails régénérées après les ajouts du 04/10. Le commandement garde son veto. | J10 n'est pas coché tant que le contrôleur n'a pas constaté les trois conditions |
+| B9 | Écrans non maquettés (cahier § 7.6) | **La journée** : validée par l'architecte le 27/09/2026. **J10** : contrôleur [dates](5a587655-3ac9-4930-88bc-0bfbf4583fac) VALIDÉ le 04/10/2026 sur `dd5c92a` (dates françaises, heures d'agenda, captures Mails). Le commandement garde son veto. | Ne bloque plus le développement |
 | B15 | Liste des motifs de levée de l'alerte « convention non signée » | Valider la liste proposée : (1) diligences urgentes avant signature, pour sauvegarder un délai ; (2) convention antérieure déjà signée hors de l'application ; (3) aide juridictionnelle ; (4) premier rendez-vous ou consultation sans honoraires ; (5) dossier interne du cabinet. Chaque levée consigne le motif. | Ne bloque pas J10. Le jalon Conventions d'honoraires n'invente pas d'autre motif |
 | B16 | Honoraire de résultat | Confirmer la règle inscrite au plan le 04/10 : seulement en complément d'un honoraire principal, et seulement si la convention du dossier le prévoit ; sinon refus avec message. | Ne bloque pas J10. La facturation appliquera cette règle telle quelle tant qu'elle n'est pas contredite |
 | B17 | Durée maximale hors ligne avant verrouillage d'un poste (J12) | Confirmer ou corriger la proposition : **30 jours** sans contact avec l'instance, puis verrouillage local jusqu'à une connexion qui confirme le jeton. La révocation reste immédiate dès que le poste se reconnecte. | Ne bloque pas J10. J12 attend cette confirmation avant de figer la valeur |
@@ -51,6 +51,7 @@ Aucune.
 
 ## Historique
 
+- **2026-10-04 (contrôleur)** : J10 coché. Trois conditions constatées sur `dd5c92a`. Le veto du commandement (B9) reste, sans bloquer la suite.
 - **2026-10-04 (architecte)** : captures J10 du 30/09 validées sous trois conditions (B9). Critères de la Montée PowerSync, de J11 à J14 et des jalons de phase 3 validés. B15, B16 et B17 ouverts (motifs de levée, honoraire de résultat, durée hors ligne). B12 reste levé ; le retrait des quatre exceptions est le critère de la Montée PowerSync.
 - **2026-09-28 (commandement)** : B12 levé. Signalement transmis, [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129).
 - **2026-09-27 (commandement)** : B14 levé. Case « Allow actions created by GitHub » cochée. Premier lancement qui démarre : run 36340930653.

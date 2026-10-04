@@ -12,7 +12,8 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Agenda** : VALIDÉ `57fd4dc` (contrôleur sur `635714e`, CI [36586753618](https://github.com/navelremi-boop/legalos2/actions/runs/36586753618)). Trois runs : **65** minutes. Premier contrôle REFUSÉ sur `697bfbd`.
 - **Documents, suite** : VALIDÉ `6f5f757` (contrôleur sur `8e962d7`, CI [36687786819](https://github.com/navelremi-boop/legalos2/actions/runs/36687786819)). Premier contrôle REFUSÉ sur `d836807` (`PSYNC_S2305`). Cinq runs : **99** minutes.
 - **J9** : VALIDÉ `a036e24` (contrôleur [étape 3](f0db1509-4bcf-4701-a6dd-eb44db4835ca), CI [36751876546](https://github.com/navelremi-boop/legalos2/actions/runs/36751876546)). Run de reprise : **22** minutes (jobs arrondis à la minute supérieure).
-- **En cours** : **J10**. Contrôleur [écrans](0c95a661-b4fd-4e05-b03a-6ccbaa41951c) **VALIDÉ** sur `197b345`. CI [36731054836](https://github.com/navelremi-boop/legalos2/actions/runs/36731054836) verte. Captures du 30/09 validées le 04/10 sous trois conditions (dates françaises, heures d'agenda, captures Mails régénérées), à vérifier par le contrôleur sans nouveau retour à l'architecte. Veto du commandement (B9). Jalon non coché.
+- **J10** : VALIDÉ `dd5c92a` (contrôleur [dates](5a587655-3ac9-4930-88bc-0bfbf4583fac), CI [37229519725](https://github.com/navelremi-boop/legalos2/actions/runs/37229519725)). Sept jobs, **29** minutes (arrondis à la minute supérieure). `j10-ecrans-tauri.mjs` non rejoué sur ce commit : le contrôleur le note, le critère structurel reste celui de `197b345`.
+- **En cours** : **Montée PowerSync**.
 - **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → ~~Intercalaires~~ → ~~Dossiers et contacts~~ → ~~Agenda~~ → ~~Documents, suite~~ → ~~J9~~ → **J10** → Montée PowerSync → J11 → Modèles et fusion → Conventions d'honoraires → Facturation, suite → Tableau de bord → J12 → J13 → J14.
 - **CI** : l'état d'un run se lit par `gh run view` à chaque fois. Attendre = `gh run watch <id> --exit-status`. Deux relances consécutives sans commande ni commit créent `.mission/STOP` (ordre § 4.7).
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance). Un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` doit exister.
@@ -23,6 +24,10 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---
+
+## 2026-10-04 — J10 VALIDÉ
+
+Contrôleur [dates](5a587655-3ac9-4930-88bc-0bfbf4583fac) **VALIDÉ** sur `dd5c92a`. Trois conditions constatées : `dates-ecrans.mjs`, `points-medians.mjs`, `lint:ci` et `typecheck` en exit 0 ; captures Jour, Semaine et Mails lues. Critères de `28d5f5c` non affaiblis. `j10-ecrans-tauri.mjs` non rejoué. CI lue par `gh run view 37229519725` : completed, success. Durées arrondies à la minute supérieure : périmètre 1, gouvernance 1, frontend 2, facturx 3, webdriver-macos 6, rust 7, s1-instance 9, soit **29** minutes. Jalon coché. Suivant : Montée PowerSync.
 
 ## 2026-10-04 — J10 : trois conditions, en attente du contrôleur
 
