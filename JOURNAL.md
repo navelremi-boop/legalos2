@@ -28,7 +28,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 J10 reste ouvert (B9). La relève lit les 1024 premiers octets du corps (`BODY.PEEK[TEXT]`) et en tire un extrait avec `mail-parser`. `extrait_texte` alimente la liste. `texte_brut` reste vide tant que le message n'est pas ouvert.
 
-`cargo test -p legalos-messagerie --lib extrait_du_debut` : 1 passed. `cargo test -p legalos-messagerie --test classement_greenmail` : 1 passed. L'extrait est une seconde requête `BODY.PEEK` : si elle échoue, les en-têtes restent relevés. `cargo clippy -p legalos-messagerie --all-targets --offline -- -D warnings` et `cargo clippy -p legalos-api --lib --offline -- -D warnings` : exit 0. `node tests/recette/migrations-additives.mjs` exit 0. `node tests/recette/s7-connexions.mjs` exit 0 : avant l'ouverture, `extrait_texte` contient « convocation fictive » et `texte_brut` ne le contient pas.
+`cargo test -p legalos-messagerie --lib extrait_du_debut` : 1 passed. `cargo test -p legalos-messagerie --test classement_greenmail` : 1 passed. L'extrait est une seconde requête `BODY.PEEK` : si elle échoue, les en-têtes restent relevés. `cargo clippy -p legalos-messagerie --all-targets --offline -- -D warnings` et `cargo clippy -p legalos-api --lib --offline -- -D warnings` : exit 0. `node tests/recette/migrations-additives.mjs` exit 0. `node tests/recette/s7-connexions.mjs` exit 0 : avant l'ouverture, `extrait_texte` contient « convocation fictive » et `texte_brut` ne le contient pas. `gh run view 37209904355` : completed, success.
 
 ## 2026-10-04 — Bouton Classer
 
