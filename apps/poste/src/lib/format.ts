@@ -22,6 +22,93 @@ export function formatHeure(date: Date): string {
   return fr(`${String(h)}${NBSP}h${NBSP}${String(m).padStart(2, "0")}`);
 }
 
+const MOIS_COURT = [
+  "janv.",
+  "févr.",
+  "mars",
+  "avr.",
+  "mai",
+  "juin",
+  "juil.",
+  "août",
+  "sept.",
+  "oct.",
+  "nov.",
+  "déc.",
+] as const;
+
+const MOIS_LONG = [
+  "janvier",
+  "février",
+  "mars",
+  "avril",
+  "mai",
+  "juin",
+  "juillet",
+  "août",
+  "septembre",
+  "octobre",
+  "novembre",
+  "décembre",
+] as const;
+
+const JOURS = [
+  "dimanche",
+  "lundi",
+  "mardi",
+  "mercredi",
+  "jeudi",
+  "vendredi",
+  "samedi",
+] as const;
+
+type DateCivile = { annee: number; mois: number; jour: number };
+
+/** Jour civil AAAA-MM-JJ, sans décalage de fuseau. */
+export function dateCivile(iso: string): DateCivile | null {
+  const trouve = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso.trim());
+  if (!trouve) return null;
+  const annee = Number(trouve[1]);
+  const mois = Number(trouve[2]);
+  const jour = Number(trouve[3]);
+  if (!Number.isInteger(annee) || !Number.isInteger(mois) || !Number.isInteger(jour)) return null;
+  const utc = new Date(Date.UTC(annee, mois - 1, jour));
+  if (utc.getUTCFullYear() !== annee || utc.getUTCMonth() !== mois - 1 || utc.getUTCDate() !== jour) {
+    return null;
+  }
+  return { annee, mois, jour };
+}
+
+/**
+ * Date courte (§ 7.7) : « 30 sept. ».
+ */
+export function formatDateCourte(iso: string): string {
+  const date = dateCivile(iso);
+  if (!date) return "";
+  const mois = MOIS_COURT[date.mois - 1];
+  if (mois === undefined) return "";
+  return fr(`${String(date.jour)} ${mois}`);
+}
+
+/**
+ * Date longue (§ 7.7) : « mardi 30 septembre ».
+ */
+export function formatDateLongue(iso: string): string {
+  const date = dateCivile(iso);
+  if (!date) return "";
+  const mois = MOIS_LONG[date.mois - 1];
+  const nom = JOURS[new Date(Date.UTC(date.annee, date.mois - 1, date.jour)).getUTCDay()];
+  if (mois === undefined || nom === undefined) return "";
+  return fr(`${nom} ${String(date.jour)} ${mois}`);
+}
+
+/**
+ * Heure française à partir de chiffres déjà muraux : « 9 h 12 ».
+ */
+export function formatHeureMur(heure: number, minute: number): string {
+  return fr(`${String(heure)}${NBSP}h${NBSP}${String(minute).padStart(2, "0")}`);
+}
+
 /**
  * Montant français (§ 7.7) : « 2 400,00 € ».
  */

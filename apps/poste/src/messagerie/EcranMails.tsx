@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { BarreActions } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
 import { apiUrl } from "@/lib/auth/client";
+import { composantesAffichees } from "@/agenda/fuseauParis";
+import { formatDateCourte, formatDateLongue, formatHeureMur } from "@/lib/format";
 import { fr } from "@/lib/fr";
 import { loadSessionTokens } from "@/lib/session/storage";
 import { rechercherMailsHorsLigne, type ResultatRechercheMail } from "@/messagerie/rechercheMails";
@@ -53,10 +55,19 @@ function dansDossier(mail: MailLocal, id: string): boolean {
   return dossier === "envoyés" || dossier === "envoyes" || dossier === "sent";
 }
 
-function dateCourte(valeur: string | null | undefined): string {
+function dateListe(valeur: string | null | undefined): string {
   if (!valeur) return "";
-  const jour = /^(\d{4}-\d{2}-\d{2})/.exec(valeur);
-  return jour?.[1] ?? valeur.slice(0, 16);
+  const mur = composantesAffichees(valeur);
+  return mur ? formatDateCourte(mur.jour) : "";
+}
+
+function dateLecture(valeur: string | null | undefined): string {
+  if (!valeur) return "";
+  const mur = composantesAffichees(valeur);
+  if (!mur) return "";
+  const jour = formatDateLongue(mur.jour);
+  if (mur.heure === null || mur.minute === null) return jour;
+  return `${jour}, ${formatHeureMur(mur.heure, mur.minute)}`;
 }
 
 function listePieces(mail: MailLocal): string[] {
@@ -356,7 +367,7 @@ export function EcranMails({
                             ) : null}
                             <span className="min-w-0 flex-1 truncate font-bold">{fr(mail.expediteur || "—")}</span>
                             <span className="shrink-0 text-[length:var(--font-size-meta)] text-graphite">
-                              {fr(dateCourte(mail.cree_le))}
+                              {dateListe(mail.cree_le)}
                             </span>
                           </span>
                           <span className="truncate">{fr(mail.objet?.trim() || "(sans objet)")}</span>
@@ -384,7 +395,7 @@ export function EcranMails({
                     )}
                   </p>
                   <p className="mb-3 text-[length:var(--font-size-meta)] text-graphite" data-testid="lecture-date">
-                    {fr(dateCourte(choisi.cree_le) || "—")}
+                    {dateLecture(choisi.cree_le) || "—"}
                   </p>
                   <h2 className="mb-3 text-[length:var(--font-size-section)] font-extrabold">
                     {fr(choisi.objet?.trim() || "(sans objet)")}

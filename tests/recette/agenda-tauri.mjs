@@ -170,20 +170,35 @@ try {
   const debutEch = Date.now();
   let echeance = "";
   while (Date.now() - debutEch < 10_000) {
-    echeance = (await session.texte(a.send, "delai-echeance")).trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(echeance)) break;
+    echeance = String(
+      (await session.evaluate(
+        a.send,
+        `document.querySelector("[data-testid=delai-echeance]")?.getAttribute("data-echeance") ?? ""`,
+      )) ?? "",
+    ).trim();
+    const visible = (await session.texte(a.send, "delai-echeance")).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(echeance) && visible !== "" && !/\d{4}-\d{2}-\d{2}/.test(visible)) break;
     await sleep(200);
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(echeance)) fail(`échéance non calculée (${echeance})`);
+  const visibleEcheance = (await session.texte(a.send, "delai-echeance")).trim();
+  if (/\d{4}-\d{2}-\d{2}/.test(visibleEcheance)) fail(`date ISO affichée (${visibleEcheance})`);
   await session.evaluate(a.send, `document.querySelector("[data-testid=delai-inscrire]")?.click()`);
   const debutInscrit = Date.now();
   let inscrit = "";
   while (Date.now() - debutInscrit < 10_000) {
-    inscrit = (await session.texte(a.send, "delai-inscrit")).trim();
+    inscrit = String(
+      (await session.evaluate(
+        a.send,
+        `document.querySelector("[data-testid=delai-inscrit]")?.getAttribute("data-echeance") ?? ""`,
+      )) ?? "",
+    ).trim();
     if (inscrit === echeance) break;
     await sleep(200);
   }
   if (inscrit !== echeance) fail("échéance non inscrite à l'agenda");
+  const visibleInscrit = (await session.texte(a.send, "delai-inscrit")).trim();
+  if (/\d{4}-\d{2}-\d{2}/.test(visibleInscrit)) fail(`date ISO affichée après inscription (${visibleInscrit})`);
   ok(`échéance ${echeance} inscrite à l'agenda`);
 
   await ajouter("rendez_vous", `Hiver ${session.marque}`, "2026-10-27T09:30", "2026-10-26T08:00");
@@ -213,8 +228,8 @@ try {
       a.send,
       `(async () => {
         const rows = await window.__legalosRecette.lireSqlite(
-          "SELECT id FROM agenda_elements WHERE titre = ? ORDER BY cree_le DESC LIMIT 1",
-          [${JSON.stringify(`Échéance ${echeance}`)}],
+          "SELECT id FROM agenda_elements WHERE titre LIKE 'Échéance du %' AND debut LIKE ? ORDER BY cree_le DESC LIMIT 1",
+          [${JSON.stringify(`${echeance}%`)}],
         );
         return rows?.[0]?.id ?? "";
       })()`,

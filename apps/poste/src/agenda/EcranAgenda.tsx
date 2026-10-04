@@ -3,8 +3,9 @@ import type { SubmitEvent } from "react";
 import { ecrireElementAgenda, recalculerEcheance, retirerEcheance, type TypeAgenda } from "@/agenda/ecrireAgenda";
 import { BarreActions } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
-import { murParis } from "@/agenda/fuseauParis";
+import { composantesAffichees } from "@/agenda/fuseauParis";
 import { calculerDelaiComplet } from "@/delais/moteur";
+import { formatDateCourte, formatDateLongue, formatHeureMur } from "@/lib/format";
 import { fr } from "@/lib/fr";
 import { getPowerSyncDatabase } from "@/sync/database";
 
@@ -306,21 +307,29 @@ export function EcranAgenda({
       ) : null}
       <div data-testid={vue === "jour" ? "agenda-vue-jour-contenu" : "agenda-vue-semaine-contenu"}>
         {(vue === "jour" ? [jourCivil(new Date())] : semaineCourante()).map((jour) => {
-          const duJour = lignes.filter((ligne) => murParis(ligne.debut).jour === jour);
+          const duJour = lignes.filter((ligne) => composantesAffichees(ligne.debut)?.jour === jour);
           return (
             <section key={jour} className="mb-3" data-testid="agenda-jour" data-jour={jour}>
-              <h2 className="text-[length:var(--font-size-dense)] font-extrabold">{fr(jour)}</h2>
+              <h2 className="text-[length:var(--font-size-dense)] font-extrabold">{formatDateLongue(jour)}</h2>
               {duJour.length === 0 ? (
                 <p className="text-graphite">{fr("Rien ce jour-là.")}</p>
               ) : (
                 <ul>
-                  {duJour.map((ligne) => (
-                    <li key={ligne.id}>
-                      {fr(
-                        `${LIBELLES_TYPE[ligne.type_element] ?? ligne.type_element} — ${ligne.titre}${ligne.origine_calcul ? " — échéance" : ""}`,
-                      )}
-                    </li>
-                  ))}
+                  {duJour.map((ligne) => {
+                    const quand = composantesAffichees(ligne.debut);
+                    const heure =
+                      quand !== null && quand.heure !== null && quand.minute !== null
+                        ? formatHeureMur(quand.heure, quand.minute)
+                        : "";
+                    return (
+                      <li key={ligne.id} className="flex items-baseline justify-between gap-3">
+                        {fr(
+                          `${LIBELLES_TYPE[ligne.type_element] ?? ligne.type_element} — ${ligne.titre}${ligne.origine_calcul ? " — échéance" : ""}`,
+                        )}
+                        {heure !== "" ? <span data-testid="agenda-element-heure">{heure}</span> : null}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </section>
@@ -330,8 +339,16 @@ export function EcranAgenda({
       <ul data-testid="agenda-liste" className="sr-only">
         {lignes.map((ligne) => {
           const attendue = echeanceAttendue(ligne);
-          const mur = murParis(ligne.debut);
-          const perimee = attendue !== null && mur.jour !== attendue;
+          const mur = composantesAffichees(ligne.debut);
+          const perimee = attendue !== null && mur !== null && mur.jour !== attendue;
+          const quand =
+            mur === null
+              ? ""
+              : `${formatDateCourte(mur.jour)}${
+                  mur.heure !== null && mur.minute !== null
+                    ? ` ${formatHeureMur(mur.heure, mur.minute)}`
+                    : ""
+                }`;
           return (
             <li
               key={ligne.id}
@@ -339,9 +356,11 @@ export function EcranAgenda({
               data-type={ligne.type_element}
               data-dossier-id={ligne.dossier_id}
             >
-              {fr(`${ligne.type_element} — ${ligne.titre} — ${mur.jour} ${mur.heure}:${mur.minute}`)}
+              {fr(`${ligne.type_element} — ${ligne.titre} — ${quand}`)}
               {perimee ? (
-                <span data-testid="echeance-perimee">{fr(` périmée, attendu ${attendue}`)}</span>
+                <span data-testid="echeance-perimee">
+                  {fr(` périmée, attendu ${formatDateCourte(attendue)}`)}
+                </span>
               ) : null}
               {ligne.origine_calcul ? (
                 <>

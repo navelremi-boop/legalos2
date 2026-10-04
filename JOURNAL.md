@@ -24,6 +24,12 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-10-04 — J10 : trois conditions, en attente du contrôleur
+
+Les dates rendues passent par `formatDateCourte` (« 4 oct. ») et `formatDateLongue` (« dimanche 4 octobre »). L'heure affichée est « 9 h 00 ». L'agenda montre cette heure sur chaque élément. Les vues Jour et Semaine sont capturées. Les captures Mails reprennent l'extrait, les destinataires, les pièces jointes, le corps et le classement.
+
+`node tests/recette/dates-ecrans.mjs` exit 0, essai négatif compris (une date AAAA-MM-JJ est signalée ; « 30 sept. », « mardi 30 septembre » et la référence `2026-042` ne le sont pas). `pnpm --filter @legal-os/poste lint:ci` exit 0. `pnpm --filter @legal-os/poste typecheck` exit 0. `node tests/recette/points-medians.mjs` exit 0. `node tests/recette/coque-app.mjs --captures` exit 0. Fichiers : `design/captures/agenda-jour.png`, `agenda-nuit.png`, `agenda-semaine-jour.png`, `agenda-semaine-nuit.png`, `mails-jour.png`, `mails-nuit.png`. Jalon non coché : le contrôleur doit constater les trois conditions. Pas de nouveau retour à l'architecte. Veto du commandement (B9).
+
 ## 2026-10-04 — Consigne de l'architecte : J10, PowerSync 0.1.0, phase 3, J11 à J14
 
 Consigne de l'architecte du 04/10/2026. Inscrite dans `PLAN.md` par un commit dédié `plan:` (ce fichier suit, le contrôle de gouvernance refuse un commit de plan qui touche autre chose). Les commandes déjà exigées des jalons non cochés sont conservées ; les critères sont complétés.

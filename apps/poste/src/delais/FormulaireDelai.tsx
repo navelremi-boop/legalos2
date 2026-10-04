@@ -7,6 +7,7 @@ import {
   type SiegeJuridiction,
 } from "@/delais/moteur";
 import { ecrireElementAgenda } from "@/agenda/ecrireAgenda";
+import { formatDateLongue } from "@/lib/format";
 import { fr } from "@/lib/fr";
 
 function champ(form: FormData, nom: string): string {
@@ -298,8 +299,12 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
       >
         {fr("Calculer l'échéance")}
       </button>
-      <p className="mt-2 text-[length:var(--font-size-dense)] text-encre" data-testid="delai-echeance">
-        {echeance}
+      <p
+        className="mt-2 text-[length:var(--font-size-dense)] text-encre"
+        data-testid="delai-echeance"
+        data-echeance={echeance}
+      >
+        {echeance === "" ? "" : formatDateLongue(echeance)}
       </p>
       {echeance !== "" && dossierId ? (
         <button
@@ -310,7 +315,7 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
             void ecrireElementAgenda({
               dossierId,
               typeElement: "tache",
-              titre: `Échéance ${echeance}`,
+              titre: `Échéance du ${formatDateLongue(echeance)}`,
               debut: `${echeance}T09:00`,
               origineCalcul: origineRetenue,
               joursCalcul: dureeRetenue.jours,
@@ -329,8 +334,12 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
         </button>
       ) : null}
       {inscrit !== "" ? (
-        <p className="mt-2 text-[length:var(--font-size-dense)] text-encre" data-testid="delai-inscrit">
-          {inscrit}
+        <p
+          className="mt-2 text-[length:var(--font-size-dense)] text-encre"
+          data-testid="delai-inscrit"
+          data-echeance={inscrit}
+        >
+          {inscrit === "" ? "" : formatDateLongue(inscrit)}
         </p>
       ) : null}
       {augmentation !== "" ? (

@@ -279,11 +279,26 @@ async function runCaptures() {
         if (testid === "ecran-mails") {
           await page.waitForSelector("[data-testid=banniere-classer]");
           await page.waitForSelector("[data-testid=pastille-mail]");
+          await page.waitForSelector("[data-testid=lecture-date]");
+        }
+        if (testid === "ecran-agenda") {
+          await page.getByTestId("agenda-vue-jour").click();
+          await page.waitForSelector("[data-testid=agenda-vue-jour-contenu]");
+          await page.waitForSelector("[data-testid=agenda-element-heure]");
         }
         await page.waitForTimeout(100);
         await page.locator("[data-testid=galerie-scene]").screenshot({
           path: join(outDir, `${fichier}-${theme === "light" ? "jour" : "nuit"}.png`),
         });
+        if (testid === "ecran-agenda") {
+          await page.getByTestId("agenda-vue-semaine").click();
+          await page.waitForSelector("[data-testid=agenda-vue-semaine-contenu]");
+          await page.waitForSelector("[data-testid=agenda-element-heure]");
+          await page.waitForTimeout(100);
+          await page.locator("[data-testid=galerie-scene]").screenshot({
+            path: join(outDir, `agenda-semaine-${theme === "light" ? "jour" : "nuit"}.png`),
+          });
+        }
       }
 
       // Vue scindée (§ 7.4) : chrono + aperçu, jour et nuit (chemise kraft).

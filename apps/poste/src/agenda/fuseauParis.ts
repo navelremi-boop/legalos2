@@ -40,6 +40,31 @@ export function instantPourHeureParis(jour: string, heure: number, minute: numbe
   return new Date(utc).toISOString();
 }
 
+const AVEC_FUSEAU = /(?:[zZ]|[+-]\d{2}:?\d{2})$/;
+
+/**
+ * Jour civil et heure à afficher.
+ * Une chaîne sans fuseau est déjà une heure murale. Une chaîne avec fuseau
+ * est convertie en mur Europe/Paris.
+ */
+export function composantesAffichees(
+  valeur: string,
+): { jour: string; heure: number | null; minute: number | null } | null {
+  const brut = valeur.trim();
+  if (brut === "") return null;
+  if (AVEC_FUSEAU.test(brut)) {
+    const mur = murParis(brut);
+    return { jour: mur.jour, heure: Number(mur.heure), minute: Number(mur.minute) };
+  }
+  const naif = /^(\d{4}-\d{2}-\d{2})(?:T(\d{2}):(\d{2}))?/.exec(brut);
+  if (!naif || naif[1] === undefined) return null;
+  return {
+    jour: naif[1],
+    heure: naif[2] === undefined ? null : Number(naif[2]),
+    minute: naif[3] === undefined ? null : Number(naif[3]),
+  };
+}
+
 /** Mur Europe/Paris d'un instant ISO. */
 export function murParis(instantIso: string): { jour: string; heure: string; minute: string } {
   const mur = partsParis(new Date(instantIso));
