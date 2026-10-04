@@ -25,9 +25,15 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-10-04 — Montée PowerSync, en cours
+
+`tauri-plugin-powersync` 0.1.0 (crates.io, 2026-10-01) et `powersync` 0.1.0 (2026-09-28). Le connecteur compile sans changement de trait : `cargo clippy --manifest-path apps/poste/src-tauri/Cargo.toml --all-targets -- -D warnings` exit 0. `rand` 0.7.3, `http-client` et les rustines `time-macros` sont sortis du graphe. `cargo deny` du poste : exit 0 après montée de `yoke-derive` 0.8.3 (retirée du registre) vers 0.8.4. Playwright 1.63.0 (npm `latest` le 2026-10-04, GHSA-7mvr-c777-76hp corrigé depuis 1.55.1). Le paquet npm `@powersync/tauri-plugin` reste 0.0.6 : aucune 0.1 publiée.
+
+`node tests/recette/powersync-0-1.mjs` exit 0. `node tests/recette/s5-sync-streams.mjs` exit 0. `node tests/recette/deny-exception-inutile.mjs` exit 0. `node tests/recette/coque-app.mjs --captures` exit 0. Le moteur Docker ne répond pas sur le tube `dockerDesktopLinuxEngine` : `s6-documents.mjs`, `s5-buckets-volume.mjs` et `conflits-poste-tauri.mjs` ne sont pas rejoués. Jalon non coché.
+
 ## 2026-10-04 — Premier jour : « 1er »
 
-Le commandement lève le veto B9. Le 1er du mois s'écrit « 1er » : `formatDateLongue("2026-10-01")` vaut « jeudi 1er octobre », `formatDateCourte` vaut « 1er oct. ». Le 30 reste « mercredi 30 septembre ». Aucune capture nouvelle. `node tests/recette/dates-ecrans.mjs` exit 0. J10 reste coché : la CI de `dd5c92a` est [37229519725](https://github.com/navelremi-boop/legalos2/actions/runs/37229519725), verte ; celle de ce correctif est lue à part.
+Le commandement lève le veto B9. Le 1er du mois s'écrit « 1er » : `formatDateLongue("2026-10-01")` vaut « jeudi 1er octobre », `formatDateCourte` vaut « 1er oct. ». Le 30 reste « mercredi 30 septembre ». Aucune capture nouvelle. `node tests/recette/dates-ecrans.mjs` exit 0. J10 reste coché. CI de `dd5c92a` : [37229519725](https://github.com/navelremi-boop/legalos2/actions/runs/37229519725), success. CI du correctif `9374345` : [37232033227](https://github.com/navelremi-boop/legalos2/actions/runs/37232033227), success.
 
 ## 2026-10-04 — J10 VALIDÉ
 

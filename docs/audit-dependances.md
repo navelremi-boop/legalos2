@@ -12,7 +12,7 @@ Dette de la phase 2 (`PLAN.md`) cochée le 29/09/2026 : `cargo-deny` 0.20.2 est 
 - Avis bloquants : vulnérabilités, notices, crates non maintenus, versions retirées du registre. « Unsound » : réglage par défaut de l'outil (dépendances directes).
 - Licences admises : permissives (Apache-2.0, MIT, BSD, ISC, Zlib, Unicode-3.0, etc.) et MPL-2.0 (crates Servo tirés par Tauri, copyleft limité aux fichiers). Crates du dépôt exclus du contrôle de licence (`publish = false`).
 - Sources : crates.io seulement. Versions génériques interdites, sauf chemins locaux (correctifs `apps/poste/src-tauri/patches/`).
-- Exceptions d'avis, seulement les quatre de la chaîne PowerSync du poste, chacune nominative et renvoyant à [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). `unused-ignored-advisory = "deny"` : une exception devenue inutile fait échouer le contrôle. Essai négatif en CI : `node tests/recette/deny-exception-inutile.mjs` (identifiant fictif `RUSTSEC-2099-0001`). Les avis `unic-*` et `rsa` ne sont pas des exceptions.
+- Exceptions d'avis du poste : aucune depuis le 2026-10-04. `tauri-plugin-powersync` 0.1.0 retire la chaîne http-client. `unused-ignored-advisory = "deny"` : une exception devenue inutile fait échouer le contrôle. Essai négatif en CI : `node tests/recette/deny-exception-inutile.mjs` (identifiant fictif `RUSTSEC-2099-0001`). Les avis `unic-*` et `rsa` ne sont pas des exceptions.
 
 ## Constat du 27 septembre 2026
 
@@ -79,3 +79,7 @@ Déposé par le commandement le 28/09/2026 : [powersync-js#1129](https://github.
 > Dependency path: `tauri-plugin-powersync` 0.0.6 → `http-client` 6.5.3 → `http-types` 2.12.0 → `async-std`, `rand` 0.7.3, `cookie` 0.14.4 → `time` 0.2.27, `aes-gcm` 0.8.0.
 >
 > Would you consider moving the plugin's HTTP layer to a maintained client, or making the HTTP client pluggable without depending on `http-types`?
+
+## Constat du 4 octobre 2026
+
+`tauri-plugin-powersync` 0.1.0 (crates.io, publié le 2026-10-01) et `powersync` 0.1.0 (publié le 2026-09-28) remplacent la 0.0.6. Le plugin dépend de `reqwest` 0.13. Le `Cargo.lock` du poste ne contient plus `http-client`, `http-types`, `async-std`, `aes-soft`, `cpuid-bool`, `time` 0.2 ni `rand` 0.7.3. Les quatre exceptions sont retirées de `deny.toml`. Les rustines `patches/time-macros` et `patches/time-macros-impl` sont retirées. Le paquet npm `@powersync/tauri-plugin` reste en 0.0.6 : aucune 0.1 n'est publiée. Le connecteur Rust compile tel quel avec le trait `BackendConnector` 0.1.0.

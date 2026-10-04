@@ -10,12 +10,7 @@ targets = ["x86_64-pc-windows-msvc", "aarch64-apple-darwin", "x86_64-apple-darwi
 yanked = "deny"
 unmaintained = "all"
 unused-ignored-advisory = "deny"
-ignore = [
-    { id = "RUSTSEC-2025-0052", reason = "async-std via tauri-plugin-powersync 0.0.6 (commands.rs:5). https://github.com/powersync-ja/powersync-js/issues/1129" },
-    { id = "RUSTSEC-2021-0060", reason = "aes-soft via tauri-plugin-powersync 0.0.6 (commands.rs:5). https://github.com/powersync-ja/powersync-js/issues/1129" },
-    { id = "RUSTSEC-2021-0064", reason = "cpuid-bool via tauri-plugin-powersync 0.0.6 (commands.rs:5). https://github.com/powersync-ja/powersync-js/issues/1129" },
-    { id = "RUSTSEC-2026-0174", reason = "http-types via tauri-plugin-powersync 0.0.6 (commands.rs:5). https://github.com/powersync-ja/powersync-js/issues/1129" },
-]
+ignore = []
 
 [licenses]
 confidence-threshold = 0.93

@@ -15,7 +15,7 @@
 | B17 | Durée maximale hors ligne avant verrouillage d'un poste (J12) | Confirmer ou corriger la proposition : **30 jours** sans contact avec l'instance, puis verrouillage local jusqu'à une connexion qui confirme le jeton. La révocation reste immédiate dès que le poste se reconnecte. | Ne bloque pas J10. J12 attend cette confirmation avant de figer la valeur |
 | B10 | Revue juridique par l'avocat avant toute mise en service réelle | Relire, avant une mise en service réelle, les délais **H1–H13**, la facturation **F0–F8** et les hypothèses d'**installation**, déjà retenus à titre provisoire par l'architecte le 27/09/2026. Voir `docs/hypotheses-delais.md`, `docs/hypotheses-facturation.md`, `docs/hypotheses-installation.md` et `RAPPORT.md`. | Ne bloque plus le développement |
 | B11 | ~~Texte de l'arbitrage R0~~ | **Levé 2026-09-27** : texte du 26/09 reçu. Il confirme R0-a, R0-c, R0-d et R0-e. Écarts (responsable, 409, R0-g) traités dans le jalon Référence en cours. | — |
-| B12 | ~~Signalement à PowerSync~~ | **Levé 2026-09-28** : transmis par le commandement, [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). Chaîne et texte : `docs/audit-dependances.md`. Chaque exception de `apps/poste/src-tauri/deny.toml` renvoie à cette issue. | — |
+| B12 | ~~Signalement à PowerSync~~ | **Levé 2026-09-28**, reste technique clos le 2026-10-04 : `tauri-plugin-powersync` 0.1.0 retire la chaîne. Les quatre exceptions et les rustines `time-macros` ne sont plus dans le dépôt. [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). | — |
 | B13 | ~~GitHub Actions ne démarre plus~~ | **Levé 2026-09-27** : le dépôt est public. Le run du dernier commit d'alors, [36327108849](https://github.com/navelremi-boop/legalos2/actions/runs/36327108849), est vert. | — |
 | B14 | ~~La liste d'autorisation GitHub bloque les actions créées par GitHub~~ | **Levé 2026-09-27** : case « Allow actions created by GitHub » cochée. Liste des actions tierces inchangée. Premier lancement qui démarre : [36340930653](https://github.com/navelremi-boop/legalos2/actions/runs/36340930653) (`e7314f8`). | — |
 
@@ -43,7 +43,7 @@ Aucune.
 
 ### Décisions tranchées
 
-**Avis RustSec de la chaîne PowerSync** (consigne de l'architecte du 28/09/2026) : quatre exceptions nominatives dans `apps/poste/src-tauri/deny.toml` (`RUSTSEC-2025-0052`, `RUSTSEC-2021-0060`, `RUSTSEC-2021-0064`, `RUSTSEC-2026-0174`), chacune renvoyant à [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). `unused-ignored-advisory = "deny"` : une exception devenue inutile fait échouer le contrôle. Les avis `unic-*` (montée de Tauri) et `rsa` (workspace racine) restent hors de ces exceptions. Bifurquer le plugin ou rendre le contrôle non bloquant restent écartés.
+**Avis RustSec de la chaîne PowerSync** (consigne de l'architecte du 28/09/2026) : quatre exceptions nominatives, retirées le 2026-10-04 avec `tauri-plugin-powersync` 0.1.0 (`reqwest` à la place de `http-client`). Le signalement [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129) reste levé (B12). `unused-ignored-advisory = "deny"`. Les avis `unic-*` et `rsa` restent hors exceptions.
 
 **Sync Streams** (`edition: 3`) : **VALIDÉ** `9f80388`. Contrat `docs/sync-streams.md`, déploiement `instance/powersync/sync-config.yaml`. JOIN autorisés (contrat ≤ 2 tables). La copie `visibilite` sur les enfants reste additive ; l’auth des flux restreints passe par `dossier_acces` + `auth.user_id()`.
 

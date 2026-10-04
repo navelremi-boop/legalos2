@@ -8,7 +8,6 @@ Une copie ou un portage de code sous MIT, Apache-2.0 ou BSD ajoute ici l'en-têt
 
 | Origine | Licence | Emplacement |
 | --- | --- | --- |
-| time-macros et time-macros-impl, Jacob Pratt, 2019 | MIT OR Apache-2.0 | `apps/poste/src-tauri/patches/time-macros`, `apps/poste/src-tauri/patches/time-macros-impl` |
 | tauri-plugin-wdio-webdriver 1.4.0, WebdriverIO Community, 2024 | MIT | `apps/poste/src-tauri/patches/tauri-plugin-wdio-webdriver` — dépendance `webview2-com` alignée sur 0.39 (Tauri 2.12) |
 
 ## Dépendances figées (pas une copie)

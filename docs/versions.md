@@ -13,18 +13,18 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 | TypeScript | **5.8.3** | https://www.npmjs.com/package/typescript |
 | Vite | **8.3.0** | https://www.npmjs.com/package/vite |
 | Tailwind CSS | **4.3.3** | https://www.npmjs.com/package/tailwindcss |
-| @powersync/tauri-plugin | **0.0.6** | https://www.npmjs.com/package/@powersync/tauri-plugin — vérifié npm le 2026-09-25 |
+| @powersync/tauri-plugin | **0.0.6** | https://www.npmjs.com/package/@powersync/tauri-plugin — revérifié le 2026-10-04 : `latest` reste 0.0.6, aucune 0.1 publiée. Le crate Rust est monté à part. |
 | @powersync/common | **2.0.0** | dépendance exacte de `@powersync/tauri-plugin` 0.0.6 (npm, 2026-09-25) |
 | @tabler/icons-react | **3.48.0** | https://www.npmjs.com/package/@tabler/icons-react — vérifié npm le 2026-09-26 (icônes contour § 7.3) |
 | @sqlite.org/sqlite-wasm | **3.53.4-build1** | https://www.npmjs.com/package/@sqlite.org/sqlite-wasm — vérifié npm le 2026-09-30 ; licence Apache-2.0 ; SQLite 3.53.4 avec FTS5 (le SQLite PowerSync ne compile pas FTS5). sql.js 1.14.2 ne contient pas FTS5. |
-| tauri-plugin-powersync | **0.0.6** | https://crates.io/crates/tauri-plugin-powersync — vérifié le 2026-09-25 ; dépend de `powersync` ^0.0.7 |
+| tauri-plugin-powersync | **0.1.0** | https://crates.io/crates/tauri-plugin-powersync — vérifié le 2026-10-04 ; publié le 2026-10-01 ; dépend de `powersync` ^0.1.0 et `reqwest` ^0.13 (plus de `http-client`) |
 | tauri-plugin-notification | **2.5.0** | https://crates.io/crates/tauri-plugin-notification — vérifié le 2026-09-29 ; stable 2.x, pas la 3.0 alpha |
 | tauri-plugin-wdio-webdriver | **1.4.0** | https://crates.io/crates/tauri-plugin-wdio-webdriver — vérifié le 2026-10-04 ; licence MIT ; WebDriver embarqué, feature `test-webdriver` seulement. Copie dans `patches/` : `webview2-com` 0.39 pour compiler avec Tauri 2.12. |
 | @wdio/tauri-service | **1.4.0** | https://www.npmjs.com/package/@wdio/tauri-service — vérifié npm le 2026-10-04 ; licence MIT ; `driverProvider: embedded` |
 | webdriverio | **9.30.1** | https://www.npmjs.com/package/webdriverio — version exigée par `@wdio/tauri-service` 1.4.0 |
 | @tauri-apps/plugin-notification | **2.5.0** | https://www.npmjs.com/package/@tauri-apps/plugin-notification — vérifié npm le 2026-09-29 |
 | notify (crate Rust, surveillance cache documents) | **8.2.0** | https://crates.io/crates/notify/8.2.0 — vérifié le 2026-09-29 ; licence **CC0-1.0** (acceptée `deny.toml`) ; stable, pas la 9.0.0-rc |
-| powersync (crate Rust) | **0.0.7** | https://crates.io/crates/powersync — vérifié le 2026-09-25 |
+| powersync (crate Rust) | **0.1.0** | https://crates.io/crates/powersync — vérifié le 2026-10-04 ; publié le 2026-09-28 ; licence Apache-2.0 |
 | SDK web `@powersync/web` | **écart** : utilisé à tort jusqu'au 2026-09-25 ; retiré (cahier § 2.1) | https://docs.powersync.com/client-sdks/reference/tauri |
 | pnpm | **12.6.0** | `packageManager` racine |
 | Node.js (poste dev) | **24 LTS** (24.21.0 observé sur le poste) | https://nodejs.org — CI `actions/setup-node` alignée sur **24** |
@@ -76,7 +76,7 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 |-------|--------|
 | veraPDF | PDF/A-3b factures |
 | Schematron EN 16931 | XML Factur-X |
-| Playwright | Captures S13 |
+| Playwright | **1.63.0** — captures S13. https://www.npmjs.com/package/playwright — `latest` le 2026-10-04. GHSA-7mvr-c777-76hp corrigé depuis 1.55.1. Licence Apache-2.0. |
 | WebdriverIO + Tauri | Fumée app construite (feature test uniquement) |
 
 ## Actions GitHub (à épingler dans `.github/workflows/`)
