@@ -299,6 +299,18 @@ pub async fn accepter_suggestion(
     AuthAccess(claims): AuthAccess,
     Path(message_id): Path<Uuid>,
 ) -> Result<Json<MessageResponse>, ApiError> {
+    let titulaire = sqlx::query_scalar::<_, Option<Uuid>>(
+        "SELECT titulaire_id FROM messages WHERE id = $1 AND cabinet_id = $2",
+    )
+    .bind(message_id)
+    .bind(claims.cabinet_id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("Lecture suggestion"))?
+    .ok_or_else(|| ApiError::not_found("Suggestion introuvable"))?;
+    if titulaire.is_some_and(|id| id != claims.sub) {
+        return Err(ApiError::not_found("Suggestion introuvable"));
+    }
     let suggestion = sqlx::query_scalar::<_, Uuid>(
         r#"
         SELECT suggestion_dossier_id
@@ -345,6 +357,80 @@ pub async fn accepter_suggestion(
     .await
     .map_err(|_| ApiError::internal("Acceptation suggestion"))?;
 
+    Ok(Json(MessageResponse {
+        id: row.0,
+        dossier_id: row.1,
+        etat_classement: row.2,
+        suggestion_dossier_id: row.3,
+        objet: row.4,
+        expediteur: row.5,
+        message_id: row.6,
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ClasserCorps {
+    pub dossier_id: Uuid,
+}
+
+pub async fn classer_message(
+    State(state): State<Arc<AppState>>,
+    AuthAccess(claims): AuthAccess,
+    Path(message_id): Path<Uuid>,
+    Json(corps): Json<ClasserCorps>,
+) -> Result<Json<MessageResponse>, ApiError> {
+    let ligne = sqlx::query_as::<_, (String, Option<Uuid>)>(
+        r#"
+        SELECT etat_classement, titulaire_id
+        FROM messages
+        WHERE id = $1 AND cabinet_id = $2
+        "#,
+    )
+    .bind(message_id)
+    .bind(claims.cabinet_id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("Lecture message"))?
+    .ok_or_else(|| ApiError::not_found("Message introuvable"))?;
+    if ligne.1.is_some_and(|id| id != claims.sub) {
+        return Err(ApiError::not_found("Message introuvable"));
+    }
+    if ligne.0 != "a_classer" && ligne.0 != "suggestion" {
+        return Err(ApiError::bad_request("Message déjà classé"));
+    }
+    if !dossier_visible(&state, claims.cabinet_id, claims.sub, corps.dossier_id).await? {
+        return Err(ApiError::not_found("Dossier introuvable"));
+    }
+    let (visibilite, restreint) = sqlx::query_as::<_, (String, bool)>(
+        "SELECT visibilite, restreint FROM dossiers WHERE id = $1",
+    )
+    .bind(corps.dossier_id)
+    .fetch_one(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("Visibilité dossier"))?;
+    let row = sqlx::query_as::<_, (Uuid, Option<Uuid>, String, Option<Uuid>, String, String, String)>(
+        r#"
+        UPDATE messages
+        SET dossier_id = $3,
+            etat_classement = 'classe',
+            suggestion_dossier_id = NULL,
+            revision = revision + 1,
+            visibilite = $4,
+            restreint = $5
+        WHERE id = $1 AND cabinet_id = $2
+          AND etat_classement IN ('a_classer', 'suggestion')
+        RETURNING id, dossier_id, etat_classement, suggestion_dossier_id, objet, expediteur, message_id
+        "#,
+    )
+    .bind(message_id)
+    .bind(claims.cabinet_id)
+    .bind(corps.dossier_id)
+    .bind(visibilite)
+    .bind(restreint)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("Classement du message"))?
+    .ok_or_else(|| ApiError::not_found("Message introuvable"))?;
     Ok(Json(MessageResponse {
         id: row.0,
         dossier_id: row.1,

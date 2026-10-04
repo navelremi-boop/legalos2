@@ -123,6 +123,10 @@ pub fn router(state: Arc<AppState>) -> Router {
             post(messagerie::accepter_suggestion),
         )
         .route(
+            "/messagerie/messages/{message_id}/classer",
+            post(messagerie::classer_message),
+        )
+        .route(
             "/dossiers/{dossier_id}/chrono-mails",
             get(messagerie::chrono_mails_dossier),
         )

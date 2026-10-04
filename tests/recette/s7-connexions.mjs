@@ -261,6 +261,37 @@ async function main() {
   }
   const apresCorps = await sqlServeur(`SELECT texte_brut FROM messages WHERE id = '${idPiece}'`);
   if (!apresCorps.includes("Texte de la convocation fictive.")) fail("corps non enregistré");
+  const dossier = randomUUID();
+  const creeDossier = await fetch(`${api}/dossiers`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${jeton}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      id: dossier,
+      idempotence_cle: `s7-classer-${dossier}`,
+      nom: "Dossier classement fictif",
+      chemise: "kraft",
+      juridiction: "TJ fictif",
+      numero_rg: `RG-CX-${Date.now()}`,
+      restreint: false,
+    }),
+  });
+  if (!creeDossier.ok) fail(`dossier ${creeDossier.status}`);
+  const classe = await fetch(`${api}/messagerie/messages/${idPiece}/classer`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${jeton}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ dossier_id: dossier }),
+  });
+  if (!classe.ok) fail(`classer ${classe.status}`);
+  const etatClasse = await sqlServeur(
+    `SELECT etat_classement || ' ' || COALESCE(dossier_id::text, '') FROM messages WHERE id = '${idPiece}'`,
+  );
+  if (!etatClasse.includes(`classe ${dossier}`)) fail(`classement ${etatClasse}`);
   agirImap({
     hote: "127.0.0.1",
     port: 3144,

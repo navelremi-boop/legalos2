@@ -24,6 +24,12 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-10-04 — Bouton Classer
+
+J10 reste ouvert (B9). Le bouton du volet de lecture confirme une suggestion, ou range un mail « à classer » dans un dossier choisi. Le titulaire seul peut classer un mail nominatif. Un mail déjà classé est refusé.
+
+`cargo clippy -p legalos-api --lib --offline -- -D warnings` exit 0. `node tests/recette/s7-connexions.mjs` exit 0 : le message CONDSTORE passe à `classe` avec l'identifiant du dossier créé.
+
 ## 2026-10-04 — Corps nettoyé à l'ouverture
 
 J10 reste ouvert (B9). La relève des en-têtes ne télécharge pas le corps. À l'ouverture d'un message, `POST /messagerie/messages/{id}/corps` lit le RFC822, nettoie le HTML et enregistre le texte. Le volet de lecture l'affiche. Un second appel relit l'enregistrement, sans nouvelle session IMAP.

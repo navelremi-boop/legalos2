@@ -110,13 +110,18 @@ async function lireCorps(instanceUrl: string, id: string): Promise<string> {
   return typeof texte === "string" ? texte : "";
 }
 
-async function poster(instanceUrl: string, chemin: string): Promise<void> {
+async function poster(instanceUrl: string, chemin: string, corps?: unknown): Promise<boolean> {
   const jeton = loadSessionTokens().accessToken;
-  if (jeton === null || jeton === "") return;
-  await fetch(apiUrl(instanceUrl, chemin), {
+  if (jeton === null || jeton === "") return false;
+  const reponse = await fetch(apiUrl(instanceUrl, chemin), {
     method: "POST",
-    headers: { authorization: `Bearer ${jeton}` },
+    headers: {
+      authorization: `Bearer ${jeton}`,
+      ...(corps === undefined ? {} : { "content-type": "application/json" }),
+    },
+    body: corps === undefined ? undefined : JSON.stringify(corps),
   });
+  return reponse.ok;
 }
 
 export type DemonstrationMails = {
@@ -152,6 +157,8 @@ export function EcranMails({
   const [dossiers, setDossiers] = useState<DossierLocal[]>([]);
   const [dossierImap, setDossierImap] = useState<(typeof DOSSIERS_IMAP)[number]["id"]>("INBOX");
   const [corpsLu, setCorpsLu] = useState<Record<string, string>>({});
+  const [classesLocal, setClassesLocal] = useState<Record<string, string>>({});
+  const [dossierCible, setDossierCible] = useState("");
   const demandesCorps = useRef(new Set<string>());
   const [selection, setSelection] = useState<string | null>(() => {
     const aClasser = demonstration?.mails.find((mail) => mail.etat_classement !== "classe");
@@ -227,13 +234,20 @@ export function EcranMails({
     });
   }, [demonstration, instanceUrl, mails, selection]);
 
+  useEffect(() => {
+    setDossierCible("");
+  }, [selection]);
+
   const comptesAffiches = demonstration?.comptes ?? comptes;
   const mailsAffiches = (demonstration?.mails ?? mails).filter((mail) => dansDossier(mail, dossierImap));
   const dossiersAffiches = demonstration?.dossiers ?? dossiers;
   const parId = new Map(dossiersAffiches.map((dossier) => [dossier.id, dossier]));
   const choisi = mailsAffiches.find((mail) => mail.id === selection) ?? mailsAffiches[0] ?? null;
-  const classe = choisi?.etat_classement === "classe";
-  const dossierClasse = choisi?.dossier_id ? parId.get(choisi.dossier_id) : undefined;
+  const rangement = choisi ? classesLocal[choisi.id] : undefined;
+  const classe = choisi?.etat_classement === "classe" || Boolean(rangement);
+  const dossierClasseId =
+    choisi?.etat_classement === "classe" ? choisi.dossier_id : (rangement ?? null);
+  const dossierClasse = dossierClasseId ? parId.get(dossierClasseId) : undefined;
   const suggestionId = choisi?.suggestion_dossier_id ?? choisi?.dossier_id ?? null;
   const suggestion = suggestionId ? parId.get(suggestionId) : undefined;
   const libelleDossier = DOSSIERS_IMAP.find((dossier) => dossier.id === dossierImap)?.libelle ?? dossierImap;
@@ -392,13 +406,46 @@ export function EcranMails({
                     </p>
                   ) : null}
                   {!classe ? (
-                    <button
-                      type="button"
-                      className="mb-4 rounded-[var(--radius-control)] border border-filet px-3 py-2"
-                      data-testid="bouton-classer"
-                    >
-                      {fr("Classer")}
-                    </button>
+                    <div className="mb-4 flex flex-wrap items-center gap-2">
+                      {choisi.suggestion_dossier_id ? null : (
+                        <select
+                          className="rounded-[var(--radius-control)] border border-filet px-2 py-2"
+                          data-testid="classer-dossier"
+                          value={dossierCible}
+                          onChange={(event) => {
+                            setDossierCible(event.target.value);
+                          }}
+                        >
+                          <option value="">{fr("Choisir un dossier")}</option>
+                          {dossiersAffiches.map((dossier) => (
+                            <option key={dossier.id} value={dossier.id}>
+                              {fr(dossier.nom)}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      <button
+                        type="button"
+                        className="rounded-[var(--radius-control)] border border-filet px-3 py-2"
+                        data-testid="bouton-classer"
+                        onClick={() => {
+                          if (demonstration) return;
+                          const cible = choisi.suggestion_dossier_id ?? dossierCible;
+                          if (cible === "") return;
+                          const chemin = choisi.suggestion_dossier_id
+                            ? `/messagerie/messages/${choisi.id}/accepter-suggestion`
+                            : `/messagerie/messages/${choisi.id}/classer`;
+                          const corps = choisi.suggestion_dossier_id
+                            ? undefined
+                            : { dossier_id: cible };
+                          void poster(instanceUrl, chemin, corps).then((ok) => {
+                            if (ok) setClassesLocal((actuel) => ({ ...actuel, [choisi.id]: cible }));
+                          });
+                        }}
+                      >
+                        {fr("Classer")}
+                      </button>
+                    </div>
                   ) : null}
                   <p className="whitespace-pre-wrap" data-testid="lecture-corps">
                     {fr(
