@@ -158,7 +158,7 @@ export function EcranMails({
   const [dossierImap, setDossierImap] = useState<(typeof DOSSIERS_IMAP)[number]["id"]>("INBOX");
   const [corpsLu, setCorpsLu] = useState<Record<string, string>>({});
   const [classesLocal, setClassesLocal] = useState<Record<string, string>>({});
-  const [dossierCible, setDossierCible] = useState("");
+  const [cibles, setCibles] = useState<Record<string, string>>({});
   const demandesCorps = useRef(new Set<string>());
   const [selection, setSelection] = useState<string | null>(() => {
     const aClasser = demonstration?.mails.find((mail) => mail.etat_classement !== "classe");
@@ -234,10 +234,6 @@ export function EcranMails({
     });
   }, [demonstration, instanceUrl, mails, selection]);
 
-  useEffect(() => {
-    setDossierCible("");
-  }, [selection]);
-
   const comptesAffiches = demonstration?.comptes ?? comptes;
   const mailsAffiches = (demonstration?.mails ?? mails).filter((mail) => dansDossier(mail, dossierImap));
   const dossiersAffiches = demonstration?.dossiers ?? dossiers;
@@ -248,6 +244,7 @@ export function EcranMails({
   const dossierClasseId =
     choisi?.etat_classement === "classe" ? choisi.dossier_id : (rangement ?? null);
   const dossierClasse = dossierClasseId ? parId.get(dossierClasseId) : undefined;
+  const dossierCible = choisi ? (cibles[choisi.id] ?? "") : "";
   const suggestionId = choisi?.suggestion_dossier_id ?? choisi?.dossier_id ?? null;
   const suggestion = suggestionId ? parId.get(suggestionId) : undefined;
   const libelleDossier = DOSSIERS_IMAP.find((dossier) => dossier.id === dossierImap)?.libelle ?? dossierImap;
@@ -413,7 +410,9 @@ export function EcranMails({
                           data-testid="classer-dossier"
                           value={dossierCible}
                           onChange={(event) => {
-                            setDossierCible(event.target.value);
+                            const id = choisi.id;
+                            const valeur = event.target.value;
+                            setCibles((actuel) => ({ ...actuel, [id]: valeur }));
                           }}
                         >
                           <option value="">{fr("Choisir un dossier")}</option>
