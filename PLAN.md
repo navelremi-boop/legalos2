@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-10-04 (jalon en cours : **J10**).
+Dernière mise à jour : 2026-10-04 (jalon en cours : **Montée PowerSync**).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -134,27 +134,7 @@ Ordre architecte (révisé 2026-10-04) : **Migration Sync Streams** → **J8** �
 
 - [x] **J9** — VALIDÉ `a036e24` (contrôleur [étape 3](f0db1509-4bcf-4701-a6dd-eb44db4835ca), CI [36751876546](https://github.com/navelremi-boop/legalos2/actions/runs/36751876546))
 
-- [ ] **J10** — Écrans restants du § 7.6, après la Coque — critères validés par l'architecte le 27/09/2026 ; captures du 30/09 validées le 04/10/2026 sous trois conditions, vérifiées par le contrôleur sans nouveau retour à l'architecte ; le commandement garde son veto (B9)
-  - **Critères d'acceptation (commandes)** :
-    - `node tests/recette/j10-ecrans-tauri.mjs` → exit 0 (app Tauri) :
-      - La journée, Dossiers, Mails, Agenda, Facturation et Réglages : barre du haut, espace de travail, feuille, barre d'actions ; hors dossier, fond `neutre` sans étiquette de dossier ;
-      - La journée : feuille en quatre sections (audiences et rendez-vous du jour, délais, mails à classer avec leur suggestion de dossier, temps à saisir) ; pastille sur chaque dossier cité ; barre d'actions Nouveau dossier, Nouveau mail, Saisir du temps ;
-      - Mails : feuille en trois volets (comptes et dossiers IMAP, liste, lecture) ; pastille du dossier sur chaque mail classé ; bandeau « Classer dans … » en tête d'un mail non classé ;
-      - Agenda, Facturation, Réglages : feuille unique, construite avec les mêmes composants.
-    - `node tests/recette/points-medians.mjs` et `pnpm --filter @legal-os/poste lint:ci` → exit 0.
-    - `node tests/recette/dates-ecrans.mjs` → exit 0 : aucune date au format AAAA-MM-JJ dans le texte rendu des écrans (essai négatif) ; dates à la française (« 30 sept. », « mardi 30 septembre »).
-    - `node tests/recette/coque-app.mjs --captures` : captures jour et nuit de chaque écran, revues par le contrôleur au regard du § 7. Les captures du 30/09 sont validées sous les trois conditions du 04/10 ; le commandement garde son veto (B9).
-    - Contrôleur VALIDÉ ; CI verte.
-    - Corrections du 30/09, conservées :
-      - Mails : trois volets (dossiers et comptes ; liste avec expéditeur, objet, date et extrait ; lecture avec expéditeur, destinataires, date, corps nettoyé, pièces jointes, bouton de classement). Dossiers IMAP en français (« Boîte de réception », « Envoyés »). Recherche en haut de la liste. File d'envoi hors du volet de lecture. Badge égal au nombre de mails à classer.
-      - Dossiers : la liste est l'écran ; la création s'ouvre dans un panneau à la demande. Valeurs affichées avec leur libellé (« Contentieux », « Instruction »).
-      - Agenda : vue du jour et de la semaine (audiences, rendez-vous, tâches, échéances) ; création à la demande ; date et heure par des sélecteurs ; rappel par une liste de délais. Titre au même niveau que les autres écrans.
-      - Facturation et les autres écrans : captures avec un jeu de démonstration fictif, chargé seulement en mode développement ; aucune capture d'un état vide, sauf capture dédiée de l'état vide.
-      - Barre d'actions : aucun bouton affiché comme sélectionné hors de son contexte.
-    - Conditions du 04/10, en plus des corrections :
-      - aucune date au format AAAA-MM-JJ dans le texte rendu ; dates à la française (« 30 sept. », « mardi 30 septembre ») ;
-      - Agenda : heure affichée pour chaque élément ; captures des vues Jour et Semaine ;
-      - captures Mails régénérées après les ajouts du 04/10 (extrait, destinataires, pièces jointes, corps nettoyé, classement).
+- [x] **J10** — VALIDÉ `dd5c92a` (contrôleur [dates](5a587655-3ac9-4930-88bc-0bfbf4583fac), CI [37229519725](https://github.com/navelremi-boop/legalos2/actions/runs/37229519725))
 
 ### Dettes transverses (§ 4.4)
 
