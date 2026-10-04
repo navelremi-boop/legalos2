@@ -209,10 +209,28 @@ Chaque jalon : recettes + clippy + contrôleur.
 
 Critères de chaque jalon à proposer à l'architecte avant l'ouverture de la phase 3.
 
-- [ ] **J11** — Mail étapes 4–5
-- [ ] **J12** — Révocation postes (S10)
-- [ ] **J13** — Export complet (S12) ; noms de fichiers et de dossiers avec la forme normalisée de la référence (R0)
-- [ ] **J14** — Mises à jour à chaud et distribution (S11, S14a)
+- [ ] **J11** — Mail étapes 4–5 — critères proposés le 04/10, **à valider par l'architecte**
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/j11-redaction.mjs` → exit 0 (app Tauri, GreenMail) : un brouillon est repris ; la signature du titulaire est jointe ; l'envoi passe par la file jusqu'à « copie dans Envoyés confirmée » ; un modèle de message est réutilisé sans recompiler.
+    - `node tests/recette/j11-invitation.mjs` → exit 0 : une invitation reçue par mail crée un élément d'agenda pour le titulaire, et pas pour un autre collaborateur.
+    - `node tests/recette/j11-boites.mjs` → exit 0 : deux comptes nominatifs ne sont visibles que par leur titulaire ; une boîte partagée est visible par ses membres et absente chez un non-membre ; le tableau de santé montre la dernière relève, un refus d'authentification et un envoi en échec.
+    - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+
+- [ ] **J12** — Révocation postes (S10) — critères proposés le 04/10, **à valider par l'architecte**
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/s10-revocation.mjs` → exit 0 : après révocation, la connexion suivante efface la base locale, le cache de fichiers et le jeton ; le poste révoqué n'écrit plus.
+    - `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+
+- [ ] **J13** — Export complet (S12) — critères proposés le 04/10, **à valider par l'architecte**
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/s12-export.mjs` → exit 0 : l'export du cabinet se lit sans l'application ; les noms de fichiers et de dossiers utilisent la forme normalisée de la référence (R0).
+    - Contrôleur VALIDÉ ; CI verte.
+
+- [ ] **J14** — Mises à jour à chaud et distribution (S11, S14a) — critères proposés le 04/10, **à valider par l'architecte**
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/s11-maj.mjs` → exit 0 : une archive d'interface signée est appliquée ; une archive falsifiée est refusée ; un échec revient à la version précédente.
+    - `node tests/recette/s14a-install.mjs` → exit 0 (Windows) : l'installateur s'installe, l'application construite démarre, le scénario de fumée passe.
+    - Contrôleur VALIDÉ ; CI verte.
 
 ---
 
