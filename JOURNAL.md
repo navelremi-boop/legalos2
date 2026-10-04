@@ -29,7 +29,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 `tauri-plugin-powersync` 0.1.0 (crates.io, 2026-10-01) et `powersync` 0.1.0 (2026-09-28). Le connecteur compile sans changement de trait : `cargo clippy --manifest-path apps/poste/src-tauri/Cargo.toml --all-targets -- -D warnings` exit 0. `rand` 0.7.3, `http-client` et les rustines `time-macros` sont sortis du graphe. `cargo deny` du poste : exit 0 après montée de `yoke-derive` 0.8.3 (retirée du registre) vers 0.8.4. Playwright 1.63.0 (npm `latest` le 2026-10-04, GHSA-7mvr-c777-76hp corrigé depuis 1.55.1). Le paquet npm `@powersync/tauri-plugin` reste 0.0.6 : aucune 0.1 publiée.
 
-`node tests/recette/powersync-0-1.mjs` exit 0. `node tests/recette/s5-sync-streams.mjs` exit 0. `node tests/recette/deny-exception-inutile.mjs` exit 0. `node tests/recette/coque-app.mjs --captures` exit 0. Le moteur Docker ne répond pas sur le tube `dockerDesktopLinuxEngine` : `s6-documents.mjs`, `s5-buckets-volume.mjs` et `conflits-poste-tauri.mjs` ne sont pas rejoués. Jalon non coché.
+`node tests/recette/powersync-0-1.mjs` exit 0. `node tests/recette/s5-sync-streams.mjs` exit 0. `node tests/recette/s6-documents.mjs` exit 0. `node tests/recette/s5-buckets-volume.mjs` exit 0 (36 seaux à 300 et à 3 000 dossiers ; l'ancienne configuration est refusée). `node tests/recette/conflits-poste-tauri.mjs` exit 0 (« tous les critères »). `node tests/recette/deny-exception-inutile.mjs` exit 0. `node tests/recette/coque-app.mjs --captures` exit 0. CI lue par `gh run view 37233064869` : completed, success (périmètre, gouvernance, frontend, facturx, webdriver-macos, rust, s1-instance). Jalon non coché : contrôleur en cours.
 
 ## 2026-10-04 — Premier jour : « 1er »
 
