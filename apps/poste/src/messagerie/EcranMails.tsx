@@ -23,6 +23,7 @@ export type MailLocal = {
   expediteur: string | null;
   destinataires?: string | null;
   destinataires_texte?: string | null;
+  pieces_texte?: string | null;
   texte_brut?: string | null;
   cree_le?: string | null;
   dossier_imap?: string | null;
@@ -55,6 +56,14 @@ function dateCourte(valeur: string | null | undefined): string {
   if (!valeur) return "";
   const jour = /^(\d{4}-\d{2}-\d{2})/.exec(valeur);
   return jour?.[1] ?? valeur.slice(0, 16);
+}
+
+function listePieces(mail: MailLocal): string[] {
+  if (mail.pieces && mail.pieces.length > 0) return mail.pieces;
+  return (mail.pieces_texte ?? "")
+    .split("\n")
+    .map((nom) => nom.trim())
+    .filter((nom) => nom !== "");
 }
 
 function extrait(mail: MailLocal): string {
@@ -148,7 +157,7 @@ export function EcranMails({
             ),
             database.getAll<MailLocal>(
               `SELECT id, objet, etat_classement, dossier_id, suggestion_dossier_id, expediteur,
-                      destinataires_texte, texte_brut, cree_le, dossier_imap
+                      destinataires_texte, pieces_texte, texte_brut, cree_le, dossier_imap
                FROM messages ORDER BY cree_le DESC`,
             ),
             database.getAll<DossierLocal>("SELECT id, nom, chemise FROM dossiers"),
@@ -368,12 +377,12 @@ export function EcranMails({
                     {fr(choisi.texte_brut?.trim() || "")}
                   </p>
                   <h3 className="mt-4 mb-2 text-[length:var(--font-size-dense)] font-extrabold">{fr("Pièces jointes")}</h3>
-                  {(choisi.pieces ?? []).length === 0 ? (
+                  {(listePieces(choisi).length === 0) ? (
                     <p className="text-graphite">{fr("Aucune pièce jointe.")}</p>
                   ) : (
                     <ul data-testid="lecture-pieces">
-                      {(choisi.pieces ?? []).map((piece) => (
-                        <li key={piece}>{fr(piece)}</li>
+                      {listePieces(choisi).map((piece, index) => (
+                        <li key={`${index}-${piece}`}>{fr(piece)}</li>
                       ))}
                     </ul>
                   )}

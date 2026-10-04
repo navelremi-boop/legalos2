@@ -562,11 +562,18 @@ struct Lignes {
     lus: Vec<bool>,
     drapeaux: Vec<String>,
     destinataires: Vec<String>,
+    pieces: Vec<String>,
 }
 
 fn texte_destinataires(entete: Option<&EnteteRecu>) -> String {
     entete
         .map(|entete| entete.destinataires.join(", "))
+        .unwrap_or_default()
+}
+
+fn texte_pieces(entete: Option<&EnteteRecu>) -> String {
+    entete
+        .map(|entete| entete.pieces.join("\n"))
         .unwrap_or_default()
 }
 
@@ -583,6 +590,7 @@ fn lignes_ajouts(ajouts: &[EtatUid], entetes: &[EnteteRecu], uid_validity: u32) 
         lus: Vec::with_capacity(ajouts.len()),
         drapeaux: Vec::with_capacity(ajouts.len()),
         destinataires: Vec::with_capacity(ajouts.len()),
+        pieces: Vec::with_capacity(ajouts.len()),
     };
     for etat in ajouts {
         let entete = par_uid.get(&etat.uid);
@@ -611,6 +619,7 @@ fn lignes_ajouts(ajouts: &[EtatUid], entetes: &[EnteteRecu], uid_validity: u32) 
         lignes
             .destinataires
             .push(texte_destinataires(entete.copied()));
+        lignes.pieces.push(texte_pieces(entete.copied()));
     }
     lignes
 }
@@ -636,15 +645,15 @@ async fn inserer_ajouts(
             r#"
             INSERT INTO messages (
                 id, cabinet_id, compte_id, message_id, uid_validity, uid,
-                objet, expediteur, destinataires_texte, etat_classement, dossier_imap, lu, drapeaux
+                objet, expediteur, destinataires_texte, pieces_texte, etat_classement, dossier_imap, lu, drapeaux
             )
             SELECT t.id, t.cabinet_id, t.compte_id, t.message_id, t.uid_validity, t.uid,
-                   t.objet, t.expediteur, t.destinataires_texte, t.etat_classement, t.dossier_imap, t.lu,
+                   t.objet, t.expediteur, t.destinataires_texte, t.pieces_texte, t.etat_classement, t.dossier_imap, t.lu,
                    CASE WHEN t.drapeaux = '' THEN '{}'::text[] ELSE string_to_array(t.drapeaux, ' ') END
             FROM unnest(
                 $1::uuid[], $2::uuid[], $3::uuid[], $4::text[], $5::bigint[], $6::bigint[],
-                $7::text[], $8::text[], $9::text[], $10::text[], $11::text[], $12::boolean[], $13::text[]
-            ) AS t(id, cabinet_id, compte_id, message_id, uid_validity, uid, objet, expediteur, destinataires_texte, etat_classement, dossier_imap, lu, drapeaux)
+                $7::text[], $8::text[], $9::text[], $10::text[], $11::text[], $12::text[], $13::boolean[], $14::text[]
+            ) AS t(id, cabinet_id, compte_id, message_id, uid_validity, uid, objet, expediteur, destinataires_texte, pieces_texte, etat_classement, dossier_imap, lu, drapeaux)
             ON CONFLICT (compte_id, message_id) DO UPDATE
                 SET lu = EXCLUDED.lu,
                     drapeaux = EXCLUDED.drapeaux,
@@ -652,6 +661,10 @@ async fn inserer_ajouts(
                     destinataires_texte = CASE
                         WHEN EXCLUDED.destinataires_texte <> '' THEN EXCLUDED.destinataires_texte
                         ELSE messages.destinataires_texte
+                    END,
+                    pieces_texte = CASE
+                        WHEN EXCLUDED.pieces_texte <> '' THEN EXCLUDED.pieces_texte
+                        ELSE messages.pieces_texte
                     END,
                     uid = EXCLUDED.uid,
                     uid_validity = EXCLUDED.uid_validity,
@@ -667,6 +680,7 @@ async fn inserer_ajouts(
         .bind(lignes.objets[debut..fin].to_vec())
         .bind(lignes.expediteurs[debut..fin].to_vec())
         .bind(lignes.destinataires[debut..fin].to_vec())
+        .bind(lignes.pieces[debut..fin].to_vec())
         .bind(vec!["a_classer".to_owned(); taille])
         .bind(vec![dossier.to_owned(); taille])
         .bind(lignes.lus[debut..fin].to_vec())
@@ -817,6 +831,7 @@ mod tests {
             objet: "objet".into(),
             expediteur: "de@example.com".into(),
             destinataires: vec!["un@example.com".into(), "deux@example.com".into()],
+            pieces: Vec::new(),
         };
         assert_eq!(
             texte_destinataires(Some(&entete)),

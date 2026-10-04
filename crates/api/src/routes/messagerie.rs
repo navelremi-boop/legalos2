@@ -116,6 +116,7 @@ pub async fn relever_classement(
             &entete.objet,
             &entete.expediteur,
             &entete.destinataires.join(", "),
+            &entete.pieces.join("\n"),
             &decision,
         )
         .await?;
@@ -410,6 +411,7 @@ async fn inserer_message(
     objet: &str,
     expediteur: &str,
     destinataires: &str,
+    pieces: &str,
     decision: &DecisionClassement,
 ) -> Result<(), ApiError> {
     let id = Uuid::now_v7();
@@ -431,9 +433,9 @@ async fn inserer_message(
         r#"
         INSERT INTO messages (
             id, cabinet_id, compte_id, dossier_id, message_id, uid_validity, uid,
-            objet, expediteur, destinataires_texte, etat_classement, suggestion_dossier_id
+            objet, expediteur, destinataires_texte, pieces_texte, etat_classement, suggestion_dossier_id
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
         )
         ON CONFLICT (compte_id, message_id) DO NOTHING
         "#,
@@ -448,6 +450,7 @@ async fn inserer_message(
     .bind(objet)
     .bind(expediteur)
     .bind(destinataires)
+    .bind(pieces)
     .bind(etat)
     .bind(suggestion)
     .execute(pool)

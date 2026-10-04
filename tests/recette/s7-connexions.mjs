@@ -223,6 +223,21 @@ async function main() {
     (v) => v.includes("capa@localhost"),
     20_000,
   );
+  const midPiece = `<cx-piece-${randomUUID().slice(0, 8)}@legalos.test>`;
+  agirImap({
+    hote: "127.0.0.1",
+    port: 3144,
+    utilisateur: "cond",
+    action: "ajouter_piece",
+    uid: "1",
+    sujet: "piece",
+    messageId: midPiece,
+  });
+  await attendre(
+    `SELECT pieces_texte FROM messages WHERE compte_id = '${idCond}' AND message_id = '${midPiece}'`,
+    (v) => v.includes("Convocation.pdf"),
+    40_000,
+  );
   agirImap({
     hote: "127.0.0.1",
     port: 3144,

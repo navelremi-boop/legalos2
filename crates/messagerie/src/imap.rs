@@ -33,6 +33,8 @@ pub struct EnteteRecu {
     pub objet: String,
     pub expediteur: String,
     pub destinataires: Vec<String>,
+    /// Noms de pièces jointes lus dans BODYSTRUCTURE. Vide si le serveur n'en donne pas.
+    pub pieces: Vec<String>,
 }
 
 /// Corps d'un message relevé. `html` est déjà passé par `ammonia`.
@@ -284,6 +286,7 @@ impl Session {
             let items = MacroOrMessageDataItemNames::MessageDataItemNames(vec![
                 MessageDataItemName::Uid,
                 MessageDataItemName::Rfc822Header,
+                MessageDataItemName::BodyStructure,
             ]);
             let fetched = self
                 .client
@@ -299,11 +302,15 @@ impl Session {
             for (_cle, items) in fetched {
                 let mut uid_lu = None;
                 let mut en_tetes = None;
+                let mut pieces = Vec::new();
                 for item in items {
                     match item {
                         MessageDataItem::Uid(valeur) => uid_lu = Some(valeur.get()),
                         MessageDataItem::Rfc822Header(valeur) => {
                             en_tetes = Some(nstring_octets(&valeur));
+                        }
+                        MessageDataItem::BodyStructure(structure) => {
+                            pieces = noms_pieces(&structure);
                         }
                         _ => {}
                     }
@@ -316,6 +323,7 @@ impl Session {
                     uid_lu,
                     &octets,
                     &analyseur,
+                    pieces,
                 ));
             }
         }
@@ -828,6 +836,7 @@ impl Session {
                     MacroOrMessageDataItemNames::MessageDataItemNames(vec![
                         MessageDataItemName::Uid,
                         MessageDataItemName::Rfc822Header,
+                        MessageDataItemName::BodyStructure,
                     ]),
                     ImapMessageFetchOptions {
                         uid: true,
@@ -838,11 +847,15 @@ impl Session {
             for (_cle, items) in fetched {
                 let mut uid_lu = None;
                 let mut octets = None;
+                let mut pieces = Vec::new();
                 for item in items {
                     match item {
                         MessageDataItem::Uid(valeur) => uid_lu = Some(valeur.get()),
                         MessageDataItem::Rfc822Header(valeur) => {
                             octets = Some(nstring_octets(&valeur))
+                        }
+                        MessageDataItem::BodyStructure(structure) => {
+                            pieces = noms_pieces(&structure);
                         }
                         _ => {}
                     }
@@ -853,6 +866,7 @@ impl Session {
                         uid_lu,
                         &octets,
                         &analyseur,
+                        pieces,
                     ));
                 }
             }
@@ -921,6 +935,7 @@ fn entete_depuis_rfc822(
     uid: u32,
     octets: &[u8],
     analyseur: &MessageParser,
+    pieces: Vec<String>,
 ) -> EnteteRecu {
     let message = analyseur.parse(octets);
     let message_id = message
@@ -957,7 +972,67 @@ fn entete_depuis_rfc822(
         objet,
         expediteur,
         destinataires,
+        pieces,
     }
+}
+
+fn noms_pieces(structure: &io_imap::types::body::BodyStructure<'_>) -> Vec<String> {
+    let mut noms = Vec::new();
+    collecter_pieces(structure, &mut noms);
+    noms
+}
+
+fn collecter_pieces(structure: &io_imap::types::body::BodyStructure<'_>, noms: &mut Vec<String>) {
+    use io_imap::types::body::BodyStructure;
+    match structure {
+        BodyStructure::Single {
+            body,
+            extension_data,
+        } => {
+            if let Some(nom) = nom_piece(body, extension_data.as_ref()) {
+                noms.push(nom);
+            }
+        }
+        BodyStructure::Multi { bodies, .. } => {
+            for partie in bodies.as_ref() {
+                collecter_pieces(partie, noms);
+            }
+        }
+    }
+}
+
+fn nom_piece(
+    body: &io_imap::types::body::Body<'_>,
+    extension: Option<&io_imap::types::body::SinglePartExtensionData<'_>>,
+) -> Option<String> {
+    let depuis_disposition = extension
+        .and_then(|ext| ext.tail.as_ref())
+        .and_then(|disposition| disposition.disposition.as_ref())
+        .and_then(|(_genre, params)| {
+            params.iter().find_map(|(cle, valeur)| {
+                let nom = chaine_imap(valeur);
+                chaine_imap(cle)
+                    .eq_ignore_ascii_case("filename")
+                    .then_some(nom)
+                    .filter(|nom| !nom.is_empty())
+            })
+        });
+    if depuis_disposition.is_some() {
+        return depuis_disposition;
+    }
+    body.basic.parameter_list.iter().find_map(|(cle, valeur)| {
+        chaine_imap(cle)
+            .eq_ignore_ascii_case("name")
+            .then(|| chaine_imap(valeur))
+            .filter(|nom| !nom.is_empty())
+    })
+}
+
+fn chaine_imap(valeur: &io_imap::types::core::IString<'_>) -> String {
+    String::from_utf8_lossy(&valeur.clone().into_inner())
+        .replace(['\r', '\n'], " ")
+        .trim()
+        .to_owned()
 }
 
 fn normaliser_message_id(brut: &str) -> String {
@@ -983,4 +1058,80 @@ fn nstring_octets(valeur: &NString<'_>) -> Vec<u8> {
 #[allow(dead_code)]
 fn ancrage_imap_codec() -> usize {
     std::mem::size_of::<imap_codec::GreetingCodec>()
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::noms_pieces;
+    use io_imap::types::body::{
+        BasicFields, Body, BodyStructure, Disposition, SinglePartExtensionData, SpecificFields,
+    };
+    use io_imap::types::core::{IString, NString, Vec1};
+
+    fn chaine(valeur: &str) -> IString<'static> {
+        IString::try_from(valeur.to_owned()).expect("chaine")
+    }
+
+    fn vide() -> NString<'static> {
+        NString(None)
+    }
+
+    fn texte() -> BodyStructure<'static> {
+        BodyStructure::Single {
+            body: Body {
+                basic: BasicFields {
+                    parameter_list: vec![(chaine("charset"), chaine("utf-8"))],
+                    id: vide(),
+                    description: vide(),
+                    content_transfer_encoding: chaine("7bit"),
+                    size: 5,
+                },
+                specific: SpecificFields::Text {
+                    subtype: chaine("plain"),
+                    number_of_lines: 1,
+                },
+            },
+            extension_data: None,
+        }
+    }
+
+    fn pdf() -> BodyStructure<'static> {
+        BodyStructure::Single {
+            body: Body {
+                basic: BasicFields {
+                    parameter_list: vec![(chaine("name"), chaine("Convocation.pdf"))],
+                    id: vide(),
+                    description: vide(),
+                    content_transfer_encoding: chaine("base64"),
+                    size: 12,
+                },
+                specific: SpecificFields::Basic {
+                    r#type: chaine("application"),
+                    subtype: chaine("pdf"),
+                },
+            },
+            extension_data: Some(SinglePartExtensionData {
+                md5: vide(),
+                tail: Some(Disposition {
+                    disposition: Some((
+                        chaine("attachment"),
+                        vec![(chaine("filename"), chaine("Convocation.pdf"))],
+                    )),
+                    tail: None,
+                }),
+            }),
+        }
+    }
+
+    #[test]
+    fn piece_jointe_nommee_sans_corps_texte() {
+        let multi = BodyStructure::Multi {
+            bodies: Vec1::try_from(vec![texte(), pdf()]).expect("parties"),
+            subtype: chaine("mixed"),
+            extension_data: None,
+        };
+        assert_eq!(noms_pieces(&multi), vec!["Convocation.pdf".to_owned()]);
+        assert!(noms_pieces(&texte()).is_empty());
+    }
 }

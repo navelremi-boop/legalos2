@@ -298,6 +298,7 @@ const messages = new Table(
     objet: column.text,
     expediteur: column.text,
     destinataires_texte: column.text,
+    pieces_texte: column.text,
     etat_classement: column.text,
     suggestion_dossier_id: column.text,
     visibilite: column.text,
