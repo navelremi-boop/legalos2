@@ -79,19 +79,24 @@ export function dateCivile(iso: string): DateCivile | null {
   return { annee, mois, jour };
 }
 
+/** Le 1er du mois s'écrit « 1er », pas « 1 ». */
+function quantieme(jour: number): string {
+  return jour === 1 ? "1er" : String(jour);
+}
+
 /**
- * Date courte (§ 7.7) : « 30 sept. ».
+ * Date courte (§ 7.7) : « 30 sept. », « 1er oct. ».
  */
 export function formatDateCourte(iso: string): string {
   const date = dateCivile(iso);
   if (!date) return "";
   const mois = MOIS_COURT[date.mois - 1];
   if (mois === undefined) return "";
-  return fr(`${String(date.jour)} ${mois}`);
+  return fr(`${quantieme(date.jour)} ${mois}`);
 }
 
 /**
- * Date longue (§ 7.7) : « mardi 30 septembre ».
+ * Date longue (§ 7.7) : « mardi 30 septembre », « jeudi 1er octobre ».
  */
 export function formatDateLongue(iso: string): string {
   const date = dateCivile(iso);
@@ -99,7 +104,7 @@ export function formatDateLongue(iso: string): string {
   const mois = MOIS_LONG[date.mois - 1];
   const nom = JOURS[new Date(Date.UTC(date.annee, date.mois - 1, date.jour)).getUTCDay()];
   if (mois === undefined || nom === undefined) return "";
-  return fr(`${nom} ${String(date.jour)} ${mois}`);
+  return fr(`${nom} ${quantieme(date.jour)} ${mois}`);
 }
 
 /**

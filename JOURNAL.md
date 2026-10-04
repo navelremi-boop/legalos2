@@ -25,6 +25,10 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-10-04 — Premier jour : « 1er »
+
+Le commandement lève le veto B9. Le 1er du mois s'écrit « 1er » : `formatDateLongue("2026-10-01")` vaut « jeudi 1er octobre », `formatDateCourte` vaut « 1er oct. ». Le 30 reste « mercredi 30 septembre ». Aucune capture nouvelle. `node tests/recette/dates-ecrans.mjs` exit 0. J10 reste coché : la CI de `dd5c92a` est [37229519725](https://github.com/navelremi-boop/legalos2/actions/runs/37229519725), verte ; celle de ce correctif est lue à part.
+
 ## 2026-10-04 — J10 VALIDÉ
 
 Contrôleur [dates](5a587655-3ac9-4930-88bc-0bfbf4583fac) **VALIDÉ** sur `dd5c92a`. Trois conditions constatées : `dates-ecrans.mjs`, `points-medians.mjs`, `lint:ci` et `typecheck` en exit 0 ; captures Jour, Semaine et Mails lues. Critères de `28d5f5c` non affaiblis. `j10-ecrans-tauri.mjs` non rejoué. CI lue par `gh run view 37229519725` : completed, success. Durées arrondies à la minute supérieure : périmètre 1, gouvernance 1, frontend 2, facturx 3, webdriver-macos 6, rust 7, s1-instance 9, soit **29** minutes. Jalon coché. Suivant : Montée PowerSync.

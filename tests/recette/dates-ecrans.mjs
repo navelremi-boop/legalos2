@@ -4,15 +4,16 @@
  * Dates à la française : « 30 sept. », « mardi 30 septembre ». Heure : « 9 h 00 ».
  */
 import { spawn } from "node:child_process";
+import { register } from "node:module";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const port = 1421;
 const origine = `http://127.0.0.1:${port}/?galerie=1`;
 const DATE_ISO = /\d{4}-\d{2}-\d{2}(?!\d)/;
-const JOUR = /(dimanche|lundi|mardi|mercredi|jeudi|vendredi|samedi) \d{1,2} (janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)/;
-const MOIS_COURT = /\d{1,2} (janv\.|févr\.|mars|avr\.|mai|juin|juil\.|août|sept\.|oct\.|nov\.|déc\.)/;
+const JOUR = /(dimanche|lundi|mardi|mercredi|jeudi|vendredi|samedi) (?:1er|\d{1,2}) (janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)/;
+const MOIS_COURT = /(?:1er|\d{1,2}) (janv\.|févr\.|mars|avr\.|mai|juin|juil\.|août|sept\.|oct\.|nov\.|déc\.)/;
 const HEURE = /\d{1,2}\u00a0h\u00a0\d{2}/;
 
 function fail(msg) {
@@ -33,6 +34,20 @@ if (datesIso("30 sept. et mardi 30 septembre").length !== 0) {
 }
 if (datesIso("Dossier 2026-042, facture 2026-014").length !== 0) {
   fail("essai négatif : une référence n'est pas une date");
+}
+
+await register(pathToFileURL(join(root, "tests/recette/alias-poste.mjs")));
+const { formatDateCourte, formatDateLongue } = await import(
+  "../../apps/poste/src/lib/format.ts"
+);
+if (formatDateLongue("2026-10-01") !== "jeudi 1er octobre") {
+  fail(`1er octobre : ${formatDateLongue("2026-10-01")}`);
+}
+if (formatDateCourte("2026-10-01") !== "1er oct.") {
+  fail(`1er oct. : ${formatDateCourte("2026-10-01")}`);
+}
+if (formatDateLongue("2026-09-30") !== "mercredi 30 septembre") {
+  fail(`le 30 ne s'écrit pas 1er : ${formatDateLongue("2026-09-30")}`);
 }
 
 let chromium;
