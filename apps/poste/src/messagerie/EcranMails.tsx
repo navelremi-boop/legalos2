@@ -24,6 +24,7 @@ export type MailLocal = {
   destinataires?: string | null;
   destinataires_texte?: string | null;
   pieces_texte?: string | null;
+  extrait_texte?: string | null;
   texte_brut?: string | null;
   cree_le?: string | null;
   dossier_imap?: string | null;
@@ -67,7 +68,9 @@ function listePieces(mail: MailLocal): string[] {
 }
 
 function extrait(mail: MailLocal): string {
-  const texte = mail.texte_brut?.replace(/\s+/g, " ").trim() ?? "";
+  const source =
+    (mail.texte_brut ?? "").trim() !== "" ? mail.texte_brut : mail.extrait_texte;
+  const texte = source?.replace(/\s+/g, " ").trim() ?? "";
   if (texte === "") return "";
   return texte.length > 90 ? `${texte.slice(0, 90)}…` : texte;
 }
@@ -180,7 +183,7 @@ export function EcranMails({
             ),
             database.getAll<MailLocal>(
               `SELECT id, objet, etat_classement, dossier_id, suggestion_dossier_id, expediteur,
-                      destinataires_texte, pieces_texte, texte_brut, cree_le, dossier_imap
+                      destinataires_texte, pieces_texte, extrait_texte, texte_brut, cree_le, dossier_imap
                FROM messages ORDER BY cree_le DESC`,
             ),
             database.getAll<DossierLocal>("SELECT id, nom, chemise FROM dossiers"),

@@ -1,5 +1,7 @@
 //! Session IMAP. Rien de ce module n'est public.
 
+use std::num::NonZeroU32;
+
 use io_imap::client::{ImapClient, ImapClientStd};
 use io_imap::has_imap_capability;
 use io_imap::rfc3501::append::ImapMessageAppendOptions;
@@ -9,7 +11,9 @@ use io_imap::rfc3501::store::ImapMessageStoreOptions;
 use io_imap::rfc6851::r#move::ImapMessageMoveOptions;
 use io_imap::session::ImapSessionOpenOptions;
 use io_imap::types::core::{AString, NString, Vec1};
-use io_imap::types::fetch::{MacroOrMessageDataItemNames, MessageDataItem, MessageDataItemName};
+use io_imap::types::fetch::{
+    MacroOrMessageDataItemNames, MessageDataItem, MessageDataItemName, Section,
+};
 use io_imap::types::flag::{Flag, StoreType};
 use io_imap::types::mailbox::Mailbox;
 use io_imap::types::search::SearchKey;
@@ -35,6 +39,8 @@ pub struct EnteteRecu {
     pub destinataires: Vec<String>,
     /// Noms de pièces jointes lus dans BODYSTRUCTURE. Vide si le serveur n'en donne pas.
     pub pieces: Vec<String>,
+    /// Début du corps, pour la liste. Le corps complet reste à la demande.
+    pub extrait: String,
 }
 
 /// Corps d'un message relevé. `html` est déjà passé par `ammonia`.
@@ -283,16 +289,11 @@ impl Session {
                 .to_string()
                 .parse()
                 .map_err(|_| ErreurMail::Protocole)?;
-            let items = MacroOrMessageDataItemNames::MessageDataItemNames(vec![
-                MessageDataItemName::Uid,
-                MessageDataItemName::Rfc822Header,
-                MessageDataItemName::BodyStructure,
-            ]);
             let fetched = self
                 .client
                 .fetch(
                     jeu,
-                    items,
+                    items_entete(),
                     ImapMessageFetchOptions {
                         uid: true,
                         modifiers: Vec::new(),
@@ -303,6 +304,7 @@ impl Session {
                 let mut uid_lu = None;
                 let mut en_tetes = None;
                 let mut pieces = Vec::new();
+                let mut apercu = None;
                 for item in items {
                     match item {
                         MessageDataItem::Uid(valeur) => uid_lu = Some(valeur.get()),
@@ -311,6 +313,9 @@ impl Session {
                         }
                         MessageDataItem::BodyStructure(structure) => {
                             pieces = noms_pieces(&structure);
+                        }
+                        MessageDataItem::BodyExt { data, .. } => {
+                            apercu = Some(nstring_octets(&data));
                         }
                         _ => {}
                     }
@@ -324,6 +329,7 @@ impl Session {
                     &octets,
                     &analyseur,
                     pieces,
+                    extrait_depuis(&octets, apercu.as_deref(), &analyseur),
                 ));
             }
         }
@@ -833,11 +839,7 @@ impl Session {
                 .client
                 .fetch(
                     jeu,
-                    MacroOrMessageDataItemNames::MessageDataItemNames(vec![
-                        MessageDataItemName::Uid,
-                        MessageDataItemName::Rfc822Header,
-                        MessageDataItemName::BodyStructure,
-                    ]),
+                    items_entete(),
                     ImapMessageFetchOptions {
                         uid: true,
                         modifiers: Vec::new(),
@@ -848,6 +850,7 @@ impl Session {
                 let mut uid_lu = None;
                 let mut octets = None;
                 let mut pieces = Vec::new();
+                let mut apercu = None;
                 for item in items {
                     match item {
                         MessageDataItem::Uid(valeur) => uid_lu = Some(valeur.get()),
@@ -856,6 +859,9 @@ impl Session {
                         }
                         MessageDataItem::BodyStructure(structure) => {
                             pieces = noms_pieces(&structure);
+                        }
+                        MessageDataItem::BodyExt { data, .. } => {
+                            apercu = Some(nstring_octets(&data));
                         }
                         _ => {}
                     }
@@ -867,6 +873,7 @@ impl Session {
                         &octets,
                         &analyseur,
                         pieces,
+                        extrait_depuis(&octets, apercu.as_deref(), &analyseur),
                     ));
                 }
             }
@@ -911,6 +918,19 @@ fn boite(nom: &str) -> Result<Mailbox<'static>, ErreurMail> {
     Mailbox::try_from(nom.to_owned()).map_err(|_| ErreurMail::Protocole)
 }
 
+fn items_entete() -> MacroOrMessageDataItemNames<'static> {
+    MacroOrMessageDataItemNames::MessageDataItemNames(vec![
+        MessageDataItemName::Uid,
+        MessageDataItemName::Rfc822Header,
+        MessageDataItemName::BodyStructure,
+        MessageDataItemName::BodyExt {
+            section: Some(Section::Text(None)),
+            partial: Some((0, NonZeroU32::new(1024).unwrap_or(NonZeroU32::MIN))),
+            peek: true,
+        },
+    ])
+}
+
 fn sequence_un(uid: u32) -> Result<SequenceSet, ErreurMail> {
     uid.to_string().parse().map_err(|_| ErreurMail::Protocole)
 }
@@ -936,6 +956,7 @@ fn entete_depuis_rfc822(
     octets: &[u8],
     analyseur: &MessageParser,
     pieces: Vec<String>,
+    extrait: String,
 ) -> EnteteRecu {
     let message = analyseur.parse(octets);
     let message_id = message
@@ -973,7 +994,38 @@ fn entete_depuis_rfc822(
         expediteur,
         destinataires,
         pieces,
+        extrait,
     }
+}
+
+fn extrait_depuis(en_tetes: &[u8], corps: Option<&[u8]>, analyseur: &MessageParser) -> String {
+    let mut brut = en_tetes.to_vec();
+    if let Some(corps) = corps {
+        if !brut.ends_with(b"\n") {
+            brut.extend_from_slice(b"\r\n");
+        }
+        brut.extend_from_slice(corps);
+    }
+    let message = analyseur.parse(&brut);
+    let texte = message
+        .as_ref()
+        .and_then(|m| m.body_text(0))
+        .map(|c| c.to_string())
+        .filter(|t| !t.trim().is_empty())
+        .or_else(|| {
+            message
+                .as_ref()
+                .and_then(|m| m.body_html(0))
+                .map(|c| crate::texte_depuis_html(&crate::nettoyer_html(c.as_ref())))
+        })
+        .unwrap_or_default();
+    texte
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(160)
+        .collect()
 }
 
 fn noms_pieces(structure: &io_imap::types::body::BodyStructure<'_>) -> Vec<String> {
@@ -1133,5 +1185,16 @@ mod tests {
         };
         assert_eq!(noms_pieces(&multi), vec!["Convocation.pdf".to_owned()]);
         assert!(noms_pieces(&texte()).is_empty());
+    }
+
+    #[test]
+    fn extrait_du_debut_du_corps() {
+        let analyseur = mail_parser::MessageParser::default();
+        let entete =
+            b"From: a@example.com\r\nSubject: s\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n";
+        let corps = b"Texte de la convocation fictive.\r\n";
+        let extrait = super::extrait_depuis(entete, Some(corps), &analyseur);
+        assert!(extrait.contains("convocation fictive"));
+        assert!(super::extrait_depuis(entete, None, &analyseur).is_empty());
     }
 }

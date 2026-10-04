@@ -247,6 +247,8 @@ async function main() {
     `SELECT texte_brut FROM messages WHERE id = '${idPiece}'`,
   );
   if (avantCorps.includes("convocation fictive")) fail("corps relevé avec les en-têtes");
+  const extrait = await sqlServeur(`SELECT extrait_texte FROM messages WHERE id = '${idPiece}'`);
+  if (!extrait.toLowerCase().includes("convocation fictive")) fail(`extrait absent ${extrait}`);
   const corpsRep = await fetch(`${api}/messagerie/messages/${idPiece}/corps`, {
     method: "POST",
     headers: { authorization: `Bearer ${jeton}` },

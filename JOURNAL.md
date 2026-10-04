@@ -24,6 +24,12 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-10-04 — Extrait de la liste
+
+J10 reste ouvert (B9). La relève lit les 1024 premiers octets du corps (`BODY.PEEK[TEXT]`) et en tire un extrait avec `mail-parser`. `extrait_texte` alimente la liste. `texte_brut` reste vide tant que le message n'est pas ouvert.
+
+`cargo test -p legalos-messagerie --lib extrait_du_debut` : 1 passed. `cargo clippy -p legalos-messagerie --all-targets --offline -- -D warnings` et `cargo clippy -p legalos-api --lib --offline -- -D warnings` : exit 0. `node tests/recette/migrations-additives.mjs` exit 0. `node tests/recette/s7-connexions.mjs` exit 0 : avant l'ouverture, `extrait_texte` contient « convocation fictive » et `texte_brut` ne le contient pas.
+
 ## 2026-10-04 — Bouton Classer
 
 J10 reste ouvert (B9). Le bouton du volet de lecture confirme une suggestion, ou range un mail « à classer » dans un dossier choisi. Le titulaire seul peut classer un mail nominatif. Un mail déjà classé est refusé.
