@@ -181,6 +181,119 @@ pub async fn lister_messages(
     ))
 }
 
+#[derive(Debug, Serialize)]
+pub struct CorpsMessage {
+    pub texte: String,
+}
+
+pub async fn lire_corps_message(
+    State(state): State<Arc<AppState>>,
+    AuthAccess(claims): AuthAccess,
+    Path(message_id): Path<Uuid>,
+) -> Result<Json<CorpsMessage>, ApiError> {
+    let row = sqlx::query_as::<
+        _,
+        (
+            i64,
+            String,
+            Option<String>,
+            Option<i32>,
+            Option<String>,
+            Option<bool>,
+            Option<String>,
+            Option<Uuid>,
+        ),
+    >(
+        r#"
+        SELECT m.uid, m.dossier_imap, a.hote, a.port, a.utilisateur, a.tls, a.secret_chiffre, a.titulaire_id
+        FROM messages m
+        INNER JOIN comptes_mail a ON a.id = m.compte_id
+        WHERE m.id = $1 AND m.cabinet_id = $2
+        "#,
+    )
+    .bind(message_id)
+    .bind(claims.cabinet_id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("Lecture message"))?
+    .ok_or_else(|| ApiError::not_found("Message introuvable"))?;
+
+    if row.7.is_some_and(|titulaire| titulaire != claims.sub) {
+        return Err(ApiError::not_found("Message introuvable"));
+    }
+    if let Some(texte) = sqlx::query_scalar::<_, String>(
+        "SELECT texte_brut FROM contenus_messages WHERE message_id_ref = $1",
+    )
+    .bind(message_id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("Lecture corps"))?
+    {
+        return Ok(Json(CorpsMessage { texte }));
+    }
+
+    let secret = row
+        .6
+        .ok_or_else(|| ApiError::bad_request("Compte sans mot de passe"))?;
+    let hote = row
+        .2
+        .ok_or_else(|| ApiError::bad_request("Compte sans hôte"))?;
+    let port = row
+        .3
+        .ok_or_else(|| ApiError::bad_request("Compte sans port"))?;
+    let utilisateur = row
+        .4
+        .ok_or_else(|| ApiError::bad_request("Compte sans identifiant"))?;
+    let tls = row.5.unwrap_or(false);
+    let uid = u32::try_from(row.0).map_err(|_| ApiError::bad_request("UID invalide"))?;
+    if uid == 0 {
+        return Err(ApiError::bad_request("UID invalide"));
+    }
+    let dossier = if row.1.is_empty() {
+        "INBOX".to_owned()
+    } else {
+        row.1
+    };
+    let clair = crate::auth::totp::dechiffrer_secret_totp(&secret, &state.totp_cipher_key)
+        .map_err(|_| ApiError::internal("Déchiffrement"))?;
+    let mot_de_passe = String::from_utf8(clair).map_err(|_| ApiError::internal("Déchiffrement"))?;
+    let port = u16::try_from(port).map_err(|_| ApiError::bad_request("Port IMAP invalide"))?;
+    let parametres = ParametresCompte {
+        hote,
+        port,
+        utilisateur,
+        mot_de_passe,
+        tls,
+    };
+    let corps = tokio::task::spawn_blocking(move || {
+        let mut session = SessionActions::connecter(&parametres)?;
+        session.lire_corps(&dossier, uid)
+    })
+    .await
+    .map_err(|_| ApiError::internal("Lecture interrompue"))?
+    .map_err(|_| ApiError::internal("Lecture IMAP refusée"))?;
+
+    sqlx::query(
+        r#"
+        INSERT INTO contenus_messages (message_id_ref, cabinet_id, html_nettoye, texte_brut)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (message_id_ref) DO UPDATE
+            SET html_nettoye = EXCLUDED.html_nettoye,
+                texte_brut = EXCLUDED.texte_brut,
+                revision = contenus_messages.revision + 1
+        "#,
+    )
+    .bind(message_id)
+    .bind(claims.cabinet_id)
+    .bind(&corps.html)
+    .bind(&corps.texte)
+    .execute(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("Enregistrement du corps"))?;
+
+    Ok(Json(CorpsMessage { texte: corps.texte }))
+}
+
 pub async fn accepter_suggestion(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,

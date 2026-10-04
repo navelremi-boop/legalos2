@@ -115,6 +115,10 @@ pub fn router(state: Arc<AppState>) -> Router {
         )
         .route("/messagerie/messages", get(messagerie::lister_messages))
         .route(
+            "/messagerie/messages/{message_id}/corps",
+            post(messagerie::lire_corps_message),
+        )
+        .route(
             "/messagerie/messages/{message_id}/accepter-suggestion",
             post(messagerie::accepter_suggestion),
         )

@@ -238,6 +238,29 @@ async function main() {
     (v) => v.includes("Convocation.pdf"),
     40_000,
   );
+  const idPiece = (
+    await sqlServeur(
+      `SELECT id::text FROM messages WHERE compte_id = '${idCond}' AND message_id = '${midPiece}'`,
+    )
+  ).trim();
+  const avantCorps = await sqlServeur(
+    `SELECT texte_brut FROM messages WHERE id = '${idPiece}'`,
+  );
+  if (avantCorps.includes("convocation fictive")) fail("corps relevé avec les en-têtes");
+  const corpsRep = await fetch(`${api}/messagerie/messages/${idPiece}/corps`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${jeton}` },
+  });
+  if (!corpsRep.ok) fail(`corps ${corpsRep.status}`);
+  const corpsJson = await corpsRep.json();
+  if (
+    typeof corpsJson.texte !== "string" ||
+    !corpsJson.texte.includes("Texte de la convocation fictive.")
+  ) {
+    fail("corps absent de la réponse");
+  }
+  const apresCorps = await sqlServeur(`SELECT texte_brut FROM messages WHERE id = '${idPiece}'`);
+  if (!apresCorps.includes("Texte de la convocation fictive.")) fail("corps non enregistré");
   agirImap({
     hote: "127.0.0.1",
     port: 3144,

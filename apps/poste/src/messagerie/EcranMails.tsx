@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BarreActions } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
 import { apiUrl } from "@/lib/auth/client";
@@ -96,6 +96,20 @@ async function lireFile(instanceUrl: string): Promise<LigneEnvoi[]> {
   return lignes;
 }
 
+async function lireCorps(instanceUrl: string, id: string): Promise<string> {
+  const jeton = loadSessionTokens().accessToken;
+  if (jeton === null || jeton === "") return "";
+  const reponse = await fetch(apiUrl(instanceUrl, `/messagerie/messages/${id}/corps`), {
+    method: "POST",
+    headers: { authorization: `Bearer ${jeton}` },
+  });
+  if (!reponse.ok) return "";
+  const json: unknown = await reponse.json();
+  if (typeof json !== "object" || json === null) return "";
+  const texte = (json as { texte?: unknown }).texte;
+  return typeof texte === "string" ? texte : "";
+}
+
 async function poster(instanceUrl: string, chemin: string): Promise<void> {
   const jeton = loadSessionTokens().accessToken;
   if (jeton === null || jeton === "") return;
@@ -137,6 +151,8 @@ export function EcranMails({
   const [mails, setMails] = useState<MailLocal[]>([]);
   const [dossiers, setDossiers] = useState<DossierLocal[]>([]);
   const [dossierImap, setDossierImap] = useState<(typeof DOSSIERS_IMAP)[number]["id"]>("INBOX");
+  const [corpsLu, setCorpsLu] = useState<Record<string, string>>({});
+  const demandesCorps = useRef(new Set<string>());
   const [selection, setSelection] = useState<string | null>(() => {
     const aClasser = demonstration?.mails.find((mail) => mail.etat_classement !== "classe");
     return aClasser?.id ?? demonstration?.mails[0]?.id ?? null;
@@ -199,6 +215,17 @@ export function EcranMails({
       stop = true;
     };
   }, [terme, demonstration]);
+
+  useEffect(() => {
+    if (demonstration || selection === null) return;
+    const mail = mails.find((ligne) => ligne.id === selection);
+    if (!mail || (mail.texte_brut ?? "").trim() !== "") return;
+    if (demandesCorps.current.has(selection)) return;
+    demandesCorps.current.add(selection);
+    void lireCorps(instanceUrl, selection).then((texte) => {
+      setCorpsLu((actuel) => ({ ...actuel, [selection]: texte }));
+    });
+  }, [demonstration, instanceUrl, mails, selection]);
 
   const comptesAffiches = demonstration?.comptes ?? comptes;
   const mailsAffiches = (demonstration?.mails ?? mails).filter((mail) => dansDossier(mail, dossierImap));
@@ -374,7 +401,11 @@ export function EcranMails({
                     </button>
                   ) : null}
                   <p className="whitespace-pre-wrap" data-testid="lecture-corps">
-                    {fr(choisi.texte_brut?.trim() || "")}
+                    {fr(
+                      (choisi.texte_brut ?? "").trim() !== ""
+                        ? (choisi.texte_brut ?? "")
+                        : (corpsLu[choisi.id] ?? ""),
+                    )}
                   </p>
                   <h3 className="mt-4 mb-2 text-[length:var(--font-size-dense)] font-extrabold">{fr("Pièces jointes")}</h3>
                   {(listePieces(choisi).length === 0) ? (

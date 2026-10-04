@@ -24,6 +24,12 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-10-04 — Corps nettoyé à l'ouverture
+
+J10 reste ouvert (B9). La relève des en-têtes ne télécharge pas le corps. À l'ouverture d'un message, `POST /messagerie/messages/{id}/corps` lit le RFC822, nettoie le HTML et enregistre le texte. Le volet de lecture l'affiche. Un second appel relit l'enregistrement, sans nouvelle session IMAP.
+
+`cargo clippy -p legalos-api --lib --offline -- -D warnings` exit 0. `node tests/recette/s7-connexions.mjs` exit 0 : avant l'appel, `texte_brut` ne contient pas « convocation fictive » ; la réponse et la colonne la contiennent ensuite.
+
 ## 2026-10-04 — Noms des pièces jointes
 
 J10 reste ouvert (B9). La relève des en-têtes demande aussi `BODYSTRUCTURE`. Le nom vient du paramètre `filename` ou, à défaut, `name`. Le corps texte sans nom n'est pas listé. La colonne `pieces_texte` et les quatre flux `messages` portent ces noms jusqu'au volet de lecture.

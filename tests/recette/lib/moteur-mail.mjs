@@ -140,7 +140,7 @@ export function agirImap({ hote, port, utilisateur, action, uid, messageId, suje
     "        '--limite\\r\\n'",
     "        'Content-Type: text/plain; charset=utf-8\\r\\n'",
     "        '\\r\\n'",
-    "        'corps\\r\\n'",
+    "        'Texte de la convocation fictive.\\r\\n'",
     "        '--limite\\r\\n'",
     "        'Content-Type: application/pdf; name=\"Convocation.pdf\"\\r\\n'",
     "        'Content-Disposition: attachment; filename=\"Convocation.pdf\"\\r\\n'",
