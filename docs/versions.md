@@ -50,7 +50,7 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 | lettre | **0.11.23** (épinglée exacte) | https://crates.io/crates/lettre/0.11.23 — vérifié le 2026-09-30 ; licence MIT ; SMTP de la file d'envoi (`smtp-transport`, `builder`, sans TLS natif en test GreenMail). |
 | ammonia | **4.2.0** (épinglée exacte) | https://crates.io/crates/ammonia/4.2.0 — vérifié le 2026-09-30 ; licence MIT OR Apache-2.0 ; nettoyage HTML avant stockage. |
 | oauth2 | **5.0.0** (épinglée exacte) | https://crates.io/crates/oauth2/5.0.0 — vérifié le 2026-09-30 ; publié le 2025-01-21 ; licence MIT OR Apache-2.0 ; RFC 6749. XOAUTH2 IMAP reste `io-imap` 0.6.1 (`Sasl::Xoauth2`). |
-| icalendar | **0.17.14** (épinglée exacte) | https://crates.io/crates/icalendar/0.17.14 — vérifié le 2026-10-05 (API crates.io) ; publié le 2026-09-29 ; licence MIT OR Apache-2.0 ; analyse RFC 5545 pour les invitations de J11. Pas encore ajoutée au graphe. |
+| icalendar | **0.17.14** (épinglée exacte) | https://crates.io/crates/icalendar/0.17.14 — vérifié le 2026-10-05 (API crates.io) ; publié le 2026-09-29 ; licence MIT OR Apache-2.0 ; analyse RFC 5545 pour les invitations de J11. Dépendance de `legalos-messagerie`. |
 | @tiptap/react | **3.31.4** | https://www.npmjs.com/package/@tiptap/react — vérifié le 2026-10-05 (registre npm, `latest`) ; licence MIT ; éditeur de rédaction. Pairs imposés : `@tiptap/core` et `@tiptap/pm` **3.31.4**. Pas encore ajouté au graphe. |
 | Dovecot (second serveur IMAP de test, chemin QRESYNC) | **dovecot/dovecot:2.3.21.1** | https://hub.docker.com/r/dovecot/dovecot — `instance/imap-test/` |
 | Axum | **0.8.9** | https://crates.io/crates/axum |
