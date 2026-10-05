@@ -7,6 +7,7 @@ mod file_envoi;
 mod html;
 mod imap;
 mod moteur;
+mod redaction;
 mod smtp;
 
 pub use chemin::{
@@ -20,6 +21,10 @@ pub use file_envoi::{appliquer, decider_action, ActionEnvoi, EntreeFileEnvoi, Et
 pub use html::{nettoyer_html, texte_depuis_html};
 pub use imap::{CorpsLu, EnteteRecu, EtatUid, ReleveDossier};
 pub use moteur::{diff_repli, Changement, RapportMoteur};
+pub use redaction::{
+    construire_message, destinataires_redaction, objet_redaction, DemandeRedaction, Destinataires,
+    GenreRedaction, MessageOrigine, PieceJointe, DOSSIER_BROUILLONS,
+};
 pub use smtp::{envoyer_message_fixe, octets_rfc822, ParametresSmtp};
 
 use thiserror::Error;
