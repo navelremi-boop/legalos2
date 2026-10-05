@@ -83,4 +83,19 @@ for (const nom of ["time-macros", "time-macros-impl"]) {
   }
 }
 
+const connecteur = readFileSync(join(root, "apps/poste/src-tauri/src/powersync_connect.rs"), "utf8");
+if (!/impl BackendConnector for CabinetConnector/.test(connecteur)) {
+  fail("connecteur : BackendConnector non implémenté");
+}
+if (!/async fn fetch_credentials/.test(connecteur) || !/async fn upload_data/.test(connecteur)) {
+  fail("connecteur : fetch_credentials ou upload_data absent");
+}
+
+const blocages = readFileSync(join(root, "BLOCAGES.md"), "utf8");
+const ligneB12 = blocages.split(/\r?\n/).find((ligne) => ligne.startsWith("| B12 |"));
+if (!ligneB12) fail("B12 absent de BLOCAGES.md");
+if (!ligneB12.includes("~~") || !/clos/.test(ligneB12)) {
+  fail("B12 n'est pas clos");
+}
+
 console.log("powersync-0-1: OK");
