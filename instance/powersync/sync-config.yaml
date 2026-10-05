@@ -272,3 +272,11 @@ streams:
       WHERE type_compte = 'nominatif'
         AND titulaire_id::text = auth.user_id()
         AND cabinet_id::text = auth.parameter('cabinet_id')
+
+  invitations_titulaire:
+    auto_subscribe: true
+    query: |
+      SELECT id, cabinet_id, titulaire_id, uid_ical, sequence, effet, fuseau, debut, fin, objet, organisateur, revision, cree_le::text AS cree_le
+      FROM invitations_agenda
+      WHERE titulaire_id::text = auth.user_id()
+        AND cabinet_id::text = auth.parameter('cabinet_id')

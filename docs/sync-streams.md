@@ -60,7 +60,8 @@ Fichier déployé : `instance/powersync/sync-config.yaml`, monté via `sync_conf
 | `temps_saisis` / `brouillons_facture` / `taux_horaires` | J8 — flux publics / restreints (+ `taux_cabinet` sans dossier) |
 | `intercalaires_personnalises` / `intercalaire_elements` | Intercalaires personnalisés (§ 7.4) — flux publics / restreints |
 | `contacts` | Annuaire du cabinet (SIREN, n° TVA, type de client F8) — un flux, pas un seau par dossier |
-| `agenda_elements` | Audiences, rendez-vous, tâches (§ 4.2 n° 4) — flux publics / restreints ; invitations mail au jalon J11 |
+| `agenda_elements` | Audiences, rendez-vous, tâches (§ 4.2 n° 4) — flux publics / restreints |
+| `invitations_agenda` | Invitation reçue par mail — un flux titulaire, sans dossier |
 | `dossier_liens` | Dossiers liés, une ligne par sens — flux public (les deux dossiers publics) ou restreint |
 | `users` / `postes` | (schéma client ; flux à ajouter si réplication) |
 
@@ -103,6 +104,7 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 | `messages_a_classer` | boîte de classement (`dossier_id` nul, `titulaire_id` nul), un bucket par cabinet |
 | `messages_nominatifs` | messages du titulaire (`titulaire_id = auth.user_id()`), sans secret — un bucket par titulaire, pas par dossier |
 | `comptes_nominatifs` | `comptes_mail` nominatif du titulaire (`titulaire_id = auth.user_id()`), sans `secret_ref` — un bucket par titulaire, pas par dossier |
+| `invitations_titulaire` | `invitations_agenda` du titulaire (`titulaire_id = auth.user_id()`) — un bucket par titulaire, pas par dossier ; absente chez un autre collaborateur |
 
 **Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants (`parties`, `repertoires`, `documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, `taux_horaires`, `intercalaires_personnalises`, `intercalaire_elements`, `dossier_liens` ancrés sur ce dossier) dans la SQLite locale. L'annuaire `contacts` est celui du cabinet : il n'est pas un enfant de dossier. Preuve SQLite (fichier `legalos-powersync-*.db` du poste Tauri) : `tests/recette/j5-poste-tauri.mjs` ; couverture par flux : `tests/recette/s5-sqlite-par-flux.mjs` ; contrôle statique des flux : `tests/recette/s5-sync-streams.mjs`. Filtre JOIN Postgres (sans SQLite) : `tests/recette/s9-s5-temps.mjs`.
 
