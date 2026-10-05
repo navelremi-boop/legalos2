@@ -22,7 +22,8 @@ pub use file_envoi::{appliquer, decider_action, ActionEnvoi, EntreeFileEnvoi, Et
 pub use html::{nettoyer_html, texte_depuis_html};
 pub use imap::{CorpsLu, EnteteRecu, EtatUid, ReleveDossier};
 pub use invitation::{
-    lire_invitation, reponse_invitation, EffetInvitation, InvitationLue, ReponseInvitation,
+    invitation_du_message, lire_invitation, reponse_invitation, EffetInvitation, InvitationLue,
+    ReponseInvitation,
 };
 pub use moteur::{diff_repli, Changement, RapportMoteur};
 pub use redaction::{

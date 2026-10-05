@@ -7,6 +7,8 @@ use icalendar::{
     EventLike, EventStatus, PartStat, Property,
 };
 
+use mail_parser::{MessageParser, MimeHeaders};
+
 use crate::ErreurMail;
 
 /// Effet d'une invitation reçue.
@@ -102,6 +104,28 @@ pub fn reponse_invitation(
     Ok(calendrier.to_string())
 }
 
+/// Première partie `text/calendar` d'un message MIME, lue par `mail-parser`.
+pub fn invitation_du_message(octets: &[u8]) -> Result<Option<InvitationLue>, ErreurMail> {
+    let message = MessageParser::default()
+        .parse(octets)
+        .ok_or(ErreurMail::Protocole)?;
+    for partie in &message.parts {
+        let calendrier = partie.content_type().is_some_and(|genre| {
+            genre.c_type.eq_ignore_ascii_case("text")
+                && genre
+                    .c_subtype
+                    .as_deref()
+                    .is_some_and(|sous| sous.eq_ignore_ascii_case("calendar"))
+        });
+        if !calendrier {
+            continue;
+        }
+        let texte = partie.text_contents().ok_or(ErreurMail::Protocole)?;
+        return lire_invitation(texte).map(Some);
+    }
+    Ok(None)
+}
+
 fn effet(methode: &str, sequence: u32, statut: Option<EventStatus>) -> EffetInvitation {
     if methode.eq_ignore_ascii_case("CANCEL") || statut == Some(EventStatus::Cancelled) {
         EffetInvitation::Annulation
@@ -142,7 +166,10 @@ fn adresse_cal(valeur: &str) -> String {
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::panic)]
 mod tests {
-    use super::{lire_invitation, reponse_invitation, EffetInvitation, ReponseInvitation};
+    use super::{
+        invitation_du_message, lire_invitation, reponse_invitation, EffetInvitation,
+        ReponseInvitation,
+    };
     use icalendar::{Calendar, CalendarComponent, Component, PartStat};
     use std::str::FromStr;
 
@@ -223,6 +250,49 @@ mod tests {
             )) => assert_eq!(tzid, "Europe/Paris"),
             autre => panic!("fuseau perdu : {autre:?}"),
         }
+    }
+
+    #[test]
+    fn message_mime_porte_le_calendrier() {
+        let mime = "\
+From: organisateur@example.com\r\n\
+To: avocat@cabinet.example\r\n\
+Subject: Audience fictive\r\n\
+MIME-Version: 1.0\r\n\
+Content-Type: text/calendar; method=REQUEST; charset=utf-8\r\n\
+\r\n\
+BEGIN:VCALENDAR\r\n\
+METHOD:REQUEST\r\n\
+BEGIN:VEVENT\r\n\
+UID:fictif-mime@example.com\r\n\
+SEQUENCE:0\r\n\
+DTSTART;TZID=Europe/Paris:20261006T090000\r\n\
+DTEND;TZID=Europe/Paris:20261006T100000\r\n\
+SUMMARY:Audience fictive\r\n\
+ORGANIZER:mailto:organisateur@example.com\r\n\
+END:VEVENT\r\n\
+END:VCALENDAR\r\n";
+        let invitation = invitation_du_message(mime.as_bytes())
+            .expect("mime")
+            .expect("calendrier");
+        assert_eq!(invitation.effet, EffetInvitation::Demande);
+        assert_eq!(invitation.fuseau, "Europe/Paris");
+        assert_eq!(invitation.uid, "fictif-mime@example.com");
+    }
+
+    #[test]
+    fn message_sans_calendrier() {
+        let mime = "\
+From: confrere@example.com\r\n\
+To: avocat@cabinet.example\r\n\
+Subject: Note\r\n\
+MIME-Version: 1.0\r\n\
+Content-Type: text/plain; charset=utf-8\r\n\
+\r\n\
+Pas d'invitation.\r\n";
+        assert!(invitation_du_message(mime.as_bytes())
+            .expect("mime")
+            .is_none());
     }
 
     #[test]
