@@ -6,6 +6,7 @@ mod classement;
 mod file_envoi;
 mod html;
 mod imap;
+mod invitation;
 mod moteur;
 mod redaction;
 mod smtp;
@@ -20,6 +21,9 @@ pub use classement::{
 pub use file_envoi::{appliquer, decider_action, ActionEnvoi, EntreeFileEnvoi, EtatFileEnvoi};
 pub use html::{nettoyer_html, texte_depuis_html};
 pub use imap::{CorpsLu, EnteteRecu, EtatUid, ReleveDossier};
+pub use invitation::{
+    lire_invitation, reponse_invitation, EffetInvitation, InvitationLue, ReponseInvitation,
+};
 pub use moteur::{diff_repli, Changement, RapportMoteur};
 pub use redaction::{
     construire_message, destinataires_redaction, objet_redaction, DemandeRedaction, Destinataires,
