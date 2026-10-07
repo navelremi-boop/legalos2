@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
- * Gardes Cursor : fail-closed si l'entrée stdin est illisible ; refus des secrets / commandes dangereuses,
- * y compris chaînées derrière un préfixe de la liste d'autorisation ; worktrees sous `.worktrees/`.
- * Couvre aussi `continuer.mjs` (relance). Toute modification de `lib.mjs` repasse ce fichier (CI, job frontend).
+ * Gardes Cursor et Claude Code (mêmes scripts, deux formats d'entrée et de réponse) : fail-closed si l'entrée
+ * stdin est illisible ; refus des secrets / commandes dangereuses, y compris chaînées derrière un préfixe de la
+ * liste d'autorisation ; worktrees sous `.worktrees/` ; garde du sous-agent executant ; câblage de
+ * `.claude/settings.json`. Chaque garde a un essai négatif (réponse d'un garde qui ne reconnaît pas le format).
+ * Couvre aussi `continuer.mjs` (relance, Cursor). Toute modification de `lib.mjs` repasse ce fichier (CI, job frontend).
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -131,6 +133,223 @@ expectDeny("garde-secrets.mjs", JSON.stringify({ file_path: "apps/poste/.env" })
 expectAllow("garde-secrets.mjs", JSON.stringify({ file_path: "apps/poste/.env.example" }));
 expectAllow("garde-secrets.mjs", JSON.stringify({ file_path: "PLAN.md" }));
 
+// ---------------------------------------------------------------------------------------------------------
+// Format Claude Code : entrée { hook_event_name, tool_name, tool_input, cwd } ; refus par
+// hookSpecificOutput.permissionDecision « deny » ; pas d'objection = réponse vide (la liste d'autorisation
+// et le mode de permission décident ; un « allow » explicite les court-circuiterait).
+// ---------------------------------------------------------------------------------------------------------
+const cwdClaude = "C:\\Users\\exemple\\legalos2";
+const claudeBash = (command, outil = "Bash") =>
+  JSON.stringify({ hook_event_name: "PreToolUse", tool_name: outil, tool_input: { command }, cwd: cwdClaude });
+const claudeRead = (file_path) =>
+  JSON.stringify({ hook_event_name: "PreToolUse", tool_name: "Read", tool_input: { file_path }, cwd: cwdClaude });
+
+/** Écart d'une réponse de refus au format Claude Code, ou `null`. */
+function ecartRefusClaude(out, fragment) {
+  const s = out?.hookSpecificOutput;
+  if (!s) return `pas de hookSpecificOutput : ${JSON.stringify(out)}`;
+  if (s.hookEventName !== "PreToolUse") return `hookEventName ${s.hookEventName}`;
+  if (s.permissionDecision !== "deny") return `permissionDecision ${s.permissionDecision}`;
+  if (fragment && !String(s.permissionDecisionReason || "").includes(fragment)) {
+    return `permissionDecisionReason sans « ${fragment} » : ${s.permissionDecisionReason}`;
+  }
+  return null;
+}
+
+/** Écart d'une réponse « pas d'objection » au format Claude Code, ou `null`. */
+function ecartAutorisationClaude(out) {
+  return JSON.stringify(out) === "{}" ? null : `réponse vide attendue : ${JSON.stringify(out)}`;
+}
+
+function expectDenyClaude(script, stdin, fragment) {
+  const ecart = ecartRefusClaude(run(script, stdin), fragment);
+  if (ecart) fail(`${script} (Claude Code) devait refuser : ${ecart}`);
+}
+
+function expectAllowClaude(script, stdin) {
+  const ecart = ecartAutorisationClaude(run(script, stdin));
+  if (ecart) fail(`${script} (Claude Code) devait laisser passer : ${ecart}`);
+}
+
+expectDenyClaude("garde-commandes.mjs", claudeBash("git push --force origin main"), "forcé");
+expectDenyClaude("garde-commandes.mjs", claudeBash("git push --force origin main", "PowerShell"), "forcé");
+expectDenyClaude("garde-commandes.mjs", claudeBash("git push origin v1.2.0"), "tag");
+expectDenyClaude("garde-commandes.mjs", claudeBash("git push origin --delete lot/x"), "suppression de branche");
+expectDenyClaude("garde-commandes.mjs", claudeBash("git filter-repo --force"), "historique");
+expectAllowClaude("garde-commandes.mjs", claudeBash("git status"));
+expectAllowClaude("garde-commandes.mjs", claudeBash("git commit -m ok", "PowerShell"));
+for (const prefixe of prefixes) {
+  expectDenyClaude("garde-commandes.mjs", claudeBash(`${prefixe}; git push --force --dry-run origin main`), "forcé");
+  expectDenyClaude("garde-commandes.mjs", claudeBash(`${prefixe} | git push origin main --force-with-lease`, "PowerShell"), "forcé");
+  expectDenyClaude("garde-commandes.mjs", claudeBash(`${prefixe}; git push origin v1.2.0`), "tag");
+}
+expectDenyClaude("garde-commandes.mjs", claudeBash("git worktree add ../legal-os-mail -b lot/mail"), "worktree");
+expectDenyClaude("garde-commandes.mjs", claudeBash("git worktree add -b lot/mail C:\\Users\\exemple\\ailleurs"), "worktree");
+expectAllowClaude("garde-commandes.mjs", claudeBash("git worktree add .worktrees/mail -b lot/mail"));
+expectAllowClaude("garde-commandes.mjs", claudeBash(`git worktree add ${cwdClaude}\\.worktrees\\mail -b lot/mail`));
+// Entrée illisible : refus dans les deux formats à la fois, code de sortie 2.
+for (const script of ["garde-commandes.mjs", "garde-secrets.mjs", "garde-executant.mjs"]) {
+  for (const stdin of ["", "{", "[]"]) {
+    const r = spawnSync(process.execPath, [join(hooks, script)], { input: stdin, encoding: "utf8" });
+    let out;
+    try {
+      out = JSON.parse(String(r.stdout || "{}"));
+    } catch {
+      fail(`${script} entrée illisible : sortie non JSON (${r.stdout})`);
+    }
+    if (r.status !== 2) fail(`${script} entrée illisible : code ${r.status}, 2 attendu`);
+    if (out.permission !== "deny") fail(`${script} entrée illisible : refus Cursor absent`);
+    const ecart = ecartRefusClaude(out, "illisible");
+    if (ecart) fail(`${script} entrée illisible : refus Claude Code absent (${ecart})`);
+  }
+}
+
+expectDenyClaude("garde-secrets.mjs", claudeRead("C:\\Users\\exemple\\legalos2\\apps\\poste\\.env"), "secrets");
+expectDenyClaude("garde-secrets.mjs", claudeRead("/home/exemple/cle.pem"), "secrets");
+expectAllowClaude("garde-secrets.mjs", claudeRead("apps/poste/.env.example"));
+expectAllowClaude("garde-secrets.mjs", claudeRead("C:\\Users\\exemple\\legalos2\\PLAN.md"));
+
+// Garde du sous-agent executant : ni git push ni git commit (ni écriture d'historique).
+for (const commande of [
+  "git commit -m x",
+  "git add . && git commit -m x",
+  "git -C . commit -m x",
+  "git -c user.name=a commit -m x",
+  "git push origin main",
+  "git.exe push origin main",
+  "git reset --hard HEAD~1",
+  "git rebase main",
+  "git tag v1",
+]) {
+  expectDenyClaude("garde-executant.mjs", claudeBash(commande), "garde-executant");
+  expectDenyClaude("garde-executant.mjs", claudeBash(commande, "PowerShell"), "garde-executant");
+}
+for (const commande of ["git status", "git diff --stat", "git log -3", "node tests/recette/regles-synchronisees.mjs", "cargo test -p legalos-api"]) {
+  expectAllowClaude("garde-executant.mjs", claudeBash(commande));
+}
+
+// Après-commande (PostToolUse) : la marque est écrite dans CLAUDE_PROJECT_DIR.
+{
+  const dir = mkdtempSync(join(tmpdir(), "legalos-apres-"));
+  try {
+    const entree = JSON.stringify({ hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: "git status" }, cwd: dir });
+    const env = { ...process.env, CLAUDE_PROJECT_DIR: dir };
+    delete env.CURSOR_PROJECT_DIR;
+    const r = spawnSync(process.execPath, [join(hooks, "apres-commande.mjs")], { input: entree, encoding: "utf8", env });
+    if (r.stdout.trim() !== "{}") fail(`apres-commande (Claude Code) : ${r.stdout}`);
+    if (!existsSync(join(dir, ".mission", "derniere-commande"))) {
+      fail("apres-commande (Claude Code) : marque absente de CLAUDE_PROJECT_DIR");
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// Essais négatifs : ce que répondrait un garde qui ne reconnaît pas le format Claude Code
+// (il lit `command` à plat, ne trouve rien, autorise ; ou répond au format Cursor) doit être vu comme un écart.
+const reponseAncienGarde = { permission: "allow" };
+const reponseMauvaisFormat = { permission: "deny", user_message: "Commande bloquée : refus au format Cursor." };
+const reponseAllowExplicite = { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "allow" } };
+for (const [garde, fragment] of [["garde-commandes", "forcé"], ["garde-secrets", "secrets"], ["garde-executant", "garde-executant"]]) {
+  if (!ecartRefusClaude(reponseAncienGarde, fragment)) fail(`essai négatif ${garde} : un garde qui autorise passe pour un refus`);
+  if (!ecartRefusClaude(reponseMauvaisFormat, fragment)) fail(`essai négatif ${garde} : une réponse au format Cursor passe pour un refus Claude Code`);
+  if (!ecartRefusClaude(reponseAllowExplicite, fragment)) fail(`essai négatif ${garde} : un allow passe pour un refus`);
+}
+if (!ecartAutorisationClaude(reponseAncienGarde)) fail("essai négatif : une réponse Cursor passe pour « pas d'objection » Claude Code");
+if (!ecartAutorisationClaude(reponseAllowExplicite)) fail("essai négatif : un allow explicite passe pour « pas d'objection »");
+{
+  // L'ancien garde (avant la bascule) lit `command` à plat : sur une entrée Claude Code il autorise tout.
+  const ancien = join(tmpdir(), `legalos-garde-ancien-${process.pid}.mjs`);
+  const libUrl = pathToFileURL(join(hooks, "lib.mjs")).href;
+  writeFileSync(
+    ancien,
+    `import { lireEntree, repondre } from ${JSON.stringify(libUrl)};
+const lu = await lireEntree();
+const c = String(lu.valeur.command || "");
+repondre(c.includes("--force") ? { permission: "deny", user_message: "refus" } : { permission: "allow" });
+`,
+    "utf8",
+  );
+  try {
+    const r = spawnSync(process.execPath, [ancien], { input: claudeBash("git push --force origin main"), encoding: "utf8" });
+    if (!ecartRefusClaude(JSON.parse(r.stdout), "forcé")) fail("essai négatif : l'ancien garde passe pour un refus Claude Code");
+  } finally {
+    rmSync(ancien, { force: true });
+  }
+}
+
+// .claude/settings.json : liste d'autorisation reprise de .cursor/permissions.json, réglages de sécurité, hooks.
+{
+  let reglages;
+  try {
+    reglages = JSON.parse(readFileSync(join(root, ".claude/settings.json"), "utf8"));
+  } catch (erreur) {
+    fail(`.claude/settings.json illisible : ${erreur.message}`);
+  }
+  const verifierReglages = (r) => {
+    const ecarts = [];
+    const autorisations = r.permissions?.allow ?? [];
+    for (const prefixe of prefixes) {
+      const repris = autorisations.some((regle) => {
+        const m = /^(?:Bash|PowerShell)\((.*)\)$/.exec(regle);
+        return m !== null && m[1].startsWith(prefixe);
+      });
+      if (!repris) ecarts.push(`préfixe de permissions.json non repris : ${prefixe}`);
+    }
+    if (r.permissions?.blockReadsOutsideWorkingDirectories !== true) ecarts.push("blockReadsOutsideWorkingDirectories absent");
+    if (r.permissions?.disableBypassPermissionsMode !== "disable") ecarts.push("disableBypassPermissionsMode absent");
+    const attendus = [
+      ["PreToolUse", "Bash|PowerShell", "garde-commandes.mjs"],
+      ["PreToolUse", "Read", "garde-secrets.mjs"],
+      ["PostToolUse", "Bash|PowerShell", "apres-commande.mjs"],
+    ];
+    for (const [evenement, matcher, script] of attendus) {
+      const branche = (r.hooks?.[evenement] ?? []).some(
+        (e) => e.matcher === matcher && (e.hooks ?? []).some((h) => h.type === "command" && String(h.command).includes(`.cursor/hooks/${script}`)),
+      );
+      if (!branche) ecarts.push(`hook ${evenement} ${matcher} → ${script} absent`);
+    }
+    for (const evenement of Object.keys(r.hooks ?? {})) {
+      if (/^(Stop|SubagentStop)$/i.test(evenement)) ecarts.push(`hook ${evenement} interdit`);
+    }
+    return ecarts;
+  };
+  const ecarts = verifierReglages(reglages);
+  if (ecarts.length > 0) fail(`.claude/settings.json : ${ecarts.join(" ; ")}`);
+  // Essais négatifs : un réglage affaibli est vu.
+  const sansBloc = structuredClone(reglages);
+  delete sansBloc.permissions.blockReadsOutsideWorkingDirectories;
+  const avecStop = structuredClone(reglages);
+  avecStop.hooks.Stop = [{ hooks: [{ type: "command", command: "node .cursor/hooks/continuer.mjs" }] }];
+  const sansSecrets = structuredClone(reglages);
+  sansSecrets.hooks.PreToolUse = sansSecrets.hooks.PreToolUse.filter((e) => e.matcher !== "Read");
+  const sansAutorisation = structuredClone(reglages);
+  sansAutorisation.permissions.allow = sansAutorisation.permissions.allow.filter((a) => !a.includes("cargo"));
+  for (const [libelle, variante] of [
+    ["blockReads retiré", sansBloc],
+    ["hook Stop ajouté", avecStop],
+    ["garde-secrets retiré", sansSecrets],
+    ["autorisation cargo retirée", sansAutorisation],
+  ]) {
+    if (verifierReglages(variante).length === 0) fail(`essai négatif settings.json muet : ${libelle}`);
+  }
+}
+
+// Sous-agent executant : le garde est branché dans son en-tête.
+{
+  const executant = readFileSync(join(root, ".claude/agents/executant.md"), "utf8");
+  if (!executant.includes(".cursor/hooks/garde-executant.mjs")) fail("executant.md : garde-executant non branché");
+  if (!/^model:\s*haiku\s*$/m.test(executant)) fail("executant.md : model haiku absent");
+  const controleur = readFileSync(join(root, ".claude/agents/controleur.md"), "utf8");
+  if (!/^model:\s*sonnet\s*$/m.test(controleur) || !/^effort:\s*high\s*$/m.test(controleur)) {
+    fail("controleur.md : model sonnet et effort high attendus");
+  }
+  const explore = readFileSync(join(root, ".claude/agents/Explore.md"), "utf8");
+  if (!/^model:\s*haiku\s*$/m.test(explore) || !/^tools:\s*Read, Grep, Glob\s*$/m.test(explore)) {
+    fail("Explore.md : model haiku et lecture seule attendus");
+  }
+}
+
 // Relance : exécution réelle de continuer.mjs, dépôt temporaire via CURSOR_PROJECT_DIR.
 function depotTemporaire(plan, avecStop) {
   const dir = mkdtempSync(join(tmpdir(), "legalos-continuer-"));
@@ -229,9 +448,19 @@ try {
   rmSync(ancien, { force: true });
 }
 
-for (const fichier of ["docs/ordre-operation.md", ".cursor/rules/00-mission.mdc", ".cursor/rules/50-infra-ci.mdc"]) {
+// La règle de relance (Cursor) vit dans 01-cursor.mdc depuis la bascule vers Claude Code ; l'état et l'attente
+// d'une CI restent dans les règles communes.
+const extraitsCi = {
+  "docs/ordre-operation.md": ["gh run view", "gh run watch", "relances consécutives sans commande exécutée ni commit"],
+  ".cursor/rules/00-mission.mdc": ["gh run view", "gh run watch"],
+  ".cursor/rules/50-infra-ci.mdc": ["gh run view", "gh run watch"],
+  ".cursor/rules/01-cursor.mdc": ["gh run watch", "relances consécutives sans commande exécutée ni commit"],
+  ".claude/rules/00-mission.md": ["gh run view", "gh run watch"],
+  ".claude/rules/50-infra-ci.md": ["gh run view", "gh run watch"],
+};
+for (const [fichier, extraits] of Object.entries(extraitsCi)) {
   const texte = readFileSync(join(root, fichier), "utf8");
-  for (const extrait of ["gh run view", "gh run watch", "relances consécutives sans commande exécutée ni commit"]) {
+  for (const extrait of extraits) {
     if (!texte.includes(extrait)) fail(`${fichier} : extrait absent « ${extrait} »`);
   }
 }

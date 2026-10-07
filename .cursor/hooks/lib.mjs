@@ -43,7 +43,78 @@ function decoder(buf) {
   return buf.toString("utf8");
 }
 
-export function repondre(objet) {
+export function repondre(objet, code = 0) {
   process.stdout.write(JSON.stringify(objet));
-  process.exit(0);
+  process.exit(code);
+}
+
+/**
+ * Format de l'entrée : « claude » (Claude Code : hook_event_name, tool_name, tool_input)
+ * ou « cursor » (command, file_path, workspace_roots à plat).
+ */
+export function formatEntree(valeur) {
+  const v = valeur ?? {};
+  return typeof v.hook_event_name === "string" || "tool_name" in v || "tool_input" in v ? "claude" : "cursor";
+}
+
+export function commandeDe(valeur) {
+  return String(valeur.tool_input?.command ?? valeur.command ?? "");
+}
+
+export function fichierDe(valeur) {
+  return String(valeur.tool_input?.file_path ?? valeur.file_path ?? "");
+}
+
+/** Racines du dépôt : `workspace_roots` (Cursor) ou `cwd` (Claude Code). */
+export function racinesDe(valeur) {
+  if (Array.isArray(valeur.workspace_roots)) return valeur.workspace_roots.map(String);
+  return typeof valeur.cwd === "string" ? [valeur.cwd] : [];
+}
+
+/** Dossier du projet : variable de l'outil, sinon dossier courant. */
+export function dossierProjet() {
+  return process.env.CURSOR_PROJECT_DIR || process.env.CLAUDE_PROJECT_DIR || process.cwd();
+}
+
+/**
+ * « Pas d'objection » du garde. Cursor : allow explicite. Claude Code : réponse vide, pour que la liste
+ * d'autorisation et le mode de permission décident ; un « allow » explicite les court-circuiterait.
+ */
+export function autoriser(valeur) {
+  repondre(formatEntree(valeur) === "claude" ? {} : { permission: "allow" });
+}
+
+/** Refus. Cursor : permission deny ; Claude Code : hookSpecificOutput.permissionDecision deny. */
+export function refuser(valeur, messageUtilisateur, messageAgent = "") {
+  if (formatEntree(valeur) === "claude") {
+    repondre({
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        permissionDecision: "deny",
+        permissionDecisionReason: [messageUtilisateur, messageAgent].filter(Boolean).join(" "),
+      },
+    });
+  }
+  const reponse = { permission: "deny", user_message: messageUtilisateur };
+  if (messageAgent) reponse.agent_message = messageAgent;
+  repondre(reponse);
+}
+
+/**
+ * Refus quand l'entrée est illisible : le format est inconnu, donc réponse dans les deux formats,
+ * raison sur stderr et code 2 (blocage dans les deux outils) : fail-closed.
+ */
+export function refuserIllisible(messageUtilisateur, messageAgent = "") {
+  console.error(messageUtilisateur);
+  const reponse = {
+    permission: "deny",
+    user_message: messageUtilisateur,
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: [messageUtilisateur, messageAgent].filter(Boolean).join(" "),
+    },
+  };
+  if (messageAgent) reponse.agent_message = messageAgent;
+  repondre(reponse, 2);
 }

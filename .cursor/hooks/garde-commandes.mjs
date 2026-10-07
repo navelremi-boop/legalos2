@@ -1,18 +1,16 @@
 // Bloque les commandes destructrices ou irréversibles pendant les longues exécutions autonomes.
 // Couvre PowerShell, cmd et bash.
-import { lireEntree, repondre } from "./lib.mjs";
+import { autoriser, commandeDe, lireEntree, racinesDe, refuser, refuserIllisible } from "./lib.mjs";
 
 const lu = await lireEntree();
 if (!lu.ok) {
-  repondre({
-    permission: "deny",
-    user_message: `Commande refusée par garde-commandes : entrée illisible (${lu.erreur}).`,
-    agent_message:
-      "Le garde n'a pas pu lire l'entrée de la commande. Refuse par sécurité (fail-closed).",
-  });
+  refuserIllisible(
+    `Commande refusée par garde-commandes : entrée illisible (${lu.erreur}).`,
+    "Le garde n'a pas pu lire l'entrée de la commande. Refuse par sécurité (fail-closed).",
+  );
 }
 
-const c = String(lu.valeur.command || "");
+const c = commandeDe(lu.valeur);
 
 const racineDisque = String.raw`["']?(?:[A-Za-z]:[\\/]?|~|\$HOME|\$env:USERPROFILE|%USERPROFILE%)["']?(?:\s|$)`;
 const interdits = [
@@ -34,17 +32,13 @@ const interdits = [
 
 for (const [motif, raison] of interdits) {
   if (motif.test(c)) {
-    repondre({
-      permission: "deny",
-      user_message: `Commande bloquée par garde-commandes : ${raison}.`,
-      agent_message:
-        "Commande interdite par l'ordre d'opération (paragraphe 5) ou dangereuse pour le poste. Trouve une autre méthode ; si une action administrateur est indispensable, passe par BLOCAGES.md.",
-    });
+    refuser(lu.valeur, `Commande bloquée par garde-commandes : ${raison}.`,
+      "Commande interdite par l'ordre d'opération (paragraphe 5) ou dangereuse pour le poste. Trouve une autre méthode ; si une action administrateur est indispensable, passe par BLOCAGES.md.");
   }
 }
 
 // Worktrees des sous-agents : uniquement sous .worktrees/ à la racine du dépôt (ordre d'opération § 4.3).
-const racines = (Array.isArray(lu.valeur.workspace_roots) ? lu.valeur.workspace_roots : [])
+const racines = racinesDe(lu.valeur)
   .map((racine) => normaliser(String(racine)).replace(/\/+$/, ""));
 
 function normaliser(chemin) {
@@ -78,12 +72,8 @@ for (const segment of c.split(/;|&&|\|\||&|\||\r?\n/)) {
     }
   }
   if (!chemin || !worktreeAutorise(chemin)) {
-    repondre({
-      permission: "deny",
-      user_message: "Commande bloquée par garde-commandes : worktree hors de .worktrees/.",
-      agent_message:
-        "Les worktrees des sous-agents se créent dans le dossier du projet : git worktree add .worktrees/<lot> -b lot/<nom> (ordre d'opération § 4.3).",
-    });
+    refuser(lu.valeur, "Commande bloquée par garde-commandes : worktree hors de .worktrees/.",
+      "Les worktrees des sous-agents se créent dans le dossier du projet : git worktree add .worktrees/<lot> -b lot/<nom> (ordre d'opération § 4.3).");
   }
 }
-repondre({ permission: "allow" });
+autoriser(lu.valeur);

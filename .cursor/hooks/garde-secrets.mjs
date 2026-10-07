@@ -1,16 +1,13 @@
 // Empêche l'agent de lire des fichiers de secrets avec l'outil de lecture.
 // Garde-fou, pas un coffre-fort : les secrets réels ne doivent de toute façon pas être dans le dépôt.
-import { lireEntree, repondre } from "./lib.mjs";
+import { autoriser, fichierDe, lireEntree, refuser, refuserIllisible } from "./lib.mjs";
 
 const lu = await lireEntree();
 if (!lu.ok) {
-  repondre({
-    permission: "deny",
-    user_message: `Lecture refusée par garde-secrets : entrée illisible (${lu.erreur}).`,
-  });
+  refuserIllisible(`Lecture refusée par garde-secrets : entrée illisible (${lu.erreur}).`);
 }
 
-const chemin = String(lu.valeur.file_path || "").replace(/\\/g, "/");
+const chemin = fichierDe(lu.valeur).replace(/\\/g, "/");
 const segments = chemin.toLowerCase().split("/");
 const nom = segments.at(-1) || "";
 
@@ -20,8 +17,5 @@ const secret =
   /\.(pem|key|p12|pfx|keystore)$/.test(nom) ||
   segments.some((s) => s === "secrets" || s === ".secrets" || s === ".tauri");
 
-repondre(
-  secret
-    ? { permission: "deny", user_message: "Lecture refusée par garde-secrets : fichier de secrets." }
-    : { permission: "allow" },
-);
+if (secret) refuser(lu.valeur, "Lecture refusée par garde-secrets : fichier de secrets.");
+autoriser(lu.valeur);
