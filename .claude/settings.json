@@ -47,8 +47,6 @@
       "PowerShell(git worktree *)",
       "Bash(git stash *)",
       "PowerShell(git stash *)",
-      "Bash(git push origin *)",
-      "PowerShell(git push origin *)",
       "Bash(gh run *)",
       "PowerShell(gh run *)",
       "Bash(gh pr view *)",
@@ -78,6 +76,10 @@
       "Bash(curl http://127.0.0.1*)",
       "PowerShell(curl http://127.0.0.1*)",
       "PowerShell(Invoke-WebRequest http://127.0.0.1*)"
+    ],
+    "ask": [
+      "Bash(git push origin *)",
+      "PowerShell(git push origin *)"
     ],
     "blockReadsOutsideWorkingDirectories": true,
     "disableBypassPermissionsMode": "disable"

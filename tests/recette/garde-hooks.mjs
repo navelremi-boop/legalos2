@@ -289,12 +289,22 @@ repondre(c.includes("--force") ? { permission: "deny", user_message: "refus" } :
   const verifierReglages = (r) => {
     const ecarts = [];
     const autorisations = r.permissions?.allow ?? [];
-    for (const prefixe of prefixes) {
-      const repris = autorisations.some((regle) => {
+    const demandes = r.permissions?.ask ?? [];
+    const reprise = (liste, prefixe) =>
+      liste.some((regle) => {
         const m = /^(?:Bash|PowerShell)\((.*)\)$/.exec(regle);
         return m !== null && m[1].startsWith(prefixe);
       });
-      if (!repris) ecarts.push(`préfixe de permissions.json non repris : ${prefixe}`);
+    for (const prefixe of prefixes) {
+      // Un push n'est jamais autorisé d'avance sous Claude Code : il passe par « ask » (décision du commandement, 07/10).
+      if (prefixe.startsWith("git push")) {
+        if (!reprise(demandes, prefixe)) ecarts.push(`${prefixe} absent de permissions.ask`);
+      } else if (!reprise(autorisations, prefixe)) {
+        ecarts.push(`préfixe de permissions.json non repris : ${prefixe}`);
+      }
+    }
+    if (autorisations.some((regle) => /^(?:Bash|PowerShell)\(git push\b/.test(regle))) {
+      ecarts.push("git push dans permissions.allow : à placer dans permissions.ask");
     }
     if (r.permissions?.blockReadsOutsideWorkingDirectories !== true) ecarts.push("blockReadsOutsideWorkingDirectories absent");
     if (r.permissions?.disableBypassPermissionsMode !== "disable") ecarts.push("disableBypassPermissionsMode absent");
@@ -323,6 +333,10 @@ repondre(c.includes("--force") ? { permission: "deny", user_message: "refus" } :
   avecStop.hooks.Stop = [{ hooks: [{ type: "command", command: "node .cursor/hooks/continuer.mjs" }] }];
   const sansSecrets = structuredClone(reglages);
   sansSecrets.hooks.PreToolUse = sansSecrets.hooks.PreToolUse.filter((e) => e.matcher !== "Read");
+  const pushAutorise = structuredClone(reglages);
+  pushAutorise.permissions.allow.push("Bash(git push origin *)");
+  const pushSansDemande = structuredClone(reglages);
+  pushSansDemande.permissions.ask = [];
   const sansAutorisation = structuredClone(reglages);
   sansAutorisation.permissions.allow = sansAutorisation.permissions.allow.filter((a) => !a.includes("cargo"));
   for (const [libelle, variante] of [
@@ -330,6 +344,8 @@ repondre(c.includes("--force") ? { permission: "deny", user_message: "refus" } :
     ["hook Stop ajouté", avecStop],
     ["garde-secrets retiré", sansSecrets],
     ["autorisation cargo retirée", sansAutorisation],
+    ["git push dans allow", pushAutorise],
+    ["git push sans ask", pushSansDemande],
   ]) {
     if (verifierReglages(variante).length === 0) fail(`essai négatif settings.json muet : ${libelle}`);
   }
