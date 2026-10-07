@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-10-04 (jalon en cours : **Montée PowerSync**).
+Dernière mise à jour : 2026-10-07 (jalon en cours : **Bascule vers Claude Code**).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -165,9 +165,20 @@ Chaque jalon : recettes + clippy + contrôleur.
 
 ## Phase 3 — Intégration avancée
 
-Critères validés par l'architecte le 04/10/2026. Ordre : **Montée PowerSync** → **J11** → **Modèles et fusion** → **Conventions d'honoraires** → **Facturation, suite** → **Tableau de bord** → **J12** → **J13** → **J14**.
+Critères validés par l'architecte le 04/10/2026. Ordre : **Bascule vers Claude Code** (consigne du 07/10/2026) → **Montée PowerSync** → **J11** → **Modèles et fusion** → **Conventions d'honoraires** → **Facturation, suite** → **Tableau de bord** → **J12** → **J13** → **J14**.
 
-- [ ] **Montée PowerSync** — avant J11 — critères validés par l'architecte le 04/10/2026
+- [ ] **Bascule vers Claude Code** — avant tout autre jalon — critères validés par l'architecte le 07/10/2026
+  - **Critères d'acceptation (commandes)** :
+    - `CLAUDE.md` à la racine, au contenu exact transmis par le commandement le 07/10/2026 (autorité et état, début, pendant et fin de session, interdits).
+    - `node tests/recette/regles-synchronisees.mjs` → exit 0 (CI) : chaque `.cursor/rules/<nom>.mdc` a son `.claude/rules/<nom>.md` au corps identique (`globs` devient `paths`, `alwaysApply: true` devient une règle sans `paths`) ; les lignes propres à Cursor (hook de relance, arrêt pour attendre, fichier STOP) vivent dans `.cursor/rules/01-cursor.mdc`, absente de `.claude/rules` ; essai négatif inclus.
+    - Sous-agents dans `.claude/agents/` : `controleur` (model sonnet, effort high), `facturation`, `instance-backend`, `messagerie`, `poste-interface` (portage des `.cursor/agents`, même corps) ; `executant` (nouveau : model haiku, lecture, édition et exécution de tests, ni `git push` ni `git commit`, refuse synchronisation, droits, facturation, messagerie et sécurité) ; `Explore` (surcharge du sous-agent intégré : model haiku, lecture seule).
+    - `.claude/settings.json` versionné : liste d'autorisation reprise de `.cursor/permissions.json` ; `blockReadsOutsideWorkingDirectories: true` ; `disableBypassPermissionsMode: "disable"` ; hooks PreToolUse (Bash|PowerShell) garde-commandes, PreToolUse (Read) garde-secrets, PostToolUse (Bash|PowerShell) apres-commande ; aucun hook Stop. Les scripts de `.cursor/hooks` restent la seule implémentation : `lib.mjs` reconnaît le format d'entrée (Cursor ou Claude Code) et répond dans le bon format (`hookSpecificOutput.permissionDecision` « deny » avec `permissionDecisionReason`).
+    - `node tests/recette/garde-hooks.mjs` → exit 0 : chaque garde couvert dans les deux formats, avec essai négatif pour chacun ; la recette de `continuer.mjs` (Cursor) reste verte.
+    - `docs/ordre-operation.md` : section « Outils et niveaux » (Claude Code outil principal, Cursor en réserve ; niveaux N executant Haiku, N+1 agent principal Sonnet 5.5 high, contrôleur, N+2 architecte ; routine de session du `CLAUDE.md`).
+    - `.cursor/` reste fonctionnel. Contrôleur (sous-agent `controleur`) VALIDÉ ; CI verte.
+    - Maquettes : `design/maquettes/` (les six `prototype-*.html`) et `design/maquettes/LISEZMOI.md` de trois lignes, commit unique « design: maquettes validées des écrans V1 », aucun autre fichier modifié ; rien n'est implémenté d'après elles avant l'inscription de la consigne du 07/10/2026.
+
+- [ ] **Montée PowerSync** — après la Bascule vers Claude Code, avant J11 — critères validés par l'architecte le 04/10/2026
   - **Critères d'acceptation (commandes)** :
     - `node tests/recette/powersync-0-1.mjs` → exit 0 : `tauri-plugin-powersync` 0.1.x et crate `powersync` 0.1.x ; connecteur adapté ; les quatre exceptions RustSec absentes de `deny.toml` ; `patches/time-macros` et `patches/time-macros-impl` absents ; `rand` 0.7.3 absent du `Cargo.lock` ; `docs/versions.md` et `docs/audit-dependances.md` à jour ; B12 clos.
     - `node tests/recette/s5-sync-streams.mjs`, `node tests/recette/s6-documents.mjs`, `node tests/recette/conflits-poste-tauri.mjs` et `node tests/recette/s5-buckets-volume.mjs` → exit 0.
