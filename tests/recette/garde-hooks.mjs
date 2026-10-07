@@ -299,9 +299,17 @@ repondre(c.includes("--force") ? { permission: "deny", user_message: "refus" } :
       // Un push n'est jamais autorisé d'avance sous Claude Code : il passe par « ask » (décision du commandement, 07/10).
       if (prefixe.startsWith("git push")) {
         if (!reprise(demandes, prefixe)) ecarts.push(`${prefixe} absent de permissions.ask`);
+      } else if (/^(curl|Invoke-WebRequest)\b/.test(prefixe)) {
+        // Non repris (décision du commandement, 07/10) : un motif « http://127.0.0.1* » accepterait aussi
+        // « 127.0.0.1.exemple.com » ; le dépôt n'utilise pas ces appels. Aucune règle réseau locale n'est permise
+        // tant qu'elle ne se termine pas par un port ou un chemin.
+        continue;
       } else if (!reprise(autorisations, prefixe)) {
         ecarts.push(`préfixe de permissions.json non repris : ${prefixe}`);
       }
+    }
+    for (const regle of autorisations) {
+      if (/127\.0\.0\.1\*|localhost\*/i.test(regle)) ecarts.push(`motif réseau ouvert (joker juste après l'hôte) : ${regle}`);
     }
     if (autorisations.some((regle) => /^(?:Bash|PowerShell)\(git push\b/.test(regle))) {
       ecarts.push("git push dans permissions.allow : à placer dans permissions.ask");
@@ -335,6 +343,8 @@ repondre(c.includes("--force") ? { permission: "deny", user_message: "refus" } :
   sansSecrets.hooks.PreToolUse = sansSecrets.hooks.PreToolUse.filter((e) => e.matcher !== "Read");
   const pushAutorise = structuredClone(reglages);
   pushAutorise.permissions.allow.push("Bash(git push origin *)");
+  const curlOuvert = structuredClone(reglages);
+  curlOuvert.permissions.allow.push("Bash(curl -s http://127.0.0.1*)");
   const pushSansDemande = structuredClone(reglages);
   pushSansDemande.permissions.ask = [];
   const sansAutorisation = structuredClone(reglages);
@@ -346,6 +356,7 @@ repondre(c.includes("--force") ? { permission: "deny", user_message: "refus" } :
     ["autorisation cargo retirée", sansAutorisation],
     ["git push dans allow", pushAutorise],
     ["git push sans ask", pushSansDemande],
+    ["curl local à joker ouvert", curlOuvert],
   ]) {
     if (verifierReglages(variante).length === 0) fail(`essai négatif settings.json muet : ${libelle}`);
   }

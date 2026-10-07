@@ -70,12 +70,7 @@
       "PowerShell(Resolve-Path *)",
       "PowerShell(Measure-Object *)",
       "PowerShell(.\\scripts\\clippy.ps1 *)",
-      "PowerShell(. .\\scripts\\bootstrap-path.ps1 *)",
-      "Bash(curl -s http://127.0.0.1*)",
-      "PowerShell(curl -s http://127.0.0.1*)",
-      "Bash(curl http://127.0.0.1*)",
-      "PowerShell(curl http://127.0.0.1*)",
-      "PowerShell(Invoke-WebRequest http://127.0.0.1*)"
+      "PowerShell(. .\\scripts\\bootstrap-path.ps1 *)"
     ],
     "ask": [
       "Bash(git push origin *)",
