@@ -201,3 +201,25 @@ Tant que ce n'est pas le cas : ne jamais conclure, ne jamais demander « voulez-
 - **Reprise** : à chaque nouvelle session ou après compactage, relis ce document, `PLAN.md`, la synthèse de `JOURNAL.md` (pas l'archive `docs/journal/`) et `BLOCAGES.md` avant toute action.
 - **Arrêt d'urgence** : si le fichier `.mission/STOP` existe, termine l'action en cours proprement, mets à jour `JOURNAL.md` et arrête-toi.
 - **Architecte** : le commandement est assisté d'un architecte. Ses consignes, transmises par le commandement, ont autorité de commandement. Toute décision d'architecture non prévue par le cahier des charges (dépendance structurante, changement transverse du modèle de données ou des règles de synchronisation, écart au cahier) est inscrite dans `BLOCAGES.md`, section « Décisions d'architecture en attente », avec l'option que tu recommandes. Tu poursuis les autres jalons ; tu n'implémentes pas cette décision avant accord.
+
+## 8. Outils et niveaux
+
+*Section ajoutée sur consigne de l'architecte du 07/10/2026 (bascule vers Claude Code).*
+
+**Outils.** Claude Code est l'outil principal ; Cursor reste en réserve et fonctionnel (`.cursor/`). Une seule implémentation des gardes (`.cursor/hooks/`, qui reconnaît le format d'entrée de chaque outil), des règles identiques des deux côtés (`.cursor/rules/` et `.claude/rules/`, contrôle `tests/recette/regles-synchronisees.mjs`), des sous-agents portés (`.cursor/agents/` et `.claude/agents/`). Ce qui n'existe que sous Cursor (hook de relance, arrêt pour attendre, fichier `.mission/STOP`) vit dans `.cursor/rules/01-cursor.mdc` ; Claude Code n'a aucun hook d'arrêt et aucune relance automatique.
+
+**Niveaux.**
+
+| Niveau | Qui | Modèle | Rôle |
+| --- | --- | --- | --- |
+| N | `executant` | Haiku | Tâches mécaniques entièrement spécifiées (fichiers, comportement attendu, commande de test qui le prouve). Ni `git push` ni `git commit`. Jamais la synchronisation, les droits, la facturation, la messagerie ni la sécurité. Explore (Haiku, lecture seule) l'accompagne pour l'exploration. |
+| N+1 | Agent principal (état-major) | Sonnet 5.5, effort high | Conduit la mission, relit tout ce que produit `executant` avant de le commiter, commite, tient `PLAN.md`, `JOURNAL.md` et `BLOCAGES.md`. Jamais d'effort « max ». |
+| Contrôleur | `controleur` | Sonnet, effort high | Indépendant : écrit les tests d'acceptation avant de lire l'implémentation, exécute tout, ne corrige jamais le code de production, rend un verdict. |
+| N+2 | Architecte | Instance Claude distincte | Fixe et modifie les critères des jalons et les dettes ; ses consignes sont transmises par le commandement. |
+
+Le commandement (Rémi, avocat) garde le dernier mot.
+
+**Routine de session** (reprise de `CLAUDE.md`) :
+1. Début : lire `PLAN.md` (jalon en cours et ses critères), la dernière entrée de `JOURNAL.md` et `BLOCAGES.md` ; des autres documents, seulement les sections utiles, par recherche plutôt que par lecture entière ; reprendre à la « prochaine action » de la dernière entrée « État de session ».
+2. Pendant : commit à chaque étape cohérente ; une ligne dans `JOURNAL.md` avant toute opération longue (compilation complète, recette, CI) ; état d'une CI par commande, attente par `gh run watch <id> --exit-status` ; preuve avant affirmation.
+3. Fin : aucune relance automatique, une session peut s'arrêter à la limite d'usage ; avant de s'arrêter, commit puis entrée « État de session » dans `JOURNAL.md` (fait, en cours, prochaine action, commandes à relancer).
