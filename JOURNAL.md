@@ -13,7 +13,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Documents, suite** : VALIDÉ `6f5f757` (contrôleur sur `8e962d7`, CI [36687786819](https://github.com/navelremi-boop/legalos2/actions/runs/36687786819)). Premier contrôle REFUSÉ sur `d836807` (`PSYNC_S2305`). Cinq runs : **99** minutes.
 - **J9** : VALIDÉ `a036e24` (contrôleur [étape 3](f0db1509-4bcf-4701-a6dd-eb44db4835ca), CI [36751876546](https://github.com/navelremi-boop/legalos2/actions/runs/36751876546)). Run de reprise : **22** minutes (jobs arrondis à la minute supérieure).
 - **J10** : VALIDÉ `dd5c92a` (contrôleur [dates](5a587655-3ac9-4930-88bc-0bfbf4583fac), CI [37229519725](https://github.com/navelremi-boop/legalos2/actions/runs/37229519725)). Sept jobs, **29** minutes (arrondis à la minute supérieure). `j10-ecrans-tauri.mjs` non rejoué sur ce commit : le contrôleur le note, le critère structurel reste celui de `197b345`.
-- **En cours** : **Montée PowerSync**.
+- **En cours** : **Bascule vers Claude Code** (consigne du 07/10), puis **Montée PowerSync**.
 - **Ordre** : ~~Streams~~ → ~~J8~~ → ~~Référence de dossier~~ → ~~Conflits généralisés~~ → ~~Coque~~ → ~~Vue scindée~~ → ~~Intercalaires~~ → ~~Dossiers et contacts~~ → ~~Agenda~~ → ~~Documents, suite~~ → ~~J9~~ → **J10** → Montée PowerSync → J11 → Modèles et fusion → Conventions d'honoraires → Facturation, suite → Tableau de bord → J12 → J13 → J14.
 - **CI** : l'état d'un run se lit par `gh run view` à chaque fois. Attendre = `gh run watch <id> --exit-status`. Deux relances consécutives sans commande ni commit créent `.mission/STOP` (ordre § 4.7).
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 (27/09) ; contrôle `tests/recette/plan-gouvernance.mjs` (CI, job gouvernance). Un chemin `docs/…` cité dans `PLAN.md`, `BLOCAGES.md` ou `JOURNAL.md` doit exister.
@@ -24,6 +24,32 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - **Minutes GitHub Actions** : un push uniquement Markdown ne lance que `gouvernance` et `frontend`. Le job `macos-placeholder` est retiré (il reviendra en J16, déclenchement manuel).
 
 ---
+
+## 2026-10-07 — État de session (bascule vers Claude Code)
+
+**Fait** (commits locaux sur `main`, au-dessus de `391bd26`) :
+- `9a5069f` `plan:` — jalon « Bascule vers Claude Code » inscrit au PLAN (consigne du 07/10, critères en commandes). Les autres éléments de la consigne du 07/10 (Coque claire, J11, Finition des écrans, Écran de connexion, Facturation suite, nouvel ordre) ne sont **pas encore** inscrits : c'est l'étape 4, commit `plan:` dédié.
+- `6a31b29` — `CLAUDE.md` (contenu exact transmis), `.claude/rules/` (15 règles, globs → paths, corps identiques), `.cursor/rules/01-cursor.mdc` (lignes propres à Cursor : relance par le hook, arrêt pour attendre, `.mission/STOP`), `.claude/agents/` (portage des cinq agents, `controleur` en sonnet/high, `executant` en haiku, `Explore` en haiku lecture seule).
+- `f568f91` — `.cursor/hooks/lib.mjs` reconnaît l'entrée Cursor ou Claude Code et répond dans le bon format (Claude Code : `hookSpecificOutput.permissionDecision` « deny » avec `permissionDecisionReason` ; « pas d'objection » = réponse vide, pour ne pas court-circuiter la liste d'autorisation ; entrée illisible : refus dans les deux formats, code 2) ; `garde-executant.mjs` (ni push, ni commit, ni reset/rebase/merge/tag/cherry-pick/revert/am), branché dans l'en-tête de `executant` ; `.claude/settings.json` ; `tests/recette/regles-synchronisees.mjs` (en CI, essais négatifs) ; `tests/recette/garde-hooks.mjs` étendu aux deux formats, aux réglages et aux agents, essai négatif pour chaque garde.
+- `3aea61e` — `docs/ordre-operation.md` § 8 « Outils et niveaux ».
+- `fdeb5ba` — `design: maquettes validées des écrans V1` (six fichiers + `LISEZMOI.md` de trois lignes, aucun autre fichier).
+
+**Preuves** : `node tests/recette/garde-hooks.mjs` exit 0 (continuer.mjs compris) ; `node tests/recette/regles-synchronisees.mjs` exit 0, essai négatif réel (corps modifié) en exit 1 puis restauré ; `node tests/recette/cursor-rules-globs.mjs` exit 0 ; `node tests/recette/plan-gouvernance.mjs` exit 0. Les gardes sont actifs dans la session Claude Code : le garde-commandes a refusé une commande de la session contenant un push forcé.
+
+**Règle déplacée, pas affaiblie** : « deux relances consécutives… » quitte `00-mission` et `50-infra-ci` pour `01-cursor.mdc` ; `garde-hooks.mjs` exige désormais l'extrait dans `docs/ordre-operation.md` et `01-cursor.mdc`, et `gh run view` / `gh run watch` dans les règles communes des deux côtés.
+
+**Points à confirmer par le commandement** :
+- `blockReadsOutsideWorkingDirectories` (consigne) : clé absente des pages de documentation consultées le 07/10 (permissions, settings) ; écrite sous `permissions` comme demandé, effet non vérifié. `disableBypassPermissionsMode: "disable"` est documenté sous `permissions`.
+- `pnpm-workspace.yaml` est en CRLF dans l'arbre de travail (déclaré LF) : `encodage-texte.mjs` échoue en local sur ce seul fichier, déjà avant ces commits ; la CI (checkout Linux) n'est pas concernée.
+
+**En cours / bloqué** :
+- **Push refusé** par le classificateur du mode automatique (commande `git commit` + `git push origin main`, sans motif donné). Le commit a été refait seul. Rien n'est poussé : la CI de la bascule n'a pas tourné. Décision au commandement.
+- **Contrôleur** : les nouveaux sous-agents (`.claude/agents/`) ne sont chargés qu'à la session suivante ; le sous-agent `controleur` n'a donc pas pu être lancé. Verdict à obtenir en début de prochaine session.
+- CI de `391bd26` (run 37367371525) : lue par `gh run view` : completed, failure ; `gouvernance` success, `frontend` et `perimetre` cancelled, les autres skipped. Aucun test échoué. Non relancée.
+
+**Prochaine action** : (1) obtenir l'accord pour pousser `main` ; (2) pousser, puis `gh run watch <id> --exit-status` sur le run du nouveau head ; (3) lancer le sous-agent `controleur` sur la bascule (début de session) ; (4) cocher « Bascule vers Claude Code » si VALIDÉ et CI verte ; (5) relancer la CI de `391bd26` si elle reste utile, cocher « Montée PowerSync » après verdict du contrôleur ; (6) étape 4 : inscrire la consigne du 07/10 au PLAN, commit `plan:` dédié ; (7) reprendre l'ordre du PLAN (Coque claire).
+
+**Commandes à relancer** : `node tests/recette/garde-hooks.mjs` ; `node tests/recette/regles-synchronisees.mjs` ; `node tests/recette/plan-gouvernance.mjs` ; `gh run list --limit 3`.
 
 ## 2026-10-04 — Montée PowerSync, en cours
 
