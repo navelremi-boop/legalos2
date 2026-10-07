@@ -15,6 +15,9 @@ secrets/
 .mission/relances.json
 .mission/derniere-commande
 
+# Réglages locaux de Claude Code
+.claude/settings.local.json
+
 # Worktrees des sous-agents (ordre d'opération § 4.3)
 .worktrees/
 

@@ -78,6 +78,7 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 | Schematron EN 16931 | XML Factur-X |
 | Playwright | **1.63.0** — captures S13. https://www.npmjs.com/package/playwright — `latest` le 2026-10-04. GHSA-7mvr-c777-76hp corrigé depuis 1.55.1. Licence Apache-2.0. |
 | WebdriverIO + Tauri | Fumée app construite (feature test uniquement) |
+| Claude Code | **2.1.293** installé. `permissions.blockReadsOutsideWorkingDirectories` et `permissions.disableBypassPermissionsMode` : documentés (https://code.claude.com/docs/en/settings), le premier à partir de la version **2.1.257**. Effet du premier constaté le 2026-10-07 par le contrôleur. |
 
 ## Actions GitHub (à épingler dans `.github/workflows/`)
 

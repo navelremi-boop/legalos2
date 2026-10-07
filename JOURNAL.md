@@ -25,6 +25,19 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-10-07 (soir) — Bascule vers Claude Code : contrôleur VALIDÉ
+
+Contrôleur (sous-agent `controleur`) **VALIDÉ** sur `6c7b0a6`, CI [37680889863](https://github.com/navelremi-boop/legalos2/actions/runs/37680889863) success (relue par `gh run view`). Recettes rejouées exit 0 : `regles-synchronisees`, `garde-hooks`, `plan-gouvernance`, `cursor-rules-globs` ; essais négatifs réels (règle modifiée, règle absente, gardes en entrée Claude Code et Cursor, entrée illisible refusée) ; `executant` refuse `git commit` et l'écriture dans `crates/api/src/` en vrai. Critères non affaiblis (`git diff 197167c c8a687d -- PLAN.md` : ajouts seuls). Sept écarts mineurs :
+1. JOURNAL (clé `blockReadsOutsideWorkingDirectories`) : corrigé, `docs/versions.md` à jour.
+2. Dérogations au critère « liste d'autorisation reprise de `.cursor/permissions.json` » (règles `curl`/`Invoke-WebRequest` locales supprimées, `git push origin` en `ask`) : décisions du commandement ; **à faire entériner par l'architecte** (seul à pouvoir modifier le critère).
+3. `garde-executant` bloque `git commit`/`git push` de bonne foi ; piste : `disallowedTools` dans l'en-tête de `executant.md`. **Proposé à l'architecte**, non fait.
+4. `garde-secrets` ne couvre que l'outil Read (Grep, Glob et `cat` passent) : **proposé à l'architecte** (invariant 8).
+5. `pnpm-workspace.yaml` en CRLF local (`core.autocrlf=true`) : poste local, CI non concernée.
+6. `.claude/settings.local.json` ajouté au `.gitignore` du dépôt.
+7. Égalité octet à octet de `CLAUDE.md` avec le texte transmis non vérifiable par le contrôleur : à confirmer par le commandement.
+
+Contrôleur Montée PowerSync lancé en parallèle ; verdict en attente.
+
 ## 2026-10-07 — État de session (bascule vers Claude Code)
 
 **Fait** (commits locaux sur `main`, au-dessus de `391bd26`) :
@@ -41,7 +54,7 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 **Règle déplacée, pas affaiblie** : « deux relances consécutives… » quitte `00-mission` et `50-infra-ci` pour `01-cursor.mdc` ; `garde-hooks.mjs` exige désormais l'extrait dans `docs/ordre-operation.md` et `01-cursor.mdc`, et `gh run view` / `gh run watch` dans les règles communes des deux côtés.
 
 **Points à confirmer par le commandement** :
-- `blockReadsOutsideWorkingDirectories` (consigne) : clé absente des pages de documentation consultées le 07/10 (permissions, settings) ; écrite sous `permissions` comme demandé, effet non vérifié. `disableBypassPermissionsMode: "disable"` est documenté sous `permissions`.
+- ~~`blockReadsOutsideWorkingDirectories` : clé absente de la documentation, effet non vérifié.~~ **Corrigé le 07/10 par le contrôleur** : clé documentée sous `permissions` (Claude Code 2.1.257 ou plus ; installé 2.1.293), effet constaté (lecture de `C:Windowswin.ini` refusée). Consigné dans `docs/versions.md`. `disableBypassPermissionsMode: "disable"` est documenté sous `permissions`.
 - `pnpm-workspace.yaml` est en CRLF dans l'arbre de travail (déclaré LF) : `encodage-texte.mjs` échoue en local sur ce seul fichier, déjà avant ces commits ; la CI (checkout Linux) n'est pas concernée.
 
 **En cours / bloqué** :
