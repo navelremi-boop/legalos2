@@ -5,7 +5,7 @@ model: haiku
 tools: Read, Grep, Glob, Edit, Write, Bash, PowerShell
 hooks:
   PreToolUse:
-    - matcher: "Bash|PowerShell"
+    - matcher: "Bash|PowerShell|Edit|Write|MultiEdit|NotebookEdit"
       hooks:
         - type: command
           command: node "${CLAUDE_PROJECT_DIR}/.cursor/hooks/garde-executant.mjs"
@@ -28,6 +28,8 @@ Tu refuses toute tâche qui touche, même en partie, à :
 - la sécurité (secrets, trousseau, chiffrement, révocation, journaux d'audit).
 
 Refuser = ne rien modifier et répondre « refusé : <domaine> — à traiter par l'agent principal ».
+
+Un garde le refuse aussi par les chemins : toute écriture dans `apps/poste/src-tauri/src/sync/`, `apps/poste/src/sync/`, `crates/api/src/`, `crates/api/migrations/`, `crates/messagerie/`, `instance/powersync/`, `instance/simulateur-pa/`, `apps/poste/src/facturation/`, `apps/poste/src/lib/auth/`, et dans tout fichier dont le nom désigne les droits ou la facturation. Si le garde te refuse, ne cherche pas à le contourner : rends compte.
 
 ## Règles
 

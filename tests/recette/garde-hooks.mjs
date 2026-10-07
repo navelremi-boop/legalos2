@@ -228,6 +228,102 @@ for (const commande of ["git status", "git diff --stat", "git log -3", "node tes
   expectAllowClaude("garde-executant.mjs", claudeBash(commande));
 }
 
+// Garde du sous-agent executant, par les chemins : aucune écriture dans la synchronisation, l'API, la messagerie,
+// les migrations, les droits et la facturation (décision du commandement, 07/10/2026).
+const claudeEcrire = (outil, cle, chemin) =>
+  JSON.stringify({ hook_event_name: "PreToolUse", tool_name: outil, tool_input: { [cle]: chemin, content: "x" }, cwd: cwdClaude });
+const cheminsRefuses = [
+  "apps/poste/src-tauri/src/sync/mod.rs",
+  "apps\\poste\\src-tauri\\src\\sync\\mod.rs",
+  "C:\\Users\\exemple\\legalos2\\crates\\api\\src\\routes\\dossiers.rs",
+  "crates/messagerie/src/lib.rs",
+  "crates/api/migrations/040_x.sql",
+  "apps/poste/src-tauri/src/../src/sync/x.rs",
+  ".worktrees/j11/crates/api/src/x.rs",
+  "apps/poste/src/facturation/EcranFacturation.tsx",
+  "apps/poste/src/lib/auth/client.ts",
+  "instance/powersync/sync-config.yaml",
+  "crates/autre/src/droits.rs",
+  "tests/recette/s9-factures.mjs",
+];
+const cheminsAutorises = [
+  "apps/poste/src/ecrans/Journee.tsx",
+  "design/tokens.css",
+  "tests/recette/regles-synchronisees.mjs",
+  "docs/versions.md",
+  "apps/poste/src-tauri/src/main.rs",
+  "C:\\Users\\exemple\\legalos2\\apps\\poste\\src\\ecrans\\Agenda.tsx",
+];
+for (const chemin of cheminsRefuses) {
+  for (const outil of ["Edit", "Write", "MultiEdit"]) {
+    expectDenyClaude("garde-executant.mjs", claudeEcrire(outil, "file_path", chemin), "chemin réservé");
+  }
+  expectDenyClaude("garde-executant.mjs", claudeEcrire("NotebookEdit", "notebook_path", chemin), "chemin réservé");
+}
+for (const chemin of cheminsAutorises) {
+  expectAllowClaude("garde-executant.mjs", claudeEcrire("Edit", "file_path", chemin));
+  expectAllowClaude("garde-executant.mjs", claudeEcrire("Write", "file_path", chemin));
+}
+for (const commande of [
+  "echo x > crates/api/src/main.rs",
+  "echo x >> apps\\poste\\src-tauri\\src\\sync\\mod.rs",
+  "sed -i s/a/b/ crates/messagerie/src/lib.rs",
+  "rm crates/api/migrations/001_init.sql",
+  "cp nouveau.rs crates/messagerie/src/envoi.rs",
+  "git checkout -- crates/api/src/main.rs",
+  "cat modele.sql | tee crates/api/migrations/041_x.sql",
+  "node -e \"require('fs').writeFileSync('crates/api/src/x.rs','')\"",
+  "git status; rm apps/poste/src/facturation/EcranFacturation.tsx",
+]) {
+  expectDenyClaude("garde-executant.mjs", claudeBash(commande), "chemin réservé");
+}
+for (const commande of [
+  "Set-Content -Path crates\\api\\src\\a.rs -Value x",
+  "Remove-Item apps\\poste\\src\\facturation\\Ecran.tsx",
+  "Out-File -FilePath crates/messagerie/log.txt",
+]) {
+  expectDenyClaude("garde-executant.mjs", claudeBash(commande, "PowerShell"), "chemin réservé");
+}
+for (const commande of [
+  "cat crates/api/src/main.rs",
+  "grep -rn dossier crates/messagerie",
+  "git diff crates/api/src/main.rs",
+  "cargo clippy --manifest-path crates/api/Cargo.toml",
+  "grep -n foo crates/api/src/main.rs > resultat.txt",
+  "echo ok > tmp.txt && cat tmp.txt 2>&1",
+  "sed -i s/a/b/ apps/poste/src/ecrans/Journee.tsx",
+  "node tests/recette/s5-sync-streams.mjs",
+]) {
+  expectAllowClaude("garde-executant.mjs", claudeBash(commande));
+}
+{
+  // Essai négatif : le garde d'avant la correction ne regardait que git ; il laisse écrire dans un chemin réservé.
+  const ancien = join(tmpdir(), `legalos-executant-ancien-${process.pid}.mjs`);
+  const libUrl = pathToFileURL(join(hooks, "lib.mjs")).href;
+  writeFileSync(
+    ancien,
+    `import { autoriser, commandeDe, lireEntree, refuser } from ${JSON.stringify(libUrl)};
+const lu = await lireEntree();
+if (/git\\s+(push|commit)/.test(commandeDe(lu.valeur))) refuser(lu.valeur, "garde-executant : git");
+autoriser(lu.valeur);
+`,
+    "utf8",
+  );
+  try {
+    for (const entree of [
+      claudeEcrire("Edit", "file_path", "crates/api/src/main.rs"),
+      claudeBash("echo x > crates/messagerie/src/lib.rs"),
+    ]) {
+      const r = spawnSync(process.execPath, [ancien], { input: entree, encoding: "utf8" });
+      if (!ecartRefusClaude(JSON.parse(r.stdout), "chemin réservé")) {
+        fail("essai négatif : l'ancien garde executant passe pour un refus de chemin");
+      }
+    }
+  } finally {
+    rmSync(ancien, { force: true });
+  }
+}
+
 // Après-commande (PostToolUse) : la marque est écrite dans CLAUDE_PROJECT_DIR.
 {
   const dir = mkdtempSync(join(tmpdir(), "legalos-apres-"));
@@ -366,6 +462,10 @@ repondre(c.includes("--force") ? { permission: "deny", user_message: "refus" } :
 {
   const executant = readFileSync(join(root, ".claude/agents/executant.md"), "utf8");
   if (!executant.includes(".cursor/hooks/garde-executant.mjs")) fail("executant.md : garde-executant non branché");
+  const matcher = /matcher:\s*"([^"]+)"/.exec(executant)?.[1] ?? "";
+  for (const outil of ["Bash", "PowerShell", "Edit", "Write", "MultiEdit", "NotebookEdit"]) {
+    if (!matcher.split("|").includes(outil)) fail(`executant.md : garde-executant non branché sur ${outil}`);
+  }
   if (!/^model:\s*haiku\s*$/m.test(executant)) fail("executant.md : model haiku absent");
   const controleur = readFileSync(join(root, ".claude/agents/controleur.md"), "utf8");
   if (!/^model:\s*sonnet\s*$/m.test(controleur) || !/^effort:\s*high\s*$/m.test(controleur)) {
