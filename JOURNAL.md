@@ -45,11 +45,12 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 - `pnpm-workspace.yaml` est en CRLF dans l'arbre de travail (déclaré LF) : `encodage-texte.mjs` échoue en local sur ce seul fichier, déjà avant ces commits ; la CI (checkout Linux) n'est pas concernée.
 
 **En cours / bloqué** :
-- **Push refusé** par le classificateur du mode automatique (commande `git commit` + `git push origin main`, sans motif donné). Le commit a été refait seul. Rien n'est poussé : la CI de la bascule n'a pas tourné. Décision au commandement.
+- **Poussé** le 07/10 (`391bd26..6c7b0a6`, autorisé par le commandement). CI lue par `gh run view 37680889863` : completed, success (perimetre, frontend, gouvernance, facturx, rust, webdriver-macos, s1-instance). Le push avait d’abord été refusé par le classificateur du mode automatique.
+- (historique) Push refusé par le classificateur du mode automatique (commande `git commit` + `git push origin main`, sans motif donné). Le commit a été refait seul. Rien n'est poussé : la CI de la bascule n'a pas tourné. Décision au commandement.
 - **Contrôleur** : les nouveaux sous-agents (`.claude/agents/`) ne sont chargés qu'à la session suivante ; le sous-agent `controleur` n'a donc pas pu être lancé. Verdict à obtenir en début de prochaine session.
 - CI de `391bd26` (run 37367371525) : lue par `gh run view` : completed, failure ; `gouvernance` success, `frontend` et `perimetre` cancelled, les autres skipped. Aucun test échoué. Non relancée.
 
-**Prochaine action** : (1) obtenir l'accord pour pousser `main` ; (2) pousser, puis `gh run watch <id> --exit-status` sur le run du nouveau head ; (3) lancer le sous-agent `controleur` sur la bascule (début de session) ; (4) cocher « Bascule vers Claude Code » si VALIDÉ et CI verte ; (5) relancer la CI de `391bd26` si elle reste utile, cocher « Montée PowerSync » après verdict du contrôleur ; (6) étape 4 : inscrire la consigne du 07/10 au PLAN, commit `plan:` dédié ; (7) reprendre l'ordre du PLAN (Coque claire).
+**Prochaine action** : (1) lancer le sous-agent `controleur` sur la bascule (nouvelle session : `.claude/agents/` n'est chargé qu'au démarrage ; non disponible dans la session du 07/10) ; (2) cocher « Bascule vers Claude Code » si VALIDÉ (CI déjà verte sur `6c7b0a6`) ; (3) relancer la CI de `391bd26` si elle reste utile, cocher « Montée PowerSync » après verdict du contrôleur ; (4) étape 4 : inscrire la consigne du 07/10 au PLAN, commit `plan:` dédié ; (5) reprendre l'ordre du PLAN (Coque claire).
 
 **Commandes à relancer** : `node tests/recette/garde-hooks.mjs` ; `node tests/recette/regles-synchronisees.mjs` ; `node tests/recette/plan-gouvernance.mjs` ; `gh run list --limit 3`.
 
