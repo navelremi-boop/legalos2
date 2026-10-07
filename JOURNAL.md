@@ -25,6 +25,27 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 ---
 
+## 2026-10-07 (nuit) — État de session : Montée PowerSync REFUSÉE, Bascule cochée
+
+**Fait** : Bascule vers Claude Code cochée (`827bd54`, poussé ; CI [37685798881](https://github.com/navelremi-boop/legalos2/actions/runs/37685798881) success, sept jobs, relue par `gh run view`). Coque claire mise en attente par le commandement pour ce soir.
+
+**Montée PowerSync : contrôleur REFUSÉ** (code inchangé depuis `58b2f98`, HEAD `827bd54`). Les critères de fond sont atteints (0.1.0, chaîne `http-client` et rustines retirées, `ignore = []`, `powersync-0-1.mjs`, `s5-sync-streams.mjs` exit 0, clippy et `cargo deny` du poste exit 0). Critères non affaiblis (`git diff 28d5f5c HEAD -- PLAN.md`). Deux commandes exigées en exit 0 ne le sont pas de façon fiable :
+1. `node tests/recette/conflits-poste-tauri.mjs` : trois passes, exit 1 puis 0 puis 0. L'échec (tout premier lancement, juste après le redémarrage de Docker, avec compilation de l'app) : `reconnexion absente (toujours hors ligne)`, `conflits-poste-tauri.mjs:330`. Cause non déterminée (démarrage à froid ou course de reconnexion).
+2. `node tests/recette/coque-app.mjs --captures` : « OK » affiché, puis le processus ne se termine pas (plus de dix minutes). Cause probable annoncée par le contrôleur, **à vérifier** : Vite lancé par `spawn("pnpm", …, { shell: true })` (lignes 176 à 180), `vite.kill()` ne tue pas le petit-fils sous Windows. `s6-documents.mjs` et `s5-buckets-volume.mjs` : exit 0 au second essai (Docker Desktop était arrêté au premier).
+
+Conditions de levée : expliquer ou corriger l'échec intermittent puis rejouer plusieurs fois de suite ; faire terminer `--captures` sous Windows. Un refus se traite en complétant le jalon (ordre § 4.5), pas en retirant le critère.
+
+**Constats du contrôleur hors périmètre, à vérifier avant tout rattachement (dettes : réservé à l'architecte)** :
+- `cargo deny --manifest-path Cargo.toml check` (workspace racine) échouerait en local : RUSTSEC-2023-0071 (`rsa` 0.9.10 via `jsonwebtoken`), RUSTSEC-2026-0192 (`ttf-parser` 0.25.1 via `lopdf`/`pdf-extract`), `yoke-derive` retirée du registre. `docs/audit-dependances.md` annonce pourtant `rsa` retiré.
+- `ci.yml` (lignes 163 à 172) n'exécute que `deny-exception-inutile.mjs`, aucun `cargo deny check` réel ; la dette « cargo-deny en CI sur les deux workspaces » est cochée sans cette exécution. **À soumettre à l'architecte.**
+- Mineurs : Playwright 1.64.0 est devenu `latest` le 07/10 (1.63.0 reste conforme à l'intention, mais `powersync-0-1.mjs` fige `1.63.0`) ; section « Constat du 27 septembre » de `docs/audit-dependances.md` non signalée comme dépassée ; `pnpm-workspace.yaml` en CRLF local.
+
+**Effet de bord à traiter** : un Vite orphelin du contrôleur (`node` PID 9952, `pnpm` PID 9200) occupe 127.0.0.1:1420 et faussera tout `--captures` ou lancement de l'app. Vérifier puis arrêter avant la prochaine recette. Docker Desktop est démarré.
+
+**Prochaine action** : (1) libérer le port 1420 ; (2) reproduire l'échec de `conflits-poste-tauri.mjs` (démarrage à froid après redémarrage de Docker), lire le code de reconnexion, corriger ou prouver ; rejouer au moins trois fois ; (3) corriger l'arrêt de Vite dans `coque-app.mjs` (arrêt de l'arbre de processus, sans `shell: true` si possible) et prouver que `--captures` se termine, port libre ; (4) relancer le contrôleur sur la Montée PowerSync ; (5) cocher si VALIDÉ ; (6) Coque claire, puis J11.
+
+**Commandes à relancer** : `node tests/recette/conflits-poste-tauri.mjs` (x3) ; `node tests/recette/coque-app.mjs --captures` ; `gh run list --limit 3`.
+
 ## 2026-10-07 (soir) — Bascule vers Claude Code : contrôleur VALIDÉ
 
 Contrôleur (sous-agent `controleur`) **VALIDÉ** sur `6c7b0a6`, CI [37680889863](https://github.com/navelremi-boop/legalos2/actions/runs/37680889863) success (relue par `gh run view`). Recettes rejouées exit 0 : `regles-synchronisees`, `garde-hooks`, `plan-gouvernance`, `cursor-rules-globs` ; essais négatifs réels (règle modifiée, règle absente, gardes en entrée Claude Code et Cursor, entrée illisible refusée) ; `executant` refuse `git commit` et l'écriture dans `crates/api/src/` en vrai. Critères non affaiblis (`git diff 197167c c8a687d -- PLAN.md` : ajouts seuls). Sept écarts mineurs :
