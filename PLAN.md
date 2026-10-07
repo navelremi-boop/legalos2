@@ -176,7 +176,7 @@ Décisions du commandement (06/10/2026) :
 
 Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette (Playwright, 1240 par 800, jour et nuit) et la capture de l'application au même état, les compare, liste les écarts. Un écart de structure (volets, ordre, élément absent) refuse le jalon ; un écart de détail (espacement, ombre) est consigné en dette. Le commandement garde son veto (B9).
 
-- [ ] **Bascule vers Claude Code** — avant tout autre jalon — critères validés par l'architecte le 07/10/2026
+- [x] **Bascule vers Claude Code** — VALIDÉ `6c7b0a6` (contrôleur 07/10/2026, CI [37680889863](https://github.com/navelremi-boop/legalos2/actions/runs/37680889863)) — critères validés par l'architecte le 07/10/2026
   - **Critères d'acceptation (commandes)** :
     - `CLAUDE.md` à la racine, au contenu exact transmis par le commandement le 07/10/2026 (autorité et état, début, pendant et fin de session, interdits).
     - `node tests/recette/regles-synchronisees.mjs` → exit 0 (CI) : chaque `.cursor/rules/<nom>.mdc` a son `.claude/rules/<nom>.md` au corps identique (`globs` devient `paths`, `alwaysApply: true` devient une règle sans `paths`) ; les lignes propres à Cursor (hook de relance, arrêt pour attendre, fichier STOP) vivent dans `.cursor/rules/01-cursor.mdc`, absente de `.claude/rules` ; essai négatif inclus.
