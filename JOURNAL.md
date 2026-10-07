@@ -36,6 +36,8 @@ Synthèse (archives : `docs/journal/phase-0.md`, `phase-1.md`, `phase-2.md`).
 
 **Preuves** : `node tests/recette/garde-hooks.mjs` exit 0 (continuer.mjs compris) ; `node tests/recette/regles-synchronisees.mjs` exit 0, essai négatif réel (corps modifié) en exit 1 puis restauré ; `node tests/recette/cursor-rules-globs.mjs` exit 0 ; `node tests/recette/plan-gouvernance.mjs` exit 0. Les gardes sont actifs dans la session Claude Code : le garde-commandes a refusé une commande de la session contenant un push forcé.
 
+**Corrections du commandement (07/10, avant push)** : (1) `git push origin *` retiré de `permissions.allow`, placé dans `permissions.ask` ; (2) règles `curl` et `Invoke-WebRequest` locales supprimées (le motif `http://127.0.0.1*` acceptait `127.0.0.1.exemple.com`, le dépôt n'utilise pas ces appels), `garde-hooks.mjs` refuse tout joker juste après l'hôte ; (3) `garde-executant.mjs` refuse l'écriture dans `apps/poste/src-tauri/src/sync/`, `crates/api/src/`, `crates/messagerie/`, `crates/api/migrations/` et les chemins de droits ou de facturation, par les outils d'édition (chemin exact) et, de bonne foi, par Bash et PowerShell (une écriture indirecte n'est pas vue). `garde-hooks.mjs` exit 0 avec essais négatifs pour chacune.
+
 **Règle déplacée, pas affaiblie** : « deux relances consécutives… » quitte `00-mission` et `50-infra-ci` pour `01-cursor.mdc` ; `garde-hooks.mjs` exige désormais l'extrait dans `docs/ordre-operation.md` et `01-cursor.mdc`, et `gh run view` / `gh run watch` dans les règles communes des deux côtés.
 
 **Points à confirmer par le commandement** :
