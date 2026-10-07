@@ -1,7 +1,9 @@
 ---
-description: Docker, CI, commandes xtask et scripts du dépôt
-globs: instance/**/Dockerfile, instance/**/*compose*.yml, .github/**, xtask/**
-alwaysApply: false
+paths:
+  - "instance/**/Dockerfile"
+  - "instance/**/*compose*.yml"
+  - ".github/**"
+  - "xtask/**"
 ---
 
 # Infrastructure et CI

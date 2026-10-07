@@ -1,0 +1,16 @@
+---
+paths:
+  - "crates/**/migrations/**"
+  - "instance/**/*.sql"
+---
+
+# Migrations
+
+- Numérotées, **uniquement additives**. On ajoute d'abord ; on supprime ou renomme plusieurs versions plus tard, jamais dans la même release que le code qui cesse de l'utiliser.
+  - Une contrainte ne s'élargit pas en la remplaçant : on ajoute une table, une colonne ou une contrainte nouvelle.
+  - Contrôle outillé : `node tests/recette/migrations-additives.mjs` (CI, job frontend) refuse `DROP`, `RENAME`, changement de type, `TRUNCATE`, `DELETE` ; `SET NOT NULL` seulement sur une colonne ajoutée dans le même fichier. Une suppression différée se décide avec l'architecte.
+- **Une migration fusionnée dans `main` ne se modifie jamais** : on en écrit une nouvelle.
+- Exécutées par l'API au démarrage, **après** une sauvegarde.
+- Chaque table métier porte l'identifiant du cabinet et, quand c'est pertinent, celui du dossier : c'est ce qui permet aux règles de synchronisation de filtrer.
+- Contraintes en base pour les invariants : unicité des numéros de facture, clés étrangères, `NOT NULL` par défaut.
+- Toute migration est testée sur une base contenant déjà les données de démonstration.

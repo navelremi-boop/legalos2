@@ -1,0 +1,12 @@
+---
+description: Règles propres à Cursor (hook de relance, fichier STOP) ; absentes de .claude/rules
+alwaysApply: true
+---
+
+# Cursor — règles propres à l'outil de réserve
+
+Ces lignes ne valent que sous Cursor, où le hook `continuer.mjs` relance l'agent à chaque arrêt. Elles n'ont pas d'équivalent dans `.claude/rules/` : Claude Code n'a aucun hook d'arrêt.
+
+- **Attente d'une CI** : jamais un arrêt, chaque arrêt relance l'agent par le hook. Attendre = `gh run watch <id> --exit-status`.
+- **Deux relances consécutives sans commande exécutée ni commit** : consigner l'incident dans `JOURNAL.md` et créer `.mission/STOP`.
+- **`.mission/STOP`** : si le fichier existe, terminer l'action en cours proprement, mettre à jour `JOURNAL.md` et s'arrêter.

@@ -1,0 +1,7 @@
+# Encodage
+
+- Fichiers texte en **UTF-8 sans BOM** ; fins de ligne LF (normalisées par `.gitattributes`).
+- Sous Windows PowerShell 5.1, ne jamais écrire un fichier du dépôt avec `Add-Content`, `Set-Content`, `Out-File` ou `>` : ces commandes écrivent en ANSI ou ajoutent un BOM. Utiliser les outils d'édition ou Node (`fs.writeFileSync(chemin, texte, "utf8")`).
+- Les images Docker se construisent depuis l'arbre de travail, souvent en CRLF sous Windows : tout Dockerfile qui compile ou exécute du texte copié le ramène d'abord en LF (`sed -i 's/\r$//'`). Sinon `sqlx::migrate!` embarque d'autres sommes de contrôle que la CI et l'instance refuse de démarrer.
+- Base locale déjà marquée par une image CRLF : `node instance/outils/realigner-migrations-lf.mjs` (constat), puis `--appliquer`.
+- Contrôle outillé : `node tests/recette/encodage-texte.mjs` (CI, job frontend) — encodage des fichiers suivis et présence de la normalisation LF dans les Dockerfiles.

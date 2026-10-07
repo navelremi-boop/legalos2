@@ -1,0 +1,15 @@
+---
+paths:
+  - "tests/**"
+  - "crates/**/tests/**"
+---
+
+# Tests
+
+- **Interdit** : `#[ignore]`, `.skip`, `.only`, `xit`, assertions affaiblies, test supprimé parce qu'il échoue. La CI échoue si l'un de ces marqueurs apparaît.
+- **Vrais services** pour l'intégration (Postgres, PowerSync, GreenMail, S3 local), démarrés par le docker compose de test.
+- **Déterminisme** : horloge injectable et figée, données générées avec une graine fixe, aucune dépendance à l'heure réelle ni à l'ordre d'exécution.
+- **Données fictives** uniquement.
+- **Tout bug corrigé** reçoit un test de non-régression qui échouait avant la correction.
+- **Nommage** : le nom du test décrit le comportement attendu, en français si c'est une règle métier.
+

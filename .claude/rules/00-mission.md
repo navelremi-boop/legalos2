@@ -1,8 +1,3 @@
----
-description: Règles permanentes de la mission LEGAL OS
-alwaysApply: true
----
-
 # Mission LEGAL OS — règles permanentes
 
 - **Documents d'autorité** : `docs/cahier-des-charges.md` (le produit), `docs/ordre-operation.md` (le travail). Relis-les en début de session et après chaque compactage.
