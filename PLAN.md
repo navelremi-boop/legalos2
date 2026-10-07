@@ -165,7 +165,16 @@ Chaque jalon : recettes + clippy + contrôleur.
 
 ## Phase 3 — Intégration avancée
 
-Critères validés par l'architecte le 04/10/2026. Ordre : **Bascule vers Claude Code** (consigne du 07/10/2026) → **Montée PowerSync** → **J11** → **Modèles et fusion** → **Conventions d'honoraires** → **Facturation, suite** → **Tableau de bord** → **J12** → **J13** → **J14**.
+Critères validés par l'architecte le 04/10/2026, complétés par la consigne du 07/10/2026 (écrans V1 d'après les maquettes). Ordre (consigne du 07/10/2026) : **Bascule vers Claude Code** → **Montée PowerSync** → **Coque claire** → **J11** → **Finition des écrans** → **Écran de connexion** → **Modèles et fusion** → **Conventions d'honoraires** → **Facturation, suite** → **Tableau de bord** → **J12** → **J13** → **J14** → **J15 à J17**.
+
+Décisions du commandement (06/10/2026) :
+- En mode jour : barre haute claire, barre d'actions claire, fond neutre « lin » avec grain, feuille blanche. En mode nuit : sombres. Les couleurs de chemise de dossier ne changent pas.
+- Menu du compte à droite de la barre : Temps, Réglages, Palette de commandes, Verrouiller, Se déconnecter. Temps et Réglages ne sont plus dans la navigation principale (La journée, Dossiers, Mails, Agenda, Facturation).
+- Le Tableau de bord est le premier onglet de Facturation (Tableau de bord, Factures, À facturer).
+- Les données des maquettes (`design/maquettes/`) sont fictives : jamais dans l'app, sauf dans le jeu de démonstration de développement.
+- L'écran Temps n'a pas encore de maquette : ne pas le refaire avant que l'architecte en fournisse une. Le logo est en attente : ne pas toucher à l'icône.
+
+Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette (Playwright, 1240 par 800, jour et nuit) et la capture de l'application au même état, les compare, liste les écarts. Un écart de structure (volets, ordre, élément absent) refuse le jalon ; un écart de détail (espacement, ombre) est consigné en dette. Le commandement garde son veto (B9).
 
 - [ ] **Bascule vers Claude Code** — avant tout autre jalon — critères validés par l'architecte le 07/10/2026
   - **Critères d'acceptation (commandes)** :
@@ -185,8 +194,17 @@ Critères validés par l'architecte le 04/10/2026. Ordre : **Bascule vers Claude
     - Playwright en dernière version stable (GHSA-7mvr-c777-76hp) ; `node tests/recette/coque-app.mjs --captures` → exit 0 (captures S13 relancées).
     - Contrôleur VALIDÉ ; CI verte.
 
-- [ ] **J11** — Mail étapes 4–5 — fait partie de la V1 ; critère final : pouvoir fermer Outlook — critères validés par l'architecte le 04/10/2026
+- [ ] **Coque claire** — avant J11 — critères validés par l'architecte le 07/10/2026
   - **Critères d'acceptation (commandes)** :
+    - `design/tokens.css` reçoit les jetons de barre, de barre d'actions et de fond lin, aux valeurs des maquettes ; aucun hexadécimal dans les `.tsx`.
+    - `node tests/recette/coque-jour-nuit.mjs` → exit 0 : en jour, luminance relative de la barre haute et de la barre d'actions supérieure à 0,6, fond de l'écran supérieur à 0,5 ; en nuit, inférieure à 0,25. Essai négatif : l'ancienne valeur échoue.
+    - Menu du compte : s'ouvre au clic et à la touche Entrée, se ferme par Échap et clic extérieur ; cinq entrées (Temps, Réglages, Palette de commandes, Verrouiller, Se déconnecter) ; Temps et Réglages s'ouvrent depuis lui ; la navigation principale n'a que cinq entrées ; `data-testid` stables.
+    - La journée et le dossier ouvert (trois chemises) alignés ; captures jour et nuit (`node tests/recette/coque-app.mjs --captures`) comparées aux maquettes et à `design/prototype-cabinet.html`.
+    - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+
+- [ ] **J11** — Mail étapes 4–5 — fait partie de la V1 ; critère final : pouvoir fermer Outlook — critères validés par l'architecte le 04/10/2026, complétés le 07/10/2026
+  - **Critères d'acceptation (commandes)** :
+    - Écran Mails d'après `design/maquettes/prototype-mails.html` (les critères J11 du 04/10 restent) : trois volets (comptes et dossiers ; liste ; lecture), vue « À classer » en tête, classement depuis le message, carte d'invitation, rédaction à la place du volet de lecture avec le dossier de rangement, file d'envoi hors du volet de lecture, dossiers IMAP en français ; preuve visuelle commune.
     - `node tests/recette/j11-redaction.mjs` → exit 0 (app Tauri, GreenMail) :
       - réponse, réponse à tous et transfert avec l'historique cité, lisible dans Outlook et Gmail ; pièces jointes conservées au transfert ;
       - à, cc et cci avec complétion depuis les contacts et les mails déjà échangés ;
@@ -199,6 +217,23 @@ Critères validés par l'architecte le 04/10/2026. Ordre : **Bascule vers Claude
     - `node tests/recette/j11-invitation.mjs` → exit 0 : une invitation reçue (demande, mise à jour, annulation) est reflétée dans l'agenda du titulaire, et pas chez un autre collaborateur ; réponse accepter, refuser ou peut-être envoyée à l'organisateur ; fuseaux Europe/Paris et fuseau étranger respectés.
     - `node tests/recette/j11-boites.mjs` → exit 0 : deux comptes nominatifs ne sont visibles que par leur titulaire ; une boîte partagée est visible par ses membres et absente chez un non-membre ; le tableau de santé montre la dernière relève, un refus d'authentification et un envoi en échec ; notification de bureau à l'arrivée d'un mail.
     - `node tests/recette/j11-journee-sans-outlook.mjs` → exit 0 (app Tauri, GreenMail et Dovecot) : recevoir, lire, classer, répondre avec historique, transférer avec pièce jointe, rédiger un mail neuf avec pièce jointe et signature, reprendre un brouillon sur un second poste, accepter une invitation, retrouver un ancien mail par la recherche ; tout depuis l'app, sans autre client mail.
+    - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+
+- [ ] **Finition des écrans** — après J11 — critères validés par l'architecte le 07/10/2026
+  - **Critères d'acceptation (commandes)** :
+    - Dossiers (`design/maquettes/prototype-dossiers.html`) : la liste est l'écran ; création dans un panneau à droite, la liste restant visible (test) ; tri par prochaine échéance avec groupes ; filtres Actifs, Échéance proche, Restreints, Clos avec compteurs ; recherche sur tous les dossiers, clos compris ; aperçu à droite ; un dossier restreint n'apparaît qu'aux personnes autorisées (`node tests/recette/s5-sync-streams.mjs` → exit 0).
+    - Agenda (`design/maquettes/prototype-agenda.html`) : vues Jour et Semaine, mini-calendrier, filtres par type, prochaines échéances ; éléments simultanés lisibles ; échéance calculée avec « Voir le calcul » ; suppression d'une échéance calculée confirmée et tracée ; création à la demande dans un panneau. Les critères d'Agenda du 29/09 restent verts (`node tests/recette/agenda-tauri.mjs` → exit 0).
+    - Réglages (`design/maquettes/prototype-reglages.html`) : une section dont la fonction n'existe pas encore n'est pas affichée.
+    - Captures jour et nuit des états principaux (`node tests/recette/coque-app.mjs --captures` → exit 0) comparées aux maquettes ; tests existants verts ; preuve visuelle commune.
+    - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+
+- [ ] **Écran de connexion** — après la Finition des écrans — critères validés par l'architecte le 07/10/2026
+  - **Critères d'acceptation (commandes)** :
+    - Parcours S2 d'après `design/maquettes/prototype-connexion.html` : adresse du serveur (premier lancement seulement), connexion, double authentification (six cases, collage accepté), préparation du poste avec progression réelle.
+    - Situations : application verrouillée, hors ligne trop longtemps, poste révoqué, accès au Trousseau refusé ; chacune déclenchée par un test, sans perte de données locales.
+    - Sécurité : le message d'erreur ne distingue pas l'adresse du mot de passe (test sur la réponse de l'API et sur l'interface) ; le mot de passe n'est jamais écrit sur le disque ni dans les journaux (`node tests/recette/s2.mjs` → exit 0, test S2 étendu) ; chiffrement du disque non détecté : avertissement non bloquant et poste inscrit « chiffrement non confirmé » au registre des postes.
+    - Décisions en attente, inscrites dans BLOCAGES : codes de secours de la double authentification (B18) et chiffrement du disque bloquant ou non (B19). Tant que B18 n'est pas tranché, le lien « code de secours » n'est pas affiché. (La consigne les numérotait B16 et B17, déjà pris par l'honoraire de résultat et la durée hors ligne : renumérotées, à confirmer par l'architecte.)
+    - Captures des onze états de la maquette comparées (`node tests/recette/coque-app.mjs --captures` → exit 0) ; preuve visuelle commune.
     - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
 - [ ] **Modèles et fusion** — § 4.2 n° 7 — critères validés par l'architecte le 04/10/2026
@@ -219,8 +254,9 @@ Critères validés par l'architecte le 04/10/2026. Ordre : **Bascule vers Claude
       - alerte à l'ouverture du dossier et à la création d'une facture tant qu'aucune convention n'est signée ; levée possible avec un motif consigné. Liste des motifs proposée au commandement (B15), non inventée en silence.
     - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
-- [ ] **Facturation, suite** — § 4.2 n° 10, ce que J8 n'a pas livré — critères validés par l'architecte le 04/10/2026
+- [ ] **Facturation, suite** — § 4.2 n° 10, ce que J8 n'a pas livré — critères validés par l'architecte le 04/10/2026, complétés le 07/10/2026
   - **Critères d'acceptation (commandes)** :
+    - Écran d'après `design/maquettes/prototype-facturation.html` (les critères du 04/10 restent) : onglets Tableau de bord, Factures, À facturer ; relance validée avant envoi ; encaissement saisi sur place ; alerte de convention manquante dans À facturer ; preuve visuelle commune.
     - `node tests/recette/facturation-suite.mjs` → exit 0 (API, Postgres réel, puis app) :
       - facture au forfait et au résultat ;
       - précédence des taux documentée et testée : intervenant sur le dossier, puis dossier, puis client, puis défaut du cabinet ; taux figé à la saisie : modifier un taux ne change ni les temps saisis ni les brouillons ;
@@ -232,8 +268,9 @@ Critères validés par l'architecte le 04/10/2026. Ordre : **Bascule vers Claude
     - `node tests/recette/s9-factures.mjs` → exit 0 (non-régression du temps, des débours, des avoirs et de la facturation électronique).
     - `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
-- [ ] **Tableau de bord** — § 4.2 n° 13 — critères validés par l'architecte le 04/10/2026
+- [ ] **Tableau de bord** — § 4.2 n° 13 — critères validés par l'architecte le 04/10/2026, complétés le 07/10/2026
   - **Critères d'acceptation (commandes)** :
+    - Le Tableau de bord est le premier onglet de Facturation, d'après `design/maquettes/prototype-facturation.html` (les critères du 04/10 restent) ; chiffres calculés comme défini dans le document `tableau-de-bord.md` (répertoire docs) ; preuve visuelle commune.
     - `node tests/recette/tableau-de-bord.mjs` → exit 0 (app Tauri, requêtes locales) :
       - chiffre d'affaires, encours, temps non facturé, rentabilité par dossier et par client, factures en erreur ou en attente sur la plateforme agréée, mails à classer ;
       - définition écrite de chaque indicateur dans le document `tableau-de-bord.md` (répertoire docs) : période, HT ou TTC, facturé ou encaissé ;
