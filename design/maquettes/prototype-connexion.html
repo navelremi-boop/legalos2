@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LEGAL OS — prototype de l’écran Dossiers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--page:#D9DEDC;--texte:#1F2629;--doux:#5A6569;--filet:#C3CAC7;--btn:#FFFFFF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0E1213;--texte:#E4EAE8;--doux:#9CA8AC;--filet:#323B3E;--btn:#1E2427}}
+:root[data-theme="dark"]{--page:#0E1213;--texte:#E4EAE8;--doux:#9CA8AC;--filet:#323B3E;--btn:#1E2427}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--page);color:var(--texte);font-family:"Atkinson Hyperlegible Next",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.45;font-variant-numeric:tabular-nums}
+button,input{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.tete{max-width:1300px;margin:0 auto;padding:22px 24px 6px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px}
+.tete h1{font-size:20px;margin:0;font-weight:800}
+.choix{display:flex;border:1px solid var(--filet);border-radius:8px;overflow:hidden;background:var(--btn)}
+.choix button{padding:6px 14px;border-left:1px solid var(--filet);color:var(--doux)}
+.choix button:first-child{border-left:0}
+.choix button[aria-pressed="true"]{background:var(--texte);color:var(--page);font-weight:700}
+.intro{max-width:1300px;margin:0 auto;padding:4px 24px 14px;color:var(--doux)}
+.intro p{margin:0;max-width:105ch}
+.scene{overflow-x:auto;padding:0 24px 36px}
+.note{max-width:1240px;margin:14px auto 0;color:var(--doux);font-size:13px}
+
+/* ====================== Fenêtre (repris du prototype de référence) ====================== */
+.win{
+ --encre:#141A1C;--graphite:#5A6569;--feuille:#FFFFFF;--feuille-2:#F6F8F7;--filet-m:#E8ECEB;--survol:#F3F6F5;
+ --verre:rgba(255,255,255,.3);--verre-bord:rgba(255,255,255,.42);--verre-fort:rgba(255,255,255,.6);
+ --definitif:#43388A;--definitif-fond:rgba(67,56,138,.09);--definitif-bord:rgba(67,56,138,.2);
+ --ombre-carte:0 1px 0 rgba(255,255,255,.9) inset,0 28px 56px -28px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.06);
+ --sur-chemise:#141A1C;--ok:#2F7D4B;--attente:#9A6A12;--barre-fond:rgba(255,255,255,.74);--barre-ligne:rgba(20,26,28,.1);--barre-texte:#141A1C;--barre-doux:#4A565B;--barre-actif:rgba(20,26,28,.08);--barre-pastille:rgba(20,26,28,.06);--barre-kbd:rgba(20,26,28,.08);--sync:#2F9E5B;--dock-fond:rgba(255,255,255,.82);--dock-texte:#141A1C;--dock-survol:rgba(20,26,28,.07);--dock-prim-f:#141A1C;--dock-prim-t:#F2F5F4;--dock-bord:rgba(20,26,28,.1);--dock-ombre:0 18px 40px -20px rgba(0,0,0,.35);
+ width:1240px;height:800px;margin:0 auto;border-radius:14px;overflow:hidden;color:var(--encre);position:relative;isolation:isolate;
+ background-color:var(--c);background-image:var(--lumiere),var(--grain);transition:background-color .3s ease}
+.win{--lumiere:radial-gradient(120% 90% at 8% -12%,rgba(255,255,255,.22),rgba(255,255,255,0) 55%),radial-gradient(90% 80% at 110% 120%,rgba(0,0,0,.22),rgba(0,0,0,0) 60%)}
+/* Écran général, hors dossier : chemise neutre ardoise */
+.m-neutre{--c:#C5D0D4;--c-t:#E4EBEE;--c-e:#26353C;--c-s:#4F7383;--verre:rgba(255,255,255,.5);--verre-bord:rgba(255,255,255,.7)}
+.win.nuit{--encre:#E8EEEC;--graphite:#9CA8AC;--feuille:#1A2023;--feuille-2:#20272A;--filet-m:#2B3438;--survol:#222A2D;
+ --verre:rgba(0,0,0,.18);--verre-bord:rgba(255,255,255,.1);--verre-fort:rgba(255,255,255,.1);
+ --definitif:#BDB4F5;--definitif-fond:rgba(189,180,245,.1);--definitif-bord:rgba(189,180,245,.25);
+ --ombre-carte:0 1px 0 rgba(255,255,255,.05) inset,0 28px 56px -24px rgba(0,0,0,.7),0 2px 8px rgba(0,0,0,.3);
+ --sur-chemise:#F2F5F4;--ok:#7BD89A;--attente:#E8B85C;--barre-fond:rgba(16,21,23,.86);--barre-ligne:rgba(255,255,255,.06);--barre-texte:#F2F5F4;--barre-doux:#AEB8BC;--barre-actif:rgba(255,255,255,.1);--barre-pastille:rgba(255,255,255,.08);--barre-kbd:rgba(255,255,255,.1);--sync:#7BD89A;--dock-fond:rgba(16,21,23,.86);--dock-texte:#E6ECEA;--dock-survol:rgba(255,255,255,.1);--dock-prim-f:#F2F5F4;--dock-prim-t:#141A1C;--dock-bord:rgba(255,255,255,.14);--dock-ombre:0 18px 40px -12px rgba(0,0,0,.8);}
+.win.nuit{--lumiere:radial-gradient(120% 90% at 8% -12%,rgba(255,255,255,.08),rgba(255,255,255,0) 55%),radial-gradient(90% 80% at 110% 120%,rgba(0,0,0,.35),rgba(0,0,0,0) 60%)}
+.nuit.m-neutre{--c:#1E2629;--c-t:#25323A;--c-e:#D5E1E5;--c-s:#8FB6C6}
+
+/* Couleurs des chemises, pour les pastilles de dossier */
+.d-kraft{--dc:#CE9A55;--dt:#F6E7CE;--de:#5A3F14}
+.d-bleu{--dc:#6FA2E0;--dt:#E1ECFA;--de:#1C4273}
+.d-amande{--dc:#6CBF84;--dt:#E1F3E7;--de:#1F5431}
+.nuit .d-kraft{--dc:#D9A860;--dt:#3A2E1C;--de:#F2D6AB}
+.nuit .d-bleu{--dc:#86B6F0;--dt:#1E2F48;--de:#D2E3F8}
+.nuit .d-amande{--dc:#86CF9C;--dt:#1C3827;--de:#CFEDD8}
+
+/* Variantes du fond de l'écran Mails, jour seulement : teintes chaudes accordées à la barre haute */
+.win[data-fond="lin"]:not(.nuit){--c:#D6CFC2;--c-t:#EFEAE1;--c-e:#3A3022;--c-s:#7C6C50}
+.win[data-fond="pierre"]:not(.nuit){--c:#C9C1B3;--c-t:#ECE6DB;--c-e:#3A3022;--c-s:#76674C}
+.win[data-fond="taupe"]:not(.nuit){--c:#B9AE9E;--c-t:#E9E2D6;--c-e:#352C20;--c-s:#6E5F45}
+/* Variante chaude de la barre haute et de la barre d'actions (jour seulement) */
+.win[data-barre="chaude"]:not(.nuit){--barre-fond:rgba(249,245,238,.9);--barre-ligne:rgba(92,70,40,.14);--barre-texte:#241F19;--barre-doux:#6A6052;--barre-actif:rgba(110,80,40,.1);--barre-pastille:rgba(110,80,40,.07);--barre-kbd:rgba(110,80,40,.1);--sync:#3F9A5F;--dock-fond:rgba(249,245,238,.92);--dock-texte:#241F19;--dock-survol:rgba(110,80,40,.09);--dock-prim-f:#241F19;--dock-prim-t:#F9F5EE;--dock-bord:rgba(92,70,40,.16);--dock-ombre:0 18px 40px -20px rgba(60,40,10,.4)}
+/* Barre */
+.barre{position:absolute;inset:0 0 auto 0;height:58px;display:flex;align-items:center;gap:20px;padding:0 18px;z-index:5;
+ background:var(--barre-fond);color:var(--barre-texte);-webkit-backdrop-filter:blur(20px) saturate(1.1);backdrop-filter:blur(20px) saturate(1.1);box-shadow:inset 0 -1px 0 var(--barre-ligne);transition:background-color .3s}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.nav{display:flex;gap:4px;font-size:13px;flex:1}
+.nav span{padding:5px 10px;border-radius:8px;color:var(--barre-doux)}
+.nav span.on{color:var(--barre-texte);font-weight:700;background:var(--barre-actif)}
+.nav span b{margin-left:6px;font-size:11px;padding:1px 6px;border-radius:999px;background:var(--barre-kbd);color:var(--barre-texte)}
+.outils{display:flex;gap:8px;font-size:13px;color:var(--barre-doux);align-items:center}
+.pilule{display:flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:999px;background:var(--barre-pastille);box-shadow:inset 0 0 0 1px var(--barre-ligne)}
+.kbd{font-size:11px;padding:1px 6px;border-radius:5px;background:var(--barre-kbd);color:var(--barre-doux)}
+.sync{display:flex;align-items:center;gap:6px;font-size:12px;margin-right:4px}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--sync)}
+
+/* Écran */
+.ecran{position:absolute;inset:58px 0 0 0;padding:22px 30px 0;display:grid;grid-template-rows:auto 1fr;color:var(--sur-chemise)}
+.ecran-tete{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:0 4px}
+.ecran-tete h2{font-size:26px;line-height:1.15;margin:0;font-weight:800;letter-spacing:-.015em}
+.ecran-tete p{margin:4px 0 0;font-size:13px;opacity:.78}
+.releve{display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:999px;font-size:12.5px;background:var(--verre);box-shadow:inset 0 0 0 1px var(--verre-bord);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.releve i{width:7px;height:7px;border-radius:50%;background:var(--sync)}
+.pile{position:relative;margin-top:22px;min-height:0}
+.c2{position:absolute;inset:0;border-radius:18px 18px 0 0;transform:translateY(-7px) scaleX(.97);background:var(--verre-fort)}
+.feuille{position:relative;height:100%;border-radius:18px 18px 0 0;background:var(--feuille);box-shadow:var(--ombre-carte);display:grid;grid-template-columns:232px 396px 1fr;color:var(--encre);overflow:hidden;transition:background-color .3s}
+
+
+/* ====================== Écran de connexion ====================== */
+.lights-b{position:absolute;left:18px;top:18px;display:flex;gap:8px;z-index:3}
+.lights-b i{width:12px;height:12px;border-radius:50%;display:block}
+.aide{position:absolute;right:22px;top:14px;z-index:3;font-size:13px;font-weight:700;padding:6px 12px;border-radius:9px;color:var(--sur-chemise);background:var(--verre);box-shadow:inset 0 0 0 1px var(--verre-bord)}
+.conn{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:46px 0 26px;color:var(--sur-chemise)}
+.marque{display:flex;align-items:center;gap:12px;font-weight:800;font-size:20px;letter-spacing:.03em}
+.logo{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:var(--encre);color:var(--feuille);box-shadow:0 8px 18px -10px rgba(0,0,0,.6)}
+.logo svg{width:19px;height:19px}
+.pile-c{position:relative;width:468px}
+.c2c{position:absolute;inset:0;border-radius:20px;transform:translateY(-9px) scaleX(.95);background:var(--verre-fort)}
+.carte-c{position:relative;border-radius:20px;background:var(--feuille);box-shadow:var(--ombre-carte);padding:34px 38px 30px;color:var(--encre);transition:background-color .3s}
+.carte-c h1{margin:0;font-size:23px;line-height:1.2;font-weight:800;letter-spacing:-.012em}
+.carte-c .sous{margin:8px 0 22px;color:var(--graphite);font-size:14px;line-height:1.5}
+.pied{margin:0;font-size:12.5px;opacity:.78;text-align:center;line-height:1.5}
+.cab{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;padding:4px 11px 4px 8px;border-radius:999px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);margin:0 0 14px}
+.cab i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.champ-c{margin:0 0 14px}
+.champ-c label{display:block;font-size:13px;color:var(--graphite);margin-bottom:6px}
+.champ-c input{width:100%;height:46px;padding:0 14px;border:0;border-radius:12px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);font-size:15px;outline:0;color:var(--encre)}
+.champ-c input::placeholder{color:var(--graphite)}
+.champ-c input:focus{box-shadow:inset 0 0 0 2px var(--c-s)}
+.champ-c.err input{box-shadow:inset 0 0 0 2px var(--attente)}
+.mdp{position:relative}
+.mdp input{padding-right:84px}
+.mdp button{position:absolute;right:6px;top:7px;height:32px;padding:0 11px;border-radius:9px;font-size:12.5px;font-weight:700;color:var(--graphite)}
+.mdp button:hover{background:var(--survol);color:var(--encre)}
+.btn-c{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;height:46px;border-radius:12px;font-weight:800;font-size:14.5px;background:var(--encre);color:var(--feuille);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 10px 22px -14px rgba(0,0,0,.6);margin-top:6px}
+.btn-c[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none}
+.btn-c.sec{background:var(--feuille-2);color:var(--encre);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.btn-c:focus-visible,.lien-c:focus-visible,.aide:focus-visible,.mdp button:focus-visible,.pill:focus-visible{outline:2px solid var(--c-s);outline-offset:2px}
+.lien-c{font-size:13px;font-weight:700;color:var(--graphite);text-decoration:underline;text-underline-offset:3px}
+.lien-c:hover{color:var(--encre)}
+.liens{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:16px;font-size:12.5px;color:var(--graphite);text-align:center;line-height:1.45}
+.msg-e{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border-radius:12px;background:var(--c-t);color:var(--c-e);font-size:13px;line-height:1.45;margin:0 0 16px}
+.msg-e svg{width:16px;height:16px;flex:none;margin-top:1px}
+.msg-e b{display:block;color:var(--encre);font-size:13.5px;margin-bottom:1px}
+.msg-i{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border-radius:12px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);color:var(--graphite);font-size:13px;line-height:1.45;margin:0 0 16px}
+.msg-i svg{width:16px;height:16px;flex:none;margin-top:1px;color:var(--c-s)}
+.msg-i b{display:block;color:var(--encre);font-size:13.5px;margin-bottom:1px}
+.verif{margin:18px 0 0;padding:2px 14px;border-radius:12px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);font-size:13px}
+.verif .vt{font-size:12px;color:var(--graphite);padding:9px 0 3px}
+.verif div.l{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--filet-m)}
+.ok-c{color:var(--ok);font-weight:700;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.ok-c svg{width:13px;height:13px}
+.att-c{color:var(--c-e);font-weight:700;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.att-c svg{width:13px;height:13px}
+.otp{display:flex;gap:9px;justify-content:center;margin:6px 0 10px}
+.otp input{width:51px;height:62px;text-align:center;font-size:27px;font-weight:800;border:0;border-radius:13px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);outline:0;color:var(--encre);padding:0}
+.otp input:focus{box-shadow:inset 0 0 0 2px var(--c-s)}
+.otp.err input{box-shadow:inset 0 0 0 2px var(--attente)}
+.err-t{margin:0 0 12px;text-align:center;font-size:13px;color:var(--c-e);font-weight:700}
+.idb{display:flex;align-items:center;gap:13px;margin:0 0 18px}
+.av{width:50px;height:50px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:16px;background:var(--feuille-2);color:var(--graphite);box-shadow:inset 0 0 0 1px var(--filet-m);flex:none}
+.idb b{display:block;font-size:15px}
+.idb span{font-size:13px;color:var(--graphite)}
+.ico-g{width:52px;height:52px;border-radius:15px;display:grid;place-items:center;background:var(--c-t);color:var(--c-e);margin:0 0 16px}
+.ico-g svg{width:26px;height:26px}
+.ico-g.nr{background:var(--feuille-2);color:var(--graphite);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.sync-l{display:grid;grid-template-columns:1fr auto;gap:5px 12px;align-items:center;margin:0 0 15px;font-size:13.5px}
+.sync-l .nm{display:flex;align-items:center;gap:9px}
+.sync-l .nm svg{width:15px;height:15px;color:var(--ok)}
+.sync-l .nm .rond{width:15px;height:15px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--filet);flex:none}
+.sync-l .nm .tourne{width:15px;height:15px;border-radius:50%;border:2.5px solid var(--filet);border-top-color:var(--encre);animation:tourne .8s linear infinite;flex:none}
+.sync-l small{color:var(--graphite);font-size:12.5px;font-variant-numeric:tabular-nums}
+.sync-l .bar{grid-column:1/3;height:7px;border-radius:999px;background:var(--filet-m);overflow:hidden}
+.sync-l .bar i{display:block;height:100%;border-radius:999px;background:var(--encre);transition:width .25s}
+.sync-n{margin:2px 0 18px;font-size:12.5px;color:var(--graphite);line-height:1.5}
+.spin{width:17px;height:17px;border-radius:50%;border:2.5px solid rgba(128,128,128,.35);border-top-color:currentColor;animation:tourne .8s linear infinite}
+@keyframes tourne{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin,.sync-l .nm .tourne{animation-duration:3s}}
+.notice{margin:14px 0 0;text-align:center;font-size:12.5px;color:var(--ok);font-weight:700}
+/* Commandes de la maquette (hors application) */
+.etats{max-width:1300px;margin:0 auto;padding:0 24px 12px;display:flex;flex-direction:column;gap:8px}
+.etats div{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.etats span.l{font-size:12.5px;color:var(--doux);margin-right:4px;min-width:130px}
+.pill{font-size:12.5px;padding:5px 12px;border-radius:999px;background:var(--btn);box-shadow:inset 0 0 0 1px var(--filet);color:var(--doux)}
+.pill[aria-pressed="true"]{background:var(--texte);color:var(--page);font-weight:700;box-shadow:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="tete">
+  <h1>Écran de connexion, proposition</h1>
+  <div class="choix" data-g="theme" role="group" aria-label="Apparence de la maquette">
+    <button data-t="jour" aria-pressed="true">Jour</button>
+    <button data-t="nuit" aria-pressed="false">Nuit</button>
+  </div>
+  <span style="color:var(--doux);font-size:13px">Suivez le parcours en cliquant (saisissez n’importe quelle adresse, n’importe quel mot de passe, six chiffres), ou sautez à une situation avec les boutons ci-dessous.</span>
+</div>
+<div class="etats">
+  <div role="group" aria-label="Parcours de connexion"><span class="l">Parcours</span><button class="pill" data-e="adresse">Adresse du serveur</button><button class="pill" data-e="chiffrement">Chiffrement non détecté</button><button class="pill" data-e="connexion">Connexion</button><button class="pill" data-e="mdp">Mot de passe refusé</button><button class="pill" data-e="otp">Double authentification</button><button class="pill" data-e="otpe">Code refusé</button><button class="pill" data-e="sync">Synchronisation initiale</button></div>
+  <div role="group" aria-label="Autres situations"><span class="l">Autres situations</span><button class="pill" data-e="verrou">Application verrouillée</button><button class="pill" data-e="horsligne">Hors ligne trop longtemps</button><button class="pill" data-e="revoque">Poste révoqué</button><button class="pill" data-e="trousseau">Accès au Trousseau refusé</button></div>
+</div>
+<div class="intro"><p>Même système visuel que le reste de l’application : la feuille posée sur la chemise neutre, sans barre de navigation puisqu’aucun dossier n’est encore ouvert. Une seule question par écran, et un message clair quand l’accès est refusé.</p></div>
+<div class="scene">
+<section class="win m-neutre" id="win" data-fond="lin" data-barre="neutre" aria-label="Maquette de l’écran de connexion">
+  <div class="lights-b" aria-hidden="true"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></div>
+  <button class="aide" id="aide">Aide</button>
+  <div class="conn">
+    <div class="marque"><span class="logo"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z"/></svg></span>LEGAL OS</div>
+    <div class="pile-c"><div class="c2c"></div><main class="carte-c" id="carte" aria-live="polite"></main></div>
+    <p class="pied" id="pied"></p>
+  </div>
+</section>
+<p class="note">Maquette statique, données fictives. Attendu dans l’application : l’adresse du serveur n’est demandée qu’au premier lancement ; le mot de passe n’est jamais conservé, seul un jeton est gardé dans le Trousseau (macOS) ou le Gestionnaire d’identification (Windows) ; le message d’erreur ne dit pas si c’est l’adresse ou le mot de passe qui est faux ; la double authentification est activée par le cabinet ; un poste révoqué efface ses données locales ; un poste resté hors ligne au-delà de la limite du cabinet se verrouille ; si le Trousseau refuse l’accès après une mise à jour, on revient ici sans perdre les données locales.</p>
+</div>
+<script>
+function svgUrl(s){return 'url("data:image/svg+xml,'+encodeURIComponent(s)+'")'}
+document.documentElement.style.setProperty('--grain',svgUrl(`<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' seed='4' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .3 0 0 0 -.1'/></filter><rect width='100%' height='100%' filter='url(#n)'/></svg>`));
+const fr=t=>String(t).replace(/ ([:;!?»])/g,'\u202F$1').replace(/« /g,'«\u202F');
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const S=(p,w)=>`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="${w||1.7}">${p}</svg>`;
+const ic={coche:S('<path d="m3 8.5 3 3 7-7"/>',2.2),alerte:S('<path d="M8 2.5 14 13H2z"/><path d="M8 6.5v3M8 11.3v.2"/>'),info:S('<circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.6M8 5.2v.2"/>'),
+ horloge:S('<circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.3 1.5"/>',1.6),cadenas:S('<rect x="3.5" y="7" width="9" height="7" rx="1.8"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',1.6),
+ cle:S('<circle cx="5.5" cy="10.5" r="2.7"/><path d="M7.5 8.5 13 3M11 5l1.8 1.8M9.5 6.5l1.5 1.5"/>',1.6)};
+let nuit=false,etat='adresse',adr='',mail='',mdp=false,verif=false,otp=['','','','','',''],avance=null,P=[0,0,0,0,0],fin=false,notice='';
+const SERV='legal.cabinet-marchal.example';
+const SYNC=[['Dossiers et contacts','42 dossiers, 118 contacts'],['Agenda et échéances','63 éléments'],['Pièces et documents','1 506 fichiers listés'],['Mails classés','1 284 messages'],['Temps et facturation','37 factures, 214 saisies']];
+const lie=(t)=>`<button class="lien-c" data-lien="${t}">`;
+function carte(){
+ const A=adr||SERV;
+ if(etat==='adresse'||etat==='chiffrement'){
+  const ch=etat==='chiffrement';
+  return `<h1>Connecter cette application à votre cabinet</h1><p class="sous">Saisissez l’adresse du serveur de votre cabinet. Votre administrateur vous l’a communiquée.</p>
+  <div class="champ-c"><label for="adr">Adresse du serveur</label><input id="adr" type="text" inputmode="url" placeholder="legal.votre-cabinet.example" value="${esc(adr)}" autocomplete="off"></div>
+  ${verif?`<button class="btn-c" disabled><span class="spin" aria-hidden="true"></span>Vérification du serveur</button>`:`<button class="btn-c${ch?' sec':''}" id="go1">${ch?'Continuer quand même':'Continuer'}</button>`}
+  ${ch?`<div class="msg-e" style="margin:16px 0 0">${ic.alerte}<div><b>Le chiffrement du disque n’est pas détecté</b>Il est exigé : activez BitLocker (Windows) ou FileVault (Mac) avant de travailler sur des dossiers de clients. ${lie('chiffre')}Comment l’activer</button></div></div>`:''}
+  <div class="verif"><div class="vt">Vérifications de ce poste</div>
+   <div class="l"><span>Chiffrement du disque</span>${ch?`<span class="att-c">${ic.alerte}Non détecté</span>`:`<span class="ok-c">${ic.coche}BitLocker actif</span>`}</div>
+   <div class="l"><span>Coffre des identifiants</span><span class="ok-c">${ic.coche}Accessible</span></div></div>`;
+ }
+ if(etat==='connexion'||etat==='mdp'){
+  const er=etat==='mdp';
+  return `<span class="cab"><i></i>Cabinet Marchal</span><h1>Connexion</h1><p class="sous">Connectez-vous avec votre compte du cabinet.</p>
+  ${er?`<div class="msg-e" role="alert">${ic.alerte}<div><b>Adresse ou mot de passe incorrect</b>Vérifiez votre saisie. Après plusieurs essais, le compte est suspendu quelques minutes.</div></div>`:''}
+  <div class="champ-c${er?' err':''}"><label for="mail">Adresse e-mail</label><input id="mail" type="text" inputmode="email" placeholder="prenom.nom@votre-cabinet.example" value="${esc(mail||(er?'j.marchal@cabinet-marchal.example':''))}" autocomplete="off"></div>
+  <div class="champ-c${er?' err':''}"><label for="mdp">Mot de passe</label><div class="mdp"><input id="mdp" type="${mdp?'text':'password'}" value="${er?'mot de passe':''}" autocomplete="off"><button type="button" id="oeil">${mdp?'Masquer':'Afficher'}</button></div></div>
+  <button class="btn-c" id="go2">Se connecter</button>
+  <div class="liens"><span>Mot de passe oublié ? Demandez à un administrateur du cabinet de le réinitialiser.</span>${lie('serveur')}Changer de serveur</button></div>`;
+ }
+ if(etat==='otp'||etat==='otpe'){
+  const er=etat==='otpe';
+  return `<span class="cab"><i></i>Cabinet Marchal</span><h1>Double authentification</h1><p class="sous">Saisissez le code à 6 chiffres affiché par votre application d’authentification pour le compte « Cabinet Marchal ».</p>
+  <div class="otp${er?' err':''}" role="group" aria-label="Code à 6 chiffres">${[0,1,2,3,4,5].map(i=>`<input type="text" inputmode="numeric" maxlength="1" data-o="${i}" value="${er?'0':otp[i]}" aria-label="Chiffre ${i+1}" autocomplete="off">`).join('')}</div>
+  ${er?`<p class="err-t" role="alert">Code incorrect ou expiré. Un nouveau code apparaît toutes les 30 secondes.</p>`:''}
+  <button class="btn-c" id="go3" ${(!er&&otp.join('').length<6)?'disabled':''}>Vérifier</button>
+  <div class="liens">${lie('secours')}Utiliser un code de secours</button>${lie('retour')}Retour à la connexion</button></div>`;
+ }
+ if(etat==='sync'){
+  const tout=P.every(p=>p>=100);
+  return `<h1>Préparation de votre poste</h1><p class="sous">Votre poste télécharge les dossiers auxquels vous avez accès. Ensuite, tout fonctionne hors ligne.</p>
+  ${SYNC.map((s,i)=>`<div class="sync-l"><span class="nm">${P[i]>=100?ic.coche:P[i]>0?'<span class="tourne"></span>':'<span class="rond"></span>'}${s[0]}</span><small>${P[i]>=100?s[1]:P[i]>0?Math.round(P[i])+'\u202F%':'En attente'}</small><span class="bar"><i style="width:${Math.min(100,P[i])}%"></i></span></div>`).join('')}
+  <p class="sync-n">${tout?'Terminé. Vos dossiers sont disponibles sur ce poste.':'Vous pouvez laisser cette fenêtre ouverte. Rien ne quitte votre poste et le serveur de votre cabinet.'}</p>
+  <button class="btn-c" id="go4" ${tout?'':'disabled'}>Ouvrir l’application</button>${notice?`<p class="notice">${notice}</p>`:''}`;
+ }
+ if(etat==='verrou'){
+  return `<div class="idb"><span class="av">JM</span><div><b>Me Julien Marchal</b><span>Cabinet Marchal, application verrouillée</span></div></div>
+  <h1>Reprendre votre travail</h1><p class="sous">Saisissez votre mot de passe. Vos dossiers n’ont pas bougé.</p>
+  <div class="champ-c"><label for="mdp">Mot de passe</label><div class="mdp"><input id="mdp" type="${mdp?'text':'password'}" autocomplete="off"><button type="button" id="oeil">${mdp?'Masquer':'Afficher'}</button></div></div>
+  <button class="btn-c" id="go5">Déverrouiller</button>${notice?`<p class="notice">${notice}</p>`:''}
+  <div class="liens">${lie('deco')}Se déconnecter</button></div>`;
+ }
+ if(etat==='horsligne'){
+  return `<div class="ico-g">${ic.horloge}</div><h1>Ce poste doit se reconnecter</h1><p class="sous">Il est resté hors ligne plus de 14 jours, la limite fixée par votre cabinet. Connectez-vous à Internet, puis réessayez.</p>
+  <div class="msg-i">${ic.info}<div><b>Vos données locales sont conservées</b>Dernière connexion : lundi 21 septembre, 17 h 40. Rien n’est perdu, mais le travail hors ligne est suspendu.</div></div>
+  <button class="btn-c" id="go6">Réessayer</button>${notice?`<p class="notice" style="color:var(--c-e)">${notice}</p>`:''}
+  <div class="liens">${lie('deco')}Se déconnecter</button></div>`;
+ }
+ if(etat==='revoque'){
+  return `<div class="ico-g">${ic.cadenas}</div><h1>Ce poste a été révoqué</h1><p class="sous">L’administrateur du cabinet a retiré l’accès de cet ordinateur. Les données du cabinet ont été effacées de ce poste.</p>
+  <div class="msg-i">${ic.info}<div><b>Pour retrouver l’accès</b>Contactez Me Julien Marchal, j.marchal@cabinet-marchal.example. Il pourra enregistrer de nouveau ce poste.</div></div>
+  <button class="btn-c sec" id="go7">Fermer l’application</button>`;
+ }
+ if(etat==='trousseau'){
+  return `<div class="ico-g nr">${ic.cle}</div><h1>Reconnexion nécessaire</h1><p class="sous">Après la mise à jour, macOS a demandé de nouveau l’accès au Trousseau, et l’accès n’a pas été accordé.</p>
+  <div class="msg-i">${ic.info}<div><b>Vos données locales n’ont pas été modifiées</b>Reconnectez-vous, puis autorisez l’accès quand macOS le demande. Cela peut se reproduire après une mise à jour de l’application.</div></div>
+  <button class="btn-c" id="go8">Se reconnecter</button>`;
+ }
+}
+function pied(){
+ if(['adresse','chiffrement'].includes(etat))return 'LEGAL OS, version 0.9.4';
+ if(etat==='revoque')return `Serveur : ${SERV}`;
+ return `Serveur : ${adr||SERV}, version 0.9.4`;
+}
+function render(){
+ const w=document.getElementById('win');w.className='win m-neutre'+(nuit?' nuit':'');
+ document.getElementById('carte').innerHTML=fr(carte());
+ document.getElementById('pied').textContent=fr(pied());
+ document.querySelectorAll('.pill').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.e===etat)));
+ bind();
+}
+function va(e){
+ clearInterval(avance);avance=null;notice='';etat=e;
+ if(e==='sync'){P=[100,100,62,0,0];lance()}
+ if(e==='otp')otp=['','','','','',''];
+ render();
+ const f=document.querySelector('#carte input:not([disabled])');if(f&&['adresse','chiffrement','connexion','otp','verrou'].includes(e))f.focus();
+}
+function lance(){
+ clearInterval(avance);
+ avance=setInterval(()=>{const i=P.findIndex(p=>p<100);if(i<0){clearInterval(avance);avance=null;render();return}
+  P[i]=Math.min(100,P[i]+(i===2?1.2:6));render()},110);
+}
+function bind(){
+ const g=id=>document.getElementById(id),$=(s,f)=>document.querySelectorAll(s).forEach(f);
+ const a=g('adr');if(a){a.oninput=()=>{adr=a.value.trim()};a.onkeydown=e=>{if(e.key==='Enter'&&g('go1'))g('go1').click()}}
+ if(g('go1'))g('go1').onclick=()=>{adr=(g('adr').value.trim()||SERV);verif=true;render();setTimeout(()=>{verif=false;va('connexion')},800)};
+ const m=g('mail');if(m)m.oninput=()=>{mail=m.value};
+ if(g('oeil'))g('oeil').onclick=()=>{const v=g('mdp').value;mdp=!mdp;render();g('mdp').value=v;g('mdp').focus()};
+ if(g('go2'))g('go2').onclick=()=>{mail=g('mail').value;va('otp')};
+ if(g('mdp'))g('mdp').onkeydown=e=>{if(e.key==='Enter'){const b=g('go2')||g('go5');if(b)b.click()}};
+ $('[data-o]',inp=>{const i=+inp.dataset.o;
+  inp.oninput=()=>{const v=inp.value.replace(/\D/g,'').slice(-1);inp.value=v;otp[i]=v;const go=g('go3');if(go)go.disabled=otp.join('').length<6;if(v&&i<5)document.querySelector(`[data-o="${i+1}"]`).focus();if(otp.join('').length===6)setTimeout(()=>g('go3')&&g('go3').click(),150)};
+  inp.onkeydown=e=>{if(e.key==='Backspace'&&!inp.value&&i>0){const p=document.querySelector(`[data-o="${i-1}"]`);p.focus();otp[i-1]='';p.value=''}};
+  inp.onpaste=e=>{const t=(e.clipboardData.getData('text')||'').replace(/\D/g,'').slice(0,6);if(!t)return;e.preventDefault();otp=t.split('').concat(['','','','','','']).slice(0,6);render();document.querySelectorAll('[data-o]').forEach((x,j)=>x.value=otp[j]);if(otp.join('').length===6)g('go3').click()}});
+ if(g('go3'))g('go3').onclick=()=>{if(etat==='otpe'){va('otp');return}if(otp.join('')==='000000'){va('otpe');return}va('sync')};
+ if(g('go4'))g('go4').onclick=()=>{notice='Dans l’application, cette étape ouvre La journée.';render()};
+ if(g('go5'))g('go5').onclick=()=>{notice='Déverrouillée. L’application reprend là où vous l’aviez laissée.';render()};
+ if(g('go6'))g('go6').onclick=()=>{notice='Toujours aucune connexion à Internet. Réessayez dans un instant.';render()};
+ if(g('go7'))g('go7').onclick=()=>{};
+ if(g('go8'))g('go8').onclick=()=>va('connexion');
+ $('[data-lien]',b=>b.onclick=()=>{const t=b.dataset.lien;if(t==='serveur')va('adresse');else if(t==='retour')va('connexion');else if(t==='deco')va('connexion')});
+}
+document.querySelectorAll('.pill').forEach(b=>b.onclick=()=>{const e=b.dataset.e;if(e==='adresse'||e==='chiffrement'){adr=''}va(e)});
+document.querySelectorAll('.choix[data-g=theme] button').forEach(b=>b.onclick=()=>{nuit=b.dataset.t==='nuit';document.querySelectorAll('.choix[data-g=theme] button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));render()});
+render();
+</script>
+</body>
+</html>

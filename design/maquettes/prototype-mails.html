@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LEGAL OS — prototype de l’écran Mails</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--page:#D9DEDC;--texte:#1F2629;--doux:#5A6569;--filet:#C3CAC7;--btn:#FFFFFF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0E1213;--texte:#E4EAE8;--doux:#9CA8AC;--filet:#323B3E;--btn:#1E2427}}
+:root[data-theme="dark"]{--page:#0E1213;--texte:#E4EAE8;--doux:#9CA8AC;--filet:#323B3E;--btn:#1E2427}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--page);color:var(--texte);font-family:"Atkinson Hyperlegible Next",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.45;font-variant-numeric:tabular-nums}
+button,input{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.tete{max-width:1300px;margin:0 auto;padding:22px 24px 6px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px}
+.tete h1{font-size:20px;margin:0;font-weight:800}
+.choix{display:flex;border:1px solid var(--filet);border-radius:8px;overflow:hidden;background:var(--btn)}
+.choix button{padding:6px 14px;border-left:1px solid var(--filet);color:var(--doux)}
+.choix button:first-child{border-left:0}
+.choix button[aria-pressed="true"]{background:var(--texte);color:var(--page);font-weight:700}
+.intro{max-width:1300px;margin:0 auto;padding:4px 24px 14px;color:var(--doux)}
+.intro p{margin:0;max-width:105ch}
+.scene{overflow-x:auto;padding:0 24px 36px}
+.note{max-width:1240px;margin:14px auto 0;color:var(--doux);font-size:13px}
+
+/* ====================== Fenêtre (repris du prototype de référence) ====================== */
+.win{
+ --encre:#141A1C;--graphite:#5A6569;--feuille:#FFFFFF;--feuille-2:#F6F8F7;--filet-m:#E8ECEB;--survol:#F3F6F5;
+ --verre:rgba(255,255,255,.3);--verre-bord:rgba(255,255,255,.42);--verre-fort:rgba(255,255,255,.6);
+ --definitif:#43388A;--definitif-fond:rgba(67,56,138,.09);--definitif-bord:rgba(67,56,138,.2);
+ --ombre-carte:0 1px 0 rgba(255,255,255,.9) inset,0 28px 56px -28px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.06);
+ --sur-chemise:#141A1C;--ok:#2F7D4B;--attente:#9A6A12;--barre-fond:rgba(255,255,255,.74);--barre-ligne:rgba(20,26,28,.1);--barre-texte:#141A1C;--barre-doux:#4A565B;--barre-actif:rgba(20,26,28,.08);--barre-pastille:rgba(20,26,28,.06);--barre-kbd:rgba(20,26,28,.08);--sync:#2F9E5B;--dock-fond:rgba(255,255,255,.82);--dock-texte:#141A1C;--dock-survol:rgba(20,26,28,.07);--dock-prim-f:#141A1C;--dock-prim-t:#F2F5F4;--dock-bord:rgba(20,26,28,.1);--dock-ombre:0 18px 40px -20px rgba(0,0,0,.35);
+ width:1240px;height:800px;margin:0 auto;border-radius:14px;overflow:hidden;color:var(--encre);position:relative;isolation:isolate;
+ background-color:var(--c);background-image:var(--lumiere),var(--grain);transition:background-color .3s ease}
+.win{--lumiere:radial-gradient(120% 90% at 8% -12%,rgba(255,255,255,.22),rgba(255,255,255,0) 55%),radial-gradient(90% 80% at 110% 120%,rgba(0,0,0,.22),rgba(0,0,0,0) 60%)}
+/* Écran général, hors dossier : chemise neutre ardoise */
+.m-neutre{--c:#C5D0D4;--c-t:#E4EBEE;--c-e:#26353C;--c-s:#4F7383;--verre:rgba(255,255,255,.5);--verre-bord:rgba(255,255,255,.7)}
+.win.nuit{--encre:#E8EEEC;--graphite:#9CA8AC;--feuille:#1A2023;--feuille-2:#20272A;--filet-m:#2B3438;--survol:#222A2D;
+ --verre:rgba(0,0,0,.18);--verre-bord:rgba(255,255,255,.1);--verre-fort:rgba(255,255,255,.1);
+ --definitif:#BDB4F5;--definitif-fond:rgba(189,180,245,.1);--definitif-bord:rgba(189,180,245,.25);
+ --ombre-carte:0 1px 0 rgba(255,255,255,.05) inset,0 28px 56px -24px rgba(0,0,0,.7),0 2px 8px rgba(0,0,0,.3);
+ --sur-chemise:#F2F5F4;--ok:#7BD89A;--attente:#E8B85C;--barre-fond:rgba(16,21,23,.86);--barre-ligne:rgba(255,255,255,.06);--barre-texte:#F2F5F4;--barre-doux:#AEB8BC;--barre-actif:rgba(255,255,255,.1);--barre-pastille:rgba(255,255,255,.08);--barre-kbd:rgba(255,255,255,.1);--sync:#7BD89A;--dock-fond:rgba(16,21,23,.86);--dock-texte:#E6ECEA;--dock-survol:rgba(255,255,255,.1);--dock-prim-f:#F2F5F4;--dock-prim-t:#141A1C;--dock-bord:rgba(255,255,255,.14);--dock-ombre:0 18px 40px -12px rgba(0,0,0,.8);}
+.win.nuit{--lumiere:radial-gradient(120% 90% at 8% -12%,rgba(255,255,255,.08),rgba(255,255,255,0) 55%),radial-gradient(90% 80% at 110% 120%,rgba(0,0,0,.35),rgba(0,0,0,0) 60%)}
+.nuit.m-neutre{--c:#1E2629;--c-t:#25323A;--c-e:#D5E1E5;--c-s:#8FB6C6}
+
+/* Couleurs des chemises, pour les pastilles de dossier */
+.d-kraft{--dc:#CE9A55;--dt:#F6E7CE;--de:#5A3F14}
+.d-bleu{--dc:#6FA2E0;--dt:#E1ECFA;--de:#1C4273}
+.d-amande{--dc:#6CBF84;--dt:#E1F3E7;--de:#1F5431}
+.nuit .d-kraft{--dc:#D9A860;--dt:#3A2E1C;--de:#F2D6AB}
+.nuit .d-bleu{--dc:#86B6F0;--dt:#1E2F48;--de:#D2E3F8}
+.nuit .d-amande{--dc:#86CF9C;--dt:#1C3827;--de:#CFEDD8}
+
+/* Variantes du fond de l'écran Mails, jour seulement : teintes chaudes accordées à la barre haute */
+.win[data-fond="lin"]:not(.nuit){--c:#D6CFC2;--c-t:#EFEAE1;--c-e:#3A3022;--c-s:#7C6C50}
+.win[data-fond="pierre"]:not(.nuit){--c:#C9C1B3;--c-t:#ECE6DB;--c-e:#3A3022;--c-s:#76674C}
+.win[data-fond="taupe"]:not(.nuit){--c:#B9AE9E;--c-t:#E9E2D6;--c-e:#352C20;--c-s:#6E5F45}
+/* Variante chaude de la barre haute et de la barre d'actions (jour seulement) */
+.win[data-barre="chaude"]:not(.nuit){--barre-fond:rgba(249,245,238,.9);--barre-ligne:rgba(92,70,40,.14);--barre-texte:#241F19;--barre-doux:#6A6052;--barre-actif:rgba(110,80,40,.1);--barre-pastille:rgba(110,80,40,.07);--barre-kbd:rgba(110,80,40,.1);--sync:#3F9A5F;--dock-fond:rgba(249,245,238,.92);--dock-texte:#241F19;--dock-survol:rgba(110,80,40,.09);--dock-prim-f:#241F19;--dock-prim-t:#F9F5EE;--dock-bord:rgba(92,70,40,.16);--dock-ombre:0 18px 40px -20px rgba(60,40,10,.4)}
+/* Barre */
+.barre{position:absolute;inset:0 0 auto 0;height:58px;display:flex;align-items:center;gap:20px;padding:0 18px;z-index:5;
+ background:var(--barre-fond);color:var(--barre-texte);-webkit-backdrop-filter:blur(20px) saturate(1.1);backdrop-filter:blur(20px) saturate(1.1);box-shadow:inset 0 -1px 0 var(--barre-ligne);transition:background-color .3s}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.nav{display:flex;gap:4px;font-size:13px;flex:1}
+.nav span{padding:5px 10px;border-radius:8px;color:var(--barre-doux)}
+.nav span.on{color:var(--barre-texte);font-weight:700;background:var(--barre-actif)}
+.nav span b{margin-left:6px;font-size:11px;padding:1px 6px;border-radius:999px;background:var(--barre-kbd);color:var(--barre-texte)}
+.outils{display:flex;gap:8px;font-size:13px;color:var(--barre-doux);align-items:center}
+.pilule{display:flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:999px;background:var(--barre-pastille);box-shadow:inset 0 0 0 1px var(--barre-ligne)}
+.kbd{font-size:11px;padding:1px 6px;border-radius:5px;background:var(--barre-kbd);color:var(--barre-doux)}
+.sync{display:flex;align-items:center;gap:6px;font-size:12px;margin-right:4px}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--sync)}
+
+/* Écran */
+.ecran{position:absolute;inset:58px 0 0 0;padding:22px 30px 0;display:grid;grid-template-rows:auto 1fr;color:var(--sur-chemise)}
+.ecran-tete{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:0 4px}
+.ecran-tete h2{font-size:26px;line-height:1.15;margin:0;font-weight:800;letter-spacing:-.015em}
+.ecran-tete p{margin:4px 0 0;font-size:13px;opacity:.78}
+.releve{display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:999px;font-size:12.5px;background:var(--verre);box-shadow:inset 0 0 0 1px var(--verre-bord);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.releve i{width:7px;height:7px;border-radius:50%;background:var(--sync)}
+.pile{position:relative;margin-top:22px;min-height:0}
+.c2{position:absolute;inset:0;border-radius:18px 18px 0 0;transform:translateY(-7px) scaleX(.97);background:var(--verre-fort)}
+.feuille{position:relative;height:100%;border-radius:18px 18px 0 0;background:var(--feuille);box-shadow:var(--ombre-carte);display:grid;grid-template-columns:232px 396px 1fr;color:var(--encre);overflow:hidden;transition:background-color .3s}
+
+/* Volet des boîtes */
+.rail{padding:14px 10px 90px;border-right:1px solid var(--filet-m);background:var(--feuille-2);overflow:auto}
+.vue-classer{display:flex;align-items:center;gap:10px;width:100%;padding:10px 10px;border-radius:12px;text-align:left;font-weight:700;font-size:13.5px}
+.vue-classer .tuile{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:var(--feuille);color:var(--c-s);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.vue-classer .tuile svg{width:15px;height:15px}
+.vue-classer .n{margin-left:auto;font-size:11.5px;font-weight:800;padding:1px 8px;border-radius:999px;background:var(--encre);color:var(--feuille)}
+.vue-classer:hover,.bal:hover{background:var(--survol)}
+.vue-classer.on,.bal.on{background:var(--feuille);box-shadow:0 1px 2px rgba(0,0,0,.06),inset 0 0 0 1px var(--filet-m)}
+.compte{margin:16px 0 2px;padding:0 10px}
+.compte b{display:block;font-size:12.5px}
+.compte span{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--graphite)}
+.compte span i{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
+.compte .adr{font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.bal{display:flex;align-items:center;gap:8px;width:100%;padding:6px 10px;border-radius:9px;font-size:13px;text-align:left}
+.bal .n{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--encre)}
+.bal .g{margin-left:auto;font-size:11.5px;color:var(--graphite)}
+.file{margin:18px 2px 0;padding:10px 12px;border-radius:12px;background:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m);font-size:12.5px}
+.file b{display:block;margin-bottom:6px;font-size:12.5px}
+.envoi{display:grid;grid-template-columns:10px 1fr;gap:4px 8px;align-items:start;padding:5px 0}
+.envoi i{width:8px;height:8px;border-radius:50%;margin-top:5px}
+.envoi.attente i{background:var(--attente)}.envoi.ok i{background:var(--ok)}
+.envoi span{color:var(--graphite);display:block;font-size:12px}
+
+/* Liste des mails */
+.liste-m{display:flex;flex-direction:column;border-right:1px solid var(--filet-m);min-width:0}
+.lm-tete{padding:14px 14px 6px}
+.rech{display:flex;align-items:center;gap:8px;height:36px;padding:0 10px;border-radius:10px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);color:var(--graphite)}
+.rech svg{width:15px;height:15px;flex:none}
+.rech input{flex:1;min-width:0;border:0;background:transparent;outline:0;font-size:13px;color:var(--encre)}
+.rech input::placeholder{color:var(--graphite)}
+.rech:focus-within{box-shadow:inset 0 0 0 2px var(--c-s)}
+.lm-filtres{display:flex;align-items:center;gap:4px;margin:10px 2px 0}
+.lm-filtres button{font-size:12px;padding:3px 10px;border-radius:999px;color:var(--graphite);background:var(--feuille-2)}
+.lm-filtres button[aria-pressed="true"]{background:var(--encre);color:var(--feuille);font-weight:700}
+.lm-filtres .titre-vue{margin-right:auto;font-size:15px;font-weight:800;color:var(--encre)}
+.lm-corps{overflow:auto;padding:0 8px 96px;flex:1}
+.groupe{font-size:12px;color:var(--graphite);margin:12px 8px 4px}
+.mail{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;width:100%;padding:10px;border-radius:12px;text-align:left;align-items:start;transition:background-color .15s}
+.mail:hover{background:var(--survol)}
+.mail.sel{background:var(--c-t)}
+.mail .mono{width:34px;height:34px;font-size:12px}
+.mail .exp,.mail .obj,.mail .ext{display:block}
+.mail .exp{font-size:13px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mail .obj{font-size:13px;line-height:1.3;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mail .ext{font-size:12.5px;color:var(--graphite);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mail.nonlu .exp,.mail.nonlu .obj{font-weight:800}
+.mail .dr{display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-size:12px;color:var(--graphite);white-space:nowrap}
+.mail .ligne{display:flex;align-items:center;gap:6px}
+.mail .ligne svg{width:13px;height:13px}
+.pnl{width:8px;height:8px;border-radius:50%;background:var(--c-s)}
+.dos{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;padding:2px 9px 2px 7px;border-radius:999px;background:var(--dt);color:var(--de);white-space:nowrap}
+.dos i{width:8px;height:8px;border-radius:50%;background:var(--dc);flex:none}
+.acl{display:inline-flex;align-items:center;font-size:11.5px;font-weight:700;padding:1px 8px;border-radius:999px;color:var(--graphite);box-shadow:inset 0 0 0 1.5px var(--filet-m);white-space:nowrap}
+.vide-liste{padding:30px 16px;color:var(--graphite);font-size:13px}
+
+/* Lecture */
+.lecture{padding:18px 26px 96px;overflow:auto;min-width:0}
+.mono{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;background:var(--feuille-2);color:var(--graphite);box-shadow:inset 0 0 0 1px var(--filet-m);flex:none}
+.ap-tete{display:flex;align-items:flex-start;gap:12px}
+.ap-tete .qui{min-width:0}
+.ap-tete .qui b{display:block}
+.ap-tete .qui span{display:block;font-size:12.5px;color:var(--graphite)}
+.ap-tete .quand{margin-left:auto;font-size:12.5px;color:var(--graphite);white-space:nowrap}
+.ap-titre{font-size:19px;font-weight:800;margin:14px 0 0;line-height:1.3;letter-spacing:-.005em}
+.actions{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 14px}
+.act{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:9px;font-size:12.5px;font-weight:700;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);transition:background-color .15s}
+.act:hover{background:var(--survol)}
+.act svg{width:14px;height:14px}
+.encart{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--c-t);color:var(--c-e);margin-bottom:14px}
+.encart.dt{background:var(--dt);color:var(--de)}
+.encart>svg{flex:none;width:18px;height:18px;margin-top:1px}
+.encart b{display:block;color:var(--encre)}
+.encart .bt{margin-left:auto;display:flex;gap:6px;flex:none;align-self:center}
+.encart .bt button{font-size:12.5px;font-weight:700;padding:6px 11px;border-radius:8px;background:var(--feuille);color:var(--encre);box-shadow:inset 0 0 0 1px var(--filet-m);white-space:nowrap}
+.encart .bt button.fort{background:var(--encre);color:var(--feuille);box-shadow:none}
+.ap-corps{font-size:14px;line-height:1.62;max-width:64ch}
+.ap-corps p{margin:0 0 10px}
+.pj{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px}
+.fichier{display:flex;align-items:center;gap:8px;padding:6px 10px 6px 6px;border-radius:10px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);font-size:12.5px}
+.fichier i{font-style:normal;font-size:10px;font-weight:800;padding:3px 5px;border-radius:5px;background:var(--feuille);color:var(--graphite);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.fichier small{color:var(--graphite);font-size:11.5px}
+/* Invitation */
+.invit{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start;padding:14px 16px;border-radius:14px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);margin:2px 0 16px;max-width:560px}
+.cal{width:58px;border-radius:11px;overflow:hidden;text-align:center;background:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.cal span{display:block;font-size:11.5px;font-weight:700;padding:3px 0;background:var(--dc);color:var(--sur-chemise-d,#141A1C)}
+.cal b{display:block;font-size:24px;line-height:1.2;padding:4px 0 6px}
+.invit h4{margin:0;font-size:15px}
+.invit p{margin:3px 0 0;font-size:13px;color:var(--graphite)}
+.rep{display:flex;margin-top:12px;border-radius:9px;overflow:hidden;box-shadow:inset 0 0 0 1px var(--filet-m);width:max-content;background:var(--feuille)}
+.rep button{font-size:12.5px;font-weight:700;padding:7px 14px;border-left:1px solid var(--filet-m)}
+.rep button:first-child{border-left:0}
+.rep button[aria-pressed="true"]{background:var(--encre);color:var(--feuille)}
+.confirme{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:var(--ok);font-weight:700}
+.confirme svg{width:14px;height:14px}
+
+/* Rédaction */
+.redac{display:flex;flex-direction:column;min-height:100%}
+.redac-tete{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.redac-tete h3{margin:0;font-size:17px;font-weight:800}
+.redac-tete .etat{margin-left:auto;font-size:12px;color:var(--graphite)}
+.champ{display:grid;grid-template-columns:62px 1fr auto;align-items:center;gap:8px;min-height:40px;padding:4px 0;border-bottom:1px solid var(--filet-m);font-size:13px}
+.champ>label,.champ>span.l{color:var(--graphite)}
+.champ input{border:0;background:transparent;outline:0;min-width:0;width:100%;font-size:13px;color:var(--encre)}
+.puces{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.puce{display:inline-flex;align-items:center;gap:6px;padding:2px 9px 2px 3px;border-radius:999px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);font-size:12.5px}
+.puce .mono{width:22px;height:22px;font-size:9.5px}
+.lien{font-size:12.5px;color:var(--graphite);font-weight:700}
+.lien:hover{color:var(--encre)}
+.outils-redac{display:flex;align-items:center;gap:2px;padding:8px 0;border-bottom:1px solid var(--filet-m)}
+.outils-redac button{display:grid;place-items:center;min-width:30px;height:30px;padding:0 6px;border-radius:8px;color:var(--graphite);font-size:12.5px;font-weight:700}
+.outils-redac button:hover{background:var(--survol);color:var(--encre)}
+.outils-redac svg{width:15px;height:15px}
+.outils-redac .sep{width:1px;height:18px;background:var(--filet-m);margin:0 6px}
+.outils-redac .txt{display:flex;gap:6px;align-items:center}
+.corps-redac{padding:14px 2px;font-size:14px;line-height:1.62;outline:0;min-height:140px;max-width:66ch}
+.corps-redac p{margin:0 0 10px}
+.signature{color:var(--graphite);font-size:13px;line-height:1.5;margin-top:4px}
+.histo{margin:6px 0 0}
+.histo button{font-size:12.5px;font-weight:700;color:var(--graphite);padding:4px 0}
+.histo blockquote{margin:8px 0 0;padding:2px 0 2px 14px;border-left:2px solid var(--filet-m);color:var(--graphite);font-size:13px;line-height:1.55}
+.histo blockquote p{margin:0 0 8px}
+.redac-pied{display:flex;align-items:center;gap:10px;margin-top:auto;padding-top:14px}
+.envoyer{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 18px;border-radius:11px;font-weight:800;background:var(--encre);color:var(--feuille);box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 8px 18px -12px rgba(0,0,0,.6)}
+.redac.d-kraft .envoyer,.redac.d-bleu .envoyer,.redac.d-amande .envoyer{background:var(--dc);color:#141A1C}
+.envoyer svg{width:15px;height:15px}
+.redac-pied .info{font-size:12px;color:var(--graphite);line-height:1.35}
+.redac-pied .sup{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--graphite)}
+
+/* Barre d'actions flottante (reprise) */
+.dock{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;gap:2px;padding:6px;border-radius:16px;z-index:4;
+ background:var(--dock-fond);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);box-shadow:var(--dock-ombre),inset 0 0 0 1px var(--dock-bord)}
+.dock button{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:11px;color:var(--dock-texte);font-size:13px;white-space:nowrap}
+.dock button:hover{background:var(--dock-survol)}
+.dock button.prim{background:var(--dock-prim-f);color:var(--dock-prim-t);font-weight:700}
+.dock svg{width:15px;height:15px}
+.dock button:focus-visible,.mail:focus-visible,.bal:focus-visible,.vue-classer:focus-visible,.act:focus-visible{outline:2px solid var(--c-s);outline-offset:1px}
+.dock button:focus-visible{outline-color:var(--dock-texte)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* Hauteur contrainte : les zones de liste défilent au lieu de dépasser la fenêtre */
+.ecran{grid-template-rows:auto minmax(0,1fr)}
+.feuille{grid-template-rows:minmax(0,1fr)}
+.feuille>*,.col-ag,.col-liste,.liste-m,.ag-scroll,.dl-corps,.lm-corps{min-height:0}
+
+/* Menu du compte (cahier § 7 : Temps et Réglages dans le menu du compte) */
+.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--barre-actif);color:var(--barre-texte);box-shadow:inset 0 0 0 1px var(--barre-ligne);flex:none}
+.avatar:hover{background:var(--barre-pastille)}
+.avatar[aria-expanded="true"],.avatar.on{box-shadow:inset 0 0 0 2px var(--barre-texte)}
+.avatar:focus-visible{outline:2px solid var(--barre-texte);outline-offset:2px}
+.menu-compte{position:absolute;top:54px;right:14px;z-index:30;width:272px;padding:8px;border-radius:14px;background:var(--feuille);color:var(--encre);box-shadow:0 22px 46px -18px rgba(0,0,0,.55),inset 0 0 0 1px var(--filet-m)}
+.menu-compte .qui{padding:8px 10px 10px;border-bottom:1px solid var(--filet-m);margin-bottom:6px}
+.menu-compte .qui b{display:block;font-size:13.5px}
+.menu-compte .qui span{font-size:12px;color:var(--graphite)}
+.menu-compte button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:9px;text-align:left;font-size:13px}
+.menu-compte button:hover,.menu-compte button:focus-visible{background:var(--survol);outline:0}
+.menu-compte button svg{width:15px;height:15px;color:var(--graphite);flex:none}
+.menu-compte button .kb{margin-left:auto;font-size:11px;padding:1px 6px;border-radius:5px;background:var(--feuille-2);color:var(--graphite);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.menu-compte hr{border:0;border-top:1px solid var(--filet-m);margin:6px 0}
+.menu-compte button.on{font-weight:700;background:var(--feuille-2)}
+</style>
+</head>
+<body>
+<div class="tete">
+  <h1>Écran Mails, proposition</h1>
+  <div class="choix" data-g="theme" role="group" aria-label="Apparence de la maquette">
+    <button data-t="jour" aria-pressed="true">Jour</button>
+    <button data-t="nuit" aria-pressed="false">Nuit</button>
+  </div>
+  <span style="color:var(--doux);font-size:13px">Cliquez sur les mails, « À classer », Répondre, Transférer ou Nouveau mail.</span>
+</div>
+<div class="intro"><p>Même système visuel que le prototype de référence : la feuille posée sur une chemise, ici neutre puisque l’écran n’appartient à aucun dossier. Chaque mail classé porte la couleur de la chemise de son dossier. La rédaction s’ouvre à la place du message, avec le dossier où sera rangée la copie.</p></div>
+<div class="scene">
+<section class="win m-neutre" id="win" aria-label="Maquette de l’écran Mails">
+  <div class="barre">
+    <div class="lights" aria-hidden="true"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></div>
+    <nav class="nav"><span>La journée</span><span>Dossiers</span><span class="on">Mails<b id="badge">2</b></span><span>Agenda</span><span>Facturation</span></nav>
+    <div class="outils">
+      <span class="sync" title="Toutes les modifications sont synchronisées"><i></i>Synchronisé</span>
+      <span class="pilule">Rechercher <span class="kbd">Ctrl K</span></span>
+      <button class="avatar" id="av" aria-haspopup="menu" aria-expanded="false" aria-label="Menu du compte">JM</button>
+    </div>
+  </div>
+  <div class="menu-compte" id="mc" role="menu" aria-label="Menu du compte" hidden>
+ <div class="qui"><b>Me Julien Marchal</b><span>j.marchal@cabinet-marchal.example</span></div>
+ <button role="menuitem" data-m="temps"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3l2 1.5"/></svg>Temps<span class="kb">T</span></button>
+ <button role="menuitem" data-m="reglages"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8" r="2.3"/><path d="M8 1.8v1.7M8 12.5v1.7M1.8 8h1.7M12.5 8h1.7M3.6 3.6l1.2 1.2M11.2 11.2l1.2 1.2M12.4 3.6l-1.2 1.2M4.8 11.2l-1.2 1.2"/></svg>Réglages<span class="kb">Ctrl ,</span></button>
+ <button role="menuitem"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>Palette de commandes<span class="kb">Ctrl K</span></button>
+ <hr>
+ <button role="menuitem"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="7" width="9" height="7" rx="1.8"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Verrouiller l’application</button>
+ <button role="menuitem"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 2.5H3.5v11H6M10 5l3 3-3 3M13 8H6"/></svg>Se déconnecter</button>
+</div>
+  <div class="ecran">
+    <div class="ecran-tete">
+      <div><h2>Mails</h2><p id="sous-titre"></p></div>
+      <span class="releve" title="Dernière relève des trois boîtes"><i></i>Boîtes relevées il y a 1 min</span>
+    </div>
+    <div class="pile">
+      <div class="c2"></div>
+      <div class="feuille">
+        <aside class="rail" id="rail" aria-label="Boîtes aux lettres"></aside>
+        <div class="liste-m">
+          <div class="lm-tete">
+            <label class="rech"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input id="q" type="search" placeholder="Rechercher dans tous les mails" aria-label="Rechercher dans tous les mails"></label>
+            <div class="lm-filtres" role="group" aria-label="Filtrer la liste"><span class="titre-vue" id="titre-vue"></span>
+              <button data-f="tous" aria-pressed="true">Tous</button><button data-f="nonlus" aria-pressed="false">Non lus</button><button data-f="pj" aria-pressed="false">Pièces jointes</button></div>
+          </div>
+          <div class="lm-corps" id="liste"></div>
+        </div>
+        <section class="lecture" id="lecture" aria-live="polite"></section>
+        <div class="dock" id="dock">
+          <button class="prim" id="nouveau"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3.5" width="12" height="9" rx="2"/><path d="m2.5 5 5.5 4 5.5-4"/></svg>Nouveau mail</button>
+          <button><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3l2 1.5"/></svg>Saisir du temps <span class="kbd">T</span></button>
+          <button><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z"/></svg>Ouvrir le dossier</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<p class="note">Maquette statique, données fictives. Ce qui est montré ici, et attendu dans l’app : badge égal au nombre de mails à classer ; noms de dossiers IMAP en français ; recherche en tête de liste ; brouillons enregistrés automatiquement et stockés sur le serveur ; file d’envoi visible jusqu’à « copie dans Envoyés confirmée » ; réponse aux invitations depuis le message.</p>
+</div>
+<script>
+function svgUrl(s){return 'url("data:image/svg+xml,'+encodeURIComponent(s)+'")'}
+document.documentElement.style.setProperty('--grain',svgUrl(`<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' seed='4' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .3 0 0 0 -.1'/></filter><rect width='100%' height='100%' filter='url(#n)'/></svg>`));
+const ic={
+ classer:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z"/><path d="M8 7v4M6 9h4"/></svg>',
+ dossier:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z"/></svg>',
+ reception:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 9.5V12a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 14 12V9.5"/><path d="M2 9.5 4 3.5h8l2 6H10.5a2.5 2.5 0 0 1-5 0z"/></svg>',
+ trombone:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10.5 5.5 6 10a1.5 1.5 0 0 0 2.1 2.1l5-5a3 3 0 0 0-4.2-4.2l-5 5a4.5 4.5 0 0 0 6.4 6.4L14 10.6"/></svg>',
+ repondre:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6.5 4 3 7.5 6.5 11"/><path d="M3.5 7.5H9a4 4 0 0 1 4 4v1"/></svg>',
+ tous:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 4 1.5 7.5 5 11"/><path d="M8.5 4 5 7.5 8.5 11"/><path d="M5.5 7.5H10a4 4 0 0 1 4 4v1"/></svg>',
+ transferer:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9.5 4 13 7.5 9.5 11"/><path d="M12.5 7.5H7a4 4 0 0 0-4 4v1"/></svg>',
+ temps:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3l2 1.5"/></svg>',
+ envoyer:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2 7 9"/><path d="M14 2 9.5 14 7 9 2 6.5z"/></svg>',
+ coche:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 8.5 3 3 7-7"/></svg>',
+ liste:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 4h8M6 8h8M6 12h8"/><circle cx="2.8" cy="4" r=".9" fill="currentColor"/><circle cx="2.8" cy="8" r=".9" fill="currentColor"/><circle cx="2.8" cy="12" r=".9" fill="currentColor"/></svg>',
+ lien:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 9a3 3 0 0 0 4.2 0l2-2a3 3 0 0 0-4.2-4.2l-.6.6"/><path d="M9 7a3 3 0 0 0-4.2 0l-2 2a3 3 0 0 0 4.2 4.2l.6-.6"/></svg>'};
+const fr=t=>String(t).replace(/ ([:;!?»])/g,'\u202F$1').replace(/« /g,'«\u202F');
+const D={kraft:{ref:"2026-042",court:"SCI Les Tilleuls"},bleu:{ref:"2026-031",court:"Ferrand Métal"},amande:{ref:"2026-057",court:"Succession Moreau"}};
+const dos=k=>`<span class="dos d-${k}"><i></i>${D[k].ref}</span>`;
+const MOI={nom:"Me Julien Marchal",mail:"j.marchal@cabinet-marchal.example"};
+let M=[
+ {id:1,g:"Aujourd’hui",bal:"perso",exp:"Me Clément Vasseur",mono:"CV",mail:"c.vasseur@cabinet-vasseur.example",a:"vous",cc:"",quand:"9 h 12",quandLong:"Aujourd’hui, 9 h 12",
+  obj:"Communication de pièces adverses nᵒˢ 14 à 19",ext:"Cher Confrère, je vous prie de bien vouloir trouver ci-joint communication des pièces…",lu:false,
+  pj:[["PDF","Bordereau nᵒ 4","84 Ko"],["PDF","Pièce 14, contrat de prêt","1,2 Mo"],["PDF","Pièce 15, avenant","410 Ko"],["","+ 4 autres",""]],
+  etat:"classe",d:"kraft",raison:"La référence 2026-042 figure dans l’objet du mail.",
+  corps:"<p>Cher Confrère,</p><p>Je vous prie de bien vouloir trouver ci-joint communication des pièces nᵒˢ 14 à 19, dont le bordereau récapitulatif est joint au présent envoi.</p><p>Bien confraternellement.</p><p>Clément Vasseur<br>Avocat au Barreau de Lyon</p>"},
+ {id:2,g:"Aujourd’hui",bal:"perso",exp:"Greffe de la cour d’appel de Lyon",mono:"CA",mail:"greffe.ca-lyon@justice.example",a:"vous",cc:"",quand:"8 h 40",quandLong:"Aujourd’hui, 8 h 40",
+  obj:"Avis de fixation, RG 25/04417",ext:"L’affaire est fixée à l’audience de mise en état du 12 novembre à 9 h 30…",lu:false,pj:[["PDF","Avis de fixation","62 Ko"]],
+  etat:"suggestion",d:"kraft",raison:"Le numéro RG 25/04417 est celui de ce dossier.",
+  corps:"<p>Maître,</p><p>L’affaire enregistrée sous le numéro RG 25/04417 est fixée à l’audience de mise en état du 12 novembre à 9 h 30.</p><p>Le greffe</p>"},
+ {id:3,g:"Aujourd’hui",bal:"perso",exp:"Mme Inès Ferrand",mono:"IF",mail:"i.ferrand@ferrand-metal.example",a:"vous",cc:"compta@ferrand-metal.example",quand:"8 h 05",quandLong:"Aujourd’hui, 8 h 05",
+  obj:"Re : dossier de plaidoirie",ext:"Maître, voici les deux derniers bons de livraison que vous m’aviez demandés…",lu:true,
+  pj:[["PDF","Bon de livraison 1184","220 Ko"],["PDF","Bon de livraison 1192","198 Ko"]],etat:"classe",d:"bleu",raison:"L’expéditrice n’est liée qu’à ce dossier actif.",
+  corps:"<p>Maître,</p><p>Voici les deux derniers bons de livraison que vous m’aviez demandés pour l’audience de lundi.</p><p>Bien cordialement.</p><p>Inès Ferrand<br>Directrice administrative, SAS Ferrand Métal</p>"},
+ {id:4,g:"Hier",bal:"perso",exp:"Me Lucas Garnier",mono:"LG",mail:"l.garnier@etude-garnier.example",a:"vous",cc:"",quand:"17 h 20",quandLong:"Hier, 17 h 20",
+  obj:"Invitation : signature de l’acte de partage",ext:"Jeudi 8 octobre, 10 h à 11 h, à l’étude. Merci de confirmer votre présence.",lu:true,pj:[],
+  etat:"classe",d:"amande",raison:"La référence 2026-057 figure dans le message.",
+  invit:{mois:"oct.",jour:"8",titre:"Signature de l’acte de partage",quand:"Jeudi 8 octobre, 10 h à 11 h",ou:"Étude Garnier, 12 place Henri-Barbusse, Caluire-et-Cuire",org:"Organisateur : Me Lucas Garnier",rep:null},
+  corps:"<p>Maître,</p><p>Je vous propose de fixer la signature de l’acte de partage de la succession Moreau au jeudi 8 octobre à 10 h, en présence de Mme Moreau.</p><p>Bien à vous.</p>"},
+ {id:5,g:"Hier",bal:"perso",exp:"Banque Rhodanienne, service contentieux",mono:"BR",mail:"contentieux@banque-rhodanienne.example",a:"vous",cc:"",quand:"11 h 02",quandLong:"Hier, 11 h 02",
+  obj:"Proposition de protocole d’accord",ext:"Maître, faisant suite à nos échanges, nous vous adressons une proposition de protocole…",lu:false,pj:[["DOCX","Projet de protocole","56 Ko"]],
+  etat:"suggestion",d:"kraft",raison:"L’expéditeur n’intervient que dans ce dossier.",
+  corps:"<p>Maître,</p><p>Faisant suite à nos échanges, nous vous adressons une proposition de protocole d’accord, que nous vous remercions de soumettre à votre cliente.</p><p>Le service contentieux</p>"},
+ {id:6,g:"Cette semaine",bal:"partagee",exp:"Ordre des avocats de Lyon",mono:"OA",mail:"communication@barreau-lyon.example",a:"contact@cabinet-marchal.example",cc:"",quand:"lun.",quandLong:"Lundi 5 octobre, 7 h 30",
+  obj:"Lettre d’information d’octobre",ext:"Formation continue, permanences et calendrier des audiences solennelles…",lu:true,pj:[],
+  etat:"aucun",d:null,raison:"",
+  corps:"<p>Mes chers Confrères,</p><p>Vous trouverez dans cette lettre le programme de formation continue du trimestre et le calendrier des permanences.</p>"},
+ {id:7,g:"Cette semaine",bal:"perso",exp:"Me Anne Perrin",mono:"AP",mail:"a.perrin@perrin-avocats.example",a:"vous",cc:"",quand:"1er oct.",quandLong:"Jeudi 1er octobre, 18 h 42",
+  obj:"Conclusions récapitulatives",ext:"Mon cher Confrère, je vous prie de trouver ci-joint mes conclusions récapitulatives…",lu:true,pj:[["PDF","Conclusions récapitulatives","640 Ko"]],
+  etat:"classe",d:"bleu",raison:"La référence 2026-031 figure dans l’objet du mail.",
+  corps:"<p>Mon cher Confrère,</p><p>Je vous prie de trouver ci-joint mes conclusions récapitulatives, notifiées ce jour par RPVA.</p><p>Bien confraternellement.</p>"}];
+let fond="lin",barre="neutre",vue="reception",filtre="tous",sel=1,nuit=false,mode="lire",redac=null,envois=[{t:"Conclusions en réplique",s:"à Me Anne Perrin",ok:true}],q="";
+const aClasser=()=>M.filter(m=>m.etat==="suggestion");
+function rail(){
+  const nb=aClasser().length, nl=M.filter(m=>m.bal==="perso"&&!m.lu).length, np=M.filter(m=>m.bal==="partagee"&&!m.lu).length;
+  return `<button class="vue-classer${vue==="classer"?" on":""}" data-v="classer"><span class="tuile">${ic.classer}</span>À classer${nb?`<span class="n">${nb}</span>`:""}</button>
+  <div class="compte"><b>Ma boîte</b><span title="${MOI.mail}, relevée il y a 1 min"><i></i><em class="adr">${MOI.mail}</em></span></div>
+  <button class="bal${vue==="reception"?" on":""}" data-v="reception">Boîte de réception${nl?`<span class="n">${nl}</span>`:""}</button>
+  <button class="bal" data-v="reception">Brouillons<span class="g">1</span></button>
+  <button class="bal" data-v="reception">Envoyés</button>
+  <button class="bal" data-v="reception">Archives</button>
+  <div class="compte"><b>Boîte partagée</b><span title="contact@cabinet-marchal.example, membres : vous et M. Lefort"><i></i><em class="adr">contact@cabinet-marchal.example</em></span></div>
+  <button class="bal${vue==="partagee"?" on":""}" data-v="partagee">Boîte de réception${np?`<span class="n">${np}</span>`:`<span class="g">2 membres</span>`}</button>
+  <div class="file" aria-live="polite"><b>File d’envoi</b>${envois.map(e=>`<div class="envoi ${e.ok?"ok":"attente"}"><i></i><div>${e.t}<span>${e.ok?`Copie dans « Envoyés » confirmée`:`En cours d’envoi, ${e.s}`}</span></div></div>`).join("")}</div>`;
+}
+function visibles(){
+  let l=M.filter(m=>vue==="classer"?m.etat==="suggestion":vue==="partagee"?m.bal==="partagee":m.bal==="perso");
+  if(filtre==="nonlus")l=l.filter(m=>!m.lu); if(filtre==="pj")l=l.filter(m=>m.pj.length);
+  if(q){const s=q.toLowerCase();l=l.filter(m=>(m.exp+m.obj+m.ext).toLowerCase().includes(s))}
+  return l;
+}
+function liste(){
+  const l=visibles(); if(!l.length)return `<p class="vide-liste">${vue==="classer"?"Tous les mails sont classés.":"Aucun mail ne correspond."}</p>`;
+  let g="",h="";
+  l.forEach(m=>{if(m.g!==g){g=m.g;h+=`<div class="groupe">${g}</div>`}
+    const etiq=m.etat==="classe"?dos(m.d):m.etat==="suggestion"?`<span class="acl">À classer</span>`:"";
+    h+=`<button class="mail${m.id===sel&&mode!=="nouveau"?" sel":""}${m.lu?"":" nonlu"}" data-id="${m.id}"><span class="mono">${m.mono}</span><span style="min-width:0"><span class="exp">${m.exp}</span><span class="obj">${fr(m.obj)}</span><span class="ext">${fr(m.ext)}</span></span><span class="dr"><span class="ligne">${m.pj.length?ic.trombone:""}${m.quand}${m.lu?"":`<span class="pnl" title="Non lu"></span>`}</span>${etiq}</span></button>`});
+  return h;
+}
+function encart(m){
+  if(m.etat==="classe")return `<div class="encart dt d-${m.d}">${ic.dossier}<div><b>Classé dans ${D[m.d].ref}, ${D[m.d].court}</b>${m.raison}</div><div class="bt"><button data-a="changer">Changer</button></div></div>`;
+  if(m.etat==="suggestion")return `<div class="encart">${ic.classer}<div><b>Classer dans ${D[m.d].ref} ?</b>${D[m.d].court}. ${m.raison}</div><div class="bt"><button class="fort" data-a="classer">Classer</button><button data-a="changer">Autre dossier</button></div></div>`;
+  return `<div class="encart">${ic.reception}<div><b>Hors dossier</b>Ce mail ne concerne aucun dossier. Il reste dans la boîte partagée.</div><div class="bt"><button data-a="changer">Classer dans un dossier</button></div></div>`;
+}
+function invit(m){
+  const v=m.invit, r=v.rep, lab={oui:"Accepter",peut:"Peut-être",non:"Refuser"};
+  return `<div class="invit d-${m.d}"><div class="cal"><span>${v.mois}</span><b>${v.jour}</b></div><div><h4>${fr(v.titre)}</h4><p>${v.quand}</p><p>${fr(v.ou)}</p><p>${fr(v.org)}</p>
+  <div class="rep" role="group" aria-label="Répondre à l’invitation">${Object.keys(lab).map(k=>`<button data-rep="${k}" aria-pressed="${r===k}">${lab[k]}</button>`).join("")}</div>
+  ${r?`<div class="confirme">${ic.coche}${r==="non"?"Refus envoyé à Me Garnier.":r==="peut"?"Réponse envoyée. L’élément reste provisoire dans votre agenda.":"Réponse envoyée à Me Garnier. Ajouté à votre agenda, rappel la veille."}</div>`:""}</div></div>`;
+}
+function lecture(m){
+  return `<div class="ap-tete"><span class="mono">${m.mono}</span><div class="qui"><b>${m.exp}</b><span>${m.mail}</span><span>À ${m.a}${m.cc?`, cc ${m.cc}`:""}</span></div><span class="quand">${m.quandLong}</span></div>
+  <p class="ap-titre">${fr(m.obj)}</p>
+  <div class="actions"><button class="act" data-a="repondre">${ic.repondre}Répondre</button><button class="act" data-a="tous">${ic.tous}Répondre à tous</button><button class="act" data-a="transferer">${ic.transferer}Transférer</button></div>
+  ${encart(m)}${m.invit?invit(m):""}
+  <div class="ap-corps">${fr(m.corps)}</div>
+  ${m.pj.length?`<div class="pj">${m.pj.map(([t,n,s])=>t?`<span class="fichier"><i>${t}</i>${n}${s?` <small>${s}</small>`:""}</span>`:`<span class="fichier" style="background:transparent">${n}</span>`).join("")}</div>`:""}`;
+}
+function redaction(){
+  const r=redac, k=r.d;
+  const puces=r.a.map(p=>`<span class="puce"><span class="mono">${p.mono}</span>${p.nom}</span>`).join("");
+  return `<form class="redac${k?" d-"+k:""}" onsubmit="return false" aria-label="Rédaction d’un mail">
+  <div class="redac-tete"><h3>${r.titre}</h3><span class="etat">Brouillon enregistré à 9 h 31, visible sur vos autres appareils</span></div>
+  <div class="champ"><span class="l">De</span><span>${MOI.nom} &lt;${MOI.mail}&gt;</span><span></span></div>
+  <div class="champ"><label for="a">À</label><span class="puces">${puces}<input id="a" placeholder="${r.a.length?"":"Nom, adresse ou contact"}" aria-label="Destinataires"></span><span><button type="button" class="lien">Cc</button> <button type="button" class="lien">Cci</button></span></div>
+  <div class="champ"><label for="o">Objet</label><input id="o" value="${r.obj.replace(/"/g,"&quot;")}"><span></span></div>
+  <div class="champ"><span class="l">Dossier</span><span class="puces">${k?`${dos(k)}<span style="font-size:12.5px;color:var(--graphite)">${D[k].court}, une copie de l’envoi y sera rangée</span>`:`<span style="font-size:12.5px;color:var(--graphite)">Aucun dossier choisi</span>`}</span><button type="button" class="lien">${k?"Changer":"Choisir"}</button></div>
+  <div class="outils-redac" role="toolbar" aria-label="Mise en forme"><button type="button" aria-label="Gras" style="font-weight:800">G</button><button type="button" aria-label="Italique" style="font-style:italic;font-family:Georgia,serif">I</button><button type="button" aria-label="Liste à puces">${ic.liste}</button><button type="button" aria-label="Lien">${ic.lien}</button><span class="sep"></span><button type="button" class="txt">${ic.trombone}Joindre</button><button type="button" class="txt">Modèle</button><button type="button" class="txt">Signature</button></div>
+  <div class="corps-redac" contenteditable="true" aria-label="Message">${r.corps}<div class="signature">${MOI.nom.replace("Me ","")}<br>Avocat au Barreau de Lyon<br>Cabinet Marchal, 14 quai de la Pêcherie, 69001 Lyon</div></div>
+  ${r.pj&&r.pj.length?`<div class="pj" style="margin-top:0">${r.pj.map(([t,n,s])=>t?`<span class="fichier"><i>${t}</i>${n}${s?` <small>${s}</small>`:""}</span>`:"").join("")}</div>`:""}
+  ${r.histo?`<div class="histo"><button type="button" id="histo" aria-expanded="${r.ouvert?"true":"false"}">${r.ouvert?"Masquer":"Afficher"} le message d’origine</button>${r.ouvert?`<blockquote>${r.histo}</blockquote>`:""}</div>`:""}
+  <div class="redac-pied"><button type="button" class="envoyer" id="envoyer">${ic.envoyer}Envoyer</button><span class="info">Envoi garanti par la file d’envoi,<br>même si la connexion coupe.</span><button type="button" class="sup" id="abandon">Supprimer le brouillon</button></div></form>`;
+}
+function ouvrirRedac(type){
+  const m=M.find(x=>x.id===sel);
+  const histo=`<p>${m.exp} &lt;${m.mail}&gt; a écrit (${m.quandLong.toLowerCase()}) :</p>${m.corps}`;
+  if(type==="nouveau")redac={titre:"Nouveau mail",a:[],obj:"",d:null,corps:"<p><br></p>",histo:null};
+  else if(type==="transferer")redac={titre:"Transférer",a:[],obj:"Tr : "+m.obj,d:m.d,corps:"<p>Mon cher Confrère,</p><p>Je vous transmets ci-dessous, pour information, le message reçu ce jour.</p>",pj:m.pj,histo,ouvert:true};
+  else redac={titre:type==="tous"?"Répondre à tous":"Répondre",a:[{nom:m.exp,mono:m.mono}].concat(type==="tous"&&m.cc?[{nom:m.cc,mono:"@"}]:[]),obj:(m.obj.startsWith("Re")?"":"Re : ")+m.obj,d:m.d,
+    corps:m.mono==="CV"?"<p>Mon cher Confrère,</p><p>J’accuse bonne réception des pièces nᵒˢ 14 à 19 et vous en remercie.</p><p>Bien confraternellement.</p>":"<p>Maître,</p><p><br></p>",histo,ouvert:false};
+  mode=type==="nouveau"?"nouveau":"rediger"; render();
+}
+function render(){
+  const w=document.getElementById("win"); w.className="win m-neutre"+(nuit?" nuit":""); w.dataset.barre=barre; w.dataset.fond=fond;
+  const nb=aClasser().length; document.getElementById("badge").textContent=nb; document.getElementById("badge").hidden=!nb;
+  document.getElementById("sous-titre").textContent=nb?`${nb} mail${nb>1?"s":""} à classer, ${M.filter(m=>!m.lu).length} non lu${M.filter(m=>!m.lu).length>1?"s":""}`:"Tout est classé";
+  document.getElementById("titre-vue").textContent=vue==="classer"?"À classer":vue==="partagee"?"Boîte partagée":"Boîte de réception";
+  document.getElementById("rail").innerHTML=rail();
+  document.getElementById("liste").innerHTML=liste();
+  const m=M.find(x=>x.id===sel), L=document.getElementById("lecture");
+  L.innerHTML=(mode==="lire")?(m?lecture(m):""):redaction();
+  document.getElementById("dock").hidden=mode!=="lire";
+  bind();
+}
+function bind(){
+  document.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{vue=b.dataset.v;mode="lire";const l=visibles();if(l.length&&!l.find(x=>x.id===sel))sel=l[0].id;render()});
+  document.querySelectorAll(".mail").forEach(b=>b.onclick=()=>{sel=+b.dataset.id;const m=M.find(x=>x.id===sel);m.lu=true;mode="lire";render()});
+  document.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a,m=M.find(x=>x.id===sel);
+    if(a==="classer"){m.etat="classe";m.raison="Classé par vous à l’instant.";render()}
+    else if(a==="repondre"||a==="tous"||a==="transferer")ouvrirRedac(a)});
+  document.querySelectorAll("[data-rep]").forEach(b=>b.onclick=()=>{M.find(x=>x.id===sel).invit.rep=b.dataset.rep;render()});
+  const h=document.getElementById("histo"); if(h)h.onclick=()=>{redac.ouvert=!redac.ouvert;render()};
+  const e=document.getElementById("envoyer"); if(e)e.onclick=()=>{const t=redac.obj||"(sans objet)";const d=redac.a[0]?"à "+redac.a[0].nom:"";envois.unshift({t,s:d,ok:false});mode="lire";redac=null;render();
+    setTimeout(()=>{envois[0].ok=true;render()},1600)};
+  const s=document.getElementById("abandon"); if(s)s.onclick=()=>{mode="lire";redac=null;render()};
+}
+document.getElementById("nouveau").onclick=()=>ouvrirRedac("nouveau");
+document.querySelectorAll(".lm-filtres [data-f]").forEach(b=>b.onclick=()=>{filtre=b.dataset.f;document.querySelectorAll(".lm-filtres [data-f]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));render()});
+document.getElementById("q").oninput=e=>{q=e.target.value.trim();render()};
+document.querySelectorAll(".choix[data-g=theme] button").forEach(b=>b.onclick=()=>{nuit=b.dataset.t==="nuit";document.querySelectorAll(".choix[data-g=theme] button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));render()});
+document.querySelectorAll(".choix[data-g=fond] button").forEach(b=>b.onclick=()=>{fond=b.dataset.f2;document.querySelectorAll(".choix[data-g=fond] button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));render()});
+document.querySelectorAll(".choix[data-g=barre] button").forEach(b=>b.onclick=()=>{barre=b.dataset.b;document.querySelectorAll(".choix[data-g=barre] button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));render()});
+render();
+
+(function(){const av=document.getElementById('av'),mc=document.getElementById('mc');if(!av||!mc)return;
+ const ferme=()=>{mc.hidden=true;av.setAttribute('aria-expanded','false')};
+ av.onclick=e=>{e.stopPropagation();const o=mc.hidden;mc.hidden=!o;av.setAttribute('aria-expanded',String(o))};
+ document.addEventListener('click',e=>{if(!mc.hidden&&!mc.contains(e.target))ferme()});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!mc.hidden){ferme();av.focus()}});
+ mc.querySelectorAll('button').forEach(b=>b.onclick=ferme);})();
+</script>
+</body>
+</html>

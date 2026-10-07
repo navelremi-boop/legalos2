@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LEGAL OS — prototype de l’écran Dossiers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--page:#D9DEDC;--texte:#1F2629;--doux:#5A6569;--filet:#C3CAC7;--btn:#FFFFFF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0E1213;--texte:#E4EAE8;--doux:#9CA8AC;--filet:#323B3E;--btn:#1E2427}}
+:root[data-theme="dark"]{--page:#0E1213;--texte:#E4EAE8;--doux:#9CA8AC;--filet:#323B3E;--btn:#1E2427}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--page);color:var(--texte);font-family:"Atkinson Hyperlegible Next",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.45;font-variant-numeric:tabular-nums}
+button,input{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.tete{max-width:1300px;margin:0 auto;padding:22px 24px 6px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px}
+.tete h1{font-size:20px;margin:0;font-weight:800}
+.choix{display:flex;border:1px solid var(--filet);border-radius:8px;overflow:hidden;background:var(--btn)}
+.choix button{padding:6px 14px;border-left:1px solid var(--filet);color:var(--doux)}
+.choix button:first-child{border-left:0}
+.choix button[aria-pressed="true"]{background:var(--texte);color:var(--page);font-weight:700}
+.intro{max-width:1300px;margin:0 auto;padding:4px 24px 14px;color:var(--doux)}
+.intro p{margin:0;max-width:105ch}
+.scene{overflow-x:auto;padding:0 24px 36px}
+.note{max-width:1240px;margin:14px auto 0;color:var(--doux);font-size:13px}
+
+/* ====================== Fenêtre (repris du prototype de référence) ====================== */
+.win{
+ --encre:#141A1C;--graphite:#5A6569;--feuille:#FFFFFF;--feuille-2:#F6F8F7;--filet-m:#E8ECEB;--survol:#F3F6F5;
+ --verre:rgba(255,255,255,.3);--verre-bord:rgba(255,255,255,.42);--verre-fort:rgba(255,255,255,.6);
+ --definitif:#43388A;--definitif-fond:rgba(67,56,138,.09);--definitif-bord:rgba(67,56,138,.2);
+ --ombre-carte:0 1px 0 rgba(255,255,255,.9) inset,0 28px 56px -28px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.06);
+ --sur-chemise:#141A1C;--ok:#2F7D4B;--attente:#9A6A12;--barre-fond:rgba(255,255,255,.74);--barre-ligne:rgba(20,26,28,.1);--barre-texte:#141A1C;--barre-doux:#4A565B;--barre-actif:rgba(20,26,28,.08);--barre-pastille:rgba(20,26,28,.06);--barre-kbd:rgba(20,26,28,.08);--sync:#2F9E5B;--dock-fond:rgba(255,255,255,.82);--dock-texte:#141A1C;--dock-survol:rgba(20,26,28,.07);--dock-prim-f:#141A1C;--dock-prim-t:#F2F5F4;--dock-bord:rgba(20,26,28,.1);--dock-ombre:0 18px 40px -20px rgba(0,0,0,.35);
+ width:1240px;height:800px;margin:0 auto;border-radius:14px;overflow:hidden;color:var(--encre);position:relative;isolation:isolate;
+ background-color:var(--c);background-image:var(--lumiere),var(--grain);transition:background-color .3s ease}
+.win{--lumiere:radial-gradient(120% 90% at 8% -12%,rgba(255,255,255,.22),rgba(255,255,255,0) 55%),radial-gradient(90% 80% at 110% 120%,rgba(0,0,0,.22),rgba(0,0,0,0) 60%)}
+/* Écran général, hors dossier : chemise neutre ardoise */
+.m-neutre{--c:#C5D0D4;--c-t:#E4EBEE;--c-e:#26353C;--c-s:#4F7383;--verre:rgba(255,255,255,.5);--verre-bord:rgba(255,255,255,.7)}
+.win.nuit{--encre:#E8EEEC;--graphite:#9CA8AC;--feuille:#1A2023;--feuille-2:#20272A;--filet-m:#2B3438;--survol:#222A2D;
+ --verre:rgba(0,0,0,.18);--verre-bord:rgba(255,255,255,.1);--verre-fort:rgba(255,255,255,.1);
+ --definitif:#BDB4F5;--definitif-fond:rgba(189,180,245,.1);--definitif-bord:rgba(189,180,245,.25);
+ --ombre-carte:0 1px 0 rgba(255,255,255,.05) inset,0 28px 56px -24px rgba(0,0,0,.7),0 2px 8px rgba(0,0,0,.3);
+ --sur-chemise:#F2F5F4;--ok:#7BD89A;--attente:#E8B85C;--barre-fond:rgba(16,21,23,.86);--barre-ligne:rgba(255,255,255,.06);--barre-texte:#F2F5F4;--barre-doux:#AEB8BC;--barre-actif:rgba(255,255,255,.1);--barre-pastille:rgba(255,255,255,.08);--barre-kbd:rgba(255,255,255,.1);--sync:#7BD89A;--dock-fond:rgba(16,21,23,.86);--dock-texte:#E6ECEA;--dock-survol:rgba(255,255,255,.1);--dock-prim-f:#F2F5F4;--dock-prim-t:#141A1C;--dock-bord:rgba(255,255,255,.14);--dock-ombre:0 18px 40px -12px rgba(0,0,0,.8);}
+.win.nuit{--lumiere:radial-gradient(120% 90% at 8% -12%,rgba(255,255,255,.08),rgba(255,255,255,0) 55%),radial-gradient(90% 80% at 110% 120%,rgba(0,0,0,.35),rgba(0,0,0,0) 60%)}
+.nuit.m-neutre{--c:#1E2629;--c-t:#25323A;--c-e:#D5E1E5;--c-s:#8FB6C6}
+
+/* Couleurs des chemises, pour les pastilles de dossier */
+.d-kraft{--dc:#CE9A55;--dt:#F6E7CE;--de:#5A3F14}
+.d-bleu{--dc:#6FA2E0;--dt:#E1ECFA;--de:#1C4273}
+.d-amande{--dc:#6CBF84;--dt:#E1F3E7;--de:#1F5431}
+.nuit .d-kraft{--dc:#D9A860;--dt:#3A2E1C;--de:#F2D6AB}
+.nuit .d-bleu{--dc:#86B6F0;--dt:#1E2F48;--de:#D2E3F8}
+.nuit .d-amande{--dc:#86CF9C;--dt:#1C3827;--de:#CFEDD8}
+
+/* Variantes du fond de l'écran Mails, jour seulement : teintes chaudes accordées à la barre haute */
+.win[data-fond="lin"]:not(.nuit){--c:#D6CFC2;--c-t:#EFEAE1;--c-e:#3A3022;--c-s:#7C6C50}
+.win[data-fond="pierre"]:not(.nuit){--c:#C9C1B3;--c-t:#ECE6DB;--c-e:#3A3022;--c-s:#76674C}
+.win[data-fond="taupe"]:not(.nuit){--c:#B9AE9E;--c-t:#E9E2D6;--c-e:#352C20;--c-s:#6E5F45}
+/* Variante chaude de la barre haute et de la barre d'actions (jour seulement) */
+.win[data-barre="chaude"]:not(.nuit){--barre-fond:rgba(249,245,238,.9);--barre-ligne:rgba(92,70,40,.14);--barre-texte:#241F19;--barre-doux:#6A6052;--barre-actif:rgba(110,80,40,.1);--barre-pastille:rgba(110,80,40,.07);--barre-kbd:rgba(110,80,40,.1);--sync:#3F9A5F;--dock-fond:rgba(249,245,238,.92);--dock-texte:#241F19;--dock-survol:rgba(110,80,40,.09);--dock-prim-f:#241F19;--dock-prim-t:#F9F5EE;--dock-bord:rgba(92,70,40,.16);--dock-ombre:0 18px 40px -20px rgba(60,40,10,.4)}
+/* Barre */
+.barre{position:absolute;inset:0 0 auto 0;height:58px;display:flex;align-items:center;gap:20px;padding:0 18px;z-index:5;
+ background:var(--barre-fond);color:var(--barre-texte);-webkit-backdrop-filter:blur(20px) saturate(1.1);backdrop-filter:blur(20px) saturate(1.1);box-shadow:inset 0 -1px 0 var(--barre-ligne);transition:background-color .3s}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.nav{display:flex;gap:4px;font-size:13px;flex:1}
+.nav span{padding:5px 10px;border-radius:8px;color:var(--barre-doux)}
+.nav span.on{color:var(--barre-texte);font-weight:700;background:var(--barre-actif)}
+.nav span b{margin-left:6px;font-size:11px;padding:1px 6px;border-radius:999px;background:var(--barre-kbd);color:var(--barre-texte)}
+.outils{display:flex;gap:8px;font-size:13px;color:var(--barre-doux);align-items:center}
+.pilule{display:flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:999px;background:var(--barre-pastille);box-shadow:inset 0 0 0 1px var(--barre-ligne)}
+.kbd{font-size:11px;padding:1px 6px;border-radius:5px;background:var(--barre-kbd);color:var(--barre-doux)}
+.sync{display:flex;align-items:center;gap:6px;font-size:12px;margin-right:4px}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--sync)}
+
+/* Écran */
+.ecran{position:absolute;inset:58px 0 0 0;padding:22px 30px 0;display:grid;grid-template-rows:auto 1fr;color:var(--sur-chemise)}
+.ecran-tete{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:0 4px}
+.ecran-tete h2{font-size:26px;line-height:1.15;margin:0;font-weight:800;letter-spacing:-.015em}
+.ecran-tete p{margin:4px 0 0;font-size:13px;opacity:.78}
+.releve{display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:999px;font-size:12.5px;background:var(--verre);box-shadow:inset 0 0 0 1px var(--verre-bord);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.releve i{width:7px;height:7px;border-radius:50%;background:var(--sync)}
+.pile{position:relative;margin-top:22px;min-height:0}
+.c2{position:absolute;inset:0;border-radius:18px 18px 0 0;transform:translateY(-7px) scaleX(.97);background:var(--verre-fort)}
+.feuille{position:relative;height:100%;border-radius:18px 18px 0 0;background:var(--feuille);box-shadow:var(--ombre-carte);display:grid;grid-template-columns:232px 396px 1fr;color:var(--encre);overflow:hidden;transition:background-color .3s}
+
+
+/* Menu du compte (cahier § 7 : Temps et Réglages dans le menu du compte) */
+.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--barre-actif);color:var(--barre-texte);box-shadow:inset 0 0 0 1px var(--barre-ligne);flex:none}
+.avatar:hover{background:var(--barre-pastille)}
+.avatar[aria-expanded="true"],.avatar.on{box-shadow:inset 0 0 0 2px var(--barre-texte)}
+.avatar:focus-visible{outline:2px solid var(--barre-texte);outline-offset:2px}
+.menu-compte{position:absolute;top:54px;right:14px;z-index:30;width:272px;padding:8px;border-radius:14px;background:var(--feuille);color:var(--encre);box-shadow:0 22px 46px -18px rgba(0,0,0,.55),inset 0 0 0 1px var(--filet-m)}
+.menu-compte .qui{padding:8px 10px 10px;border-bottom:1px solid var(--filet-m);margin-bottom:6px}
+.menu-compte .qui b{display:block;font-size:13.5px}
+.menu-compte .qui span{font-size:12px;color:var(--graphite)}
+.menu-compte button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:9px;text-align:left;font-size:13px}
+.menu-compte button:hover,.menu-compte button:focus-visible{background:var(--survol);outline:0}
+.menu-compte button svg{width:15px;height:15px;color:var(--graphite);flex:none}
+.menu-compte button .kb{margin-left:auto;font-size:11px;padding:1px 6px;border-radius:5px;background:var(--feuille-2);color:var(--graphite);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.menu-compte hr{border:0;border-top:1px solid var(--filet-m);margin:6px 0}
+.menu-compte button.on{font-weight:700;background:var(--feuille-2)}
+/* Hauteur contrainte : les zones de liste défilent au lieu de dépasser la fenêtre */
+.ecran{grid-template-rows:auto minmax(0,1fr)}
+.feuille{grid-template-rows:minmax(0,1fr)}
+.feuille>*,.col-ag,.col-liste,.liste-m,.ag-scroll,.dl-corps,.lm-corps{min-height:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ====================== Écran Réglages ====================== */
+.feuille{grid-template-columns:232px minmax(0,1fr)}
+.rg-nav{padding:14px 10px 90px;border-right:1px solid var(--filet-m);background:var(--feuille-2);overflow:auto}
+.rg-nav h4{font-size:12px;font-weight:400;color:var(--graphite);margin:6px 8px 8px}
+.rg-nav button{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:11px;font-size:13.5px;text-align:left}
+.rg-nav button svg{width:16px;height:16px;color:var(--graphite);flex:none}
+.rg-nav button:hover{background:var(--survol)}
+.rg-nav button.on{background:var(--feuille);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.06),inset 0 0 0 1px var(--filet-m)}
+.rg-nav button.on svg{color:var(--c-s)}
+.rg-nav button:focus-visible,.btn:focus-visible,.sw:focus-visible,.tb button:focus-visible{outline:2px solid var(--c-s);outline-offset:1px}
+.rg-corps{overflow:auto;padding:22px 30px 96px;min-width:0}
+.rg-corps h3{margin:0;font-size:21px;font-weight:800;letter-spacing:-.01em}
+.desc{margin:4px 0 18px;color:var(--graphite);max-width:68ch}
+.rg-corps h5{margin:22px 0 8px;font-size:12.5px;font-weight:700}
+.grp{border-radius:14px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);padding:4px 16px}
+.lg{display:grid;grid-template-columns:200px minmax(0,1fr);gap:16px;align-items:center;padding:11px 0;border-top:1px solid var(--filet-m)}
+.lg:first-child{border-top:0}
+.lg>label,.lg>.l{font-size:13px}
+.lg>label small,.lg>.l small{display:block;font-size:12px;color:var(--graphite);margin-top:1px}
+.lg input[type=text],.lg select,.sel{font:inherit;font-size:13.5px;color:var(--encre);height:36px;padding:0 11px;border:0;border-radius:10px;background-color:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m);outline:0;width:100%;max-width:420px}
+.lg select,.sel{appearance:none;-webkit-appearance:none;padding-right:28px;
+ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%235A6569' stroke-width='1.6'%3E%3Cpath d='m1 1 4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+.lg input:focus,.lg select:focus,.sel:focus{box-shadow:inset 0 0 0 2px var(--c-s)}
+.lg input[disabled]{color:var(--graphite);background:transparent;box-shadow:none;padding-left:0}
+.ok-i{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ok);font-weight:700;margin-left:10px}
+.ok-i svg{width:13px;height:13px}
+.carte-i{display:flex;gap:11px;align-items:flex-start;margin:14px 0 0;padding:11px 14px;border-radius:12px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);font-size:12.5px;color:var(--graphite);line-height:1.45}
+.carte-i svg{width:16px;height:16px;flex:none;margin-top:1px;color:var(--c-s)}
+.carte-i b{display:block;color:var(--encre);font-size:13px;margin-bottom:1px}
+.carte-i.chaud{background:var(--c-t);box-shadow:none;color:var(--c-e)}
+.carte-i.chaud b{color:var(--encre)}
+.tb{display:flex;flex-direction:column;border-radius:14px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);padding:2px 16px}
+.tr{display:grid;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--filet-m);font-size:13px}
+.tr:first-child{border-top:0}
+.tr.th{font-size:12px;color:var(--graphite);padding:10px 0 6px}
+.tr .nm{display:flex;align-items:center;gap:10px;min-width:0}
+.tr .nm b{display:block}
+.tr .nm small{display:block;font-size:12px;color:var(--graphite)}
+.mono{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:11.5px;background:var(--feuille);color:var(--graphite);box-shadow:inset 0 0 0 1px var(--filet-m);flex:none}
+.puce-s{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:2px 10px;border-radius:999px;background:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m);white-space:nowrap}
+.puce-s i{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
+.puce-s.err i{background:var(--attente)}
+.puce-s.err{background:var(--c-t);box-shadow:none;color:var(--c-e)}
+.puce-s.neutre i{background:var(--graphite)}
+.btn{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 13px;border-radius:9px;font-size:12.5px;font-weight:700;background:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m);white-space:nowrap}
+.btn:hover{background:var(--survol)}
+.btn svg{width:14px;height:14px}
+.btn.fort{background:var(--encre);color:var(--feuille);box-shadow:none}
+.btn.danger{color:var(--encre)}
+.dr{display:flex;gap:6px;justify-content:flex-end}
+.sw{position:relative;width:38px;height:22px;border-radius:999px;background:var(--filet);flex:none;transition:background-color .15s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:transform .15s}
+.sw[aria-checked="true"]{background:var(--encre)}
+.sw[aria-checked="true"]::after{transform:translateX(16px);background:var(--feuille)}
+.ligne-sw{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:11px 0;border-top:1px solid var(--filet-m);font-size:13px}
+.ligne-sw:first-child{border-top:0}
+.ligne-sw small{display:block;font-size:12px;color:var(--graphite)}
+.seg2{display:flex;gap:4px}
+.seg2 button{font-size:12.5px;padding:5px 13px;border-radius:999px;color:var(--graphite);background:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.seg2 button[aria-pressed="true"]{background:var(--encre);color:var(--feuille);font-weight:700;box-shadow:none}
+.sig{padding:12px 14px;border-radius:12px;background:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m);font-size:13.5px;line-height:1.55;outline:0;max-width:520px}
+.sig:focus{box-shadow:inset 0 0 0 2px var(--c-s)}
+.champs{display:flex;flex-wrap:wrap;gap:6px;padding:0 0 12px}
+.champs code{font-family:inherit;font-size:12px;padding:2px 8px;border-radius:7px;background:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.invit{display:grid;grid-template-columns:minmax(0,1fr) 180px auto;gap:10px;align-items:end;padding:14px 16px;margin:0 0 14px;border-radius:14px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.invit label{display:block;font-size:12px;color:var(--graphite);margin-bottom:4px}
+.invit input{font:inherit;font-size:13.5px;height:36px;width:100%;padding:0 11px;border:0;border-radius:10px;background:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m);outline:0;color:var(--encre)}
+.invit input:focus{box-shadow:inset 0 0 0 2px var(--c-s)}
+.vide-s{padding:6px 0;color:var(--graphite);font-size:13px}
+.un{display:inline-flex;align-items:center;gap:10px;font-size:12.5px;color:var(--graphite)}
+.un input{width:96px!important;max-width:96px!important;text-align:right}
+
+/* Barre d'actions flottante (reprise) */
+.dock{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;gap:2px;padding:6px;border-radius:16px;z-index:4;
+ background:var(--dock-fond);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);box-shadow:var(--dock-ombre),inset 0 0 0 1px var(--dock-bord)}
+.dock button{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:11px;color:var(--dock-texte);font-size:13px;white-space:nowrap}
+.dock button:hover{background:var(--dock-survol)}
+.dock button.prim{background:var(--dock-prim-f);color:var(--dock-prim-t);font-weight:700}
+.dock svg{width:15px;height:15px}
+.dock button:focus-visible,.mail:focus-visible,.bal:focus-visible,.vue-classer:focus-visible,.act:focus-visible{outline:2px solid var(--c-s);outline-offset:1px}
+.dock button:focus-visible{outline-color:var(--dock-texte)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+</style>
+</head>
+<body>
+<div class="tete">
+  <h1>Écran Réglages, proposition</h1>
+  <div class="choix" data-g="theme" role="group" aria-label="Apparence de la maquette">
+    <button data-t="jour" aria-pressed="true">Jour</button>
+    <button data-t="nuit" aria-pressed="false">Nuit</button>
+  </div>
+  <span style="color:var(--doux);font-size:13px">Parcourez les sept sections à gauche. Essayez : inviter un collaborateur, révoquer un poste, voir les champs d’un modèle, changer l’apparence.</span>
+</div>
+<div class="intro"><p>Les Réglages ne sont pas dans la navigation principale : ils s’ouvrent depuis le menu du compte, à droite de la barre, avec Temps. Une feuille unique, une liste de sections à gauche, et une action contextuelle dans la barre du bas.</p></div>
+<div class="scene">
+<section class="win m-neutre" id="win" data-fond="lin" data-barre="neutre" aria-label="Maquette de l’écran Réglages">
+  <div class="barre">
+    <div class="lights" aria-hidden="true"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></div>
+    <nav class="nav"><span class="">La journée</span><span class="">Dossiers</span><span class="">Mails<b>2</b></span><span class="">Agenda</span><span class="">Facturation</span></nav>
+    <div class="outils">
+      <span class="sync" title="Toutes les modifications sont synchronisées"><i></i>Synchronisé</span>
+      <span class="pilule">Rechercher <span class="kbd">Ctrl K</span></span>
+      <button class="avatar on" id="av" aria-haspopup="menu" aria-expanded="false" aria-label="Menu du compte">JM</button>
+    </div>
+  </div>
+  <div class="menu-compte" id="mc" role="menu" aria-label="Menu du compte" hidden>
+ <div class="qui"><b>Me Julien Marchal</b><span>j.marchal@cabinet-marchal.example</span></div>
+ <button role="menuitem" data-m="temps"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3l2 1.5"/></svg>Temps<span class="kb">T</span></button>
+ <button role="menuitem" data-m="reglages"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8" r="2.3"/><path d="M8 1.8v1.7M8 12.5v1.7M1.8 8h1.7M12.5 8h1.7M3.6 3.6l1.2 1.2M11.2 11.2l1.2 1.2M12.4 3.6l-1.2 1.2M4.8 11.2l-1.2 1.2"/></svg>Réglages<span class="kb">Ctrl ,</span></button>
+ <button role="menuitem"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>Palette de commandes<span class="kb">Ctrl K</span></button>
+ <hr>
+ <button role="menuitem"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="7" width="9" height="7" rx="1.8"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Verrouiller l’application</button>
+ <button role="menuitem"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 2.5H3.5v11H6M10 5l3 3-3 3M13 8H6"/></svg>Se déconnecter</button>
+</div>
+  <div class="ecran">
+    <div class="ecran-tete">
+      <div><h2>Réglages</h2><p id="sous-titre"></p></div>
+      <span class="releve" id="pastille"></span>
+    </div>
+    <div class="pile">
+      <div class="c2"></div>
+      <div class="feuille">
+        <aside class="rg-nav" id="nav" aria-label="Sections des réglages"></aside>
+        <section class="rg-corps" id="corps"></section>
+        <div class="dock" id="dock"></div>
+        
+      </div>
+    </div>
+  </div>
+</section>
+<p class="note">Maquette statique, données fictives (SIREN, IBAN et adresse inventés). Attendu dans l’app : page réservée aux administrateurs ; les identifiants de messagerie ne sont jamais enregistrés sur un poste ; une révocation est journalisée et efface le poste à sa prochaine connexion ; les taux sont figés à la saisie du temps.</p>
+</div>
+<script>
+
+function svgUrl(s){return 'url("data:image/svg+xml,'+encodeURIComponent(s)+'")'}
+document.documentElement.style.setProperty('--grain',svgUrl(`<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' seed='4' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .3 0 0 0 -.1'/></filter><rect width='100%' height='100%' filter='url(#n)'/></svg>`));
+const fr=t=>String(t).replace(/ ([:;!?»])/g,'\u202F$1').replace(/« /g,'«\u202F');
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const eur=n=>{const s=Math.abs(n).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'\u202F');return (n<0?'−':'')+s.replace(',00','')+'\u00A0€'};
+const eur2=n=>{const s=Math.abs(n).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'\u202F');return (n<0?'−':'')+s+'\u00A0€'};
+let nuit=false;
+(function(){
+ const av=document.getElementById('av'),mc=document.getElementById('mc');
+ const ferme=()=>{mc.hidden=true;av.setAttribute('aria-expanded','false')};
+ av.onclick=e=>{e.stopPropagation();const o=mc.hidden;mc.hidden=!o;av.setAttribute('aria-expanded',String(o))};
+ document.addEventListener('click',e=>{if(!mc.hidden&&!mc.contains(e.target))ferme()});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!mc.hidden){ferme();av.focus()}});
+ mc.querySelectorAll('button').forEach(b=>b.onclick=()=>{ferme();if(window.menuChoix)window.menuChoix(b.dataset.m)});
+})();
+document.querySelectorAll('.choix[data-g=theme] button').forEach(b=>b.onclick=()=>{nuit=b.dataset.t==='nuit';document.querySelectorAll('.choix[data-g=theme] button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));render()});
+
+
+const S=(p,w)=>`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="${w||1.7}">${p}</svg>`;
+const ic={
+ cabinet:S('<path d="M2.5 13.5v-9l5.5-2.5 5.5 2.5v9"/><path d="M5.5 13.5v-3h5v3M6 6.5h1M9 6.5h1"/>'),
+ collab:S('<circle cx="6" cy="5.5" r="2.3"/><path d="M2 13c0-2.3 1.8-4 4-4s4 1.7 4 4"/><circle cx="11.5" cy="6.5" r="1.8"/><path d="M11 9.2c1.8 0 3 1.3 3 3.3"/>'),
+ mess:S('<rect x="2" y="3.5" width="12" height="9" rx="2"/><path d="m2.5 5 5.5 4 5.5-4"/>'),
+ modeles:S('<path d="M4 2h5l3 3v9H4z"/><path d="M9 2v3h3M6 8.5h4M6 11h4"/>'),
+ taux:S('<path d="M4 2h8v12l-2-1.2L8 14l-2-1.2L4 14z"/><path d="M6 6h4M6 9h4"/>'),
+ postes:S('<rect x="2" y="3" width="12" height="8" rx="1.5"/><path d="M5.5 14h5M8 11v3"/>'),
+ app:S('<circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11" /><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/>'),
+ info:S('<circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.6M8 5.2v.2"/>'),
+ cadenas:S('<rect x="3.5" y="7" width="9" height="7" rx="1.8"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',1.8),
+ coche:S('<path d="m3 8.5 3 3 7-7"/>',2.2),
+ plus:S('<path d="M8 3v10M3 8h10"/>',1.9),
+ haut:S('<path d="M8 11V3M4.5 6.5 8 3l3.5 3.5M3 13h10"/>')};
+const SEC=[['cabinet','Cabinet'],['collab','Collaborateurs et droits'],['mess','Messagerie'],['modeles','Modèles de documents'],['taux','Taux et facturation'],['postes','Postes et sécurité'],['app','Apparence et notifications']];
+let sec='cabinet',dirty=false,notice='',invite=false,revoque=0,ouvert=0;
+let COLL=[
+ {n:'Me Julien Marchal',m:'JM',role:'Administrateur',acc:2,der:'aujourd’hui, 9 h 02',st:'Actif'},
+ {n:'Me Camille Roux',m:'CR',role:'Collaboratrice',acc:2,der:'hier, 18 h 40',st:'Actif'},
+ {n:'M. Antoine Lefort',m:'AL',role:'Assistant',acc:0,der:'aujourd’hui, 8 h 15',st:'Actif'},
+ {n:'Mme Nadia Perret',m:'NP',role:'Comptabilité',acc:0,der:'jeudi 1er octobre, 16 h 30',st:'Actif'}];
+let POSTES=[
+ {id:1,n:'Poste de Me Marchal',os:'Windows 11',v:'0.9.4',der:'en ligne',st:'ok',tit:'Me Julien Marchal'},
+ {id:2,n:'MacBook de Me Roux',os:'macOS 15',v:'0.9.4',der:'hier, 18 h 40',st:'ok',tit:'Me Camille Roux'},
+ {id:3,n:'Poste de l’accueil',os:'Windows 10',v:'0.9.3',der:'hors ligne depuis 9 jours',st:'off',tit:'M. Antoine Lefort'}];
+const MODS=[
+ {n:'Courrier au client',t:'Courrier',mod:'12 sept., par Me Marchal',ch:['client.nom','client.adresse','dossier.reference','dossier.intitule','avocat.nom','date']},
+ {n:'Convention d’honoraires',t:'Convention',mod:'3 sept., par Me Marchal',ch:['client.nom','client.siren','dossier.reference','taux.horaire','mode.facturation','provision.montant','avocat.nom','date']},
+ {n:'Mise en demeure',t:'Courrier',mod:'28 août, par Me Roux',ch:['destinataire.nom','facture.numero','facture.reste_du','delai.jours','avocat.nom','date']},
+ {n:'Bordereau de pièces',t:'Acte',mod:'20 août, par Me Marchal',ch:['dossier.reference','dossier.juridiction','pieces.liste','date']}];
+const MSGS=['Accusé de réception de pièces','Demande de pièces au client','Relance de provision'];
+function nav(){return `<h4>Réglages du cabinet</h4>`+SEC.map(([k,l])=>`<button data-s="${k}" class="${sec===k?'on':''}">${ic[k]}${l}</button>`).join('')}
+function cabinet(){return `<h3>Cabinet</h3><p class="desc">Ces informations figurent sur les factures, les conventions et les courriers. La numérotation des factures est attribuée par le serveur.</p>
+ <div class="grp">
+  <div class="lg"><label for="r-nom">Nom du cabinet</label><input id="r-nom" data-d type="text" value="Cabinet Marchal" autocomplete="off"></div>
+  <div class="lg"><label for="r-fj">Forme juridique</label><select id="r-fj" data-d><option>SELARL</option><option>Exercice individuel</option><option>SCP</option><option>AARPI</option></select></div>
+  <div class="lg"><label for="r-si">SIREN</label><span><input id="r-si" data-d type="text" value="123 456 782" style="max-width:200px" autocomplete="off"><span class="ok-i">${ic.coche}SIREN valide</span></span></div>
+  <div class="lg"><label for="r-tv">Numéro de TVA</label><span><input id="r-tv" data-d type="text" value="FR11 123 456 782" style="max-width:200px" autocomplete="off"><span class="ok-i">${ic.coche}Clé de TVA valide</span></span></div>
+  <div class="lg"><label for="r-ad">Adresse</label><input id="r-ad" data-d type="text" value="14 quai de la Pêcherie, 69001 Lyon" autocomplete="off"></div>
+  <div class="lg"><label for="r-ib">IBAN des encaissements<small>Imprimé sur les factures</small></label><input id="r-ib" data-d type="text" value="FR76 3000 6000 0112 3456 7890 189" autocomplete="off"></div>
+ </div>
+ <div class="carte-i">${ic.cadenas}<div><b>Numérotation des factures</b>Une seule séquence continue pour les factures et les avoirs. Le numéro est attribué par le serveur à la validation : prochaine facture 2026-0152. Elle ne se modifie pas.</div></div>`}
+function collab(){
+ return `<h3>Collaborateurs et droits</h3><p class="desc">Les rôles donnent accès aux fonctions. L’accès à un dossier restreint se règle dans le dossier lui-même, personne par personne.</p>
+ ${invite?`<div class="invit"><div><label for="i-mail">Adresse du collaborateur</label><input id="i-mail" type="text" placeholder="prenom.nom@cabinet-marchal.example" autocomplete="off"></div><div><label for="i-role">Rôle</label><select id="i-role" class="sel"><option>Collaborateur</option><option>Assistant</option><option>Comptabilité</option><option>Administrateur</option></select></div><div class="dr"><button class="btn fort" id="i-ok">Envoyer l’invitation</button><button class="btn" id="i-no">Annuler</button></div></div>`:''}
+ <div class="tb"><div class="tr th" style="grid-template-columns:minmax(0,1.4fr) 140px 120px 150px 74px"><span>Nom</span><span>Rôle</span><span>Dossiers restreints</span><span>Dernière connexion</span><span></span></div>
+ ${COLL.map(c=>`<div class="tr" style="grid-template-columns:minmax(0,1.4fr) 140px 120px 150px 74px"><span class="nm"><span class="mono">${c.m}</span><span><b>${c.n}</b>${c.st!=='Actif'?`<small>${c.st}</small>`:''}</span></span><span>${c.role}</span><span>${c.acc?`${c.acc} accessibles`:'Aucun'}</span><span style="color:var(--graphite);font-size:12.5px">${c.der}</span><span class="dr"><button class="btn">Modifier</button></span></div>`).join('')}</div>
+ <div class="carte-i">${ic.info}<div><b>Rôles</b>Administrateur : réglages, postes, export. Collaborateur : dossiers, temps, mails. Assistant : agenda, mails, pièces. Comptabilité : facturation et encaissements.</div></div>`}
+function mess(){
+ return `<h3>Messagerie</h3><p class="desc">Chaque collaborateur relève sa boîte depuis le serveur du cabinet. Les identifiants sont chiffrés sur le serveur et ne sont jamais enregistrés sur un poste.</p>
+ <h5>Comptes</h5><div class="tb">
+  <div class="tr" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1.3fr) 110px"><span class="nm"><span class="mono">JM</span><span><b>Ma boîte</b><small>j.marchal@cabinet-marchal.example</small></span></span><span><span class="puce-s"><i></i>Connectée</span><small style="display:block;color:var(--graphite);font-size:12px;margin-top:2px">Relevée il y a 1 min, aucun envoi en échec</small></span><span class="dr"><button class="btn">Modifier</button></span></div>
+  <div class="tr" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1.3fr) 110px"><span class="nm"><span class="mono">${S('<circle cx="6" cy="5.5" r="2.3"/><path d="M2 13c0-2.3 1.8-4 4-4s4 1.7 4 4"/><circle cx="11.5" cy="6.5" r="1.8"/>',1.6).replace('<svg','<svg width="15" height="15"')}</span><span><b>Boîte partagée</b><small>contact@cabinet-marchal.example, membres : vous, M. Lefort</small></span></span><span><span class="puce-s"><i></i>Connectée</span><small style="display:block;color:var(--graphite);font-size:12px;margin-top:2px">Relevée il y a 1 min</small></span><span class="dr"><button class="btn">Membres</button></span></div>
+  <div class="tr" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1.3fr) 110px"><span class="nm"><span class="mono">CR</span><span><b>Boîte de Me Roux</b><small>c.roux@cabinet-marchal.example</small></span></span><span><span class="puce-s err"><i></i>Identifiants refusés</span><small style="display:block;color:var(--graphite);font-size:12px;margin-top:2px">Depuis ce matin, 8 h 12. Les tentatives sont suspendues.</small></span><span class="dr"><button class="btn fort" data-reco="1">Reconnecter</button></span></div></div>
+ <h5>Signature</h5><div class="sig" contenteditable="true" aria-label="Signature de Me Marchal"><b>Julien Marchal</b><br>Avocat au Barreau de Lyon<br>Cabinet Marchal, 14 quai de la Pêcherie, 69001 Lyon<br>04 00 00 00 00</div>
+ <p class="desc" style="margin:8px 0 0;font-size:12.5px">Insérée à la rédaction d’un nouveau mail, de chaque réponse et de chaque transfert.</p>
+ <h5>Modèles de message</h5><div class="tb">${MSGS.map(m=>`<div class="tr" style="grid-template-columns:minmax(0,1fr) 150px"><span><b>${m}</b></span><span class="dr"><button class="btn">Modifier</button></span></div>`).join('')}</div>`}
+function modeles(){
+ return `<h3>Modèles de documents</h3><p class="desc">Courriers, conventions et actes sont générés depuis les données du dossier. Remplacer un modèle ne demande aucune mise à jour de l’application.</p>
+ <div class="tb">${MODS.map((m,i)=>`<div><div class="tr" style="grid-template-columns:minmax(0,1.3fr) 110px minmax(0,1fr) 190px"><span class="nm"><span class="mono">${S('<path d="M4 2h5l3 3v9H4z"/><path d="M9 2v3h3"/>',1.6).replace('<svg','<svg width="15" height="15"')}</span><span><b>${m.n}</b></span></span><span><span class="puce-s neutre"><i></i>${m.t}</span></span><span style="color:var(--graphite);font-size:12.5px">Modifié le ${m.mod}</span><span class="dr"><button class="btn" data-champs="${i+1}">${ouvert===i+1?'Masquer':'Champs'}</button><button class="btn" data-rempl="${i}">Remplacer</button></span></div>${ouvert===i+1?`<div class="champs">${m.ch.map(c=>`<code>${c}</code>`).join('')}</div>`:''}</div>`).join('')}</div>
+ <div class="carte-i chaud">${ic.info}<div><b>Un champ manquant arrête la génération</b>Si une information du dossier est absente, le document n’est pas produit : l’application liste les champs concernés, sans laisser de balise vide dans le texte.</div></div>`}
+function taux(){
+ return `<h3>Taux et facturation</h3><p class="desc">Le taux appliqué est figé à la saisie du temps : modifier un taux ne change ni le temps déjà saisi ni les brouillons.</p>
+ <h5>Taux horaires, en euros hors taxes</h5><div class="grp">
+  <div class="lg"><label for="t-c">Taux du cabinet<small>Appliqué en dernier recours</small></label><span class="un"><input id="t-c" data-d type="text" value="220">€ HT par heure</span></div>
+  <div class="lg"><label for="t-m">Me Julien Marchal</label><span class="un"><input id="t-m" data-d type="text" value="280">€ HT par heure</span></div>
+  <div class="lg"><label for="t-r">Me Camille Roux</label><span class="un"><input id="t-r" data-d type="text" value="220">€ HT par heure</span></div>
+  <div class="lg"><label for="t-l">M. Antoine Lefort</label><span class="un"><input id="t-l" data-d type="text" value="90">€ HT par heure</span></div></div>
+ <div class="carte-i">${ic.info}<div><b>Quel taux est retenu ?</b>Dans l’ordre : le taux de l’intervenant sur le dossier, puis celui du dossier, puis celui du client, puis celui du cabinet.</div></div>
+ <h5>Conditions particulières</h5><div class="tb">
+  <div class="tr" style="grid-template-columns:90px minmax(0,1fr) 110px 70px"><span><span class="puce-s neutre"><i></i>Client</span></span><span><b>SCI Les Tilleuls</b></span><span>250 € par heure</span><span class="dr"><button class="btn">Modifier</button></span></div>
+  <div class="tr" style="grid-template-columns:90px minmax(0,1fr) 110px 70px"><span><span class="puce-s neutre"><i></i>Dossier</span></span><span><b>2026-049, Albaret Menuiserie</b></span><span>Forfait de 6 500 €</span><span class="dr"><button class="btn">Modifier</button></span></div></div>
+ <h5>TVA et débours</h5><div class="grp">
+  <div class="lg"><label>Taux normal</label><span>20 %</span></div>
+  <div class="lg"><label>Débours<small>Frais avancés pour le client</small></label><span>Hors base de TVA, ajoutés au total à payer <span class="puce-s err" style="margin-left:8px"><i></i>Hypothèse à valider</span></span></div></div>
+ <h5>Relances des impayés</h5><div class="grp">
+  <div class="lg"><label for="rl1">Premier rappel</label><select id="rl1" data-d><option>15 jours après l’échéance</option><option>8 jours après l’échéance</option><option>30 jours après l’échéance</option></select></div>
+  <div class="lg"><label for="rl2">Second rappel</label><select id="rl2" data-d><option>30 jours après l’échéance</option><option>45 jours après l’échéance</option></select></div>
+  <div class="lg"><label for="rl3">Mise en demeure</label><select id="rl3" data-d><option>45 jours après l’échéance</option><option>60 jours après l’échéance</option></select></div></div>
+ <div class="carte-i">${ic.cadenas}<div><b>Rien ne part sans votre validation</b>L’application prépare chaque relance ; vous la relisez, puis vous l’envoyez.</div></div>
+ <h5>Plateforme agréée</h5><div class="grp"><div class="lg"><label>Connexion</label><span><span class="puce-s"><i></i>Connectée</span> <span style="color:var(--graphite);font-size:12.5px;margin-left:8px">Environnement de test</span></span></div>
+  <div class="lg"><label>Dernier dépôt</label><span style="font-size:13px">Facture 2026-0149, hier à 17 h 20, acceptée</span></div></div>`}
+function postes(){
+ return `<h3>Postes et sécurité</h3><p class="desc">Chaque ordinateur ou téléphone qui travaille sur les dossiers du cabinet est un poste. Un poste révoqué est effacé à sa prochaine connexion.</p>
+ <div class="tb">${POSTES.map(p=>`<div class="tr" style="grid-template-columns:minmax(0,1.3fr) 130px minmax(0,1fr) 150px"><span class="nm"><span class="mono">${S('<rect x="2" y="3" width="12" height="8" rx="1.5"/><path d="M5.5 14h5M8 11v3"/>',1.6).replace('<svg','<svg width="15" height="15"')}</span><span><b>${p.n}</b><small>${p.tit}, ${p.os}, version ${p.v}</small></span></span><span><span class="puce-s ${p.st==='ok'?'':'neutre'}"><i></i>${p.st==='ok'?'Actif':'Hors ligne'}</span></span><span style="color:var(--graphite);font-size:12.5px">${p.der}</span><span class="dr"><button class="btn danger" data-rev="${p.id}">Révoquer</button></span></div>${revoque===p.id?`<div style="padding:0 0 12px"><div class="carte-i chaud" style="margin:0">${ic.cadenas}<div><b>Révoquer « ${p.n} » ?</b>Le poste ne pourra plus écrire. À sa prochaine connexion, sa base locale, son cache de fichiers, son jeton et ses secrets seront effacés. La révocation est consignée dans le journal.<div style="display:flex;gap:6px;margin-top:8px"><button class="btn fort" data-rev-ok="${p.id}">Révoquer ce poste</button><button class="btn" data-rev-no="1">Garder</button></div></div></div></div>`:''}`).join('')}</div>
+ <h5>Verrouillage</h5><div class="grp"><div class="lg"><label for="vl">Poste resté hors ligne<small>Au-delà de cette durée, le poste se verrouille</small></label><select id="vl" data-d><option>14 jours</option><option>7 jours</option><option>30 jours</option></select></div></div>
+ <h5>Sauvegarde et export</h5><div class="grp">
+  <div class="lg"><label>Dernière sauvegarde<small>Chiffrée, quotidienne</small></label><span><span class="puce-s"><i></i>Aujourd’hui, 3 h 00</span></span></div>
+  <div class="lg"><label>Dernier test de restauration</label><span style="font-size:13px">12 septembre, réussi <span style="color:var(--graphite)">(prochain conseillé avant la fin d’octobre)</span></span></div>
+  <div class="lg"><label>Export complet<small>Données, documents, mails classés, factures</small></label><span><button class="btn">${ic.haut}Exporter les données du cabinet</button></span></div></div>`}
+function app(){
+ const sw=(k,t,s,on)=>`<div class="ligne-sw"><span>${t}${s?`<small>${s}</small>`:''}</span><button class="sw" role="switch" aria-checked="${on}" aria-label="${t}" data-sw="${k}"></button></div>`;
+ return `<h3>Apparence et notifications</h3><p class="desc">Ces préférences sont les vôtres : elles ne changent rien pour les autres collaborateurs.</p>
+ <div class="grp"><div class="lg"><label>Apparence</label><div class="seg2" role="group" aria-label="Apparence"><button data-ap="auto" aria-pressed="${ap==='auto'}">Automatique</button><button data-ap="jour" aria-pressed="${ap==='jour'}">Jour</button><button data-ap="nuit" aria-pressed="${ap==='nuit'}">Nuit</button></div></div>
+ <div class="lg"><label for="tt">Taille du texte</label><select id="tt" data-d><option>Normale</option><option>Grande</option><option>Très grande</option></select></div>
+ <div class="lg"><label>Langue</label><span>Français (France)</span></div></div>
+ <h5>Notifications de bureau</h5><div class="grp" style="padding-top:2px;padding-bottom:2px">
+  ${sw('rap','Rappels d’agenda','Audiences, rendez-vous et échéances',N.rap)}${sw('mail','Nouveaux mails dans mes dossiers','Pas pour les mails à classer',N.mail)}${sw('env','Envoi en échec','Un mail resté dans la file d’envoi',N.env)}${sw('ech','Échéances à sept jours','Un rappel de plus pour les délais de procédure',N.ech)}</div>`}
+let ap='jour',N={rap:true,mail:true,env:true,ech:true};
+const R={cabinet,collab,mess,modeles,taux,postes,app};
+const ACT={collab:['Inviter un collaborateur',ic.plus],mess:['Ajouter un compte',ic.plus],modeles:['Ajouter un modèle',ic.plus],postes:['Exporter les données du cabinet',ic.haut]};
+function render(){
+ const w=document.getElementById('win');w.className='win m-neutre'+(nuit?' nuit':'');
+ document.getElementById('sous-titre').textContent='Cabinet Marchal, 4 collaborateurs, 2 postes actifs';
+ const pa=document.getElementById('pastille');
+ pa.innerHTML=notice?`<i></i>${notice}`:`<span style="display:flex;width:14px;height:14px">${ic.cadenas}</span>Réservé aux administrateurs`;
+ document.getElementById('nav').innerHTML=nav();
+ const c=document.getElementById('corps'),top=c.scrollTop;c.innerHTML=R[sec]();c.scrollTop=top;
+ const dk=document.getElementById('dock');
+ if(dirty){dk.hidden=false;dk.innerHTML=`<button class="prim" id="d-save"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 8.5 3 3 7-7"/></svg>Enregistrer les modifications</button><button id="d-cancel">Annuler</button>`}
+ else if(ACT[sec]){dk.hidden=false;dk.innerHTML=`<button class="prim" id="d-act">${ACT[sec][1]}${ACT[sec][0]}</button>`}
+ else{dk.hidden=true;dk.innerHTML=''}
+ bind();
+}
+function flash(t,ms){notice=t;render();setTimeout(()=>{notice='';render()},ms||2000)}
+function bind(){
+ const $=(s,f)=>document.querySelectorAll(s).forEach(f);
+ $('[data-s]',b=>b.onclick=()=>{sec=b.dataset.s;dirty=false;invite=false;revoque=0;render()});
+ $('[data-d]',e=>{e.oninput=e.onchange=()=>{if(!dirty){dirty=true;const dk=document.getElementById('dock');dk.hidden=false;dk.innerHTML=`<button class="prim" id="d-save"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 8.5 3 3 7-7"/></svg>Enregistrer les modifications</button><button id="d-cancel">Annuler</button>`;bindDock()}}});
+ $('[data-champs]',b=>b.onclick=()=>{ouvert=ouvert===+b.dataset.champs?0:+b.dataset.champs;render()});
+ $('[data-rempl]',b=>b.onclick=()=>flash('Modèle remplacé : nouvelle version enregistrée','2200'));
+ $('[data-reco]',b=>b.onclick=()=>flash('Reconnexion demandée à Me Roux, qui saisira son mot de passe','2600'));
+ $('[data-rev]',b=>b.onclick=()=>{revoque=+b.dataset.rev;render()});
+ $('[data-rev-no]',b=>b.onclick=()=>{revoque=0;render()});
+ $('[data-rev-ok]',b=>b.onclick=()=>{POSTES=POSTES.map(p=>p.id===+b.dataset.revOk?Object.assign({},p,{st:'off',der:'révoqué à l’instant'}):p);revoque=0;flash('Poste révoqué, consigné au journal',2400)});
+ $('[data-sw]',b=>b.onclick=()=>{N[b.dataset.sw]=!N[b.dataset.sw];render()});
+ $('[data-ap]',b=>b.onclick=()=>{ap=b.dataset.ap;if(ap!=='auto'){nuit=ap==='nuit';document.querySelectorAll('.choix[data-g=theme] button').forEach(x=>x.setAttribute('aria-pressed',String((x.dataset.t==='nuit')===nuit)))}render()});
+ const ok=document.getElementById('i-ok');if(ok)ok.onclick=()=>{const m=document.getElementById('i-mail').value.trim();if(!m)return;COLL.push({n:m,m:m[0].toUpperCase(),role:document.getElementById('i-role').value,acc:0,der:'jamais connecté',st:'Invitation envoyée'});invite=false;flash('Invitation envoyée à '+m,2400)};
+ const no=document.getElementById('i-no');if(no)no.onclick=()=>{invite=false;render()};
+ bindDock();
+}
+function bindDock(){
+ const sv=document.getElementById('d-save');if(sv)sv.onclick=()=>{dirty=false;flash('Modifications enregistrées',1800)};
+ const ca=document.getElementById('d-cancel');if(ca)ca.onclick=()=>{dirty=false;render()};
+ const ac=document.getElementById('d-act');if(ac)ac.onclick=()=>{if(sec==='collab'){invite=true;render();const i=document.getElementById('i-mail');if(i)i.focus()}else flash('Cette action s’ouvre dans l’application',1800)};
+}
+window.menuChoix=k=>{};
+render();
+
+</script>
+</body>
+</html>

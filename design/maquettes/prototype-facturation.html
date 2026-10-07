@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LEGAL OS — prototype de l’écran Dossiers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--page:#D9DEDC;--texte:#1F2629;--doux:#5A6569;--filet:#C3CAC7;--btn:#FFFFFF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0E1213;--texte:#E4EAE8;--doux:#9CA8AC;--filet:#323B3E;--btn:#1E2427}}
+:root[data-theme="dark"]{--page:#0E1213;--texte:#E4EAE8;--doux:#9CA8AC;--filet:#323B3E;--btn:#1E2427}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--page);color:var(--texte);font-family:"Atkinson Hyperlegible Next",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.45;font-variant-numeric:tabular-nums}
+button,input{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.tete{max-width:1300px;margin:0 auto;padding:22px 24px 6px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px}
+.tete h1{font-size:20px;margin:0;font-weight:800}
+.choix{display:flex;border:1px solid var(--filet);border-radius:8px;overflow:hidden;background:var(--btn)}
+.choix button{padding:6px 14px;border-left:1px solid var(--filet);color:var(--doux)}
+.choix button:first-child{border-left:0}
+.choix button[aria-pressed="true"]{background:var(--texte);color:var(--page);font-weight:700}
+.intro{max-width:1300px;margin:0 auto;padding:4px 24px 14px;color:var(--doux)}
+.intro p{margin:0;max-width:105ch}
+.scene{overflow-x:auto;padding:0 24px 36px}
+.note{max-width:1240px;margin:14px auto 0;color:var(--doux);font-size:13px}
+
+/* ====================== Fenêtre (repris du prototype de référence) ====================== */
+.win{
+ --encre:#141A1C;--graphite:#5A6569;--feuille:#FFFFFF;--feuille-2:#F6F8F7;--filet-m:#E8ECEB;--survol:#F3F6F5;
+ --verre:rgba(255,255,255,.3);--verre-bord:rgba(255,255,255,.42);--verre-fort:rgba(255,255,255,.6);
+ --definitif:#43388A;--definitif-fond:rgba(67,56,138,.09);--definitif-bord:rgba(67,56,138,.2);
+ --ombre-carte:0 1px 0 rgba(255,255,255,.9) inset,0 28px 56px -28px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.06);
+ --sur-chemise:#141A1C;--ok:#2F7D4B;--attente:#9A6A12;--barre-fond:rgba(255,255,255,.74);--barre-ligne:rgba(20,26,28,.1);--barre-texte:#141A1C;--barre-doux:#4A565B;--barre-actif:rgba(20,26,28,.08);--barre-pastille:rgba(20,26,28,.06);--barre-kbd:rgba(20,26,28,.08);--sync:#2F9E5B;--dock-fond:rgba(255,255,255,.82);--dock-texte:#141A1C;--dock-survol:rgba(20,26,28,.07);--dock-prim-f:#141A1C;--dock-prim-t:#F2F5F4;--dock-bord:rgba(20,26,28,.1);--dock-ombre:0 18px 40px -20px rgba(0,0,0,.35);
+ width:1240px;height:800px;margin:0 auto;border-radius:14px;overflow:hidden;color:var(--encre);position:relative;isolation:isolate;
+ background-color:var(--c);background-image:var(--lumiere),var(--grain);transition:background-color .3s ease}
+.win{--lumiere:radial-gradient(120% 90% at 8% -12%,rgba(255,255,255,.22),rgba(255,255,255,0) 55%),radial-gradient(90% 80% at 110% 120%,rgba(0,0,0,.22),rgba(0,0,0,0) 60%)}
+/* Écran général, hors dossier : chemise neutre ardoise */
+.m-neutre{--c:#C5D0D4;--c-t:#E4EBEE;--c-e:#26353C;--c-s:#4F7383;--verre:rgba(255,255,255,.5);--verre-bord:rgba(255,255,255,.7)}
+.win.nuit{--encre:#E8EEEC;--graphite:#9CA8AC;--feuille:#1A2023;--feuille-2:#20272A;--filet-m:#2B3438;--survol:#222A2D;
+ --verre:rgba(0,0,0,.18);--verre-bord:rgba(255,255,255,.1);--verre-fort:rgba(255,255,255,.1);
+ --definitif:#BDB4F5;--definitif-fond:rgba(189,180,245,.1);--definitif-bord:rgba(189,180,245,.25);
+ --ombre-carte:0 1px 0 rgba(255,255,255,.05) inset,0 28px 56px -24px rgba(0,0,0,.7),0 2px 8px rgba(0,0,0,.3);
+ --sur-chemise:#F2F5F4;--ok:#7BD89A;--attente:#E8B85C;--barre-fond:rgba(16,21,23,.86);--barre-ligne:rgba(255,255,255,.06);--barre-texte:#F2F5F4;--barre-doux:#AEB8BC;--barre-actif:rgba(255,255,255,.1);--barre-pastille:rgba(255,255,255,.08);--barre-kbd:rgba(255,255,255,.1);--sync:#7BD89A;--dock-fond:rgba(16,21,23,.86);--dock-texte:#E6ECEA;--dock-survol:rgba(255,255,255,.1);--dock-prim-f:#F2F5F4;--dock-prim-t:#141A1C;--dock-bord:rgba(255,255,255,.14);--dock-ombre:0 18px 40px -12px rgba(0,0,0,.8);}
+.win.nuit{--lumiere:radial-gradient(120% 90% at 8% -12%,rgba(255,255,255,.08),rgba(255,255,255,0) 55%),radial-gradient(90% 80% at 110% 120%,rgba(0,0,0,.35),rgba(0,0,0,0) 60%)}
+.nuit.m-neutre{--c:#1E2629;--c-t:#25323A;--c-e:#D5E1E5;--c-s:#8FB6C6}
+
+/* Couleurs des chemises, pour les pastilles de dossier */
+.d-kraft{--dc:#CE9A55;--dt:#F6E7CE;--de:#5A3F14}
+.d-bleu{--dc:#6FA2E0;--dt:#E1ECFA;--de:#1C4273}
+.d-amande{--dc:#6CBF84;--dt:#E1F3E7;--de:#1F5431}
+.nuit .d-kraft{--dc:#D9A860;--dt:#3A2E1C;--de:#F2D6AB}
+.nuit .d-bleu{--dc:#86B6F0;--dt:#1E2F48;--de:#D2E3F8}
+.nuit .d-amande{--dc:#86CF9C;--dt:#1C3827;--de:#CFEDD8}
+
+/* Variantes du fond de l'écran Mails, jour seulement : teintes chaudes accordées à la barre haute */
+.win[data-fond="lin"]:not(.nuit){--c:#D6CFC2;--c-t:#EFEAE1;--c-e:#3A3022;--c-s:#7C6C50}
+.win[data-fond="pierre"]:not(.nuit){--c:#C9C1B3;--c-t:#ECE6DB;--c-e:#3A3022;--c-s:#76674C}
+.win[data-fond="taupe"]:not(.nuit){--c:#B9AE9E;--c-t:#E9E2D6;--c-e:#352C20;--c-s:#6E5F45}
+/* Variante chaude de la barre haute et de la barre d'actions (jour seulement) */
+.win[data-barre="chaude"]:not(.nuit){--barre-fond:rgba(249,245,238,.9);--barre-ligne:rgba(92,70,40,.14);--barre-texte:#241F19;--barre-doux:#6A6052;--barre-actif:rgba(110,80,40,.1);--barre-pastille:rgba(110,80,40,.07);--barre-kbd:rgba(110,80,40,.1);--sync:#3F9A5F;--dock-fond:rgba(249,245,238,.92);--dock-texte:#241F19;--dock-survol:rgba(110,80,40,.09);--dock-prim-f:#241F19;--dock-prim-t:#F9F5EE;--dock-bord:rgba(92,70,40,.16);--dock-ombre:0 18px 40px -20px rgba(60,40,10,.4)}
+/* Barre */
+.barre{position:absolute;inset:0 0 auto 0;height:58px;display:flex;align-items:center;gap:20px;padding:0 18px;z-index:5;
+ background:var(--barre-fond);color:var(--barre-texte);-webkit-backdrop-filter:blur(20px) saturate(1.1);backdrop-filter:blur(20px) saturate(1.1);box-shadow:inset 0 -1px 0 var(--barre-ligne);transition:background-color .3s}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.nav{display:flex;gap:4px;font-size:13px;flex:1}
+.nav span{padding:5px 10px;border-radius:8px;color:var(--barre-doux)}
+.nav span.on{color:var(--barre-texte);font-weight:700;background:var(--barre-actif)}
+.nav span b{margin-left:6px;font-size:11px;padding:1px 6px;border-radius:999px;background:var(--barre-kbd);color:var(--barre-texte)}
+.outils{display:flex;gap:8px;font-size:13px;color:var(--barre-doux);align-items:center}
+.pilule{display:flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:999px;background:var(--barre-pastille);box-shadow:inset 0 0 0 1px var(--barre-ligne)}
+.kbd{font-size:11px;padding:1px 6px;border-radius:5px;background:var(--barre-kbd);color:var(--barre-doux)}
+.sync{display:flex;align-items:center;gap:6px;font-size:12px;margin-right:4px}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--sync)}
+
+/* Écran */
+.ecran{position:absolute;inset:58px 0 0 0;padding:22px 30px 0;display:grid;grid-template-rows:auto 1fr;color:var(--sur-chemise)}
+.ecran-tete{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:0 4px}
+.ecran-tete h2{font-size:26px;line-height:1.15;margin:0;font-weight:800;letter-spacing:-.015em}
+.ecran-tete p{margin:4px 0 0;font-size:13px;opacity:.78}
+.releve{display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:999px;font-size:12.5px;background:var(--verre);box-shadow:inset 0 0 0 1px var(--verre-bord);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.releve i{width:7px;height:7px;border-radius:50%;background:var(--sync)}
+.pile{position:relative;margin-top:22px;min-height:0}
+.c2{position:absolute;inset:0;border-radius:18px 18px 0 0;transform:translateY(-7px) scaleX(.97);background:var(--verre-fort)}
+.feuille{position:relative;height:100%;border-radius:18px 18px 0 0;background:var(--feuille);box-shadow:var(--ombre-carte);display:grid;grid-template-columns:232px 396px 1fr;color:var(--encre);overflow:hidden;transition:background-color .3s}
+
+
+/* Menu du compte (cahier § 7 : Temps et Réglages dans le menu du compte) */
+.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--barre-actif);color:var(--barre-texte);box-shadow:inset 0 0 0 1px var(--barre-ligne);flex:none}
+.avatar:hover{background:var(--barre-pastille)}
+.avatar[aria-expanded="true"],.avatar.on{box-shadow:inset 0 0 0 2px var(--barre-texte)}
+.avatar:focus-visible{outline:2px solid var(--barre-texte);outline-offset:2px}
+.menu-compte{position:absolute;top:54px;right:14px;z-index:30;width:272px;padding:8px;border-radius:14px;background:var(--feuille);color:var(--encre);box-shadow:0 22px 46px -18px rgba(0,0,0,.55),inset 0 0 0 1px var(--filet-m)}
+.menu-compte .qui{padding:8px 10px 10px;border-bottom:1px solid var(--filet-m);margin-bottom:6px}
+.menu-compte .qui b{display:block;font-size:13.5px}
+.menu-compte .qui span{font-size:12px;color:var(--graphite)}
+.menu-compte button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:9px;text-align:left;font-size:13px}
+.menu-compte button:hover,.menu-compte button:focus-visible{background:var(--survol);outline:0}
+.menu-compte button svg{width:15px;height:15px;color:var(--graphite);flex:none}
+.menu-compte button .kb{margin-left:auto;font-size:11px;padding:1px 6px;border-radius:5px;background:var(--feuille-2);color:var(--graphite);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.menu-compte hr{border:0;border-top:1px solid var(--filet-m);margin:6px 0}
+.menu-compte button.on{font-weight:700;background:var(--feuille-2)}
+/* Hauteur contrainte : les zones de liste défilent au lieu de dépasser la fenêtre */
+.ecran{grid-template-rows:auto minmax(0,1fr)}
+.feuille{grid-template-rows:minmax(0,1fr)}
+.feuille>*,.col-ag,.col-liste,.liste-m,.ag-scroll,.dl-corps,.lm-corps{min-height:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ====================== Écran Facturation ====================== */
+.feuille{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+.f-tabs{display:flex;align-items:center;gap:6px;padding:14px 22px 0;border-bottom:1px solid var(--filet-m)}
+.f-tabs button{position:relative;font-size:13.5px;padding:8px 14px 12px;color:var(--graphite)}
+.f-tabs button b{margin-left:7px;font-size:11.5px;padding:1px 7px;border-radius:999px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);color:var(--encre)}
+.f-tabs button[aria-selected="true"]{color:var(--encre);font-weight:700}
+.f-tabs button[aria-selected="true"]::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:3px;border-radius:3px 3px 0 0;background:var(--encre)}
+.f-tabs .sp{margin-left:auto;padding-bottom:10px}
+.f-corps{min-height:0;display:grid;min-width:0}
+.f-corps.deux{grid-template-columns:minmax(0,1fr) 380px}
+.scroll{overflow:auto;min-height:0;padding:18px 24px 96px}
+.btn:focus-visible,.f-tabs button:focus-visible,.fl:focus-visible,.seg button:focus-visible,.lien:focus-visible{outline:2px solid var(--c-s);outline-offset:1px}
+.seg{display:flex;gap:4px}
+.seg button{font-size:12.5px;padding:4px 12px;border-radius:999px;color:var(--graphite);background:var(--feuille-2)}
+.seg button[aria-pressed="true"]{background:var(--encre);color:var(--feuille);font-weight:700}
+.seg button b{margin-left:6px;font-size:11.5px;opacity:.75}
+/* Tableau de bord */
+.td-tete{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 14px}
+.td-tete h3{margin:0;font-size:17px;font-weight:800}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.kpi{padding:14px 16px;border-radius:14px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);min-width:0}
+.kpi h4{margin:0 0 6px;font-size:12.5px;font-weight:400;color:var(--graphite)}
+.kpi .v{font-size:25px;font-weight:800;letter-spacing:-.015em;line-height:1.15}
+.kpi .s{margin-top:3px;font-size:12.5px;color:var(--graphite)}
+.kpi.large{grid-column:span 1}
+.barre-a{display:flex;height:10px;border-radius:999px;overflow:hidden;margin:12px 0 8px;background:var(--filet-m)}
+.barre-a i{display:block;height:100%}
+.leg{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:12px}
+.leg span{display:flex;align-items:center;gap:7px}
+.leg span i{width:9px;height:9px;border-radius:3px;flex:none}
+.leg b{text-align:right;font-weight:700}
+.a1{background:#7C6C50}.a2{background:#A08C63}.a3{background:#C7AE7C}.a4{background:#E0CFA8}
+.nuit .a1{background:#C9B48A}.nuit .a2{background:#A89367}.nuit .a3{background:#85734F}.nuit .a4{background:#5E5037}
+.alerte-l{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--filet-m);font-size:12.5px}
+.alerte-l:first-of-type{border-top:0}
+.alerte-l b{display:block;font-size:12.5px}
+.alerte-l small{display:block;color:var(--graphite);font-size:12px;line-height:1.35}
+.pt-a{width:9px;height:9px;border-radius:50%;background:var(--attente)}
+.pt-a.n{background:var(--graphite)}
+.lien{font-size:12.5px;font-weight:700;color:var(--encre);text-decoration:underline;text-underline-offset:3px}
+.rent{margin-top:22px}
+.rent-t{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px}
+.rent-t h3{margin:0;font-size:15px}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{font-size:12px;font-weight:400;color:var(--graphite);text-align:left;padding:6px 8px 8px;border-bottom:1px solid var(--filet-m)}
+.tbl td{padding:9px 8px;border-bottom:1px solid var(--filet-m);vertical-align:middle}
+.tbl .r{text-align:right;font-variant-numeric:tabular-nums}
+.tbl tr:last-child td{border-bottom:0}
+.pd{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:2px 9px 2px 7px;border-radius:999px;background:var(--dt);color:var(--de);white-space:nowrap}
+.pd i{width:8px;height:8px;border-radius:50%;background:var(--dc);flex:none}
+.jr{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.jr .jb{width:70px;height:6px;border-radius:999px;background:var(--filet-m);overflow:hidden}
+.jr .jb i{display:block;height:100%;background:var(--encre);border-radius:999px}
+.def{margin:16px 0 0;font-size:12px;color:var(--graphite);line-height:1.5;max-width:92ch}
+.def b{color:var(--encre)}
+/* Liste des factures */
+.col-l{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid var(--filet-m)}
+.l-tete{padding:14px 18px 6px}
+.rech{display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;border-radius:11px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);color:var(--graphite)}
+.rech svg{width:15px;height:15px;flex:none}
+.rech input{flex:1;min-width:0;border:0;background:transparent;outline:0;font-size:13.5px;color:var(--encre)}
+.rech:focus-within{box-shadow:inset 0 0 0 2px var(--c-s)}
+.l-tete .seg{margin-top:10px;flex-wrap:wrap}
+.l-corps{overflow:auto;min-height:0;padding:0 10px 96px;flex:1}
+.fl{display:grid;grid-template-columns:96px minmax(0,1fr) 112px 132px;gap:12px;align-items:center;width:100%;padding:10px 10px;border-radius:12px;text-align:left;transition:background-color .15s}
+.fl:hover{background:var(--survol)}
+.fl.sel{background:var(--c-t)}
+.fl .num{font-weight:700;font-size:12.5px;display:inline-flex;align-items:center}
+.fl .dd{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--dc);margin-right:7px;flex:none}
+.fl .sn{font-weight:400;color:var(--graphite)}
+.fl .tx{min-width:0}
+.fl .tx b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fl .tx span{display:block;font-size:12.5px;color:var(--graphite);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fl .mt{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.fl .mt small{display:block;font-weight:400;font-size:12px;color:var(--graphite)}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:2px 10px;border-radius:999px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);white-space:nowrap}
+.st svg{width:11px;height:11px}
+.st.ok{color:var(--ok)}
+.st.warn{background:var(--c-t);color:var(--c-e);box-shadow:none}
+.st.def2{color:var(--definitif);background:var(--definitif-fond);box-shadow:inset 0 0 0 1px var(--definitif-bord)}
+.st.br{box-shadow:inset 0 0 0 1.5px var(--filet);background:transparent;color:var(--graphite)}
+.fl .stc{display:flex;flex-direction:column;align-items:flex-start;gap:3px}
+.fl .stc small{font-size:11.5px;color:var(--graphite)}
+.gr{font-size:12px;color:var(--graphite);margin:14px 10px 4px}
+/* Aperçu de facture */
+.ap{padding:18px 22px 96px;overflow:auto;min-width:0;min-height:0}
+.ap-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ap h3{margin:8px 0 2px;font-size:19px;font-weight:800;letter-spacing:-.01em;line-height:1.25}
+.ap .sous{color:var(--graphite);font-size:13px}
+.mt-b{margin:14px 0 0;padding:4px 14px;border-radius:14px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.mt-b div{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--filet-m);font-size:13px}
+.mt-b div:first-child{border-top:0}
+.mt-b div.tot{font-weight:800;font-size:14.5px}
+.mt-b div span:last-child{font-variant-numeric:tabular-nums}
+.prog{height:8px;border-radius:999px;background:var(--filet-m);overflow:hidden;margin:10px 0 4px}
+.prog i{display:block;height:100%;background:var(--encre);border-radius:999px}
+.sec-t{font-size:12px;color:var(--graphite);margin:18px 0 6px}
+.lignes .ln{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:6px 0;border-top:1px solid var(--filet-m);font-size:12.5px}
+.lignes .ln:first-child{border-top:0}
+.lignes .ln small{display:block;color:var(--graphite);font-size:12px}
+.hist{display:flex;flex-direction:column;gap:2px}
+.hi{display:grid;grid-template-columns:18px 1fr auto;gap:10px;align-items:center;font-size:12.5px;padding:3px 0}
+.hi i{width:9px;height:9px;border-radius:50%;background:var(--encre);justify-self:center}
+.hi small{color:var(--graphite);font-size:12px}
+.carte{display:flex;gap:11px;align-items:flex-start;margin:14px 0 0;padding:11px 13px;border-radius:12px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);font-size:12.5px;line-height:1.45;color:var(--graphite)}
+.carte svg{width:16px;height:16px;flex:none;margin-top:1px;color:var(--c-s)}
+.carte b{display:block;color:var(--encre);font-size:13px;margin-bottom:2px}
+.carte.chaud{background:var(--c-t);box-shadow:none;color:var(--c-e)}
+.carte.chaud svg{color:var(--c-e)}
+.msg{margin:8px 0 0;padding:11px 13px;border-radius:11px;background:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m);color:var(--encre);font-size:12.5px;line-height:1.55}
+.actions{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 0}
+.btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 13px;border-radius:10px;font-size:12.5px;font-weight:700;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);white-space:nowrap}
+.btn:hover{background:var(--survol)}
+.btn svg{width:14px;height:14px}
+.btn.fort{background:var(--encre);color:var(--feuille);box-shadow:none}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.enc-f{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 0}
+.enc-f label{display:block;font-size:12px;color:var(--graphite);margin-bottom:3px}
+.enc-f input,.enc-f select,.sel{font:inherit;font-size:13px;height:34px;width:100%;padding:0 10px;border:0;border-radius:9px;background-color:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m);outline:0;color:var(--encre);appearance:none;-webkit-appearance:none}
+.enc-f select,.sel{padding-right:26px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%235A6569' stroke-width='1.6'%3E%3Cpath d='m1 1 4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center}
+.enc-f input:focus,.enc-f select:focus,.sel:focus{box-shadow:inset 0 0 0 2px var(--c-s)}
+/* À facturer */
+.af-tot{display:flex;align-items:center;gap:22px;padding:14px 18px;margin:0 0 14px;border-radius:14px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.af-tot b{font-size:21px;letter-spacing:-.01em}
+.af-tot span{display:block;font-size:12.5px;color:var(--graphite)}
+.af-r{display:grid;grid-template-columns:96px minmax(0,1.3fr) 100px 88px 112px 210px;gap:12px;align-items:center;padding:11px 8px;border-top:1px solid var(--filet-m);font-size:13px}
+.af-r.th{font-size:12px;color:var(--graphite);border-top:0;padding-bottom:6px}
+.af-r b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.af-r small{display:block;font-size:12px;color:var(--graphite);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.af-r .r{text-align:right;font-variant-numeric:tabular-nums}
+.af-r .dr{display:flex;justify-content:flex-end}
+.af-w{padding:0 8px 12px}
+.vide{padding:30px 18px;color:var(--graphite)}
+.vide b{display:block;color:var(--encre);font-size:15px;margin-bottom:4px}
+
+/* Barre d'actions flottante (reprise) */
+.dock{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;gap:2px;padding:6px;border-radius:16px;z-index:4;
+ background:var(--dock-fond);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);box-shadow:var(--dock-ombre),inset 0 0 0 1px var(--dock-bord)}
+.dock button{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:11px;color:var(--dock-texte);font-size:13px;white-space:nowrap}
+.dock button:hover{background:var(--dock-survol)}
+.dock button.prim{background:var(--dock-prim-f);color:var(--dock-prim-t);font-weight:700}
+.dock svg{width:15px;height:15px}
+.dock button:focus-visible,.mail:focus-visible,.bal:focus-visible,.vue-classer:focus-visible,.act:focus-visible{outline:2px solid var(--c-s);outline-offset:1px}
+.dock button:focus-visible{outline-color:var(--dock-texte)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+</style>
+</head>
+<body>
+<div class="tete">
+  <h1>Écran Facturation et Tableau de bord, proposition</h1>
+  <div class="choix" data-g="theme" role="group" aria-label="Apparence de la maquette">
+    <button data-t="jour" aria-pressed="true">Jour</button>
+    <button data-t="nuit" aria-pressed="false">Nuit</button>
+  </div>
+  <span style="color:var(--doux);font-size:13px">Trois onglets : Tableau de bord, Factures, À facturer. Essayez : changer de période, relancer la facture en retard, enregistrer un encaissement, préparer un brouillon pour le dossier sans convention.</span>
+</div>
+<div class="intro"><p>Le Tableau de bord est le premier onglet de la Facturation : chiffres du cabinet, encours par ancienneté, plateforme agréée, rentabilité. Même feuille, même barre, mêmes couleurs de dossier que les autres écrans.</p></div>
+<div class="scene">
+<section class="win m-neutre" id="win" data-fond="lin" data-barre="neutre" aria-label="Maquette de l’écran Facturation">
+  <div class="barre">
+    <div class="lights" aria-hidden="true"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></div>
+    <nav class="nav"><span class="">La journée</span><span class="">Dossiers</span><span class="">Mails<b>2</b></span><span class="">Agenda</span><span class="on">Facturation</span></nav>
+    <div class="outils">
+      <span class="sync" title="Toutes les modifications sont synchronisées"><i></i>Synchronisé</span>
+      <span class="pilule">Rechercher <span class="kbd">Ctrl K</span></span>
+      <button class="avatar" id="av" aria-haspopup="menu" aria-expanded="false" aria-label="Menu du compte">JM</button>
+    </div>
+  </div>
+  <div class="menu-compte" id="mc" role="menu" aria-label="Menu du compte" hidden>
+ <div class="qui"><b>Me Julien Marchal</b><span>j.marchal@cabinet-marchal.example</span></div>
+ <button role="menuitem" data-m="temps"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3l2 1.5"/></svg>Temps<span class="kb">T</span></button>
+ <button role="menuitem" data-m="reglages"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8" r="2.3"/><path d="M8 1.8v1.7M8 12.5v1.7M1.8 8h1.7M12.5 8h1.7M3.6 3.6l1.2 1.2M11.2 11.2l1.2 1.2M12.4 3.6l-1.2 1.2M4.8 11.2l-1.2 1.2"/></svg>Réglages<span class="kb">Ctrl ,</span></button>
+ <button role="menuitem"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>Palette de commandes<span class="kb">Ctrl K</span></button>
+ <hr>
+ <button role="menuitem"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="7" width="9" height="7" rx="1.8"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Verrouiller l’application</button>
+ <button role="menuitem"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 2.5H3.5v11H6M10 5l3 3-3 3M13 8H6"/></svg>Se déconnecter</button>
+</div>
+  <div class="ecran">
+    <div class="ecran-tete">
+      <div><h2>Facturation</h2><p id="sous-titre"></p></div>
+      <span class="releve" id="pastille"></span>
+    </div>
+    <div class="pile">
+      <div class="c2"></div>
+      <div class="feuille">
+        <div class="f-tabs" id="tabs" role="tablist" aria-label="Sections de la facturation"></div>
+        <div class="f-corps" id="corps"></div>
+        <div class="dock" id="dock"><button class="prim" id="d-new"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2h8v12l-2-1.2L8 14l-2-1.2L4 14z"/><path d="M8 5.5v4M6 7.5h4"/></svg>Nouvelle facture</button><button><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3l2 1.5"/></svg>Saisir du temps <span class="kbd">T</span></button></div>
+        
+      </div>
+    </div>
+  </div>
+</section>
+<p class="note">Maquette statique, données fictives, chiffres calculés à partir des factures affichées. Attendu dans l’app : numéro attribué par le serveur à la validation ; facture validée immuable, corrigée seulement par un avoir ; relance envoyée seulement après validation ; alerte à la création d’une facture sans convention signée, levée avec un motif consigné ; chiffres limités aux dossiers accessibles à l’utilisateur.</p>
+</div>
+<script>
+
+function svgUrl(s){return 'url("data:image/svg+xml,'+encodeURIComponent(s)+'")'}
+document.documentElement.style.setProperty('--grain',svgUrl(`<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' seed='4' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .3 0 0 0 -.1'/></filter><rect width='100%' height='100%' filter='url(#n)'/></svg>`));
+const fr=t=>String(t).replace(/ ([:;!?»])/g,'\u202F$1').replace(/« /g,'«\u202F');
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const eur=n=>{const s=Math.abs(n).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'\u202F');return (n<0?'−':'')+s.replace(',00','')+'\u00A0€'};
+const eur2=n=>{const s=Math.abs(n).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'\u202F');return (n<0?'−':'')+s+'\u00A0€'};
+let nuit=false;
+(function(){
+ const av=document.getElementById('av'),mc=document.getElementById('mc');
+ const ferme=()=>{mc.hidden=true;av.setAttribute('aria-expanded','false')};
+ av.onclick=e=>{e.stopPropagation();const o=mc.hidden;mc.hidden=!o;av.setAttribute('aria-expanded',String(o))};
+ document.addEventListener('click',e=>{if(!mc.hidden&&!mc.contains(e.target))ferme()});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!mc.hidden){ferme();av.focus()}});
+ mc.querySelectorAll('button').forEach(b=>b.onclick=()=>{ferme();if(window.menuChoix)window.menuChoix(b.dataset.m)});
+})();
+document.querySelectorAll('.choix[data-g=theme] button').forEach(b=>b.onclick=()=>{nuit=b.dataset.t==='nuit';document.querySelectorAll('.choix[data-g=theme] button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));render()});
+
+
+const S=(p,w)=>`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="${w||1.7}">${p}</svg>`;
+const ic={coche:S('<path d="m3 8.5 3 3 7-7"/>',2.2),cadenas:S('<rect x="3.5" y="7" width="9" height="7" rx="1.8"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',1.8),
+ info:S('<circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.6M8 5.2v.2"/>'),alerte:S('<path d="M8 2.5 14 13H2z"/><path d="M8 6.5v3M8 11.3v.2"/>'),
+ pdf:S('<path d="M4 2h5l3 3v9H4z"/><path d="M9 2v3h3M6 9h4M6 11.5h3"/>'),haut:S('<path d="M8 11V3M4.5 6.5 8 3l3.5 3.5M3 13h10"/>'),
+ plus:S('<path d="M8 3v10M3 8h10"/>',1.9),temps:S('<circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3l2 1.5"/>'),
+ lettre:S('<rect x="2" y="3.5" width="12" height="9" rx="2"/><path d="m2.5 5 5.5 4 5.5-4"/>'),euro:S('<path d="M11.5 4.5A4 4 0 1 0 11.5 11.5M3 7h6M3 9.5h6"/>')};
+const dj=(y,m,d)=>new Date(y,m,d),TODAY=dj(2026,9,5);
+const MC=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const cd=d=>`${d.getDate()}${d.getDate()===1?'er':''} ${MC[d.getMonth()]}`;
+const jours=(a,b)=>Math.round((b-a)/864e5);
+const hm=h=>{const t=Math.round(h*60);return `${Math.floor(t/60)} h ${String(t%60).padStart(2,'0')}`};
+const rnd=n=>Math.round(n*100)/100;
+const DOSS={'2026-042':['kraft','SCI Les Tilleuls c/ Banque Rhodanienne'],'2026-057':['amande','Succession Moreau'],'2026-031':['bleu','SAS Ferrand Métal c/ SARL Duclos Industrie'],'2026-052':['kraft','SARL Bensaïd Bâtiment c/ SAS Logistique du Rhône'],'2026-021':['bleu','Holding Perrache, restructuration'],'2026-044':['kraft','Établissements Roche c/ Mutuelle des Artisans'],'2026-038':['amande','SCI du Parc Lumière, bail commercial'],'2026-049':['bleu','Albaret Menuiserie, cession de parts'],'2026-060':['bleu','Pharmacie du Marché, cession de fonds']};
+const dc=r=>'d-'+DOSS[r][0];
+const pd=r=>`<span class="pd ${dc(r)}"><i></i>${r}</span>`;
+let id=0;
+const F=(o)=>Object.assign({id:++id,relances:[],lignes:[],deb:0,pa:'',motif:'',hist:[]},o);
+const tva=ht=>Math.round(ht*20/100*100+0)/100; // 20 % ; arrondi à l’euro-centime
+let FAC=[
+ F({num:'2026-0142',client:'SCI Les Tilleuls',dos:'2026-042',objet:'Provision sur honoraires',ht:2000,emis:dj(2026,8,19),ech:dj(2026,9,19),enc:1200,st:'Déposée',pa:'Acceptée',lignes:[['Provision sur honoraires, appel','1','2 000,00 €']],hist:[['Validée','19 sept.'],['Déposée sur la plateforme agréée','19 sept.'],['Encaissement de 1 200,00 €','23 sept.']]}),
+ F({num:'2026-0149',client:'SARL Bensaïd Bâtiment',dos:'2026-052',objet:'Provision sur honoraires',ht:1000,emis:dj(2026,8,28),ech:dj(2026,9,28),enc:0,st:'Déposée',pa:'Acceptée',lignes:[['Provision sur honoraires, instance','1','1 000,00 €']],hist:[['Validée','28 sept.'],['Déposée sur la plateforme agréée','28 sept.']]}),
+ F({num:'2026-0131',client:'SAS Ferrand Métal',dos:'2026-031',objet:'Honoraires de procédure',ht:3000,deb:35,emis:dj(2026,8,12),ech:dj(2026,9,12),enc:3635,st:'Encaissée',pa:'Acceptée',lignes:[['Honoraires de procédure, forfait','1','3 000,00 €'],['Frais de greffe (débours, hors TVA)','1','35,00 €']],hist:[['Validée','12 sept.'],['Déposée sur la plateforme agréée','12 sept.'],['Encaissée en totalité','26 sept.']]}),
+ F({num:'2026-0121',client:'Holding Perrache SAS',dos:'2026-021',objet:'Honoraires, restructuration',ht:3500,emis:dj(2026,8,14),ech:dj(2026,9,14),enc:2100,st:'Déposée',pa:'Acceptée',lignes:[['Temps passé, Me Marchal, 12 h 30 à 280,00 €','12 h 30','3 500,00 €']],hist:[['Validée','14 sept.'],['Déposée sur la plateforme agréée','14 sept.'],['Encaissement de 2 100,00 €','30 sept.']]}),
+ F({num:'2026-0118',client:'Mme Hélène Moreau',dos:'2026-057',objet:'Honoraires, succession',ht:1500,emis:dj(2026,8,5),ech:dj(2026,9,5),enc:1800,st:'Encaissée',pa:'Acceptée',lignes:[['Honoraires, succession, forfait','1','1 500,00 €']],hist:[['Validée','5 sept.'],['Encaissée en totalité','18 sept.']]}),
+ F({num:'2026-0098',client:'Établissements Roche',dos:'2026-044',objet:'Honoraires de consultation',ht:800,emis:dj(2026,7,2),ech:dj(2026,8,1),enc:0,st:'Déposée',pa:'Acceptée',relances:[['Premier rappel','15 sept.']],lignes:[['Consultation, forfait','1','800,00 €']],hist:[['Validée','2 août'],['Déposée sur la plateforme agréée','2 août'],['Premier rappel envoyé','15 sept.']]}),
+ F({num:'2026-0147',client:'SCI du Parc Lumière',dos:'2026-038',objet:'Honoraires, bail commercial',ht:900,emis:dj(2026,9,1),ech:dj(2026,9,31),enc:0,st:'Validée',pa:'Rejetée',motif:'Le SIREN de l’acheteur est invalide : 123 456 789.',lignes:[['Honoraires, bail commercial, forfait','1','900,00 €']],hist:[['Validée','1er oct.'],['Rejetée par la plateforme agréée','1er oct.']]}),
+ F({num:'2026-0150',client:'Holding Perrache SAS',dos:'2026-021',objet:'Avoir sur 2026-0121, remise commerciale',ht:-250,emis:dj(2026,9,2),ech:null,enc:0,st:'Avoir',pa:'À déposer',lignes:[['Remise commerciale sur la facture 2026-0121','1','−250,00 €']],hist:[['Avoir validé','2 oct.']]}),
+ F({num:null,client:'Mme Hélène Moreau',dos:'2026-057',objet:'Temps de septembre',ht:700,emis:null,ech:null,enc:0,st:'Brouillon',lignes:[['Temps passé, Me Marchal, 2 h 30 à 280,00 €','2 h 30','700,00 €']],hist:[['Brouillon créé à partir de 7 saisies de temps','aujourd’hui']]}),
+ F({num:null,client:'SCI Les Tilleuls',dos:'2026-042',objet:'Temps de septembre',ht:1062.5,emis:null,ech:null,enc:0,st:'Brouillon',lignes:[['Temps passé, Me Marchal, 4 h 15 au taux du client de 250,00 €','4 h 15','1 062,50 €']],hist:[['Brouillon créé à partir de 9 saisies de temps','aujourd’hui']]})];
+const ttc=f=>rnd(f.ht+tva(f.ht)+(f.deb||0));
+const reste=f=>f.st==='Brouillon'?0:rnd(ttc(f)-f.enc);
+const enRetard=f=>f.ech&&f.st!=='Encaissée'&&f.st!=='Avoir'&&f.st!=='Brouillon'&&reste(f)>0&&f.ech<TODAY;
+const AF=[
+ {d:'2026-042',cl:'SCI Les Tilleuls',h:4.25,r:250,conv:true},{d:'2026-057',cl:'Mme Hélène Moreau',h:2.5,r:280,conv:true},{d:'2026-031',cl:'SAS Ferrand Métal',h:2/3,r:280,conv:true},
+ {d:'2026-052',cl:'SARL Bensaïd Bâtiment',h:10/3,r:220,conv:true},{d:'2026-038',cl:'SCI du Parc Lumière',h:7/6,r:220,conv:true},{d:'2026-044',cl:'Établissements Roche',h:5.75,r:220,conv:false},
+ {d:'2026-021',cl:'Holding Perrache SAS',h:8.5,r:280,conv:true},{d:'2026-049',cl:'M. Daniel Albaret',h:6,r:0,conv:true,forfait:'Forfait de 6 500 €'},{d:'2026-060',cl:'Mme Sophie Lenoir',h:1/3,r:280,conv:false}];
+const RENT=[['2026-031',11,280,'SAS Ferrand Métal'],['2026-021',12.5,280,'Holding Perrache SAS'],['2026-042',14.5,250,'SCI Les Tilleuls'],['2026-057',9.5,280,'Mme Hélène Moreau'],['2026-052',5+1/6,220,'SARL Bensaïd Bâtiment'],['2026-044',7.75,220,'Établissements Roche']];
+let tab='td',per='sep',rentv='dos',filtre='tous',q='',sel=0,nuit0=false,notice='',relance=0,encais=0,ouvrirAF=null,AFmot='',tmpMsg='';
+const PER={sep:['Septembre 2026',dj(2026,8,1),dj(2026,8,30)],oct:['Octobre 2026, en cours',dj(2026,9,1),dj(2026,9,5)]};
+function facsPeriode(){const [,a,b]=PER[per];return FAC.filter(f=>f.emis&&f.emis>=a&&f.emis<=b)}
+function calc(){
+ const p=facsPeriode(),ht=p.reduce((s,f)=>s+f.ht,0),enc=p.reduce((s,f)=>s+f.enc,0);
+ const ouv=FAC.filter(f=>f.st!=='Brouillon');
+ const buckets=[0,0,0,0];let encours=0;
+ ouv.forEach(f=>{const r=reste(f);if(!r)return;encours+=r;const a=jours(f.emis,TODAY);buckets[a<=30?0:a<=60?1:a<=90?2:3]+=r});
+ const af=AF.filter(x=>!x.forfait),th=af.reduce((s,x)=>s+x.h,0),tv=af.reduce((s,x)=>s+x.h*x.r,0);
+ return {ht,enc,n:p.filter(f=>f.st!=='Avoir').length,encours:rnd(encours),buckets:buckets.map(rnd),th,tv};
+}
+function tdb(){
+ const c=calc(),pr=FAC.filter(f=>f.pa==='Rejetée'),att=FAC.filter(f=>f.pa==='À déposer');
+ const tot=c.buckets.reduce((a,b)=>a+b,0)||1,lab=['0 à 30 jours','31 à 60 jours','61 à 90 jours','Plus de 90 jours'];
+ let rent;
+ if(rentv==='dos'){
+  const rows=RENT.map(([d,h,t,cl])=>{const val=rnd(h*t),fa=FAC.filter(f=>f.dos===d&&f.st!=='Brouillon').reduce((s,f)=>s+f.ht,0);return {d,cl,h,val,fa,pct:val?Math.round(fa/val*100):0}}).sort((a,b)=>b.fa-a.fa);
+  rent=`<table class="tbl"><thead><tr><th>Dossier</th><th class="r">Temps passé</th><th class="r">Valeur au taux</th><th class="r">Facturé HT</th><th class="r">Rentabilité</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${pd(r.d)} <span style="margin-left:6px">${r.cl}</span></td><td class="r">${hm(r.h)}</td><td class="r">${eur(r.val)}</td><td class="r">${eur(r.fa)}</td><td class="r"><span class="jr"><span class="jb"><i style="width:${Math.min(100,r.pct)}%"></i></span>${r.pct}\u202F%</span></td></tr>`).join('')}</tbody></table>`;
+ }else{
+  const cl={};FAC.filter(f=>f.st!=='Brouillon').forEach(f=>{const o=cl[f.client]||(cl[f.client]={ht:0,enc:0,re:0});o.ht+=f.ht;o.enc+=f.enc;o.re+=reste(f)});
+  rent=`<table class="tbl"><thead><tr><th>Client</th><th class="r">Facturé HT</th><th class="r">Encaissé TTC</th><th class="r">Encours TTC</th></tr></thead><tbody>${Object.keys(cl).sort((a,b)=>cl[b].ht-cl[a].ht).map(k=>`<tr><td>${k}</td><td class="r">${eur(cl[k].ht)}</td><td class="r">${eur(cl[k].enc)}</td><td class="r">${eur(rnd(cl[k].re))}</td></tr>`).join('')}</tbody></table>`;
+ }
+ return `<div class="td-tete"><h3>Tableau de bord</h3><div class="seg" role="group" aria-label="Période"><button data-per="sep" aria-pressed="${per==='sep'}">Septembre 2026</button><button data-per="oct" aria-pressed="${per==='oct'}">Octobre 2026, en cours</button></div></div>
+ <div class="kpis">
+  <div class="kpi"><h4>Facturé, hors taxes</h4><div class="v">${eur(c.ht)}</div><div class="s">${c.n} facture${c.n>1?'s':''}, avoirs déduits</div></div>
+  <div class="kpi"><h4>Encaissé, toutes taxes comprises</h4><div class="v">${eur(c.enc)}</div><div class="s">Sur les factures de la période</div></div>
+  <div class="kpi"><h4>Encours à ce jour, toutes taxes comprises</h4><div class="v">${eur(c.encours)}</div>
+   <div class="barre-a" aria-hidden="true">${c.buckets.map((b,i)=>b?`<i class="a${i+1}" style="width:${b/tot*100}%"></i>`:'').join('')}</div>
+   <div class="leg">${c.buckets.map((b,i)=>`<span><i class="a${i+1}"></i>${lab[i]}</span><b>${eur(b)}</b>`).join('')}</div></div>
+  <div class="kpi"><h4>Temps non facturé</h4><div class="v">${hm(c.th)}</div><div class="s">Valeur estimée ${eur(rnd(c.tv))} hors taxes, sur ${AF.filter(x=>!x.forfait).length} dossiers</div><div style="margin-top:8px"><button class="lien" data-tab="af">Voir ce qui reste à facturer</button></div></div>
+  <div class="kpi"><h4>Plateforme agréée</h4><div class="v">${pr.length+att.length}<span style="font-size:14px;font-weight:700"> à regarder</span></div>
+   ${pr.map(f=>`<div class="alerte-l"><span class="pt-a"></span><span><b>${f.num} rejetée, ${f.client}</b><small>${f.motif}</small></span><button class="lien" data-open="${f.id}">Corriger</button></div>`).join('')}
+   ${att.map(f=>`<div class="alerte-l"><span class="pt-a n"></span><span><b>${f.num} en attente de dépôt</b><small>${f.objet}</small></span><button class="lien" data-open="${f.id}">Voir</button></div>`).join('')}</div>
+  <div class="kpi"><h4>Mails à classer</h4><div class="v">2</div><div class="s">Dans la boîte de réception, avec une suggestion de dossier</div><div style="margin-top:8px"><button class="lien">Aller aux mails</button></div></div>
+ </div>
+ <div class="rent"><div class="rent-t"><h3>Rentabilité</h3><div class="seg" role="group" aria-label="Regrouper par"><button data-rv="dos" aria-pressed="${rentv==='dos'}">Par dossier</button><button data-rv="cli" aria-pressed="${rentv==='cli'}">Par client</button></div></div>${rent}</div>
+ <p class="def"><b>Comment lire ces chiffres.</b> Chiffres calculés sur les dossiers auxquels vous avez accès. Facturé : factures validées, hors taxes, avoirs déduits. Encaissé : sommes reçues sur les factures émises pendant la période. Encours : factures validées moins encaissements et avoirs, ancienneté comptée depuis l’émission. Rentabilité : facturé hors taxes rapporté à la valeur du temps passé au taux retenu.</p>`;
+}
+function stat(f){
+ if(f.st==='Brouillon')return `<span class="st br">Brouillon</span>`;
+ if(f.pa==='Rejetée')return `<span class="st warn">${ic.alerte}Rejetée</span>`;
+ if(f.st==='Encaissée')return `<span class="st ok">${ic.coche}Encaissée</span>`;
+ if(f.st==='Avoir')return `<span class="st def2">${ic.cadenas}Avoir</span>`;
+ if(enRetard(f))return `<span class="st warn">${jours(f.ech,TODAY)} jours de retard</span>`;
+ return `<span class="st">${f.enc>0?'Payée en partie':f.pa==='Acceptée'?'À encaisser':'Validée'}</span>`;
+}
+function filtrer(){
+ let l=FAC.slice();
+ if(q){const s=q.toLowerCase();l=l.filter(f=>[f.num||'brouillon',f.client,f.objet,f.dos].join(' ').toLowerCase().includes(s))}
+ else if(filtre==='br')l=l.filter(f=>f.st==='Brouillon');
+ else if(filtre==='enc')l=l.filter(f=>reste(f)>0&&f.st!=='Brouillon'&&f.st!=='Avoir');
+ else if(filtre==='ret')l=l.filter(enRetard);
+ else if(filtre==='ok')l=l.filter(f=>f.st==='Encaissée');
+ else if(filtre==='av')l=l.filter(f=>f.st==='Avoir');
+ return l.sort((a,b)=>(b.emis||TODAY)-(a.emis||TODAY)||b.id-a.id);
+}
+function ligne(f){
+ const m=f.st==='Avoir'?eur2(ttc(f)):eur2(ttc(f));
+ return `<button class="fl ${dc(f.dos)}${f.id===sel?' sel':''}" data-id="${f.id}"><span><span class="num"><i class="dd"></i>${f.num||'<span class="sn">Sans numéro</span>'}</span></span><span class="tx"><b>${f.client}</b><span>${fr(f.objet)}</span></span><span class="mt">${m}${reste(f)>0&&f.enc>0?`<small>reste ${eur2(reste(f))}</small>`:`<small>${f.emis?cd(f.emis):'à valider'}</small>`}</span><span class="stc">${stat(f)}${f.pa&&f.pa!=='Acceptée'?`<small>${f.pa==='À déposer'?'À déposer':''}</small>`:''}</span></button>`;
+}
+function liste(){
+ const l=filtrer();
+ if(!l.length)return `<div class="vide"><b>Aucune facture ici</b>Changez de filtre ou de recherche.</div>`;
+ return l.map(ligne).join('');
+}
+function relMsg(f){
+ const j=jours(f.ech,TODAY),niv=f.relances.length?2:1;
+ return {niv,titre:niv===1?'Premier rappel':'Second rappel',txt:`Madame, Monsieur,<br><br>Sauf erreur de notre part, la facture ${f.num} du ${cd(f.emis)}, d’un montant de ${eur2(reste(f))} toutes taxes comprises, échue depuis ${j} jours, reste impayée.${niv===2?' Un premier rappel vous a été adressé le '+f.relances[0][1]+(f.relances[0][1].endsWith('.')?'':'.'):''}<br><br>Nous vous remercions de bien vouloir procéder à son règlement dans les meilleurs délais.<br><br>Bien cordialement,<br>Me Julien Marchal`};
+}
+function apercu(f){
+ if(!f)return `<div class="vide"><b>Aucune facture sélectionnée</b>Choisissez une facture dans la liste.</div>`;
+ const t=tva(f.ht),tt=ttc(f),re=reste(f),pc=tt>0?Math.min(100,Math.round(f.enc/tt*100)):0;
+ let corps=`<div class="${dc(f.dos)}"><div class="ap-h">${pd(f.dos)}${stat(f)}${f.pa==='Acceptée'&&f.st!=='Brouillon'?`<span class="st">${ic.coche}Acceptée par la plateforme</span>`:f.pa==='À déposer'?`<span class="st">En attente de dépôt</span>`:''}</div>
+ <h3>${f.num?'Facture '+f.num:'Brouillon de facture'}</h3><div class="sous">${f.client}, ${fr(f.objet)}</div>
+ <div class="mt-b"><div><span>Honoraires hors taxes</span><span>${eur2(f.ht)}</span></div><div><span>TVA à 20 %</span><span>${eur2(t)}</span></div>${f.deb?`<div><span>Débours, hors TVA</span><span>${eur2(f.deb)}</span></div>`:''}<div class="tot"><span>Total à payer</span><span>${eur2(tt)}</span></div>
+ ${f.st!=='Brouillon'&&f.st!=='Avoir'?`<div><span>Encaissé</span><span>${eur2(f.enc)}</span></div><div><span><b>Reste dû</b></span><span><b>${eur2(re)}</b></span></div>`:''}</div>
+ ${f.st!=='Brouillon'&&f.st!=='Avoir'&&tt>0?`<div class="prog" aria-hidden="true"><i style="width:${pc}%"></i></div><div style="font-size:12px;color:var(--graphite)">${pc}\u202F% encaissé${f.ech?`, échéance le ${cd(f.ech)}`:''}</div>`:''}
+ ${f.pa==='Rejetée'?`<div class="carte chaud">${ic.alerte}<div><b>Rejetée par la plateforme agréée</b>${f.motif} La facture reste validée et son numéro est conservé : corrigez la fiche du client, puis redéposez-la.</div></div>`:''}
+ ${f.st==='Brouillon'?`<div class="carte">${ic.info}<div><b>Pas encore de numéro</b>Le numéro est attribué par le serveur à la validation, dans la séquence continue du cabinet. Une facture validée ne se modifie plus : seul un avoir la corrige.</div></div>`:''}
+ <p class="sec-t">Lignes</p><div class="lignes">${f.lignes.map(([l,q,m])=>`<div class="ln"><span>${fr(l)}</span><span style="font-variant-numeric:tabular-nums">${m}</span></div>`).join('')}</div>
+ <p class="sec-t">Historique</p><div class="hist">${f.hist.map(([a,b])=>`<div class="hi"><i></i><span>${a}</span><small>${b}</small></div>`).join('')}</div>`;
+ if(relance===f.id){const r=relMsg(f);corps+=`<div class="carte" id="pan">${ic.lettre}<div><b>${r.titre}, à valider avant l’envoi</b>Préparé avec le modèle de relance de niveau ${r.niv}. Rien ne part sans votre accord.<div class="msg">${r.txt}</div></div></div><div class="actions"><button class="btn fort" data-rel-ok="${f.id}">${ic.lettre}Envoyer la relance</button><button class="btn" data-rel-no="1">Annuler</button></div>`}
+ else if(encais===f.id){corps+=`<p class="sec-t" id="pan">Enregistrer un encaissement</p><div class="enc-f"><div><label for="e-m">Montant reçu</label><input id="e-m" type="text" value="${re.toFixed(2).replace('.',',')}"></div><div><label for="e-t">Mode de paiement</label><select id="e-t"><option>Virement</option><option>Chèque</option><option>Carte bancaire</option></select></div></div><div class="actions"><button class="btn fort" data-enc-ok="${f.id}">${ic.coche}Enregistrer</button><button class="btn" data-enc-no="1">Annuler</button></div>`}
+ else{
+  let a='';
+  if(f.st==='Brouillon')a=`<button class="btn fort" data-val="${f.id}">${ic.coche}Valider et déposer</button><button class="btn">Modifier</button>`;
+  else if(f.pa==='Rejetée')a=`<button class="btn fort" data-fix="${f.id}">Corriger la fiche du client</button><button class="btn">${ic.pdf}Télécharger le PDF</button>`;
+  else if(f.st==='Avoir')a=`<button class="btn">${ic.pdf}Télécharger le PDF</button>`;
+  else if(re>0)a=`<button class="btn fort" data-enc="${f.id}">${ic.euro}Enregistrer un encaissement</button>${enRetard(f)?`<button class="btn" data-rel="${f.id}">${ic.lettre}Relancer</button>`:''}<button class="btn">Créer un avoir</button>`;
+  else a=`<button class="btn">${ic.pdf}Télécharger le PDF</button><button class="btn">Créer un avoir</button>`;
+  corps+=`<div class="actions">${a}</div>`}
+ return corps+`</div>`;
+}
+function af(){
+ const c=calc();
+ const rows=AF.map((x,i)=>{
+  const [col,nom]=DOSS[x.d],v=x.forfait?null:rnd(x.h*x.r),br=FAC.find(f=>f.st==='Brouillon'&&f.dos===x.d);
+  const conv=x.conv?`<span class="st ok">${ic.coche}Convention signée</span>`:`<span class="st warn">${ic.alerte}Aucune convention signée</span>`;
+  let act;
+  if(br)act=`<button class="btn" data-open="${br.id}">Ouvrir le brouillon</button>`;
+  else act=`<button class="btn fort" data-prep="${i}">Préparer un brouillon</button>`;
+  const warn=ouvrirAF===i?`<div class="af-w" id="warnaf"><div class="carte chaud" style="margin:0">${ic.alerte}<div><b>Aucune convention d’honoraires signée dans ce dossier</b>Produisez la convention depuis un modèle, ou continuez en indiquant pourquoi. Le motif est consigné dans le dossier.<div style="display:flex;gap:8px;margin-top:9px;flex-wrap:wrap;align-items:center"><button class="btn">Produire la convention</button><select class="sel" id="mot" style="width:230px" aria-label="Motif"><option value="">Continuer sans convention, motif…</option><option>Urgence</option><option>Aide juridictionnelle</option><option>Convention en cours de signature</option></select><button class="btn fort" id="mot-ok" ${AFmot?'':'disabled'}>Continuer</button><button class="btn" data-prep-no="1">Annuler</button></div></div></div></div>`:'';
+  return `<div class="${'d-'+col}"><div class="af-r"><span>${pd(x.d)}</span><span style="min-width:0"><b>${nom}</b><small>${x.cl}</small></span><span>${x.forfait?`<span class="st br">Forfait</span>`:`<span class="st br">Temps passé</span>`}</span><span class="r">${x.forfait?'—':hm(x.h)}</span><span class="r">${x.forfait?`<small>${x.forfait}</small>`:eur2(v)}</span><span style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">${conv}${act}</span></div>${warn}</div>`}).join('');
+ return `<div class="af-tot"><div><b>${hm(c.th)}</b><span>de temps non facturé</span></div><div><b>${eur2(rnd(c.tv))}</b><span>hors taxes, au taux retenu</span></div><div style="margin-left:auto;max-width:360px;font-size:12.5px;color:var(--graphite)">Un brouillon rassemble les saisies de temps d’un dossier. Il n’a pas de numéro tant que vous ne l’avez pas validé.</div></div>
+ <div class="af-r th"><span>Dossier</span><span>Client</span><span>Mode</span><span class="r">Temps</span><span class="r">Montant estimé HT</span><span></span></div>${rows}`;
+}
+function render(){
+ const w=document.getElementById('win');w.className='win m-neutre'+(nuit?' nuit':'');
+ const c=calc(),nbEnc=FAC.filter(f=>reste(f)>0&&f.st!=='Brouillon'&&f.st!=='Avoir').length;
+ document.getElementById('sous-titre').textContent=`${nbEnc} factures à encaisser, ${eur(c.encours)} d’encours, ${FAC.filter(f=>f.st==='Brouillon').length} brouillons`;
+ const pa=document.getElementById('pastille');
+ pa.innerHTML=notice?`<i></i>${notice}`:`<i></i>Plateforme agréée : connectée`;
+ const nb=FAC.filter(f=>f.st==='Brouillon').length;
+ const tabs=[['td','Tableau de bord',''],['fac','Factures',`<b>${FAC.length}</b>`],['af','À facturer',`<b>${AF.filter(x=>!x.forfait).length}</b>`]];
+ document.getElementById('tabs').innerHTML=tabs.map(([k,l,b])=>`<button role="tab" data-tab="${k}" aria-selected="${tab===k}">${l}${b}</button>`).join('');
+ const co=document.getElementById('corps');
+ if(tab==='td'){co.className='f-corps';co.innerHTML=`<div class="scroll">${tdb()}</div>`}
+ else if(tab==='af'){co.className='f-corps';co.innerHTML=`<div class="scroll">${af()}</div>`}
+ else{co.className='f-corps deux';
+  const cnt=k=>({tous:FAC.length,br:FAC.filter(f=>f.st==='Brouillon').length,enc:FAC.filter(f=>reste(f)>0&&f.st!=='Brouillon'&&f.st!=='Avoir').length,ret:FAC.filter(enRetard).length,ok:FAC.filter(f=>f.st==='Encaissée').length,av:FAC.filter(f=>f.st==='Avoir').length})[k];
+  const f0=q?'':filtre;
+  co.innerHTML=`<div class="col-l"><div class="l-tete"><label class="rech"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input id="q" type="search" value="${esc(q)}" placeholder="Rechercher une facture : numéro, client, dossier" aria-label="Rechercher une facture"></label>
+   <div class="seg" role="group" aria-label="Filtrer les factures">${[['tous','Toutes'],['br','Brouillons'],['enc','À encaisser'],['ret','En retard'],['ok','Encaissées'],['av','Avoirs']].map(([k,l])=>`<button data-f="${k}" aria-pressed="${f0===k}">${l}<b>${cnt(k)}</b></button>`).join('')}</div></div><div class="l-corps" id="liste">${liste()}</div></div><section class="ap" id="ap">${apercu(FAC.find(f=>f.id===sel))}</section>`;
+ }
+ bind();
+ const pn=document.getElementById('pan'),ap=document.getElementById('ap');
+ if(pn&&ap)ap.scrollTop+=pn.getBoundingClientRect().top-ap.getBoundingClientRect().top-12;
+ const wa=document.getElementById('warnaf'),sc=document.querySelector('.scroll');
+ if(wa&&sc)sc.scrollTop+=wa.getBoundingClientRect().top-sc.getBoundingClientRect().top-150;
+}
+function flash(t,ms){notice=t;render();setTimeout(()=>{notice='';render()},ms||2000)}
+function ouvrirFac(i){tab='fac';filtre='tous';q='';sel=i;relance=0;encais=0;render()}
+function bind(){
+ const $=(s,f)=>document.querySelectorAll(s).forEach(f);
+ $('[data-tab]',b=>b.onclick=()=>{tab=b.dataset.tab;relance=0;encais=0;ouvrirAF=null;if(tab==='fac'&&!FAC.find(f=>f.id===sel))sel=filtrer()[0]?.id||0;render()});
+ $('[data-per]',b=>b.onclick=()=>{per=b.dataset.per;render()});
+ $('[data-rv]',b=>b.onclick=()=>{rentv=b.dataset.rv;render()});
+ $('[data-open]',b=>b.onclick=()=>ouvrirFac(+b.dataset.open));
+ $('[data-f]',b=>b.onclick=()=>{filtre=b.dataset.f;q='';const l=filtrer();if(l.length&&!l.find(f=>f.id===sel))sel=l[0].id;relance=0;encais=0;render()});
+ $('.fl',b=>b.onclick=()=>{sel=+b.dataset.id;relance=0;encais=0;render()});
+ const qq=document.getElementById('q');if(qq)qq.oninput=e=>{q=e.target.value.trim();const l=filtrer();if(l.length&&!l.find(f=>f.id===sel))sel=l[0].id;document.getElementById('liste').innerHTML=liste();document.getElementById('ap').innerHTML=apercu(FAC.find(f=>f.id===sel));bind2()};
+ bind2();
+}
+function bind2(){
+ const $=(s,f)=>document.querySelectorAll(s).forEach(f);
+ $('.fl',b=>b.onclick=()=>{sel=+b.dataset.id;relance=0;encais=0;render()});
+ $('[data-rel]',b=>b.onclick=()=>{relance=+b.dataset.rel;encais=0;render()});
+ $('[data-rel-no]',b=>b.onclick=()=>{relance=0;render()});
+ $('[data-rel-ok]',b=>b.onclick=()=>{const f=FAC.find(x=>x.id===+b.dataset.relOk),r=relMsg(f);f.relances.push([r.titre,'aujourd’hui']);f.hist.push([r.titre+' envoyé, copie dans « Envoyés » en attente','aujourd’hui']);relance=0;flash('Relance placée dans la file d’envoi',2400)});
+ $('[data-enc]',b=>b.onclick=()=>{encais=+b.dataset.enc;relance=0;render()});
+ $('[data-enc-no]',b=>b.onclick=()=>{encais=0;render()});
+ $('[data-enc-ok]',b=>b.onclick=()=>{const f=FAC.find(x=>x.id===+b.dataset.encOk),v=parseFloat(document.getElementById('e-m').value.replace(/\s/g,'').replace(',','.'));if(!(v>0))return;f.enc=rnd(Math.min(ttc(f),f.enc+v));f.hist.push([`Encaissement de ${eur2(v)}, ${document.getElementById('e-t').value.toLowerCase()}`,'aujourd’hui']);if(reste(f)<=0)f.st='Encaissée';encais=0;flash('Encaissement enregistré',2000)});
+ $('[data-val]',b=>b.onclick=()=>{const f=FAC.find(x=>x.id===+b.dataset.val);f.num='2026-0152';f.st='Validée';f.pa='À déposer';f.emis=TODAY;f.ech=dj(2026,10,4);f.hist=[['Validée, numéro attribué par le serveur','à l’instant'],['Dépôt sur la plateforme agréée demandé','à l’instant']];flash('Facture validée, numéro 2026-0152',2400)});
+ $('[data-fix]',b=>b.onclick=()=>flash('Fiche de SCI du Parc Lumière ouverte pour corriger le SIREN',2400));
+ $('[data-prep]',b=>b.onclick=()=>{const i=+b.dataset.prep,x=AF[i];if(!x.conv){ouvrirAF=i;AFmot='';render();return}creerBr(i)});
+ $('[data-prep-no]',b=>b.onclick=()=>{ouvrirAF=null;render()});
+ const mo=document.getElementById('mot');if(mo)mo.onchange=e=>{AFmot=e.target.value;document.getElementById('mot-ok').disabled=!AFmot};
+ const mk=document.getElementById('mot-ok');if(mk)mk.onclick=()=>{if(AFmot){const i=ouvrirAF;ouvrirAF=null;creerBr(i,AFmot)}};
+}
+function creerBr(i,motif){
+ const x=AF[i],v=rnd(x.h*x.r),n=FAC.find(f=>f.st==='Brouillon'&&f.dos===x.d);
+ if(n){ouvrirFac(n.id);return}
+ const f=F({num:null,client:x.cl,dos:x.d,objet:'Temps à facturer',ht:v,emis:null,ech:null,enc:0,st:'Brouillon',lignes:[[`Temps passé, ${hm(x.h)} au taux de ${eur2(x.r)}`,hm(x.h),eur2(v)]],hist:[['Brouillon créé à partir des saisies de temps','à l’instant']].concat(motif?[[`Facturation sans convention signée, motif : ${motif.toLowerCase()}`,'à l’instant']]:[])});
+ FAC.push(f);ouvrirFac(f.id);
+}
+window.menuChoix=k=>{};
+render();
+
+document.getElementById('d-new').onclick=()=>{tab='af';ouvrirAF=null;render()};
+
+</script>
+</body>
+</html>

@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LEGAL OS — prototype de l’écran Dossiers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--page:#D9DEDC;--texte:#1F2629;--doux:#5A6569;--filet:#C3CAC7;--btn:#FFFFFF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0E1213;--texte:#E4EAE8;--doux:#9CA8AC;--filet:#323B3E;--btn:#1E2427}}
+:root[data-theme="dark"]{--page:#0E1213;--texte:#E4EAE8;--doux:#9CA8AC;--filet:#323B3E;--btn:#1E2427}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--page);color:var(--texte);font-family:"Atkinson Hyperlegible Next",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.45;font-variant-numeric:tabular-nums}
+button,input{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.tete{max-width:1300px;margin:0 auto;padding:22px 24px 6px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px}
+.tete h1{font-size:20px;margin:0;font-weight:800}
+.choix{display:flex;border:1px solid var(--filet);border-radius:8px;overflow:hidden;background:var(--btn)}
+.choix button{padding:6px 14px;border-left:1px solid var(--filet);color:var(--doux)}
+.choix button:first-child{border-left:0}
+.choix button[aria-pressed="true"]{background:var(--texte);color:var(--page);font-weight:700}
+.intro{max-width:1300px;margin:0 auto;padding:4px 24px 14px;color:var(--doux)}
+.intro p{margin:0;max-width:105ch}
+.scene{overflow-x:auto;padding:0 24px 36px}
+.note{max-width:1240px;margin:14px auto 0;color:var(--doux);font-size:13px}
+
+/* ====================== Fenêtre (repris du prototype de référence) ====================== */
+.win{
+ --encre:#141A1C;--graphite:#5A6569;--feuille:#FFFFFF;--feuille-2:#F6F8F7;--filet-m:#E8ECEB;--survol:#F3F6F5;
+ --verre:rgba(255,255,255,.3);--verre-bord:rgba(255,255,255,.42);--verre-fort:rgba(255,255,255,.6);
+ --definitif:#43388A;--definitif-fond:rgba(67,56,138,.09);--definitif-bord:rgba(67,56,138,.2);
+ --ombre-carte:0 1px 0 rgba(255,255,255,.9) inset,0 28px 56px -28px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.06);
+ --sur-chemise:#141A1C;--ok:#2F7D4B;--attente:#9A6A12;--barre-fond:rgba(255,255,255,.74);--barre-ligne:rgba(20,26,28,.1);--barre-texte:#141A1C;--barre-doux:#4A565B;--barre-actif:rgba(20,26,28,.08);--barre-pastille:rgba(20,26,28,.06);--barre-kbd:rgba(20,26,28,.08);--sync:#2F9E5B;--dock-fond:rgba(255,255,255,.82);--dock-texte:#141A1C;--dock-survol:rgba(20,26,28,.07);--dock-prim-f:#141A1C;--dock-prim-t:#F2F5F4;--dock-bord:rgba(20,26,28,.1);--dock-ombre:0 18px 40px -20px rgba(0,0,0,.35);
+ width:1240px;height:800px;margin:0 auto;border-radius:14px;overflow:hidden;color:var(--encre);position:relative;isolation:isolate;
+ background-color:var(--c);background-image:var(--lumiere),var(--grain);transition:background-color .3s ease}
+.win{--lumiere:radial-gradient(120% 90% at 8% -12%,rgba(255,255,255,.22),rgba(255,255,255,0) 55%),radial-gradient(90% 80% at 110% 120%,rgba(0,0,0,.22),rgba(0,0,0,0) 60%)}
+/* Écran général, hors dossier : chemise neutre ardoise */
+.m-neutre{--c:#C5D0D4;--c-t:#E4EBEE;--c-e:#26353C;--c-s:#4F7383;--verre:rgba(255,255,255,.5);--verre-bord:rgba(255,255,255,.7)}
+.win.nuit{--encre:#E8EEEC;--graphite:#9CA8AC;--feuille:#1A2023;--feuille-2:#20272A;--filet-m:#2B3438;--survol:#222A2D;
+ --verre:rgba(0,0,0,.18);--verre-bord:rgba(255,255,255,.1);--verre-fort:rgba(255,255,255,.1);
+ --definitif:#BDB4F5;--definitif-fond:rgba(189,180,245,.1);--definitif-bord:rgba(189,180,245,.25);
+ --ombre-carte:0 1px 0 rgba(255,255,255,.05) inset,0 28px 56px -24px rgba(0,0,0,.7),0 2px 8px rgba(0,0,0,.3);
+ --sur-chemise:#F2F5F4;--ok:#7BD89A;--attente:#E8B85C;--barre-fond:rgba(16,21,23,.86);--barre-ligne:rgba(255,255,255,.06);--barre-texte:#F2F5F4;--barre-doux:#AEB8BC;--barre-actif:rgba(255,255,255,.1);--barre-pastille:rgba(255,255,255,.08);--barre-kbd:rgba(255,255,255,.1);--sync:#7BD89A;--dock-fond:rgba(16,21,23,.86);--dock-texte:#E6ECEA;--dock-survol:rgba(255,255,255,.1);--dock-prim-f:#F2F5F4;--dock-prim-t:#141A1C;--dock-bord:rgba(255,255,255,.14);--dock-ombre:0 18px 40px -12px rgba(0,0,0,.8);}
+.win.nuit{--lumiere:radial-gradient(120% 90% at 8% -12%,rgba(255,255,255,.08),rgba(255,255,255,0) 55%),radial-gradient(90% 80% at 110% 120%,rgba(0,0,0,.35),rgba(0,0,0,0) 60%)}
+.nuit.m-neutre{--c:#1E2629;--c-t:#25323A;--c-e:#D5E1E5;--c-s:#8FB6C6}
+
+/* Couleurs des chemises, pour les pastilles de dossier */
+.d-kraft{--dc:#CE9A55;--dt:#F6E7CE;--de:#5A3F14}
+.d-bleu{--dc:#6FA2E0;--dt:#E1ECFA;--de:#1C4273}
+.d-amande{--dc:#6CBF84;--dt:#E1F3E7;--de:#1F5431}
+.nuit .d-kraft{--dc:#D9A860;--dt:#3A2E1C;--de:#F2D6AB}
+.nuit .d-bleu{--dc:#86B6F0;--dt:#1E2F48;--de:#D2E3F8}
+.nuit .d-amande{--dc:#86CF9C;--dt:#1C3827;--de:#CFEDD8}
+
+/* Variantes du fond de l'écran Mails, jour seulement : teintes chaudes accordées à la barre haute */
+.win[data-fond="lin"]:not(.nuit){--c:#D6CFC2;--c-t:#EFEAE1;--c-e:#3A3022;--c-s:#7C6C50}
+.win[data-fond="pierre"]:not(.nuit){--c:#C9C1B3;--c-t:#ECE6DB;--c-e:#3A3022;--c-s:#76674C}
+.win[data-fond="taupe"]:not(.nuit){--c:#B9AE9E;--c-t:#E9E2D6;--c-e:#352C20;--c-s:#6E5F45}
+/* Variante chaude de la barre haute et de la barre d'actions (jour seulement) */
+.win[data-barre="chaude"]:not(.nuit){--barre-fond:rgba(249,245,238,.9);--barre-ligne:rgba(92,70,40,.14);--barre-texte:#241F19;--barre-doux:#6A6052;--barre-actif:rgba(110,80,40,.1);--barre-pastille:rgba(110,80,40,.07);--barre-kbd:rgba(110,80,40,.1);--sync:#3F9A5F;--dock-fond:rgba(249,245,238,.92);--dock-texte:#241F19;--dock-survol:rgba(110,80,40,.09);--dock-prim-f:#241F19;--dock-prim-t:#F9F5EE;--dock-bord:rgba(92,70,40,.16);--dock-ombre:0 18px 40px -20px rgba(60,40,10,.4)}
+/* Barre */
+.barre{position:absolute;inset:0 0 auto 0;height:58px;display:flex;align-items:center;gap:20px;padding:0 18px;z-index:5;
+ background:var(--barre-fond);color:var(--barre-texte);-webkit-backdrop-filter:blur(20px) saturate(1.1);backdrop-filter:blur(20px) saturate(1.1);box-shadow:inset 0 -1px 0 var(--barre-ligne);transition:background-color .3s}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.nav{display:flex;gap:4px;font-size:13px;flex:1}
+.nav span{padding:5px 10px;border-radius:8px;color:var(--barre-doux)}
+.nav span.on{color:var(--barre-texte);font-weight:700;background:var(--barre-actif)}
+.nav span b{margin-left:6px;font-size:11px;padding:1px 6px;border-radius:999px;background:var(--barre-kbd);color:var(--barre-texte)}
+.outils{display:flex;gap:8px;font-size:13px;color:var(--barre-doux);align-items:center}
+.pilule{display:flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:999px;background:var(--barre-pastille);box-shadow:inset 0 0 0 1px var(--barre-ligne)}
+.kbd{font-size:11px;padding:1px 6px;border-radius:5px;background:var(--barre-kbd);color:var(--barre-doux)}
+.sync{display:flex;align-items:center;gap:6px;font-size:12px;margin-right:4px}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--sync)}
+
+/* Écran */
+.ecran{position:absolute;inset:58px 0 0 0;padding:22px 30px 0;display:grid;grid-template-rows:auto 1fr;color:var(--sur-chemise)}
+.ecran-tete{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:0 4px}
+.ecran-tete h2{font-size:26px;line-height:1.15;margin:0;font-weight:800;letter-spacing:-.015em}
+.ecran-tete p{margin:4px 0 0;font-size:13px;opacity:.78}
+.releve{display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:999px;font-size:12.5px;background:var(--verre);box-shadow:inset 0 0 0 1px var(--verre-bord);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.releve i{width:7px;height:7px;border-radius:50%;background:var(--sync)}
+.pile{position:relative;margin-top:22px;min-height:0}
+.c2{position:absolute;inset:0;border-radius:18px 18px 0 0;transform:translateY(-7px) scaleX(.97);background:var(--verre-fort)}
+.feuille{position:relative;height:100%;border-radius:18px 18px 0 0;background:var(--feuille);box-shadow:var(--ombre-carte);display:grid;grid-template-columns:232px 396px 1fr;color:var(--encre);overflow:hidden;transition:background-color .3s}
+
+/* ====================== Écran Dossiers ====================== */
+.feuille{grid-template-columns:minmax(0,1fr) 360px}
+.col-liste{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--filet-m)}
+.dl-tete{padding:16px 18px 4px}
+.rech{display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-radius:11px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);color:var(--graphite)}
+.rech svg{width:15px;height:15px;flex:none}
+.rech input{flex:1;min-width:0;border:0;background:transparent;outline:0;font-size:13.5px;color:var(--encre)}
+.rech input::placeholder{color:var(--graphite)}
+.rech:focus-within{box-shadow:inset 0 0 0 2px var(--c-s)}
+.outils-l{display:flex;align-items:center;gap:8px;margin:12px 2px 0;flex-wrap:wrap}
+.seg{display:flex;gap:4px}
+.seg button{font-size:12.5px;padding:4px 11px;border-radius:999px;color:var(--graphite);background:var(--feuille-2)}
+.seg button[aria-pressed="true"]{background:var(--encre);color:var(--feuille);font-weight:700}
+.seg button b{margin-left:6px;font-size:11.5px;opacity:.75}
+.tri{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--graphite)}
+.tri select{font:inherit;font-size:12.5px;color:var(--encre);background:var(--feuille-2);border:0;border-radius:9px;padding:5px 24px 5px 10px;box-shadow:inset 0 0 0 1px var(--filet-m);appearance:none;-webkit-appearance:none;
+ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%235A6569' stroke-width='1.6'%3E%3Cpath d='m1 1 4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center}
+.dl-corps{overflow:auto;padding:0 10px 96px;flex:1}
+.groupe{font-size:12px;color:var(--graphite);margin:16px 10px 4px;display:flex;align-items:center;gap:8px}
+.groupe b{font-weight:700;color:var(--encre)}
+.dos-l{display:grid;grid-template-columns:92px minmax(0,1fr) 252px 46px;gap:14px;align-items:center;width:100%;padding:10px 12px;border-radius:12px;text-align:left;transition:background-color .15s}
+.dos-l:hover{background:var(--survol)}
+.dos-l.sel{background:var(--c-t)}
+.dos-l:focus-visible,.act:focus-visible,.bt-f:focus-visible{outline:2px solid var(--c-s);outline-offset:1px}
+.ref-l{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;padding:4px 10px 4px 8px;border-radius:9px;background:var(--dt);color:var(--de);white-space:nowrap;justify-self:start}
+.ref-l i{width:9px;height:9px;border-radius:50%;background:var(--dc);flex:none}
+.tx{min-width:0;display:block}
+.tx .nom{display:block;font-weight:700;font-size:13.5px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx .meta{display:block;font-size:12.5px;color:var(--graphite);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ech-l{display:grid;grid-template-columns:40px minmax(0,1fr);gap:10px;align-items:center}
+.ech-l .an{display:block}
+.ech-l .lb{display:block;font-size:12.5px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ech-l .lb small{display:block;font-size:11.5px;color:var(--graphite)}
+.ech-l.aucune{display:block;font-size:12.5px;color:var(--graphite);padding-left:2px}
+.ind{display:flex;align-items:center;justify-content:flex-end;gap:8px;color:var(--graphite)}
+.ind .nl{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:800;color:var(--encre)}
+.ind svg{width:14px;height:14px}
+.vide-l{padding:34px 18px;color:var(--graphite)}
+.vide-l b{display:block;color:var(--encre);font-size:15px;margin-bottom:4px}
+
+/* Aperçu */
+.ap{padding:18px 22px 96px;overflow:auto;min-width:0}
+.et-ap{display:inline-block;max-width:100%;padding:8px 14px 10px;border-radius:12px;background:var(--feuille);color:var(--encre);box-shadow:0 8px 20px -14px rgba(0,0,0,.5),0 1px 2px rgba(0,0,0,.08),inset 0 0 0 1px var(--filet-m)}
+.et-ap .ref{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--de)}
+.et-ap .ref i{width:9px;height:9px;border-radius:50%;background:var(--dc)}
+.et-ap h3{font-size:19px;line-height:1.2;margin:2px 0 0;font-weight:800;letter-spacing:-.01em}
+.faits{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin:16px 0 0}
+.faits div{min-width:0}
+.faits dt{font-size:12px;color:var(--graphite)}
+.faits dd{margin:1px 0 0;font-weight:700;font-size:13px}
+.carte-ech{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;margin:16px 0 0;padding:12px 14px;border-radius:14px;background:var(--dt);color:var(--de)}
+.carte-ech b{display:block;color:var(--encre);font-size:13.5px}
+.carte-ech span{font-size:12.5px}
+.rs{display:flex;gap:10px;align-items:flex-start;margin:12px 0 0;padding:10px 12px;border-radius:12px;background:var(--definitif-fond);box-shadow:inset 0 0 0 1px var(--definitif-bord);color:var(--definitif);font-size:12.5px}
+.rs svg{width:15px;height:15px;flex:none;margin-top:1px}
+.rs b{display:block;color:var(--encre)}
+.sec-t{font-size:12px;color:var(--graphite);margin:18px 0 6px}
+.steps{display:flex;flex-direction:column;gap:2px}
+.step{display:grid;grid-template-columns:20px 1fr auto;gap:10px;align-items:center;font-size:12.5px;padding:3px 0}
+.step .pt{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:10.5px;font-weight:800;box-shadow:inset 0 0 0 2px var(--filet-m);color:var(--graphite)}
+.step.fait .pt{background:var(--encre);color:var(--feuille);box-shadow:none}
+.step.cours .pt{background:var(--dc);color:#141A1C;box-shadow:0 0 0 4px var(--dt)}
+.step.cours{font-weight:700}
+.step.futur{color:var(--graphite)}
+.step small{font-size:11.5px;color:var(--graphite);font-weight:400}
+.rec{display:flex;flex-direction:column}
+.rec-i{display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;padding:6px 0;border-top:1px solid var(--filet-m);font-size:12.5px}
+.rec-i:first-child{border-top:0}
+.rec-i .tu{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:var(--feuille-2);color:var(--c-s)}
+.rec-i .tu svg{width:14px;height:14px}
+.rec-i span.t{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rec-i small{color:var(--graphite);font-size:11.5px}
+.chiffres{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:2px 0 0}
+.chiffres div{padding:8px 10px;border-radius:11px;background:var(--feuille-2)}
+.chiffres span{display:block;font-size:11.5px;color:var(--graphite)}
+.chiffres b{font-size:14px}
+.actions{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 0}
+.act{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 13px;border-radius:10px;font-size:12.5px;font-weight:700;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);transition:background-color .15s}
+.act:hover{background:var(--survol)}
+.act svg{width:14px;height:14px}
+.act.fort{background:var(--dc);color:#141A1C;box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+.cloture{font-size:12.5px;color:var(--graphite);margin:16px 0 0}
+
+/* Formulaire de création */
+.nv{display:flex;flex-direction:column;gap:0}
+.nv h3{margin:0;font-size:18px;font-weight:800}
+.nv .ref-info{margin:4px 0 12px;font-size:12.5px;color:var(--graphite)}
+.f{margin:0 0 10px}
+.f label,.f>.lab{display:block;font-size:12px;color:var(--graphite);margin-bottom:4px;font-weight:400}
+.f>label.bascule{display:flex;font-size:13px;color:var(--encre);margin:0}
+.f input[type=text]{width:100%;height:36px;padding:0 11px;border:0;border-radius:10px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);outline:0;color:var(--encre);font-size:13.5px}
+.f input[type=text]:focus{box-shadow:inset 0 0 0 2px var(--c-s)}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.coul{display:flex;gap:8px}
+.coul button{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 8px;border-radius:10px;font-size:12.5px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.coul button i{width:16px;height:16px;border-radius:5px;background:var(--dc);box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
+.coul button[aria-pressed="true"]{background:var(--dt);color:var(--de);font-weight:700;box-shadow:inset 0 0 0 2px var(--dc)}
+.bascule{display:flex;align-items:flex-start;gap:10px;font-size:13px;cursor:pointer}
+.bascule input{margin-top:3px;width:16px;height:16px;accent-color:var(--encre)}
+.bascule small{display:block;color:var(--graphite);font-size:12px;margin-top:1px}
+.acces{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.puce{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);font-size:12.5px}
+.ap.nv-mode{padding-bottom:0}
+.nv-pied{display:flex;align-items:center;gap:10px;margin-top:6px;position:sticky;bottom:0;padding:12px 0 18px;background:var(--feuille);box-shadow:0 -10px 14px -10px var(--feuille)}
+.creer{display:inline-flex;align-items:center;height:38px;padding:0 18px;border-radius:11px;font-weight:800;background:var(--dc);color:#141A1C;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 8px 18px -12px rgba(0,0,0,.6)}
+.creer[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none}
+.bt-f{font-size:12.5px;font-weight:700;color:var(--graphite);padding:8px 6px}
+.bt-f:hover{color:var(--encre)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* Barre d'actions flottante (reprise) */
+.dock{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;gap:2px;padding:6px;border-radius:16px;z-index:4;
+ background:var(--dock-fond);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);box-shadow:var(--dock-ombre),inset 0 0 0 1px var(--dock-bord)}
+.dock button{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:11px;color:var(--dock-texte);font-size:13px;white-space:nowrap}
+.dock button:hover{background:var(--dock-survol)}
+.dock button.prim{background:var(--dock-prim-f);color:var(--dock-prim-t);font-weight:700}
+.dock svg{width:15px;height:15px}
+.dock button:focus-visible,.mail:focus-visible,.bal:focus-visible,.vue-classer:focus-visible,.act:focus-visible{outline:2px solid var(--c-s);outline-offset:1px}
+.dock button:focus-visible{outline-color:var(--dock-texte)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* Hauteur contrainte : les zones de liste défilent au lieu de dépasser la fenêtre */
+.ecran{grid-template-rows:auto minmax(0,1fr)}
+.feuille{grid-template-rows:minmax(0,1fr)}
+.feuille>*,.col-ag,.col-liste,.liste-m,.ag-scroll,.dl-corps,.lm-corps{min-height:0}
+
+/* Menu du compte (cahier § 7 : Temps et Réglages dans le menu du compte) */
+.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--barre-actif);color:var(--barre-texte);box-shadow:inset 0 0 0 1px var(--barre-ligne);flex:none}
+.avatar:hover{background:var(--barre-pastille)}
+.avatar[aria-expanded="true"],.avatar.on{box-shadow:inset 0 0 0 2px var(--barre-texte)}
+.avatar:focus-visible{outline:2px solid var(--barre-texte);outline-offset:2px}
+.menu-compte{position:absolute;top:54px;right:14px;z-index:30;width:272px;padding:8px;border-radius:14px;background:var(--feuille);color:var(--encre);box-shadow:0 22px 46px -18px rgba(0,0,0,.55),inset 0 0 0 1px var(--filet-m)}
+.menu-compte .qui{padding:8px 10px 10px;border-bottom:1px solid var(--filet-m);margin-bottom:6px}
+.menu-compte .qui b{display:block;font-size:13.5px}
+.menu-compte .qui span{font-size:12px;color:var(--graphite)}
+.menu-compte button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:9px;text-align:left;font-size:13px}
+.menu-compte button:hover,.menu-compte button:focus-visible{background:var(--survol);outline:0}
+.menu-compte button svg{width:15px;height:15px;color:var(--graphite);flex:none}
+.menu-compte button .kb{margin-left:auto;font-size:11px;padding:1px 6px;border-radius:5px;background:var(--feuille-2);color:var(--graphite);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.menu-compte hr{border:0;border-top:1px solid var(--filet-m);margin:6px 0}
+.menu-compte button.on{font-weight:700;background:var(--feuille-2)}
+</style>
+</head>
+<body>
+<div class="tete">
+  <h1>Écran Dossiers, proposition</h1>
+  <div class="choix" data-g="theme" role="group" aria-label="Apparence de la maquette">
+    <button data-t="jour" aria-pressed="true">Jour</button>
+    <button data-t="nuit" aria-pressed="false">Nuit</button>
+  </div>
+  <span style="color:var(--doux);font-size:13px">Cherchez, filtrez, changez le tri, cliquez sur un dossier, ou créez-en un avec « Nouveau dossier ».</span>
+</div>
+<div class="intro"><p>Même système visuel que l’écran Mails : barre claire, fond lin, feuille blanche. La liste est l’écran ; la création n’occupe plus la page, elle s’ouvre à droite, à la demande. Chaque dossier porte la couleur de sa chemise, et l’échéance la plus proche est ce qui décide de l’ordre.</p></div>
+<div class="scene">
+<section class="win m-neutre" id="win" data-fond="lin" data-barre="neutre" aria-label="Maquette de l’écran Dossiers">
+  <div class="barre">
+    <div class="lights" aria-hidden="true"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></div>
+    <nav class="nav"><span>La journée</span><span class="on">Dossiers</span><span>Mails<b>2</b></span><span>Agenda</span><span>Facturation</span></nav>
+    <div class="outils">
+      <span class="sync" title="Toutes les modifications sont synchronisées"><i></i>Synchronisé</span>
+      <span class="pilule">Rechercher <span class="kbd">Ctrl K</span></span>
+      <button class="avatar" id="av" aria-haspopup="menu" aria-expanded="false" aria-label="Menu du compte">JM</button>
+    </div>
+  </div>
+  <div class="menu-compte" id="mc" role="menu" aria-label="Menu du compte" hidden>
+ <div class="qui"><b>Me Julien Marchal</b><span>j.marchal@cabinet-marchal.example</span></div>
+ <button role="menuitem" data-m="temps"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3l2 1.5"/></svg>Temps<span class="kb">T</span></button>
+ <button role="menuitem" data-m="reglages"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8" r="2.3"/><path d="M8 1.8v1.7M8 12.5v1.7M1.8 8h1.7M12.5 8h1.7M3.6 3.6l1.2 1.2M11.2 11.2l1.2 1.2M12.4 3.6l-1.2 1.2M4.8 11.2l-1.2 1.2"/></svg>Réglages<span class="kb">Ctrl ,</span></button>
+ <button role="menuitem"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>Palette de commandes<span class="kb">Ctrl K</span></button>
+ <hr>
+ <button role="menuitem"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="7" width="9" height="7" rx="1.8"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Verrouiller l’application</button>
+ <button role="menuitem"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 2.5H3.5v11H6M10 5l3 3-3 3M13 8H6"/></svg>Se déconnecter</button>
+</div>
+  <div class="ecran">
+    <div class="ecran-tete">
+      <div><h2>Dossiers</h2><p id="sous-titre"></p></div>
+      <span class="releve" id="pastille" title="Les dossiers restreints ne sont visibles que des personnes autorisées"></span>
+    </div>
+    <div class="pile">
+      <div class="c2"></div>
+      <div class="feuille">
+        <div class="col-liste">
+          <div class="dl-tete">
+            <label class="rech"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input id="q" type="search" placeholder="Rechercher un dossier : nom, référence, numéro RG, client, adversaire" aria-label="Rechercher un dossier"></label>
+            <div class="outils-l">
+              <div class="seg" id="seg" role="group" aria-label="Filtrer les dossiers"></div>
+              <label class="tri">Trier par
+                <select id="tri"><option value="ech">Prochaine échéance</option><option value="act">Dernière activité</option><option value="ref">Référence</option></select>
+              </label>
+            </div>
+          </div>
+          <div class="dl-corps" id="liste"></div>
+        </div>
+        <section class="ap" id="ap" aria-live="polite"></section>
+        <div class="dock" id="dock">
+          <button class="prim" id="nouveau"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z"/><path d="M8 7v4M6 9h4"/></svg>Nouveau dossier</button>
+          <button><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3.5" width="12" height="9" rx="2"/><path d="m2.5 5 5.5 4 5.5-4"/></svg>Nouveau mail</button>
+          <button><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3l2 1.5"/></svg>Saisir du temps <span class="kbd">T</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<p class="note">Maquette statique, données fictives. Attendu dans l’app : un dossier restreint n’apparaît qu’aux personnes autorisées ; la référence est attribuée par le serveur à l’enregistrement ; « Ouvrir le dossier » l’ouvre dans un onglet de la barre du haut ; dates à la française, aucune date au format technique ; la recherche porte sur tous les dossiers, clos compris.</p>
+</div>
+<script>
+function svgUrl(s){return 'url("data:image/svg+xml,'+encodeURIComponent(s)+'")'}
+document.documentElement.style.setProperty('--grain',svgUrl(`<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' seed='4' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .3 0 0 0 -.1'/></filter><rect width='100%' height='100%' filter='url(#n)'/></svg>`));
+const ic={
+ mail:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="3.5" width="12" height="9" rx="2"/><path d="m2.5 5 5.5 4 5.5-4"/></svg>',
+ piece:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 2h5l3 3v9H4z"/><path d="M9 2v3h3"/></svg>',
+ facture:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 2h8v12l-2-1.2L8 14l-2-1.2L4 14z"/><path d="M6 6h4M6 9h4"/></svg>',
+ audience:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="3.5" width="11" height="10" rx="2"/><path d="M2.5 7h11M5.5 2v3M10.5 2v3"/></svg>',
+ note:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 13l1-3 7-7 2 2-7 7z"/></svg>',
+ dossier:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z"/></svg>',
+ cadenas:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="7" width="9" height="7" rx="1.8"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>',
+ temps:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3l2 1.5"/></svg>',
+ ouvrir:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z"/></svg>'};
+const fr=t=>String(t).replace(/ ([:;!?»])/g,'\u202F$1').replace(/« /g,'«\u202F');
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const COUL={kraft:'Kraft',bleu:'Bleu',amande:'Amande'};
+let DOS=[
+ {id:1,ref:'2026-042',c:'kraft',nom:'SCI Les Tilleuls c/ Banque Rhodanienne',type:'Contentieux',ju:'Cour d’appel de Lyon',rg:'25/04417',client:'SCI Les Tilleuls',adv:['Adversaire','Me Clément Vasseur'],etape:'Appel',ech:{lab:'Conclusions d’appelant',j:9,date:'14 oct.',long:'le 14 octobre'},nl:2,rs:false,clos:false,act:1,tps:'4 h 15',fac:'2 400 €',enc:'1 200 €',st:'F:Déclaration d’appel|C:Conclusions d’appelant|N:Conclusions d’intimé|N:Plaidoirie',rec:[['mail','Communication de pièces adverses nᵒˢ 14 à 19','aujourd’hui'],['piece','Pièces nᵒˢ 12 et 13 communiquées','22 sept.'],['facture','Facture 2026-0142, provision','19 sept.']]},
+ {id:2,ref:'2026-057',c:'amande',nom:'Succession Moreau',type:'Conseil',ju:'',rg:'',client:'Mme Hélène Moreau',adv:['Notaire','Me Lucas Garnier'],etape:'Liquidation',ech:{lab:'Signature de l’acte de partage',j:3,date:'8 oct.',long:'le 8 octobre à 10 h'},nl:1,rs:false,clos:false,act:2,tps:'2 h 30',fac:'1 800 €',enc:'1 800 €',st:'F:Ouverture|F:Inventaire|C:État liquidatif|N:Signature de l’acte|N:Clôture',rec:[['mail','Invitation : signature de l’acte de partage','hier'],['note','Appel de Mme Moreau','21 sept.'],['mail','Projet d’état liquidatif','1er oct.']]},
+ {id:3,ref:'2026-031',c:'bleu',nom:'SAS Ferrand Métal c/ SARL Duclos Industrie',type:'Contentieux',ju:'TAE de Lyon',rg:'2026J00311',client:'SAS Ferrand Métal',adv:['Adversaire','Me Anne Perrin'],etape:'Délibéré',ech:{lab:'Jugement mis à disposition',j:36,date:'10 nov.',long:'le 10 novembre'},nl:0,rs:false,clos:false,act:3,tps:'0 h 40',fac:'3 600 €',enc:'3 600 €',st:'F:Assignation|F:Conclusions récapitulatives|F:Plaidoirie|C:Délibéré|N:Exécution',rec:[['mail','Re : dossier de plaidoirie','aujourd’hui'],['audience','Plaidoirie du 29 septembre','29 sept.'],['facture','Facture 2026-0131, honoraires','12 sept.']]},
+ {id:4,ref:'2026-049',c:'bleu',nom:'Albaret Menuiserie, cession de parts',type:'Conseil',ju:'',rg:'',client:'M. Daniel Albaret',adv:['Cessionnaire','SAS Groupe Perret'],etape:'Rédaction',ech:{lab:'Projet d’acte au cessionnaire',j:7,date:'12 oct.',long:'le 12 octobre'},nl:0,rs:true,clos:false,act:4,tps:'6 h 00',fac:'0 €',enc:'0 €',st:'F:Ouverture|C:Rédaction de l’acte|N:Négociation|N:Signature',rec:[['note','Points à négocier avec le cessionnaire','2 oct.'],['piece','Projet d’acte v2','1er oct.']]},
+ {id:5,ref:'2026-052',c:'kraft',nom:'SARL Bensaïd Bâtiment c/ SAS Logistique du Rhône',type:'Contentieux',ju:'TAE de Lyon',rg:'2026J00512',client:'SARL Bensaïd Bâtiment',adv:['Adversaire','Me Hugo Fabre'],etape:'Mise en état',ech:{lab:'Conclusions en réplique',j:14,date:'19 oct.',long:'le 19 octobre'},nl:1,rs:false,clos:false,act:5,tps:'3 h 20',fac:'1 200 €',enc:'0 €',st:'F:Assignation|C:Conclusions en réplique|N:Clôture|N:Plaidoirie',rec:[['mail','Conclusions adverses','30 sept.'],['facture','Facture 2026-0149, provision','28 sept.']]},
+ {id:6,ref:'2026-038',c:'amande',nom:'SCI du Parc Lumière, bail commercial',type:'Conseil',ju:'',rg:'',client:'SCI du Parc Lumière',adv:['Preneur','SARL Bio Marché'],etape:'Négociation',ech:null,nl:0,rs:false,clos:false,act:6,tps:'1 h 10',fac:'900 €',enc:'900 €',st:'F:Ouverture|C:Négociation du bail|N:Rédaction|N:Signature',rec:[['mail','Contre-proposition du preneur','25 sept.']]},
+ {id:7,ref:'2026-044',c:'kraft',nom:'Établissements Roche c/ Mutuelle des Artisans',type:'Contentieux',ju:'TJ de Lyon',rg:'26/03120',client:'Établissements Roche',adv:['Adversaire','Me Léa Chambon'],etape:'Assignation',ech:{lab:'Placement de l’assignation',j:18,date:'23 oct.',long:'le 23 octobre'},nl:0,rs:false,clos:false,act:7,tps:'5 h 45',fac:'0 €',enc:'0 €',st:'F:Ouverture|C:Assignation|N:Mise en état|N:Plaidoirie',rec:[['piece','Projet d’assignation v3','29 sept.']]},
+ {id:8,ref:'2026-021',c:'bleu',nom:'Holding Perrache, restructuration',type:'Conseil',ju:'',rg:'',client:'Holding Perrache SAS',adv:['Interlocuteur','M. Olivier Perrache'],etape:'Préparation',ech:{lab:'Assemblée générale extraordinaire',j:25,date:'30 oct.',long:'le 30 octobre'},nl:0,rs:true,clos:false,act:8,tps:'8 h 30',fac:'4 200 €',enc:'2 100 €',st:'F:Ouverture|C:Préparation des actes|N:Assemblée|N:Formalités',rec:[['facture','Facture 2026-0121, honoraires','14 sept.']]},
+ {id:9,ref:'2026-017',c:'kraft',nom:'Groupe Vignal c/ ancien dirigeant',type:'Contentieux',ju:'Cour d’appel de Lyon',rg:'25/02266',client:'Groupe Vignal',adv:['Adversaire','Me Paul Gaillard'],etape:'Clôture',ech:{lab:'Audience de plaidoirie',j:50,date:'24 nov.',long:'le 24 novembre'},nl:0,rs:false,clos:false,act:9,tps:'0 h 00',fac:'2 400 €',enc:'2 400 €',st:'F:Déclaration d’appel|F:Conclusions|C:Clôture|N:Plaidoirie',rec:[['audience','Ordonnance de clôture','2 oct.']]},
+ {id:10,ref:'2026-060',c:'bleu',nom:'Pharmacie du Marché, cession de fonds',type:'Conseil',ju:'',rg:'',client:'Mme Sophie Lenoir',adv:['Cessionnaire','SELARL Pharma Rhône'],etape:'Ouverture',ech:null,nl:1,rs:false,clos:false,act:0,tps:'0 h 20',fac:'0 €',enc:'0 €',st:'C:Ouverture|N:Diligences|N:Rédaction|N:Signature',rec:[['mail','Premier contact de Mme Lenoir','aujourd’hui']]},
+ {id:11,ref:'2025-118',c:'amande',nom:'Association Les Jardins de la Saône',type:'Conseil',ju:'',rg:'',client:'Association Les Jardins de la Saône',adv:['Interlocuteur','Mme Claire Odin'],etape:'Clôturé le 12 sept.',ech:null,nl:0,rs:false,clos:true,act:20,tps:'0 h 00',fac:'1 500 €',enc:'1 500 €',st:'F:Statuts modifiés',rec:[['facture','Facture 2025-0311, solde','12 sept.']]},
+ {id:12,ref:'2025-094',c:'kraft',nom:'SARL Chavanel c/ Banque du Beaujolais',type:'Contentieux',ju:'TAE de Lyon',rg:'2025J00877',client:'SARL Chavanel',adv:['Adversaire','Me Éric Morel'],etape:'Clôturé le 3 juil.',ech:null,nl:0,rs:false,clos:true,act:21,tps:'0 h 00',fac:'5 400 €',enc:'5 400 €',st:'F:Jugement exécuté',rec:[['facture','Facture 2025-0207, solde','3 juil.']]}];
+let filtre='actifs',tri='ech',q='',sel=1,mode='lire',nuit=false,notice='',nid=61;
+let F={nom:'',c:'kraft',type:'Contentieux',client:'',adv:'',ju:'',rg:'',rs:false};
+const dc=c=>'d-'+c;
+function anneau(j){const r=15,C=2*Math.PI*r,p=Math.max(.1,Math.min(1,1-j/60));
+ return `<svg class="an" width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="${r}" fill="none" style="stroke:var(--filet-m)" stroke-width="4.5"/><circle cx="20" cy="20" r="${r}" fill="none" style="stroke:var(--encre)" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="${(C*p).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 20 20)"/><text x="20" y="24.6" text-anchor="middle" font-size="13" font-weight="800" style="fill:var(--encre)" font-family="Atkinson Hyperlegible Next,system-ui,sans-serif">${j}</text></svg>`}
+function filtrer(){
+ let l=DOS.slice();
+ if(q){const s=q.toLowerCase();l=l.filter(d=>[d.ref,d.nom,d.rg,d.client,d.adv[1],d.ju].join(' ').toLowerCase().includes(s));}
+ else if(filtre==='actifs')l=l.filter(d=>!d.clos);
+ else if(filtre==='proche')l=l.filter(d=>!d.clos&&d.ech&&d.ech.j<=14);
+ else if(filtre==='rs')l=l.filter(d=>d.rs);
+ else if(filtre==='clos')l=l.filter(d=>d.clos);
+ return l;
+}
+function groupes(l){
+ const byj=(a,b)=>(a.ech?a.ech.j:999)-(b.ech?b.ech.j:999);
+ if(tri==='act')return [['',l.slice().sort((a,b)=>a.act-b.act)]];
+ if(tri==='ref')return [['',l.slice().sort((a,b)=>b.ref.localeCompare(a.ref))]];
+ const g=[['Cette semaine',l.filter(d=>!d.clos&&d.ech&&d.ech.j<=7).sort(byj)],['Dans les semaines qui viennent',l.filter(d=>!d.clos&&d.ech&&d.ech.j>7).sort(byj)],['Sans échéance',l.filter(d=>!d.clos&&!d.ech).sort((a,b)=>a.act-b.act)],['Clos',l.filter(d=>d.clos).sort((a,b)=>a.act-b.act)]];
+ return g.filter(x=>x[1].length);
+}
+function ligne(d){
+ const meta=d.type==='Contentieux'?`${d.etape}, ${d.ju}, RG ${d.rg}`:`${d.etape}, ${d.client}`;
+ const ech=d.ech?`<span class="ech-l">${anneau(d.ech.j)}<span class="lb">${fr(d.ech.lab)}<small>${d.ech.date}, ${d.ech.j} jour${d.ech.j>1?'s':''}</small></span></span>`:`<span class="ech-l aucune">${d.clos?'':'Aucune échéance'}</span>`;
+ const ind=`<span class="ind">${d.nl?`<span class="nl" title="${d.nl} mail${d.nl>1?'s':''} non lu${d.nl>1?'s':''}">${ic.mail}${d.nl}</span>`:''}${d.rs?`<span title="Dossier restreint">${ic.cadenas}</span>`:''}</span>`;
+ return `<button class="dos-l ${dc(d.c)}${d.id===sel&&mode==='lire'?' sel':''}" data-id="${d.id}"><span class="ref-l"><i></i>${d.ref}</span><span class="tx" title="${esc(d.nom)}"><span class="nom">${fr(d.nom)}</span><span class="meta">${fr(meta)}</span></span>${ech}${ind}</button>`;
+}
+function liste(){
+ const l=filtrer();
+ if(!l.length)return `<div class="vide-l"><b>${q?'Aucun dossier ne correspond':'Aucun dossier ici'}</b>${q?'Essayez un nom, une référence, un numéro RG ou un adversaire.':'Changez de filtre, ou créez un dossier avec « Nouveau dossier ».'}</div>`;
+ return groupes(l).map(([t,arr])=>(t?`<div class="groupe"><b>${t}</b>${arr.length}</div>`:'')+arr.map(ligne).join('')).join('');
+}
+function seg(){
+ const n={actifs:DOS.filter(d=>!d.clos).length,proche:DOS.filter(d=>!d.clos&&d.ech&&d.ech.j<=14).length,rs:DOS.filter(d=>d.rs).length,clos:DOS.filter(d=>d.clos).length};
+ const f=q?'':filtre;
+ return [['actifs','Actifs'],['proche','Échéance proche'],['rs','Restreints'],['clos','Clos']].map(([k,l])=>`<button data-f="${k}" aria-pressed="${f===k}">${l}<b>${n[k]}</b></button>`).join('');
+}
+function etapes(st){return st.split('|').map(x=>{const [k,t]=[x[0],x.slice(2)];return `<div class="step ${k==='F'?'fait':k==='C'?'cours':'futur'}"><span class="pt">${k==='F'?'✓':''}</span><span>${fr(t)}</span><span></span></div>`}).join('')}
+function apercu(d){
+ const faits=d.type==='Contentieux'?[['Juridiction',d.ju],['N° RG',d.rg],['Client',d.client],[d.adv[0],d.adv[1]]]:[['Nature',d.type],['Client',d.client],[d.adv[0],d.adv[1]]];
+ return `<div class="${dc(d.c)}"><div class="et-ap"><span class="ref"><i></i>Dossier ${d.ref}</span><h3>${fr(d.nom)}</h3></div>
+ <dl class="faits">${faits.map(([k,v])=>`<div><dt>${k}</dt><dd>${fr(v)}</dd></div>`).join('')}</dl>
+ ${d.rs?`<div class="rs">${ic.cadenas}<div><b>Dossier restreint</b>Visible de vous et de Me Camille Roux seulement.</div></div>`:''}
+ ${d.ech?`<div class="carte-ech">${anneau(d.ech.j)}<div><b>${fr(d.ech.lab)}</b><span>${d.ech.long}, dans ${d.ech.j} jour${d.ech.j>1?'s':''}</span></div></div>`:d.clos?`<p class="cloture">${d.etape}. Les pièces, mails et factures restent consultables.</p>`:''}
+ <p class="sec-t">Procédure</p><div class="steps">${etapes(d.st)}</div>
+ <p class="sec-t">Derniers éléments</p><div class="rec">${d.rec.map(([k,t,w])=>`<div class="rec-i"><span class="tu">${ic[k]}</span><span class="t">${fr(t)}</span><small>${w}</small></div>`).join('')}</div>
+ <p class="sec-t">Temps et facturation</p><div class="chiffres"><div><span>Temps non facturé</span><b>${d.tps}</b></div><div><span>Facturé</span><b>${d.fac.replace(' €','\u00A0€')}</b></div><div><span>Encaissé</span><b>${d.enc.replace(' €','\u00A0€')}</b></div></div>
+ <div class="actions"><button class="act fort" data-open="${d.id}">${ic.ouvrir}Ouvrir le dossier</button><button class="act">${ic.mail}Nouveau mail</button><button class="act">${ic.temps}Saisir du temps</button></div></div>`;
+}
+function formulaire(){
+ const cont=F.type==='Contentieux';
+ return `<form class="nv ${dc(F.c)}" onsubmit="return false" aria-label="Nouveau dossier">
+ <h3>Nouveau dossier</h3><p class="ref-info">Référence 2026-0${nid}, attribuée à l’enregistrement.</p>
+ <div class="f"><label for="n-nom">Nom du dossier</label><input id="n-nom" type="text" value="${esc(F.nom)}" placeholder="Exemple : SCI Les Tilleuls c/ Banque Rhodanienne" autocomplete="off"></div>
+ <div class="f"><span class="lab">Type de dossier</span><div class="seg" role="group" aria-label="Type de dossier"><button type="button" data-ty="Contentieux" aria-pressed="${cont}">Contentieux</button><button type="button" data-ty="Conseil" aria-pressed="${!cont}">Conseil</button></div></div>
+ <div class="f"><span class="lab">Couleur de chemise</span><div class="coul" role="group" aria-label="Couleur de chemise">${Object.keys(COUL).map(k=>`<button type="button" class="${dc(k)}" data-co="${k}" aria-pressed="${F.c===k}"><i></i>${COUL[k]}</button>`).join('')}</div></div>
+ <div class="f"><label for="n-cl">Client</label><input id="n-cl" type="text" value="${esc(F.client)}" placeholder="Rechercher ou créer un contact" autocomplete="off"></div>
+ ${cont?`<div class="f"><label for="n-ad">Adversaire</label><input id="n-ad" type="text" value="${esc(F.adv)}" placeholder="Partie adverse ou son conseil" autocomplete="off"></div>
+ <div class="f f2"><div><label for="n-ju">Juridiction</label><input id="n-ju" type="text" value="${esc(F.ju)}" placeholder="Exemple : TAE de Lyon" autocomplete="off"></div><div><label for="n-rg">Numéro RG</label><input id="n-rg" type="text" value="${esc(F.rg)}" placeholder="Si déjà connu" autocomplete="off"></div></div>`:''}
+ <div class="f"><label class="bascule"><input type="checkbox" id="n-rs" ${F.rs?'checked':''}><span>Dossier restreint<small>Seules les personnes que vous choisissez y auront accès.</small></span></label>
+ ${F.rs?`<div class="acces"><span class="puce">Vous</span><span class="puce">Me Camille Roux</span><button type="button" class="bt-f">+ Ajouter une personne</button></div>`:''}</div>
+ <div class="nv-pied"><button type="button" class="creer" id="creer" ${F.nom.trim()?'':'disabled'}>Créer le dossier</button><button type="button" class="bt-f" id="annuler">Annuler</button></div></form>`;
+}
+function render(){
+ const w=document.getElementById('win'); w.className='win m-neutre'+(nuit?' nuit':'');
+ const act=DOS.filter(d=>!d.clos), sem=act.filter(d=>d.ech&&d.ech.j<=7).length, nrs=DOS.filter(d=>d.rs).length;
+ document.getElementById('sous-titre').textContent=`${act.length} dossiers actifs, ${sem} échéance${sem>1?'s':''} cette semaine`;
+ const pa=document.getElementById('pastille');
+ pa.innerHTML=notice?`<i></i>${notice}`:`<span style="display:flex;width:14px;height:14px">${ic.cadenas}</span>${nrs} dossiers restreints accessibles`;
+ document.getElementById('seg').innerHTML=seg();
+ document.getElementById('liste').innerHTML=liste();
+ const d=DOS.find(x=>x.id===sel);
+ const ap=document.getElementById('ap');ap.className=mode==='nouveau'?'ap nv-mode':'ap';ap.innerHTML=mode==='nouveau'?formulaire():(d?apercu(d):'');
+ document.getElementById('dock').hidden=mode==='nouveau';
+ bind();
+}
+function bind(){
+ document.querySelectorAll('.dos-l').forEach(b=>b.onclick=()=>{sel=+b.dataset.id;mode='lire';render()});
+ document.querySelectorAll('#seg [data-f]').forEach(b=>b.onclick=()=>{filtre=b.dataset.f;q='';document.getElementById('q').value='';const l=filtrer();if(l.length&&!l.find(x=>x.id===sel))sel=groupes(l)[0][1][0].id;render()});
+ document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{const d=DOS.find(x=>x.id===+b.dataset.open);notice=`Ouverture de ${d.ref} dans un onglet`;render();setTimeout(()=>{notice='';render()},2200)});
+ if(mode==='nouveau'){
+  const g=id=>document.getElementById(id);
+  const sync=()=>{F.nom=g('n-nom').value;F.client=g('n-cl').value;if(g('n-ad')){F.adv=g('n-ad').value;F.ju=g('n-ju').value;F.rg=g('n-rg').value}g('creer').disabled=!F.nom.trim()};
+  ['n-nom','n-cl','n-ad','n-ju','n-rg'].forEach(i=>{const e=g(i);if(e)e.oninput=sync});
+  document.querySelectorAll('[data-ty]').forEach(b=>b.onclick=()=>{sync();F.type=b.dataset.ty;render()});
+  document.querySelectorAll('[data-co]').forEach(b=>b.onclick=()=>{sync();F.c=b.dataset.co;render()});
+  g('n-rs').onchange=e=>{sync();F.rs=e.target.checked;render()};
+  g('annuler').onclick=()=>{mode='lire';render()};
+  g('creer').onclick=()=>{sync();if(!F.nom.trim())return;const cont=F.type==='Contentieux';
+   const nd={id:100+nid,ref:'2026-0'+nid,c:F.c,nom:F.nom.trim(),type:F.type,ju:F.ju,rg:F.rg,client:F.client||'Client à renseigner',adv:[cont?'Adversaire':'Interlocuteur',F.adv||'À renseigner'],etape:cont?'Introduction':'Ouverture',ech:null,nl:0,rs:F.rs,clos:false,act:-1,tps:'0 h 00',fac:'0 €',enc:'0 €',st:'C:Ouverture|N:Diligences|N:Suite du dossier',rec:[['dossier','Dossier créé','aujourd’hui']]};
+   DOS.unshift(nd);nid++;sel=nd.id;filtre='actifs';q='';document.getElementById('q').value='';F={nom:'',c:'kraft',type:'Contentieux',client:'',adv:'',ju:'',rg:'',rs:false};mode='lire';tri='act';document.getElementById('tri').value='act';render()};
+ }
+}
+document.getElementById('nouveau').onclick=()=>{mode='nouveau';render();const e=document.getElementById('n-nom');if(e)e.focus()};
+document.getElementById('q').oninput=e=>{q=e.target.value.trim();const l=filtrer();if(l.length&&!l.find(x=>x.id===sel)){sel=groupes(l)[0][1][0].id}document.getElementById('seg').innerHTML=seg();document.getElementById('liste').innerHTML=liste();const d=DOS.find(x=>x.id===sel);if(mode==='lire')document.getElementById('ap').innerHTML=d?apercu(d):'';bind()};
+document.getElementById('tri').onchange=e=>{tri=e.target.value;render()};
+document.querySelectorAll('.choix[data-g=theme] button').forEach(b=>b.onclick=()=>{nuit=b.dataset.t==='nuit';document.querySelectorAll('.choix[data-g=theme] button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));render()});
+render();
+
+(function(){const av=document.getElementById('av'),mc=document.getElementById('mc');if(!av||!mc)return;
+ const ferme=()=>{mc.hidden=true;av.setAttribute('aria-expanded','false')};
+ av.onclick=e=>{e.stopPropagation();const o=mc.hidden;mc.hidden=!o;av.setAttribute('aria-expanded',String(o))};
+ document.addEventListener('click',e=>{if(!mc.hidden&&!mc.contains(e.target))ferme()});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!mc.hidden){ferme();av.focus()}});
+ mc.querySelectorAll('button').forEach(b=>b.onclick=ferme);})();
+</script>
+</body>
+</html>
