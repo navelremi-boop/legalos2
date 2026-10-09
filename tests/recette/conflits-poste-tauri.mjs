@@ -16,7 +16,7 @@
  * Ne journalise aucun secret.
  */
 import { randomUUID } from "node:crypto";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
@@ -192,13 +192,23 @@ async function connectCdp(port) {
   });
   let seq = 0;
   const pending = new Map();
+  /** Erreurs JS et messages de console d'erreur de la page, pour le diagnostic d'un écran absent. */
+  const erreurs = [];
   ws.addEventListener("message", (event) => {
     const msg = JSON.parse(String(event.data));
     const done = pending.get(msg.id);
     if (done) {
       pending.delete(msg.id);
       done(msg);
+    } else if (msg.method === "Runtime.exceptionThrown") {
+      const d = msg.params?.exceptionDetails;
+      erreurs.push(`exception: ${d?.exception?.description ?? d?.text ?? "?"}`.slice(0, 400));
+    } else if (msg.method === "Runtime.consoleAPICalled" && msg.params?.type === "error") {
+      erreurs.push(
+        `console.error: ${(msg.params.args ?? []).map((a) => a.value ?? a.description ?? "?").join(" ")}`.slice(0, 400),
+      );
     }
+    if (erreurs.length > 8) erreurs.shift();
   });
   const send = (method, params = {}) =>
     new Promise((resolve) => {
@@ -206,6 +216,8 @@ async function connectCdp(port) {
       pending.set(id, resolve);
       ws.send(JSON.stringify({ id, method, params }));
     });
+  send.erreurs = erreurs;
+  await send("Runtime.enable");
   return { ws, send };
 }
 
@@ -256,6 +268,34 @@ async function setField(send, id, value) {
   if (!ok) throw new Error(`champ ${id}`);
 }
 
+/** Diagnostic d'un écran absent : page, cibles CDP, processus et ports encore présents. */
+async function diagnosticEcran(send, port) {
+  const lire = async (expression) => {
+    try {
+      return await evaluate(send, expression);
+    } catch (err) {
+      return `illisible (${err.message})`;
+    }
+  };
+  const page = await lire(
+    `JSON.stringify({ href: location.href, etat: document.readyState, html: document.documentElement.outerHTML.length, racine: document.getElementById("root")?.childElementCount ?? null })`,
+  );
+  const cibles = await fetch(`http://127.0.0.1:${port}/json`)
+    .then((r) => r.json())
+    .then((l) => l.map((t) => `${t.type}:${t.url}`).join(" | "))
+    .catch((err) => `illisible (${err.message})`);
+  const processus = spawnSync(
+    "powershell",
+    [
+      "-NoProfile",
+      "-Command",
+      `Get-CimInstance Win32_Process | Where-Object { $_.Name -in 'legal-os-poste.exe','msedgewebview2.exe','node.exe' -and $_.CommandLine -match 'legalos|legal-os|tauri|vite' } | ForEach-Object { "$($_.Name) pid=$($_.ProcessId) parent=$($_.ParentProcessId)" }; Get-NetTCPConnection -State Listen -LocalPort 1420,9252,9253,9254 -ErrorAction SilentlyContinue | ForEach-Object { "écoute $($_.LocalPort) pid=$($_.OwningProcess)" }`,
+    ],
+    { encoding: "utf8" },
+  ).stdout.trim().replace(/\r?\n/g, " ; ");
+  return `page=${page} erreurs=[${(send.erreurs ?? []).join(" | ")}] cibles=[${cibles}] processus=[${processus}]`;
+}
+
 async function ecranAuth(send) {
   // Priorité aux formulaires d'auth : après sync l'app ouvre La journée, pas Réglages
   // (cabinet-nom n'est monté que sur l'écran Réglages).
@@ -283,6 +323,7 @@ async function ecranAuth(send) {
  */
 async function login(send, email, password, secret, nomAppareil, opts = {}) {
   const horsLigne = opts.horsLigne === true;
+  const portCdp = opts.port;
   const pret = Date.now();
   let ecran = "";
   while (Date.now() - pret < 60_000) {
@@ -323,12 +364,16 @@ async function login(send, email, password, secret, nomAppareil, opts = {}) {
   }
   if (!ecran) {
     const texte = await evaluate(send, "document.body?.innerText ?? ''");
-    throw new Error(`écran auth absent — ${String(texte).replace(/\s+/g, " ").slice(-240)}`);
+    const diag = await diagnosticEcran(send, portCdp);
+    throw new Error(
+      `écran auth absent — ${String(texte).replace(/\s+/g, " ").slice(-240)} — ${diag}`,
+    );
   }
   if (ecran === "local" && !horsLigne) {
     const texte = await evaluate(send, "document.body?.innerText ?? ''");
+    const diag = await diagnosticEcran(send, portCdp);
     throw new Error(
-      `reconnexion absente (toujours hors ligne) — ${String(texte).replace(/\s+/g, " ").slice(-240)}`,
+      `reconnexion absente (toujours hors ligne) — ${String(texte).replace(/\s+/g, " ").slice(-240)} — ${diag}`,
     );
   }
   if (ecran === "login") {
@@ -409,7 +454,7 @@ async function avecPoste(id, email, password, secret, nom, fn) {
   try {
     await waitCdp(child);
     const page = await connectCdp(child.port);
-    await login(page.send, email, password, secret, nom);
+    await login(page.send, email, password, secret, nom, { port: child.port });
     const result = await fn(page.send, child);
     page.ws.close();
     return result;
@@ -431,7 +476,7 @@ async function ecrireApresDeconnexion(id, email, password, secret, nom, idsJeu, 
     await waitCdp(child);
     const page = await connectCdp(child.port);
     // Pas de reconnexion : on écrit hors ligne dans la file locale.
-    await login(page.send, email, password, secret, nom, { horsLigne: true });
+    await login(page.send, email, password, secret, nom, { horsLigne: true, port: child.port });
     await attendreJeuLocal(page.send, idsJeu);
     await hook(page.send, `window.__legalosRecette.disconnectSync()`);
     await sleep(500);
