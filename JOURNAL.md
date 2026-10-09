@@ -636,3 +636,20 @@ Rejeu de la recette complète avec le diagnostic : **six passes consécutives ex
 ## 2026-10-09 (nuit) — Banc A/B de la Montée PowerSync
 
 Consigne du commandement : mesurer si l'instabilité de conflits-poste-tauri.mjs vient de la montée. Worktree .worktrees/ab-base sur 9374345 (juste avant 58b2f98), recettes de HEAD copiées, CARGO_TARGET_DIR distinct. Un contrôleur lancé avant la réception de la consigne a été arrêté (une passe terminée, exit 0, sans verdict). Préparation (pnpm install, précompilation de la base) lancée à 22:16.
+Banc A/B (tests/recette/ab-conflits.mjs, commit 13e46c4) lancé à 22:18 : 8 passes par arbre, base puis nouveau en alternance, rapport docs/journal/ab-powersync.md réécrit après chaque passe. Aucun push, aucun contrôleur pendant la mesure.
+
+## 2026-10-10 — État de session : banc A/B de la Montée PowerSync terminé
+
+**Fait** : banc `tests/recette/ab-conflits.mjs` (commit `13e46c4`), rapport `docs/journal/ab-powersync.md`. Base `9374345` (juste avant la montée, recettes de HEAD) contre HEAD, 8 passes de `conflits-poste-tauri.mjs` par arbre, en série, alternées, même Docker et même instance, `CARGO_TARGET_DIR` distincts.
+
+**Résultat** : **base 1 échec sur 8 ; nouveau 0 échec sur 8.** L'échec (passe 7, base, 333 s) est le même symptôme que celui du contrôleur : `écran auth absent`, page vide au lancement hors ligne. Le diagnostic montre `http://localhost:1420/` en `readyState: complete`, `html` de 527 octets (la coque `index.html`), `#root` sans enfant, aucune exception JS ni erreur de console, le serveur Vite en écoute et l'app Tauri vivante. L'interface ne s'est donc pas montée, sans erreur visible. Cause racine **non établie**.
+
+**Lecture de la règle** : « échecs seulement sur la base » n'est aucun des trois cas prévus. Je n'ai donc ni coché, ni lancé le contrôleur, ni ouvert de dette. Faits pour la décision : (1) l'instabilité existe sans la montée (passe 7) ; (2) aucun échec de « nouveau » dans le banc (0 sur 8), mais « nouveau » a échoué ailleurs : le 07/10 (`reconnexion absente`) et chez le contrôleur le 09/10 (`écran auth absent`, 1 passe sur 4) ; (3) hors banc, 9 passes consécutives de « nouveau » en exit 0 le 09/10. Au total, le symptôme est observé sur les deux arbres, ce qui correspond à la branche « échecs sur les deux » (l'instabilité précède la montée), mais cette assimilation est au commandement.
+
+**Constats à noter** : la passe 2 (nouveau) a duré 1168 s, contre 535 à 632 s ailleurs, sans cause identifiée. Le diagnostic affiche « écoute » avec un caractère illisible : décodage de la sortie PowerShell dans `diagnosticEcran`, cosmétique. Le worktree `.worktrees/ab-base` et son `target` sont conservés (ignorés par git).
+
+**À décider par le commandement** : (a) assimiler le résultat à la branche « les deux » : faire revalider par le contrôleur en tenant compte du banc, cocher la Montée PowerSync, ouvrir la dette « conflits-poste-tauri instable », à solder avant J11 ; ou (b) exiger d'abord l'enquête sur le `#root` vide (ex. capturer `Page.captureScreenshot`, les requêtes réseau du module d'entrée et le journal de Vite à l'échec).
+
+**Prochaine action** : attendre la décision ci-dessus. Ensuite, soit lancer le contrôleur (Montée PowerSync) avec ce rapport, soit enquêter sur le `#root` vide ; puis Coque claire, puis J11. Rien n'est poussé depuis `f209eb1` ; CI de `f209eb1` verte (run 37984697441, relu par `gh run view`).
+
+**Commandes à relancer** : `node tests/recette/conflits-poste-tauri.mjs` ; `node tests/recette/plan-gouvernance.mjs` ; `gh run list --limit 3`.
