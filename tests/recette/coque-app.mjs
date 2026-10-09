@@ -21,6 +21,19 @@ function ok(msg) {
   console.log(`coque-app: ${msg}`);
 }
 
+/**
+ * Arrête Vite et ses descendants. `shell: true` lance cmd.exe puis pnpm puis node :
+ * sous Windows, `child.kill()` ne tue que cmd.exe et laisse le port 1420 occupé.
+ */
+function arreterArbre(child) {
+  if (child.pid === undefined || child.exitCode !== null) return;
+  if (process.platform === "win32") {
+    spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+  } else {
+    child.kill();
+  }
+}
+
 const CHEMISES = [
   "kraft",
   "bleu-classeur",
@@ -176,15 +189,15 @@ async function runCaptures() {
   const vite = spawn(
     "pnpm",
     ["--filter", "@legal-os/poste", "exec", "vite", "--host", "127.0.0.1", "--port", "1420"],
-    { cwd: root, shell: true, stdio: "pipe" },
+    { cwd: root, shell: true, stdio: "ignore" },
   );
 
   const ready = await waitForUrl("http://127.0.0.1:1420/?galerie=1", 60_000).catch((err) => {
-    vite.kill();
+    arreterArbre(vite);
     fail(`Vite n'a pas démarré : ${err}`);
   });
   if (!ready) {
-    vite.kill();
+    arreterArbre(vite);
     fail("Vite timeout");
   }
 
@@ -323,7 +336,7 @@ async function runCaptures() {
     ok(`captures écrites dans ${relative(root, outDir)}`);
   } finally {
     if (browser) await browser.close();
-    vite.kill();
+    arreterArbre(vite);
   }
 }
 

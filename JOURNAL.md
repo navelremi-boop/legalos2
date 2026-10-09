@@ -622,3 +622,7 @@ Jalon « Référence personnalisable (R0) », après Conflits généralisés. Le
   - `cargo fmt --all -- --check` et `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ;
   - `cargo test --workspace` (Postgres de l'instance) → exit 0, `auth_integration` compris ;
   - `node tests/recette/garde-hooks.mjs` → OK.
+
+## 2026-10-09 — Reprise : Montée PowerSync (conditions de levée)
+
+Port 1420 libre, Docker Desktop relancé. Correctif de l'arrêt de Vite dans coque-app.mjs (arrêt de l'arbre par 	askkill /T /F ; child.kill() ne tuait que cmd.exe). Rejeu de --captures en cours.
