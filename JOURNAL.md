@@ -626,3 +626,6 @@ Jalon « Référence personnalisable (R0) », après Conflits généralisés. Le
 ## 2026-10-09 — Reprise : Montée PowerSync (conditions de levée)
 
 Port 1420 libre, Docker Desktop relancé. Correctif de l'arrêt de Vite dans coque-app.mjs (arrêt de l'arbre par 	askkill /T /F ; child.kill() ne tuait que cmd.exe). Rejeu de --captures en cours.
+Rejeu de conflits-poste-tauri.mjs (passe 1/3, démarrage à froid après relance de Docker) lancé à 19:18.
+conflits-poste-tauri.mjs passe 1/3 (à froid, Docker relancé 1 min avant) : exit 0, 570 s, « tous les critères ». Échec du 07/10 non reproduit. Passes 2 et 3 lancées à 19:28.
+conflits-poste-tauri.mjs : passes 2 et 3 exit 0 (547 s, 524 s) ; avec la passe 1, **trois passes consécutives exit 0**. L'échec du 07/10 (`reconnexion absente`, `conflits-poste-tauri.mjs:330`) n'a pas été reproduit ; sa cause reste non déterminée (hypothèse : services pas encore prêts juste après le redémarrage de Docker, la boucle de `login` réessayant 60 s au plus). Le critère n'est ni modifié ni affaibli. `coque-app.mjs --captures` : exit 0 en 17 s, deux fois, port 1420 libre ensuite (correctif `5c9d6fd`). Prochaine étape : contrôleur sur la Montée PowerSync.
