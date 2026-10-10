@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LEGAL OS — prototype de l’écran Dossiers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--page:#D9DEDC;--texte:#1F2629;--doux:#5A6569;--filet:#C3CAC7;--btn:#FFFFFF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0E1213;--texte:#E4EAE8;--doux:#9CA8AC;--filet:#323B3E;--btn:#1E2427}}
+:root[data-theme="dark"]{--page:#0E1213;--texte:#E4EAE8;--doux:#9CA8AC;--filet:#323B3E;--btn:#1E2427}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--page);color:var(--texte);font-family:"Atkinson Hyperlegible Next",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.45;font-variant-numeric:tabular-nums}
+button,input{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.tete{max-width:1300px;margin:0 auto;padding:22px 24px 6px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px}
+.tete h1{font-size:20px;margin:0;font-weight:800}
+.choix{display:flex;border:1px solid var(--filet);border-radius:8px;overflow:hidden;background:var(--btn)}
+.choix button{padding:6px 14px;border-left:1px solid var(--filet);color:var(--doux)}
+.choix button:first-child{border-left:0}
+.choix button[aria-pressed="true"]{background:var(--texte);color:var(--page);font-weight:700}
+.intro{max-width:1300px;margin:0 auto;padding:4px 24px 14px;color:var(--doux)}
+.intro p{margin:0;max-width:105ch}
+.scene{overflow-x:auto;padding:0 24px 36px}
+.note{max-width:1240px;margin:14px auto 0;color:var(--doux);font-size:13px}
+
+/* ====================== Fenêtre (repris du prototype de référence) ====================== */
+.win{
+ --encre:#141A1C;--graphite:#5A6569;--feuille:#FFFFFF;--feuille-2:#F6F8F7;--filet-m:#E8ECEB;--survol:#F3F6F5;
+ --verre:rgba(255,255,255,.3);--verre-bord:rgba(255,255,255,.42);--verre-fort:rgba(255,255,255,.6);
+ --definitif:#43388A;--definitif-fond:rgba(67,56,138,.09);--definitif-bord:rgba(67,56,138,.2);
+ --ombre-carte:0 1px 0 rgba(255,255,255,.9) inset,0 28px 56px -28px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.06);
+ --sur-chemise:#141A1C;--ok:#2F7D4B;--attente:#9A6A12;--barre-fond:rgba(255,255,255,.74);--barre-ligne:rgba(20,26,28,.1);--barre-texte:#141A1C;--barre-doux:#4A565B;--barre-actif:rgba(20,26,28,.08);--barre-pastille:rgba(20,26,28,.06);--barre-kbd:rgba(20,26,28,.08);--sync:#2F9E5B;--dock-fond:rgba(255,255,255,.82);--dock-texte:#141A1C;--dock-survol:rgba(20,26,28,.07);--dock-prim-f:#141A1C;--dock-prim-t:#F2F5F4;--dock-bord:rgba(20,26,28,.1);--dock-ombre:0 18px 40px -20px rgba(0,0,0,.35);
+ width:1240px;height:800px;margin:0 auto;border-radius:14px;overflow:hidden;color:var(--encre);position:relative;isolation:isolate;
+ background-color:var(--c);background-image:var(--lumiere),var(--grain);transition:background-color .3s ease}
+.win{--lumiere:radial-gradient(120% 90% at 8% -12%,rgba(255,255,255,.22),rgba(255,255,255,0) 55%),radial-gradient(90% 80% at 110% 120%,rgba(0,0,0,.22),rgba(0,0,0,0) 60%)}
+/* Écran général, hors dossier : chemise neutre ardoise */
+.m-neutre{--c:#C5D0D4;--c-t:#E4EBEE;--c-e:#26353C;--c-s:#4F7383;--verre:rgba(255,255,255,.5);--verre-bord:rgba(255,255,255,.7)}
+.win.nuit{--encre:#E8EEEC;--graphite:#9CA8AC;--feuille:#1A2023;--feuille-2:#20272A;--filet-m:#2B3438;--survol:#222A2D;
+ --verre:rgba(0,0,0,.18);--verre-bord:rgba(255,255,255,.1);--verre-fort:rgba(255,255,255,.1);
+ --definitif:#BDB4F5;--definitif-fond:rgba(189,180,245,.1);--definitif-bord:rgba(189,180,245,.25);
+ --ombre-carte:0 1px 0 rgba(255,255,255,.05) inset,0 28px 56px -24px rgba(0,0,0,.7),0 2px 8px rgba(0,0,0,.3);
+ --sur-chemise:#F2F5F4;--ok:#7BD89A;--attente:#E8B85C;--barre-fond:rgba(16,21,23,.86);--barre-ligne:rgba(255,255,255,.06);--barre-texte:#F2F5F4;--barre-doux:#AEB8BC;--barre-actif:rgba(255,255,255,.1);--barre-pastille:rgba(255,255,255,.08);--barre-kbd:rgba(255,255,255,.1);--sync:#7BD89A;--dock-fond:rgba(16,21,23,.86);--dock-texte:#E6ECEA;--dock-survol:rgba(255,255,255,.1);--dock-prim-f:#F2F5F4;--dock-prim-t:#141A1C;--dock-bord:rgba(255,255,255,.14);--dock-ombre:0 18px 40px -12px rgba(0,0,0,.8);}
+.win.nuit{--lumiere:radial-gradient(120% 90% at 8% -12%,rgba(255,255,255,.08),rgba(255,255,255,0) 55%),radial-gradient(90% 80% at 110% 120%,rgba(0,0,0,.35),rgba(0,0,0,0) 60%)}
+.nuit.m-neutre{--c:#1E2629;--c-t:#25323A;--c-e:#D5E1E5;--c-s:#8FB6C6}
+
+/* Couleurs des chemises, pour les pastilles de dossier */
+.d-kraft{--dc:#CE9A55;--dt:#F6E7CE;--de:#5A3F14}
+.d-bleu{--dc:#6FA2E0;--dt:#E1ECFA;--de:#1C4273}
+.d-amande{--dc:#6CBF84;--dt:#E1F3E7;--de:#1F5431}
+.nuit .d-kraft{--dc:#D9A860;--dt:#3A2E1C;--de:#F2D6AB}
+.nuit .d-bleu{--dc:#86B6F0;--dt:#1E2F48;--de:#D2E3F8}
+.nuit .d-amande{--dc:#86CF9C;--dt:#1C3827;--de:#CFEDD8}
+
+/* Variantes du fond de l'écran Mails, jour seulement : teintes chaudes accordées à la barre haute */
+.win[data-fond="lin"]:not(.nuit){--c:#D6CFC2;--c-t:#EFEAE1;--c-e:#3A3022;--c-s:#7C6C50}
+.win[data-fond="pierre"]:not(.nuit){--c:#C9C1B3;--c-t:#ECE6DB;--c-e:#3A3022;--c-s:#76674C}
+.win[data-fond="taupe"]:not(.nuit){--c:#B9AE9E;--c-t:#E9E2D6;--c-e:#352C20;--c-s:#6E5F45}
+/* Variante chaude de la barre haute et de la barre d'actions (jour seulement) */
+.win[data-barre="chaude"]:not(.nuit){--barre-fond:rgba(249,245,238,.9);--barre-ligne:rgba(92,70,40,.14);--barre-texte:#241F19;--barre-doux:#6A6052;--barre-actif:rgba(110,80,40,.1);--barre-pastille:rgba(110,80,40,.07);--barre-kbd:rgba(110,80,40,.1);--sync:#3F9A5F;--dock-fond:rgba(249,245,238,.92);--dock-texte:#241F19;--dock-survol:rgba(110,80,40,.09);--dock-prim-f:#241F19;--dock-prim-t:#F9F5EE;--dock-bord:rgba(92,70,40,.16);--dock-ombre:0 18px 40px -20px rgba(60,40,10,.4)}
+/* Barre */
+.barre{position:absolute;inset:0 0 auto 0;height:58px;display:flex;align-items:center;gap:20px;padding:0 18px;z-index:5;
+ background:var(--barre-fond);color:var(--barre-texte);-webkit-backdrop-filter:blur(20px) saturate(1.1);backdrop-filter:blur(20px) saturate(1.1);box-shadow:inset 0 -1px 0 var(--barre-ligne);transition:background-color .3s}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.nav{display:flex;gap:4px;font-size:13px;flex:1}
+.nav span{padding:5px 10px;border-radius:8px;color:var(--barre-doux)}
+.nav span.on{color:var(--barre-texte);font-weight:700;background:var(--barre-actif)}
+.nav span b{margin-left:6px;font-size:11px;padding:1px 6px;border-radius:999px;background:var(--barre-kbd);color:var(--barre-texte)}
+.outils{display:flex;gap:8px;font-size:13px;color:var(--barre-doux);align-items:center}
+.pilule{display:flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:999px;background:var(--barre-pastille);box-shadow:inset 0 0 0 1px var(--barre-ligne)}
+.kbd{font-size:11px;padding:1px 6px;border-radius:5px;background:var(--barre-kbd);color:var(--barre-doux)}
+.sync{display:flex;align-items:center;gap:6px;font-size:12px;margin-right:4px}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--sync)}
+
+/* Écran */
+.ecran{position:absolute;inset:58px 0 0 0;padding:22px 30px 0;display:grid;grid-template-rows:auto 1fr;color:var(--sur-chemise)}
+.ecran-tete{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:0 4px}
+.ecran-tete h2{font-size:26px;line-height:1.15;margin:0;font-weight:800;letter-spacing:-.015em}
+.ecran-tete p{margin:4px 0 0;font-size:13px;opacity:.78}
+.releve{display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:999px;font-size:12.5px;background:var(--verre);box-shadow:inset 0 0 0 1px var(--verre-bord);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.releve i{width:7px;height:7px;border-radius:50%;background:var(--sync)}
+.pile{position:relative;margin-top:22px;min-height:0}
+.c2{position:absolute;inset:0;border-radius:18px 18px 0 0;transform:translateY(-7px) scaleX(.97);background:var(--verre-fort)}
+.feuille{position:relative;height:100%;border-radius:18px 18px 0 0;background:var(--feuille);box-shadow:var(--ombre-carte);display:grid;grid-template-columns:232px 396px 1fr;color:var(--encre);overflow:hidden;transition:background-color .3s}
+
+
+/* Menu du compte (cahier § 7 : Temps et Réglages dans le menu du compte) */
+.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--barre-actif);color:var(--barre-texte);box-shadow:inset 0 0 0 1px var(--barre-ligne);flex:none}
+.avatar:hover{background:var(--barre-pastille)}
+.avatar[aria-expanded="true"],.avatar.on{box-shadow:inset 0 0 0 2px var(--barre-texte)}
+.avatar:focus-visible{outline:2px solid var(--barre-texte);outline-offset:2px}
+.menu-compte{position:absolute;top:54px;right:14px;z-index:30;width:272px;padding:8px;border-radius:14px;background:var(--feuille);color:var(--encre);box-shadow:0 22px 46px -18px rgba(0,0,0,.55),inset 0 0 0 1px var(--filet-m)}
+.menu-compte .qui{padding:8px 10px 10px;border-bottom:1px solid var(--filet-m);margin-bottom:6px}
+.menu-compte .qui b{display:block;font-size:13.5px}
+.menu-compte .qui span{font-size:12px;color:var(--graphite)}
+.menu-compte button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:9px;text-align:left;font-size:13px}
+.menu-compte button:hover,.menu-compte button:focus-visible{background:var(--survol);outline:0}
+.menu-compte button svg{width:15px;height:15px;color:var(--graphite);flex:none}
+.menu-compte button .kb{margin-left:auto;font-size:11px;padding:1px 6px;border-radius:5px;background:var(--feuille-2);color:var(--graphite);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.menu-compte hr{border:0;border-top:1px solid var(--filet-m);margin:6px 0}
+.menu-compte button.on{font-weight:700;background:var(--feuille-2)}
+.chrono-p{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:999px;background:var(--barre-pastille);box-shadow:inset 0 0 0 1px var(--barre-ligne);font-size:13px;color:var(--barre-texte);white-space:nowrap}
+.chrono-p i{width:9px;height:9px;border-radius:50%;background:#CE9A55;flex:none}
+.chrono-p b{font-weight:800;font-variant-numeric:tabular-nums}
+/* Hauteur contrainte : les zones de liste défilent au lieu de dépasser la fenêtre */
+.ecran{grid-template-rows:auto minmax(0,1fr)}
+.feuille{grid-template-rows:minmax(0,1fr)}
+.feuille>*,.col-ag,.col-liste,.liste-m,.ag-scroll,.dl-corps,.lm-corps{min-height:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ====================== Écran La journée ====================== */
+.feuille{grid-template-columns:minmax(0,1fr)}
+.j-scroll{overflow:auto;min-height:0;padding:22px 30px 100px}
+.j-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:26px 40px}
+.sec h3{display:flex;align-items:baseline;gap:10px;margin:0 0 6px;padding-bottom:8px;border-bottom:1px solid var(--filet-m);font-size:15px;font-weight:800}
+.sec h3 span.n{font-size:12.5px;font-weight:400;color:var(--graphite)}
+.sec h3 .lien{margin-left:auto}
+.lien{font-size:12.5px;font-weight:700;color:var(--encre);text-decoration:underline;text-underline-offset:3px}
+.lien:hover{color:var(--c-s)}
+.btn:focus-visible,.lien:focus-visible,.case:focus-visible,.ev:focus-visible,.dl:focus-visible,.sel:focus-visible{outline:2px solid var(--c-s);outline-offset:1px}
+.pd{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:2px 9px 2px 7px;border-radius:999px;background:var(--dt);color:var(--de);white-space:nowrap}
+.pd i{width:8px;height:8px;border-radius:50%;background:var(--dc);flex:none}
+.btn{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px;border-radius:9px;font-size:12.5px;font-weight:700;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);white-space:nowrap}
+.btn:hover{background:var(--survol)}
+.btn.fort{background:var(--encre);color:var(--feuille);box-shadow:none}
+/* Agenda du jour */
+.ev{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;padding:9px 8px;border-radius:12px;text-align:left}
+.ev:hover{background:var(--survol)}
+.ev .h{font-weight:800;font-size:13.5px;font-variant-numeric:tabular-nums;line-height:1.2}
+.ev .h small{display:block;font-weight:400;font-size:12px;color:var(--graphite)}
+.ev .tx{min-width:0}
+.ev .tx b{display:block;font-size:13.5px;line-height:1.3}
+.ev .tx .m{display:flex;align-items:center;gap:8px;margin-top:3px;font-size:12.5px;color:var(--graphite);min-width:0}
+.ev .tx .m span.l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag{display:inline-flex;align-items:center;font-size:12px;font-weight:700;padding:2px 10px;border-radius:999px;white-space:nowrap}
+.tag.ink{background:var(--encre);color:var(--feuille)}
+.tag.ligne{box-shadow:inset 0 0 0 1.5px var(--filet-m);color:var(--graphite)}
+.tag.violet{color:var(--definitif);background:var(--definitif-fond);box-shadow:inset 0 0 0 1px var(--definitif-bord)}
+.sous-t{font-size:12px;color:var(--graphite);margin:12px 8px 2px}
+.tache{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:12px;align-items:center;padding:7px 8px;border-radius:12px}
+.tache:hover{background:var(--survol)}
+.case{width:18px;height:18px;border-radius:5px;box-shadow:inset 0 0 0 1.8px var(--graphite);display:grid;place-items:center;color:var(--feuille)}
+.case svg{width:11px;height:11px;opacity:0}
+.tache.fait .case{background:var(--encre);box-shadow:none}
+.tache.fait .case svg{opacity:1}
+.tache.fait .tt{text-decoration:line-through;color:var(--graphite)}
+.tache .tt{font-size:13.5px;min-width:0}
+/* Délais */
+.dl{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;padding:8px 8px;border-radius:12px;text-align:left}
+.dl:hover{background:var(--survol)}
+.dl .an{display:block}
+.dl .tx b{display:block;font-size:13.5px;line-height:1.3}
+.dl .tx .m{display:flex;align-items:center;gap:8px;margin-top:3px;font-size:12.5px;color:var(--graphite)}
+.dl .dd{font-size:12.5px;color:var(--graphite);text-align:right;white-space:nowrap}
+.dl .dd b{display:block;color:var(--encre);font-size:13px}
+.cad{display:inline-block;width:12px;height:12px;vertical-align:-1px;margin-left:2px;color:var(--graphite)}
+/* Mails à classer */
+.ml{display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px;padding:10px 8px;border-radius:12px}
+.ml:hover{background:var(--survol)}
+.mono{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:12px;background:var(--feuille-2);color:var(--graphite);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.ml .tx b{display:block;font-size:13.5px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ml .tx .o{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ml .tx .e{display:block;font-size:12.5px;color:var(--graphite);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sg{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--c-t);color:var(--c-e);font-size:12.5px}
+.sg .ra{flex:1 1 100%;color:var(--c-e);opacity:.9}
+.sg .sp{flex:1}
+.sg select,.sel{font:inherit;font-size:12.5px;height:30px;padding:0 24px 0 9px;border:0;border-radius:8px;background-color:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m);color:var(--encre);appearance:none;-webkit-appearance:none;max-width:220px;
+ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%235A6569' stroke-width='1.6'%3E%3Cpath d='m1 1 4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
+.ok-l{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;font-weight:700;color:var(--ok)}
+.ok-l svg{width:14px;height:14px}
+/* Temps à saisir */
+.ts{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:12px;align-items:center;padding:9px 8px;border-radius:12px}
+.ts:hover{background:var(--survol)}
+.ts .tu{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--feuille-2);color:var(--c-s);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.ts .tu svg{width:16px;height:16px}
+.ts .tx b{display:block;font-size:13.5px;line-height:1.3}
+.ts .tx .m{display:flex;align-items:center;gap:8px;margin-top:3px;font-size:12.5px;color:var(--graphite)}
+.nf{display:flex;align-items:center;gap:8px;margin:2px 8px 6px;font-size:12.5px;color:var(--graphite)}
+.nf .lien{margin-left:auto}
+.nf b{color:var(--encre)}
+.vide-j{padding:14px 8px;font-size:13px;color:var(--graphite)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* Barre d'actions flottante (reprise) */
+.dock{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;gap:2px;padding:6px;border-radius:16px;z-index:4;
+ background:var(--dock-fond);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);box-shadow:var(--dock-ombre),inset 0 0 0 1px var(--dock-bord)}
+.dock button{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:11px;color:var(--dock-texte);font-size:13px;white-space:nowrap}
+.dock button:hover{background:var(--dock-survol)}
+.dock button.prim{background:var(--dock-prim-f);color:var(--dock-prim-t);font-weight:700}
+.dock svg{width:15px;height:15px}
+.dock button:focus-visible,.mail:focus-visible,.bal:focus-visible,.vue-classer:focus-visible,.act:focus-visible{outline:2px solid var(--c-s);outline-offset:1px}
+.dock button:focus-visible{outline-color:var(--dock-texte)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+</style>
+</head>
+<body>
+<div class="tete">
+  <h1>Écran La journée, proposition</h1>
+  <div class="choix" data-g="theme" role="group" aria-label="Apparence de la maquette">
+    <button data-t="jour" aria-pressed="true">Jour</button>
+    <button data-t="nuit" aria-pressed="false">Nuit</button>
+  </div>
+  <span style="color:var(--doux);font-size:13px">Cochez une tâche, classez un mail d’un clic (ou choisissez un autre dossier), saisissez un temps suggéré. Le chronomètre tourne dans la barre.</span>
+</div>
+<div class="intro"><p>La journée est la page d’accueil : quatre sections sur une feuille, sans cadres autour de chaque information. Chaque dossier cité porte la pastille de sa chemise. Tout ce qui demande une décision se règle d’un clic, sans quitter la page.</p></div>
+<div class="scene">
+<section class="win m-neutre" id="win" data-fond="lin" data-barre="neutre" aria-label="Maquette de l’écran La journée">
+  <div class="barre">
+    <div class="lights" aria-hidden="true"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></div>
+    <nav class="nav"><span class="on">La journée</span><span class="">Dossiers</span><span class="">Mails<b>2</b></span><span class="">Agenda</span><span class="">Facturation</span></nav>
+    <div class="outils">
+      <span class="chrono-p" title="Chronomètre en cours sur le dossier 2026-042"><i></i><b id="cp-t">0 h 12</b></span><span class="sync" title="Toutes les modifications sont synchronisées"><i></i>Synchronisé</span>
+      <span class="pilule">Rechercher <span class="kbd">Ctrl K</span></span>
+      <button class="avatar" id="av" aria-haspopup="menu" aria-expanded="false" aria-label="Menu du compte">JM</button>
+    </div>
+  </div>
+  <div class="menu-compte" id="mc" role="menu" aria-label="Menu du compte" hidden>
+ <div class="qui"><b>Me Julien Marchal</b><span>j.marchal@cabinet-marchal.example</span></div>
+ <button role="menuitem" data-m="temps"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3l2 1.5"/></svg>Temps<span class="kb">T</span></button>
+ <button role="menuitem" data-m="reglages"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8" r="2.3"/><path d="M8 1.8v1.7M8 12.5v1.7M1.8 8h1.7M12.5 8h1.7M3.6 3.6l1.2 1.2M11.2 11.2l1.2 1.2M12.4 3.6l-1.2 1.2M4.8 11.2l-1.2 1.2"/></svg>Réglages<span class="kb">Ctrl ,</span></button>
+ <button role="menuitem"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>Palette de commandes<span class="kb">Ctrl K</span></button>
+ <hr>
+ <button role="menuitem"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="7" width="9" height="7" rx="1.8"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Verrouiller l’application</button>
+ <button role="menuitem"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 2.5H3.5v11H6M10 5l3 3-3 3M13 8H6"/></svg>Se déconnecter</button>
+</div>
+  <div class="ecran">
+    <div class="ecran-tete">
+      <div><h2>La journée</h2><p id="sous-titre"></p></div>
+      <span class="releve" id="pastille"></span>
+    </div>
+    <div class="pile">
+      <div class="c2"></div>
+      <div class="feuille">
+        <div class="j-scroll" id="scroll"><div class="j-grid" id="grid"></div></div>
+        <div class="dock" id="dock"><button class="prim"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z"/><path d="M8 7v4M6 9h4"/></svg>Nouveau dossier</button><button><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3.5" width="12" height="9" rx="2"/><path d="m2.5 5 5.5 4 5.5-4"/></svg>Nouveau mail</button><button id="d-temps"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3l2 1.5"/></svg>Saisir du temps <span class="kbd">T</span></button></div>
+        
+      </div>
+    </div>
+  </div>
+</section>
+<p class="note">Maquette statique, données fictives, cohérentes avec les autres maquettes (mêmes dossiers, mêmes délais, 26 h 30 non facturées). Attendu dans l’app : les suggestions de classement viennent de la référence, du numéro RG ou de l’expéditeur ; les temps à saisir viennent des mails lus et de l’agenda ; un dossier restreint n’apparaît qu’aux personnes autorisées ; aucune date au format technique.</p>
+</div>
+<script>
+
+function svgUrl(s){return 'url("data:image/svg+xml,'+encodeURIComponent(s)+'")'}
+document.documentElement.style.setProperty('--grain',svgUrl(`<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' seed='4' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .3 0 0 0 -.1'/></filter><rect width='100%' height='100%' filter='url(#n)'/></svg>`));
+const fr=t=>String(t).replace(/ ([:;!?»])/g,'\u202F$1').replace(/« /g,'«\u202F');
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const eur=n=>{const s=Math.abs(n).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'\u202F');return (n<0?'−':'')+s.replace(',00','')+'\u00A0€'};
+const eur2=n=>{const s=Math.abs(n).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'\u202F');return (n<0?'−':'')+s+'\u00A0€'};
+let nuit=false;
+(function(){
+ const av=document.getElementById('av'),mc=document.getElementById('mc');
+ const ferme=()=>{mc.hidden=true;av.setAttribute('aria-expanded','false')};
+ av.onclick=e=>{e.stopPropagation();const o=mc.hidden;mc.hidden=!o;av.setAttribute('aria-expanded',String(o))};
+ document.addEventListener('click',e=>{if(!mc.hidden&&!mc.contains(e.target))ferme()});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!mc.hidden){ferme();av.focus()}});
+ mc.querySelectorAll('button').forEach(b=>b.onclick=()=>{ferme();if(window.menuChoix)window.menuChoix(b.dataset.m)});
+})();
+document.querySelectorAll('.choix[data-g=theme] button').forEach(b=>b.onclick=()=>{nuit=b.dataset.t==='nuit';document.querySelectorAll('.choix[data-g=theme] button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));render()});
+
+
+const S=(p,w)=>`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="${w||1.7}">${p}</svg>`;
+const ic={coche:S('<path d="m3 8.5 3 3 7-7"/>',2.2),cadenas:S('<rect x="3.5" y="7" width="9" height="7" rx="1.8"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',1.8),lettre:S('<rect x="2" y="3.5" width="12" height="9" rx="2"/><path d="m2.5 5 5.5 4 5.5-4"/>'),cal:S('<rect x="2.5" y="3.5" width="11" height="10" rx="2"/><path d="M2.5 7h11M5.5 2v3M10.5 2v3"/>')};
+const DOSS={'2026-042':['kraft','SCI Les Tilleuls'],'2026-052':['kraft','Bensaïd Bâtiment'],'2026-057':['amande','Succession Moreau'],'2026-049':['bleu','Albaret Menuiserie'],'2026-021':['bleu','Holding Perrache'],'2026-031':['bleu','Ferrand Métal'],'2026-044':['kraft','Établissements Roche'],'2026-060':['bleu','Pharmacie du Marché']};
+const dc=r=>'d-'+DOSS[r][0],pd=r=>`<span class="pd ${dc(r)}"><i></i>${r}</span>`;
+function anneau(j){const r=14,C=2*Math.PI*r,p=Math.max(.1,Math.min(1,1-j/60));
+ return `<svg class="an" width="38" height="38" viewBox="0 0 38 38" aria-hidden="true"><circle cx="19" cy="19" r="${r}" fill="none" style="stroke:var(--filet-m)" stroke-width="4.2"/><circle cx="19" cy="19" r="${r}" fill="none" style="stroke:var(--encre)" stroke-width="4.2" stroke-linecap="round" stroke-dasharray="${(C*p).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 19 19)"/><text x="19" y="23.2" text-anchor="middle" font-size="12.5" font-weight="800" style="fill:var(--encre)" font-family="Atkinson Hyperlegible Next,system-ui,sans-serif">${j}</text></svg>`}
+const NOW=9*60+40;
+let taches=[{id:1,t:'Relire le projet d’assignation',dos:'2026-044',f:false},{id:2,t:'Envoyer la convention d’honoraires',dos:'2026-060',f:false}];
+let mails=[
+ {id:1,mono:'CA',exp:'Greffe de la cour d’appel de Lyon',obj:'Avis de fixation, RG 25/04417',ext:'L’affaire est fixée à l’audience de mise en état du 12 novembre…',dos:'2026-042',ra:'Le numéro RG 25/04417 est celui de ce dossier.',etat:'sug'},
+ {id:2,mono:'BR',exp:'Banque Rhodanienne, service contentieux',obj:'Proposition de protocole d’accord',ext:'Maître, faisant suite à nos échanges, nous vous adressons une proposition…',dos:'2026-042',ra:'L’expéditeur n’intervient que dans ce dossier.',etat:'sug'}];
+let temps=[
+ {id:1,kind:'mail',t:'14 minutes passées sur « Communication de pièces adverses nᵒˢ 14 à 19 »',dos:'2026-042',min:14},
+ {id:2,kind:'mail',t:'9 minutes passées sur « Re : dossier de plaidoirie »',dos:'2026-031',min:9},
+ {id:3,kind:'agenda',t:'Rendez-vous du vendredi 2 octobre, de 10 h 00 à 11 h 00',dos:'2026-021',min:60}];
+let notice='',choisir=0,saisis=165,chrono=754;
+const hm=m=>`${Math.floor(m/60)} h ${String(m%60).padStart(2,'0')}`;
+const lab=m=>m<60?`${m} min`:(m%60?hm(m):`${m/60} h`);
+function secAgenda(){
+ return `<section class="sec" aria-label="Aujourd’hui"><h3>Aujourd’hui <span class="n">2 rendez-vous, 2 tâches</span><button class="lien">Ouvrir l’agenda</button></h3>
+ <button class="ev ${dc('2026-052')}"><span class="h">9 h 00<small>10 h 00</small></span><span class="tx"><b>Audience de mise en état</b><span class="m">${pd('2026-052')}<span class="l">TAE de Lyon, salle 4</span></span></span><span class="tag ink">En cours</span></button>
+ <button class="ev ${dc('2026-057')}"><span class="h">14 h 00<small>15 h 00</small></span><span class="tx"><b>Préparer la signature avec Mme Moreau</b><span class="m">${pd('2026-057')}<span class="l">Cabinet, salle de réunion</span></span></span><span class="tag ligne">Dans ${Math.floor((14*60-NOW)/60)} h ${String((14*60-NOW)%60).padStart(2,'0')}</span></button>
+ <p class="sous-t">À faire aujourd’hui</p>
+ ${taches.map(x=>`<div class="tache ${dc(x.dos)}${x.f?' fait':''}"><button class="case" role="checkbox" aria-checked="${x.f}" aria-label="Marquer comme faite : ${x.t}" data-tache="${x.id}">${ic.coche}</button><span class="tt">${x.t}</span>${pd(x.dos)}</div>`).join('')}</section>`;
+}
+function secDelais(){
+ const D=[[3,'Signature de l’acte de partage','2026-057','jeudi 8 octobre, 10 h 00',false],[7,'Projet d’acte au cessionnaire','2026-049','lundi 12 octobre',false,true],[9,'Conclusions d’appelant','2026-042','mercredi 14 octobre',true],[14,'Conclusions en réplique','2026-052','lundi 19 octobre',false]];
+ return `<section class="sec" aria-label="Délais"><h3>Délais <span class="n">les quatre prochains</span><button class="lien">Voir tous les délais</button></h3>
+ ${D.map(([j,t,d,q,calc,rs])=>`<button class="dl ${dc(d)}">${anneau(j)}<span class="tx"><b>${t}${rs?`<span class="cad" title="Dossier restreint">${ic.cadenas}</span>`:''}</b><span class="m">${pd(d)}${calc?'<span class="tag violet">Calculé</span>':''}</span></span><span class="dd"><b>dans ${j} jours</b>${q}</span></button>`).join('')}</section>`;
+}
+function secMails(){
+ const l=mails.filter(m=>m.etat!=='fait');
+ return `<section class="sec" aria-label="Mails à classer"><h3>Mails à classer <span class="n">${l.length}</span><button class="lien">Ouvrir les mails</button></h3>
+ ${l.length?l.map(m=>{
+  let bas;
+  if(m.etat==='ok')bas=`<div class="ok-l">${ic.coche}Classé dans ${m.dos}, ${DOSS[m.dos][1]}</div>`;
+  else if(choisir===m.id)bas=`<div class="sg"><select class="sel" id="ch-${m.id}" aria-label="Choisir un dossier">${Object.keys(DOSS).map(k=>`<option value="${k}"${k===m.dos?' selected':''}>${k}, ${DOSS[k][1]}</option>`).join('')}</select><span class="sp"></span><button class="btn fort" data-cl="${m.id}">Classer</button><button class="btn" data-an="1">Annuler</button></div>`;
+  else bas=`<div class="sg ${dc(m.dos)}"><span>Suggéré :</span>${pd(m.dos)}<span>${DOSS[m.dos][1]}</span><span class="sp"></span><button class="btn fort" data-cl="${m.id}">Classer</button><button class="btn" data-au="${m.id}">Autre dossier</button><span class="ra">${m.ra}</span></div>`;
+  return `<div class="ml"><span class="mono">${m.mono}</span><span class="tx"><b>${m.exp}</b><span class="o">${m.obj}</span><span class="e">${m.ext}</span>${bas}</span></div>`}).join(''):`<p class="vide-j">Tous les mails sont classés.</p>`}</section>`;
+}
+function secTemps(){
+ return `<section class="sec" aria-label="Temps à saisir"><h3>Temps à saisir <span class="n">${temps.length}</span><button class="lien" id="l-temps">Ouvrir le temps</button></h3>
+ <p class="nf"><span>Non facturé : <b>26 h 30</b>, soit <b>6 677,50 € HT</b></span><button class="lien" id="l-fact">Ce qui reste à facturer</button></p>
+ ${temps.length?temps.map(x=>`<div class="ts ${dc(x.dos)}"><span class="tu">${x.kind==='mail'?ic.lettre:ic.cal}</span><span class="tx"><b>${x.t}</b><span class="m">${pd(x.dos)}<span>${x.kind==='mail'?'Relevé sur vos mails':'Relevé sur votre agenda'}</span></span></span><button class="btn fort" data-ts="${x.id}">Saisir ${lab(x.min)}</button></div>`).join(''):`<p class="vide-j">Rien à saisir pour le moment.</p>`}</section>`;
+}
+function render(){
+ const w=document.getElementById('win');w.className='win m-neutre'+(nuit?' nuit':'');
+ document.getElementById('sous-titre').textContent='lundi 5 octobre 2026';
+ const pa=document.getElementById('pastille');pa.innerHTML=notice?`<i></i>${notice}`:`<i></i>Prochain rendez-vous dans ${Math.floor((14*60-NOW)/60)} h ${String((14*60-NOW)%60).padStart(2,'0')}`;
+ document.getElementById('grid').innerHTML=secAgenda()+secDelais()+secMails()+secTemps();
+ bind();
+}
+function flash(t,ms){notice=t;render();setTimeout(()=>{notice='';render()},ms||2000)}
+function bind(){
+ const $=(s,f)=>document.querySelectorAll(s).forEach(f);
+ $('[data-tache]',b=>b.onclick=()=>{const x=taches.find(t=>t.id===+b.dataset.tache);x.f=!x.f;render()});
+ $('[data-cl]',b=>b.onclick=()=>{const m=mails.find(x=>x.id===+b.dataset.cl);const sel=document.getElementById('ch-'+m.id);if(sel)m.dos=sel.value;m.etat='ok';choisir=0;render();setTimeout(()=>{m.etat='fait';render()},1400)});
+ $('[data-au]',b=>b.onclick=()=>{choisir=+b.dataset.au;render()});
+ $('[data-an]',b=>b.onclick=()=>{choisir=0;render()});
+ $('[data-ts]',b=>b.onclick=()=>{const x=temps.find(t=>t.id===+b.dataset.ts);temps=temps.filter(t=>t.id!==x.id);flash(`${lab(x.min)} saisies sur ${x.dos}`,2200)});
+ const lt=document.getElementById('l-temps');if(lt)lt.onclick=()=>flash('Dans l’application : l’écran Temps, depuis le menu du compte',2200);
+ const lf=document.getElementById('l-fact');if(lf)lf.onclick=()=>flash('Dans l’application : Facturation, onglet À facturer',2200);
+}
+document.getElementById('d-temps').onclick=()=>flash('Dans l’application : la saisie de temps s’ouvre ici (raccourci T)',2200);
+setInterval(()=>{chrono++;const cp=document.getElementById('cp-t');if(cp)cp.textContent=hm(Math.floor(chrono/60))},1000);
+window.menuChoix=k=>{};
+render();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LEGAL OS — prototype de l’écran Dossiers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--page:#D9DEDC;--texte:#1F2629;--doux:#5A6569;--filet:#C3CAC7;--btn:#FFFFFF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0E1213;--texte:#E4EAE8;--doux:#9CA8AC;--filet:#323B3E;--btn:#1E2427}}
+:root[data-theme="dark"]{--page:#0E1213;--texte:#E4EAE8;--doux:#9CA8AC;--filet:#323B3E;--btn:#1E2427}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--page);color:var(--texte);font-family:"Atkinson Hyperlegible Next",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.45;font-variant-numeric:tabular-nums}
+button,input{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.tete{max-width:1300px;margin:0 auto;padding:22px 24px 6px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px}
+.tete h1{font-size:20px;margin:0;font-weight:800}
+.choix{display:flex;border:1px solid var(--filet);border-radius:8px;overflow:hidden;background:var(--btn)}
+.choix button{padding:6px 14px;border-left:1px solid var(--filet);color:var(--doux)}
+.choix button:first-child{border-left:0}
+.choix button[aria-pressed="true"]{background:var(--texte);color:var(--page);font-weight:700}
+.intro{max-width:1300px;margin:0 auto;padding:4px 24px 14px;color:var(--doux)}
+.intro p{margin:0;max-width:105ch}
+.scene{overflow-x:auto;padding:0 24px 36px}
+.note{max-width:1240px;margin:14px auto 0;color:var(--doux);font-size:13px}
+
+/* ====================== Fenêtre (repris du prototype de référence) ====================== */
+.win{
+ --encre:#141A1C;--graphite:#5A6569;--feuille:#FFFFFF;--feuille-2:#F6F8F7;--filet-m:#E8ECEB;--survol:#F3F6F5;
+ --verre:rgba(255,255,255,.3);--verre-bord:rgba(255,255,255,.42);--verre-fort:rgba(255,255,255,.6);
+ --definitif:#43388A;--definitif-fond:rgba(67,56,138,.09);--definitif-bord:rgba(67,56,138,.2);
+ --ombre-carte:0 1px 0 rgba(255,255,255,.9) inset,0 28px 56px -28px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.06);
+ --sur-chemise:#141A1C;--ok:#2F7D4B;--attente:#9A6A12;--barre-fond:rgba(255,255,255,.74);--barre-ligne:rgba(20,26,28,.1);--barre-texte:#141A1C;--barre-doux:#4A565B;--barre-actif:rgba(20,26,28,.08);--barre-pastille:rgba(20,26,28,.06);--barre-kbd:rgba(20,26,28,.08);--sync:#2F9E5B;--dock-fond:rgba(255,255,255,.82);--dock-texte:#141A1C;--dock-survol:rgba(20,26,28,.07);--dock-prim-f:#141A1C;--dock-prim-t:#F2F5F4;--dock-bord:rgba(20,26,28,.1);--dock-ombre:0 18px 40px -20px rgba(0,0,0,.35);
+ width:1240px;height:800px;margin:0 auto;border-radius:14px;overflow:hidden;color:var(--encre);position:relative;isolation:isolate;
+ background-color:var(--c);background-image:var(--lumiere),var(--grain);transition:background-color .3s ease}
+.win{--lumiere:radial-gradient(120% 90% at 8% -12%,rgba(255,255,255,.22),rgba(255,255,255,0) 55%),radial-gradient(90% 80% at 110% 120%,rgba(0,0,0,.22),rgba(0,0,0,0) 60%)}
+/* Écran général, hors dossier : chemise neutre ardoise */
+.m-neutre{--c:#C5D0D4;--c-t:#E4EBEE;--c-e:#26353C;--c-s:#4F7383;--verre:rgba(255,255,255,.5);--verre-bord:rgba(255,255,255,.7)}
+.win.nuit{--encre:#E8EEEC;--graphite:#9CA8AC;--feuille:#1A2023;--feuille-2:#20272A;--filet-m:#2B3438;--survol:#222A2D;
+ --verre:rgba(0,0,0,.18);--verre-bord:rgba(255,255,255,.1);--verre-fort:rgba(255,255,255,.1);
+ --definitif:#BDB4F5;--definitif-fond:rgba(189,180,245,.1);--definitif-bord:rgba(189,180,245,.25);
+ --ombre-carte:0 1px 0 rgba(255,255,255,.05) inset,0 28px 56px -24px rgba(0,0,0,.7),0 2px 8px rgba(0,0,0,.3);
+ --sur-chemise:#F2F5F4;--ok:#7BD89A;--attente:#E8B85C;--barre-fond:rgba(16,21,23,.86);--barre-ligne:rgba(255,255,255,.06);--barre-texte:#F2F5F4;--barre-doux:#AEB8BC;--barre-actif:rgba(255,255,255,.1);--barre-pastille:rgba(255,255,255,.08);--barre-kbd:rgba(255,255,255,.1);--sync:#7BD89A;--dock-fond:rgba(16,21,23,.86);--dock-texte:#E6ECEA;--dock-survol:rgba(255,255,255,.1);--dock-prim-f:#F2F5F4;--dock-prim-t:#141A1C;--dock-bord:rgba(255,255,255,.14);--dock-ombre:0 18px 40px -12px rgba(0,0,0,.8);}
+.win.nuit{--lumiere:radial-gradient(120% 90% at 8% -12%,rgba(255,255,255,.08),rgba(255,255,255,0) 55%),radial-gradient(90% 80% at 110% 120%,rgba(0,0,0,.35),rgba(0,0,0,0) 60%)}
+.nuit.m-neutre{--c:#1E2629;--c-t:#25323A;--c-e:#D5E1E5;--c-s:#8FB6C6}
+
+/* Couleurs des chemises, pour les pastilles de dossier */
+.d-kraft{--dc:#CE9A55;--dt:#F6E7CE;--de:#5A3F14}
+.d-bleu{--dc:#6FA2E0;--dt:#E1ECFA;--de:#1C4273}
+.d-amande{--dc:#6CBF84;--dt:#E1F3E7;--de:#1F5431}
+.nuit .d-kraft{--dc:#D9A860;--dt:#3A2E1C;--de:#F2D6AB}
+.nuit .d-bleu{--dc:#86B6F0;--dt:#1E2F48;--de:#D2E3F8}
+.nuit .d-amande{--dc:#86CF9C;--dt:#1C3827;--de:#CFEDD8}
+
+/* Variantes du fond de l'écran Mails, jour seulement : teintes chaudes accordées à la barre haute */
+.win[data-fond="lin"]:not(.nuit){--c:#D6CFC2;--c-t:#EFEAE1;--c-e:#3A3022;--c-s:#7C6C50}
+.win[data-fond="pierre"]:not(.nuit){--c:#C9C1B3;--c-t:#ECE6DB;--c-e:#3A3022;--c-s:#76674C}
+.win[data-fond="taupe"]:not(.nuit){--c:#B9AE9E;--c-t:#E9E2D6;--c-e:#352C20;--c-s:#6E5F45}
+/* Variante chaude de la barre haute et de la barre d'actions (jour seulement) */
+.win[data-barre="chaude"]:not(.nuit){--barre-fond:rgba(249,245,238,.9);--barre-ligne:rgba(92,70,40,.14);--barre-texte:#241F19;--barre-doux:#6A6052;--barre-actif:rgba(110,80,40,.1);--barre-pastille:rgba(110,80,40,.07);--barre-kbd:rgba(110,80,40,.1);--sync:#3F9A5F;--dock-fond:rgba(249,245,238,.92);--dock-texte:#241F19;--dock-survol:rgba(110,80,40,.09);--dock-prim-f:#241F19;--dock-prim-t:#F9F5EE;--dock-bord:rgba(92,70,40,.16);--dock-ombre:0 18px 40px -20px rgba(60,40,10,.4)}
+/* Barre */
+.barre{position:absolute;inset:0 0 auto 0;height:58px;display:flex;align-items:center;gap:20px;padding:0 18px;z-index:5;
+ background:var(--barre-fond);color:var(--barre-texte);-webkit-backdrop-filter:blur(20px) saturate(1.1);backdrop-filter:blur(20px) saturate(1.1);box-shadow:inset 0 -1px 0 var(--barre-ligne);transition:background-color .3s}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.nav{display:flex;gap:4px;font-size:13px;flex:1}
+.nav span{padding:5px 10px;border-radius:8px;color:var(--barre-doux)}
+.nav span.on{color:var(--barre-texte);font-weight:700;background:var(--barre-actif)}
+.nav span b{margin-left:6px;font-size:11px;padding:1px 6px;border-radius:999px;background:var(--barre-kbd);color:var(--barre-texte)}
+.outils{display:flex;gap:8px;font-size:13px;color:var(--barre-doux);align-items:center}
+.pilule{display:flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:999px;background:var(--barre-pastille);box-shadow:inset 0 0 0 1px var(--barre-ligne)}
+.kbd{font-size:11px;padding:1px 6px;border-radius:5px;background:var(--barre-kbd);color:var(--barre-doux)}
+.sync{display:flex;align-items:center;gap:6px;font-size:12px;margin-right:4px}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--sync)}
+
+/* Écran */
+.ecran{position:absolute;inset:58px 0 0 0;padding:22px 30px 0;display:grid;grid-template-rows:auto 1fr;color:var(--sur-chemise)}
+.ecran-tete{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:0 4px}
+.ecran-tete h2{font-size:26px;line-height:1.15;margin:0;font-weight:800;letter-spacing:-.015em}
+.ecran-tete p{margin:4px 0 0;font-size:13px;opacity:.78}
+.releve{display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:999px;font-size:12.5px;background:var(--verre);box-shadow:inset 0 0 0 1px var(--verre-bord);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.releve i{width:7px;height:7px;border-radius:50%;background:var(--sync)}
+.pile{position:relative;margin-top:22px;min-height:0}
+.c2{position:absolute;inset:0;border-radius:18px 18px 0 0;transform:translateY(-7px) scaleX(.97);background:var(--verre-fort)}
+.feuille{position:relative;height:100%;border-radius:18px 18px 0 0;background:var(--feuille);box-shadow:var(--ombre-carte);display:grid;grid-template-columns:232px 396px 1fr;color:var(--encre);overflow:hidden;transition:background-color .3s}
+
+
+/* Menu du compte (cahier § 7 : Temps et Réglages dans le menu du compte) */
+.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--barre-actif);color:var(--barre-texte);box-shadow:inset 0 0 0 1px var(--barre-ligne);flex:none}
+.avatar:hover{background:var(--barre-pastille)}
+.avatar[aria-expanded="true"],.avatar.on{box-shadow:inset 0 0 0 2px var(--barre-texte)}
+.avatar:focus-visible{outline:2px solid var(--barre-texte);outline-offset:2px}
+.menu-compte{position:absolute;top:54px;right:14px;z-index:30;width:272px;padding:8px;border-radius:14px;background:var(--feuille);color:var(--encre);box-shadow:0 22px 46px -18px rgba(0,0,0,.55),inset 0 0 0 1px var(--filet-m)}
+.menu-compte .qui{padding:8px 10px 10px;border-bottom:1px solid var(--filet-m);margin-bottom:6px}
+.menu-compte .qui b{display:block;font-size:13.5px}
+.menu-compte .qui span{font-size:12px;color:var(--graphite)}
+.menu-compte button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:9px;text-align:left;font-size:13px}
+.menu-compte button:hover,.menu-compte button:focus-visible{background:var(--survol);outline:0}
+.menu-compte button svg{width:15px;height:15px;color:var(--graphite);flex:none}
+.menu-compte button .kb{margin-left:auto;font-size:11px;padding:1px 6px;border-radius:5px;background:var(--feuille-2);color:var(--graphite);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.menu-compte hr{border:0;border-top:1px solid var(--filet-m);margin:6px 0}
+.menu-compte button.on{font-weight:700;background:var(--feuille-2)}
+.chrono-p{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:999px;background:var(--barre-pastille);box-shadow:inset 0 0 0 1px var(--barre-ligne);font-size:13px;color:var(--barre-texte);white-space:nowrap}
+.chrono-p i{width:9px;height:9px;border-radius:50%;background:#CE9A55;flex:none}
+.chrono-p b{font-weight:800;font-variant-numeric:tabular-nums}
+/* Hauteur contrainte : les zones de liste défilent au lieu de dépasser la fenêtre */
+.ecran{grid-template-rows:auto minmax(0,1fr)}
+.feuille{grid-template-rows:minmax(0,1fr)}
+.feuille>*,.col-ag,.col-liste,.liste-m,.ag-scroll,.dl-corps,.lm-corps{min-height:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ====================== Écran Temps ====================== */
+.feuille{grid-template-columns:minmax(0,1fr) 340px}
+.col-t{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid var(--filet-m)}
+.t-scroll{min-height:0}
+.t-haut{display:grid;grid-template-columns:320px minmax(0,1fr);gap:12px;padding:16px 20px 0}
+.t-card{padding:14px 16px;border-radius:14px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);min-width:0}
+.t-card h3{margin:0 0 8px;font-size:12.5px;font-weight:400;color:var(--graphite)}
+.chrono-g{font-size:36px;font-weight:800;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.chrono-g small{font-size:16px;font-weight:700;color:var(--graphite);margin-left:2px}
+.chrono-g.pause{color:var(--graphite)}
+.t-card .ln{display:flex;align-items:center;gap:8px;margin:8px 0 0;font-size:12.5px;color:var(--graphite);min-width:0}
+.t-card .ln span.n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.champ{margin:10px 0 0}
+.champ label{display:block;font-size:12px;color:var(--graphite);margin-bottom:3px}
+.champ input,.champ select{font:inherit;font-size:13px;height:34px;width:100%;padding:0 10px;border:0;border-radius:9px;background-color:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m);outline:0;color:var(--encre);appearance:none;-webkit-appearance:none}
+.champ select{padding-right:26px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%235A6569' stroke-width='1.6'%3E%3Cpath d='m1 1 4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center}
+.champ input:focus,.champ select:focus{box-shadow:inset 0 0 0 2px var(--c-s)}
+.g2{display:grid;grid-template-columns:1.4fr 1fr 0.8fr;gap:10px}
+.btns{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 13px;border-radius:10px;font-size:12.5px;font-weight:700;background:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m);white-space:nowrap}
+.btn:hover{background:var(--survol)}
+.btn svg{width:14px;height:14px}
+.btn.fort{background:var(--encre);color:var(--feuille);box-shadow:none}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,.lien:focus-visible,.seg button:focus-visible,.tr-l:focus-visible,.del:focus-visible,.dosl:focus-visible,.champ input:focus-visible{outline:2px solid var(--c-s);outline-offset:1px}
+.apercu-t{margin:8px 0 0;font-size:12.5px;color:var(--graphite);min-height:18px}
+.apercu-t b{color:var(--encre)}
+.sugg{display:flex;align-items:center;gap:12px;margin:12px 20px 0;padding:10px 14px;border-radius:12px;background:var(--c-t);color:var(--c-e);font-size:12.5px}
+.sugg svg{width:16px;height:16px;flex:none}
+.sugg span.tx{flex:1;min-width:0}
+.sugg b{color:var(--encre)}
+.sugg .bt{display:flex;gap:6px;flex:none}
+.sugg .bt button{font-size:12.5px;font-weight:700;padding:5px 11px;border-radius:8px;background:var(--feuille);color:var(--encre);box-shadow:inset 0 0 0 1px var(--filet-m);white-space:nowrap}
+.sugg .bt button.fort{background:var(--encre);color:var(--feuille);box-shadow:none}
+.t-bar{display:flex;align-items:center;gap:10px;padding:16px 22px 6px;flex-wrap:wrap}
+.t-bar h3{margin:0;font-size:15px;font-weight:800;margin-right:4px}
+.seg{display:flex;gap:4px}
+.seg button{font-size:12.5px;padding:4px 12px;border-radius:999px;color:var(--graphite);background:var(--feuille-2)}
+.seg button[aria-pressed="true"]{background:var(--encre);color:var(--feuille);font-weight:700}
+.t-bar .dr{margin-left:auto}
+.t-liste{overflow:auto;min-height:0;flex:1;padding:0 12px 96px}
+.gj{display:flex;justify-content:space-between;font-size:12px;color:var(--graphite);margin:14px 10px 4px}
+.gj b{color:var(--encre);font-weight:700}
+.tr-l{display:grid;grid-template-columns:96px minmax(0,1fr) 78px 98px 138px;gap:12px;align-items:center;width:100%;padding:9px 10px;border-radius:12px;text-align:left;position:relative}
+.tr-l:hover{background:var(--survol)}
+.tr-l .tx{min-width:0}
+.tr-l .tx b{display:block;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr-l .tx span{display:block;font-size:12px;color:var(--graphite);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr-l .du{text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
+.tr-l .mt{text-align:right;font-variant-numeric:tabular-nums}
+.tr-l .mt small{display:block;font-size:11.5px;color:var(--graphite)}
+.tr-l .stt{display:flex;align-items:center;justify-content:flex-end;gap:8px;font-size:12px;color:var(--graphite)}
+.tr-l .stt svg{width:13px;height:13px;flex:none}
+.del{display:none;width:26px;height:26px;border-radius:8px;place-items:center;color:var(--graphite);background:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.del svg{width:13px;height:13px}
+.tr-l:hover .del,.tr-l:focus-within .del{display:grid}
+.pd{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:2px 9px 2px 7px;border-radius:999px;background:var(--dt);color:var(--de);white-space:nowrap;justify-self:start}
+.pd i{width:8px;height:8px;border-radius:50%;background:var(--dc);flex:none}
+.vide{padding:28px 18px;color:var(--graphite)}
+/* Panneau de droite */
+.t-droite{padding:18px 22px 96px;overflow:auto;min-width:0;min-height:0}
+.gros{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.sous-g{font-size:12.5px;color:var(--graphite);margin-top:2px}
+.sec-t{font-size:12px;color:var(--graphite);margin:20px 0 8px}
+.lien{font-size:12.5px;font-weight:700;color:var(--encre);text-decoration:underline;text-underline-offset:3px}
+.hist{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;align-items:end;height:128px;margin:6px 0 4px}
+.hist div{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;font-size:11.5px;color:var(--graphite);min-width:0}
+.hist i{display:block;width:100%;max-width:30px;border-radius:7px 7px 3px 3px;background:var(--filet)}
+.hist div.auj i{background:var(--encre)}
+.hist div.auj{color:var(--encre);font-weight:700}
+.hist b{font-size:11px;color:var(--encre);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dosl{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;width:100%;padding:7px 6px;border-radius:10px;text-align:left;font-size:12px}
+.dosl:hover{background:var(--survol)}
+.dosl.on{background:var(--c-t)}
+.dosl .nm{min-width:0;display:flex;align-items:center;gap:6px}
+.dosl .nm span.t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dosl .h{font-variant-numeric:tabular-nums;color:var(--graphite)}
+.dosl .m{font-variant-numeric:tabular-nums;font-weight:700;min-width:62px;text-align:right}
+.note-t{display:flex;gap:10px;margin-top:16px;padding:10px 12px;border-radius:12px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);font-size:12.5px;line-height:1.45;color:var(--graphite)}
+.note-t svg{width:15px;height:15px;flex:none;margin-top:1px;color:var(--c-s)}
+.note-t b{display:block;color:var(--encre);font-size:12.5px;margin-bottom:1px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* Barre d'actions flottante (reprise) */
+.dock{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;gap:2px;padding:6px;border-radius:16px;z-index:4;
+ background:var(--dock-fond);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);box-shadow:var(--dock-ombre),inset 0 0 0 1px var(--dock-bord)}
+.dock button{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:11px;color:var(--dock-texte);font-size:13px;white-space:nowrap}
+.dock button:hover{background:var(--dock-survol)}
+.dock button.prim{background:var(--dock-prim-f);color:var(--dock-prim-t);font-weight:700}
+.dock svg{width:15px;height:15px}
+.dock button:focus-visible,.mail:focus-visible,.bal:focus-visible,.vue-classer:focus-visible,.act:focus-visible{outline:2px solid var(--c-s);outline-offset:1px}
+.dock button:focus-visible{outline-color:var(--dock-texte)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+</style>
+</head>
+<body>
+<div class="tete">
+  <h1>Écran Temps, proposition</h1>
+  <div class="choix" data-g="theme" role="group" aria-label="Apparence de la maquette">
+    <button data-t="jour" aria-pressed="true">Jour</button>
+    <button data-t="nuit" aria-pressed="false">Nuit</button>
+  </div>
+  <span style="color:var(--doux);font-size:13px">Le chronomètre tourne. Essayez : mettre en pause puis arrêter, saisir « 1 h 30 » sur un dossier, accepter la suggestion tirée d’un mail, filtrer par dossier à droite.</span>
+</div>
+<div class="intro"><p>Temps s’ouvre depuis le menu du compte, à droite de la barre. En haut, de quoi saisir en quelques secondes : un chronomètre et une saisie manuelle. En dessous, les saisies par jour, avec leur montant au taux retenu. À droite, ce qui reste à facturer.</p></div>
+<div class="scene">
+<section class="win m-neutre" id="win" data-fond="lin" data-barre="neutre" aria-label="Maquette de l’écran Temps">
+  <div class="barre">
+    <div class="lights" aria-hidden="true"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></div>
+    <nav class="nav"><span class="">La journée</span><span class="">Dossiers</span><span class="">Mails<b>2</b></span><span class="">Agenda</span><span class="">Facturation</span></nav>
+    <div class="outils">
+      <span class="chrono-p" title="Chronomètre en cours sur le dossier 2026-042"><i></i><b id="cp-t">0 h 12</b></span><span class="sync" title="Toutes les modifications sont synchronisées"><i></i>Synchronisé</span>
+      <span class="pilule">Rechercher <span class="kbd">Ctrl K</span></span>
+      <button class="avatar on" id="av" aria-haspopup="menu" aria-expanded="false" aria-label="Menu du compte">JM</button>
+    </div>
+  </div>
+  <div class="menu-compte" id="mc" role="menu" aria-label="Menu du compte" hidden>
+ <div class="qui"><b>Me Julien Marchal</b><span>j.marchal@cabinet-marchal.example</span></div>
+ <button role="menuitem" data-m="temps"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3l2 1.5"/></svg>Temps<span class="kb">T</span></button>
+ <button role="menuitem" data-m="reglages"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8" r="2.3"/><path d="M8 1.8v1.7M8 12.5v1.7M1.8 8h1.7M12.5 8h1.7M3.6 3.6l1.2 1.2M11.2 11.2l1.2 1.2M12.4 3.6l-1.2 1.2M4.8 11.2l-1.2 1.2"/></svg>Réglages<span class="kb">Ctrl ,</span></button>
+ <button role="menuitem"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>Palette de commandes<span class="kb">Ctrl K</span></button>
+ <hr>
+ <button role="menuitem"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="7" width="9" height="7" rx="1.8"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Verrouiller l’application</button>
+ <button role="menuitem"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 2.5H3.5v11H6M10 5l3 3-3 3M13 8H6"/></svg>Se déconnecter</button>
+</div>
+  <div class="ecran">
+    <div class="ecran-tete">
+      <div><h2>Temps</h2><p id="sous-titre"></p></div>
+      <span class="releve" id="pastille"></span>
+    </div>
+    <div class="pile">
+      <div class="c2"></div>
+      <div class="feuille">
+        <section class="col-t">
+          <div class="t-haut">
+            <div class="t-card" id="chrono" aria-label="Chronomètre"></div>
+            <form class="t-card" id="saisie" onsubmit="return false" aria-label="Saisir du temps"></form>
+          </div>
+          <div id="sugg"></div>
+          <div class="t-bar" id="barre-l"></div>
+          <div class="t-liste" id="liste"></div>
+        </section>
+        <aside class="t-droite" id="droite" aria-label="Résumé du temps"></aside>
+        <div class="dock" id="dock"><button class="prim" id="d-saisir"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3l2 1.5"/></svg>Saisir du temps <span class="kbd">T</span></button><button><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2h8v12l-2-1.2L8 14l-2-1.2L4 14z"/><path d="M6 6h4M6 9h4"/></svg>Facturer</button></div>
+        
+      </div>
+    </div>
+  </div>
+</section>
+<p class="note">Maquette statique, données fictives, cohérentes avec les maquettes Facturation et Dossiers : le temps non facturé de 26 h 30 est le même partout. Attendu dans l’app : saisies hors ligne, enregistrées localement ; taux figé à l’enregistrement ; saisie facturée verrouillée ; chronomètre visible dans la barre sur tous les écrans, avec la pastille du dossier ; raccourci T pour saisir.</p>
+</div>
+<script>
+
+function svgUrl(s){return 'url("data:image/svg+xml,'+encodeURIComponent(s)+'")'}
+document.documentElement.style.setProperty('--grain',svgUrl(`<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' seed='4' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .3 0 0 0 -.1'/></filter><rect width='100%' height='100%' filter='url(#n)'/></svg>`));
+const fr=t=>String(t).replace(/ ([:;!?»])/g,'\u202F$1').replace(/« /g,'«\u202F');
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const eur=n=>{const s=Math.abs(n).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'\u202F');return (n<0?'−':'')+s.replace(',00','')+'\u00A0€'};
+const eur2=n=>{const s=Math.abs(n).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'\u202F');return (n<0?'−':'')+s+'\u00A0€'};
+let nuit=false;
+(function(){
+ const av=document.getElementById('av'),mc=document.getElementById('mc');
+ const ferme=()=>{mc.hidden=true;av.setAttribute('aria-expanded','false')};
+ av.onclick=e=>{e.stopPropagation();const o=mc.hidden;mc.hidden=!o;av.setAttribute('aria-expanded',String(o))};
+ document.addEventListener('click',e=>{if(!mc.hidden&&!mc.contains(e.target))ferme()});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!mc.hidden){ferme();av.focus()}});
+ mc.querySelectorAll('button').forEach(b=>b.onclick=()=>{ferme();if(window.menuChoix)window.menuChoix(b.dataset.m)});
+})();
+document.querySelectorAll('.choix[data-g=theme] button').forEach(b=>b.onclick=()=>{nuit=b.dataset.t==='nuit';document.querySelectorAll('.choix[data-g=theme] button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));render()});
+
+
+const S=(p,w)=>`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="${w||1.7}">${p}</svg>`;
+const ic={cadenas:S('<rect x="3.5" y="7" width="9" height="7" rx="1.8"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',1.8),corbeille:S('<path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/>'),
+ lettre:S('<rect x="2" y="3.5" width="12" height="9" rx="2"/><path d="m2.5 5 5.5 4 5.5-4"/>'),info:S('<circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.6M8 5.2v.2"/>'),
+ pause:S('<path d="M5.5 3.5v9M10.5 3.5v9"/>',2),lecture:S('<path d="M5 3.5 12.5 8 5 12.5z"/>'),stop:S('<rect x="4" y="4" width="8" height="8" rx="1.5"/>'),coche:S('<path d="m3 8.5 3 3 7-7"/>',2.2)};
+const dj=(y,m,d)=>new Date(y,m,d),TODAY=dj(2026,9,5);
+const key=d=>d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate(),mem=(a,b)=>key(a)===key(b);
+const JN=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'],JC=['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'],MN=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const long=d=>`${JN[d.getDay()]} ${d.getDate()}${d.getDate()===1?'er':''} ${MN[d.getMonth()]}`;
+const hm=m=>`${Math.floor(m/60)} h ${String(m%60).padStart(2,'0')}`;
+const rnd=n=>Math.round(n*100)/100;
+const DOSS={'2026-042':['kraft','SCI Les Tilleuls c/ Banque Rhodanienne'],'2026-057':['amande','Succession Moreau'],'2026-031':['bleu','SAS Ferrand Métal c/ SARL Duclos Industrie'],'2026-052':['kraft','SARL Bensaïd Bâtiment c/ SAS Logistique du Rhône'],'2026-038':['amande','SCI du Parc Lumière, bail commercial'],'2026-044':['kraft','Établissements Roche c/ Mutuelle des Artisans'],'2026-021':['bleu','Holding Perrache, restructuration'],'2026-060':['bleu','Pharmacie du Marché, cession de fonds']};
+const WHO={M:{n:'Me Julien Marchal',r:280},R:{n:'Me Camille Roux',r:220}};
+const COURT={'2026-042':'Les Tilleuls','2026-057':'Moreau','2026-031':'Ferrand','2026-052':'Bensaïd','2026-038':'Parc Lumière','2026-044':'Roche','2026-021':'Perrache','2026-060':'Pharmacie du Marché'};
+const dc=r=>'d-'+DOSS[r][0],pd=r=>`<span class="pd ${dc(r)}"><i></i>${r}</span>`;
+function taux(e){return e.dos==='2026-042'?[250,'taux du client']:e.who==='M'?[280,'taux de Me Marchal']:[220,'taux de Me Roux']}
+let id=0;const T=(d,dos,who,min,desc,f)=>({id:++id,d,dos,who,min,desc,fact:f||''});
+let EN=[
+ T(dj(2026,9,5),'2026-052','R',80,'Préparation de l’audience de mise en état'),T(dj(2026,9,5),'2026-042','M',45,'Lecture des pièces adverses nᵒˢ 14 à 19'),T(dj(2026,9,5),'2026-057','M',20,'Appel de Mme Moreau'),T(dj(2026,9,5),'2026-060','M',20,'Premier contact avec Mme Lenoir'),
+ T(dj(2026,9,2),'2026-042','M',150,'Rédaction des conclusions d’appelant'),T(dj(2026,9,2),'2026-021','M',190,'Projet de procès-verbal d’assemblée'),T(dj(2026,9,2),'2026-044','R',135,'Projet d’assignation'),
+ T(dj(2026,9,1),'2026-021','M',200,'Négociation des statuts'),T(dj(2026,9,1),'2026-052','R',120,'Conclusions en réplique, premier jet'),T(dj(2026,9,1),'2026-044','R',210,'Recherche de jurisprudence'),
+ T(dj(2026,8,30),'2026-042','M',60,'Relecture avec la cliente'),T(dj(2026,8,30),'2026-021','M',120,'Revue des actes'),
+ T(dj(2026,8,29),'2026-057','M',130,'État liquidatif, relecture'),T(dj(2026,8,29),'2026-038','R',70,'Négociation du bail'),
+ T(dj(2026,8,28),'2026-031','M',40,'Appel de Mme Ferrand'),
+ T(dj(2026,8,25),'2026-031','M',390,'Préparation de la plaidoirie','2026-0131'),T(dj(2026,8,10),'2026-021','M',240,'Premières réunions','2026-0121'),T(dj(2026,6,14),'2026-042','M',180,'Déclaration d’appel','2026-0142')];
+let ch={on:true,pause:false,s:754,dos:'2026-042',desc:'Lecture des pièces adverses',conf:false},scope='cab',filtre='tous',dosF='',sugg=true,notice='',F={dos:'2026-042',who:'M',dur:'',desc:''};
+function parseDur(s){s=s.trim().toLowerCase().replace(',','.');if(!s)return 0;let m;
+ if(m=s.match(/^(\d+(?:\.\d+)?)\s*(?:h|:)\s*(\d{1,2})?\s*(?:min|m)?$/))return Math.round(parseFloat(m[1])*60+(m[2]?parseInt(m[2],10):0));
+ if(m=s.match(/^(\d+)\s*(?:min|mn|m)$/))return parseInt(m[1],10);
+ if(/^\d+(?:\.\d+)?$/.test(s)){const v=parseFloat(s);return(s.includes('.')||v<10)?Math.round(v*60):Math.round(v)}return 0}
+const vis=()=>EN.filter(e=>(scope==='cab'||e.who==='M')&&(filtre==='tous'||(filtre==='nf'?!e.fact:!!e.fact))&&(!dosF||e.dos===dosF));
+function valeur(e){return rnd(e.min/60*taux(e)[0])}
+function cadreChrono(){
+ const m=Math.floor(ch.s/60),sec=ch.s%60;
+ if(!ch.on)return `<h3>Chronomètre</h3><div class="chrono-g pause">0 h 00<small>:00</small></div><p class="ln"><span class="n">Aucun chronomètre en cours.</span></p><div class="btns"><button class="btn fort" id="c-go">${ic.lecture}Démarrer sur ${F.dos}</button></div>`;
+ if(ch.conf){const mm=Math.max(1,Math.round(ch.s/60));return `<h3>Chronomètre arrêté</h3><div class="chrono-g pause">${hm(m)}<small>:${String(sec).padStart(2,'0')}</small></div><p class="ln">${pd(ch.dos)}<span class="n">${esc(ch.desc||'Sans description')}</span></p><p class="apercu-t">Enregistrer <b>${mm} minute${mm>1?'s':''}</b> sur ${ch.dos}, au ${taux({dos:ch.dos,who:'M'})[1]} (${eur(taux({dos:ch.dos,who:'M'})[0])} par heure) ?</p><div class="btns"><button class="btn fort" id="c-ok">${ic.coche}Enregistrer</button><button class="btn" id="c-rep">Reprendre</button></div>`}
+ return `<h3>Chronomètre${ch.pause?', en pause':''}</h3><div class="chrono-g${ch.pause?' pause':''}">${hm(m)}<small>:${String(sec).padStart(2,'0')}</small></div>
+ <p class="ln">${pd(ch.dos)}<span class="n">${esc(DOSS[ch.dos][1])}</span></p>
+ <div class="champ" style="margin-top:8px"><label for="c-d" style="position:absolute;left:-9999px">Que faites-vous ?</label><input id="c-d" type="text" value="${esc(ch.desc)}" placeholder="Que faites-vous ?" autocomplete="off"></div>
+ <div class="btns"><button class="btn" id="c-p">${ch.pause?ic.lecture+'Reprendre':ic.pause+'Pause'}</button><button class="btn fort" id="c-s">${ic.stop}Arrêter</button></div>`;
+}
+function cadreSaisie(){
+ const m=parseDur(F.dur),tx=taux({dos:F.dos,who:F.who});
+ return `<h3>Saisir du temps</h3>
+ <div class="g2"><div class="champ" style="margin-top:0"><label for="s-d">Dossier</label><select id="s-d">${Object.keys(DOSS).map(k=>`<option value="${k}"${k===F.dos?' selected':''}>${k}, ${esc(DOSS[k][1])}</option>`).join('')}</select></div>
+ <div class="champ" style="margin-top:0"><label for="s-w">Intervenant</label><select id="s-w">${Object.keys(WHO).map(k=>`<option value="${k}"${k===F.who?' selected':''}>${WHO[k].n}</option>`).join('')}</select></div>
+ <div class="champ" style="margin-top:0"><label for="s-u">Durée</label><input id="s-u" type="text" value="${esc(F.dur)}" placeholder="1 h 30" autocomplete="off"></div></div>
+ <div class="champ"><label for="s-t">Description</label><input id="s-t" type="text" value="${esc(F.desc)}" placeholder="Ce que vous avez fait" autocomplete="off"></div>
+ <p class="apercu-t" id="apercu">${m?`<b>${hm(m)}</b>, soit <b>${eur2(rnd(m/60*tx[0]))} HT</b> au ${tx[1]} (${eur(tx[0])} par heure), figé à l’enregistrement.`:'Durées acceptées : 1 h 30, 45 min, 0,75. La date est celle d’aujourd’hui.'}</p>
+ <div class="btns" style="margin-top:6px"><button class="btn fort" id="s-ok" ${m&&F.desc.trim()?'':'disabled'}>Enregistrer</button></div>`;
+}
+function liste(){
+ const l=vis(); if(!l.length)return `<div class="vide"><b style="display:block;color:var(--encre);margin-bottom:3px">Aucune saisie ici</b>Changez de filtre, ou saisissez du temps ci-dessus.</div>`;
+ const g={};l.forEach(e=>{(g[key(e.d)]=g[key(e.d)]||{d:e.d,l:[]}).l.push(e)});
+ return Object.values(g).sort((a,b)=>b.d-a.d).map(x=>{const tot=x.l.reduce((s,e)=>s+e.min,0);
+  return `<div class="gj"><b>${mem(x.d,TODAY)?'Aujourd’hui':long(x.d)}</b><span>${hm(tot)}</span></div>`+x.l.map(e=>{const t=taux(e);return `<div class="tr-l ${dc(e.dos)}" tabindex="0"><span>${pd(e.dos)}</span><span class="tx"><b>${esc(e.desc)}</b><span>${esc(DOSS[e.dos][1])}, ${WHO[e.who].n}</span></span><span class="du">${hm(e.min)}</span><span class="mt">${eur2(valeur(e))}<small>${t[0]} € par h</small></span><span class="stt">${e.fact?`${ic.cadenas}Facturé ${e.fact}`:`<button class="del" data-del="${e.id}" aria-label="Supprimer cette saisie">${ic.corbeille}</button>Non facturé`}</span></div>`}).join('')}).join('');
+}
+function droite(){
+ const base=EN.filter(e=>(scope==='cab'||e.who==='M')),nf=base.filter(e=>!e.fact);
+ const th=nf.reduce((s,e)=>s+e.min,0),tv=nf.reduce((s,e)=>s+valeur(e),0);
+ const jours=[6,5,4,3,2,1,0].map(n=>{const d=dj(2026,9,5-n);return {d,m:base.filter(e=>mem(e.d,d)).reduce((s,e)=>s+e.min,0)}});
+ const mx=Math.max(...jours.map(j=>j.m),60);
+ const par={};nf.forEach(e=>{const o=par[e.dos]||(par[e.dos]={m:0,v:0});o.m+=e.min;o.v+=valeur(e)});
+ const ks=Object.keys(par).sort((a,b)=>par[b].v-par[a].v);
+ return `<div class="gros">${hm(th)}</div><div class="sous-g">non facturées, soit <b style="color:var(--encre)">${eur2(rnd(tv))} HT</b></div><p style="margin:8px 0 0"><button class="lien" id="d-fact">Voir ce qui reste à facturer</button></p>
+ <p class="sec-t">Sept derniers jours</p><div class="hist" role="img" aria-label="Temps saisi par jour sur sept jours">${jours.map(j=>`<div class="${mem(j.d,TODAY)?'auj':''}"><b>${j.m?hm(j.m).replace(' h 00',' h'):'0'}</b><i style="height:${Math.max(4,j.m/mx*74)}px"></i><span>${JC[j.d.getDay()].slice(0,3)}</span></div>`).join('')}</div>
+ <p class="sec-t">Par dossier, non facturé${dosF?'<span style="float:right"><button class="lien" id="d-raz">Retirer le filtre</button></span>':''}</p>
+ ${ks.map(k=>`<button class="dosl ${dc(k)}${dosF===k?' on':''}" data-dosf="${k}"><span class="nm">${pd(k)}<span class="t">${COURT[k]}</span></span><span class="h">${hm(par[k].m)}</span><span class="m">${eur(rnd(par[k].v))}</span></button>`).join('')}
+ <div class="note-t">${ic.info}<div><b>Le taux est figé à la saisie</b>Modifier un taux dans Réglages ne change ni les saisies déjà enregistrées ni les brouillons. Une saisie facturée est verrouillée : seul un avoir corrige la facture.</div></div>`;
+}
+function suggestion(){
+ if(!sugg)return '';
+ return `<div class="sugg" role="status">${ic.lettre}<span class="tx">Vous avez passé <b>14 minutes</b> sur le mail « Communication de pièces adverses nᵒˢ 14 à 19 » (Me Vasseur). Les ajouter au dossier ${pd('2026-042').replace('class="pd','class="pd')} ?</span><span class="bt"><button class="fort" id="g-ok">Ajouter</button><button id="g-no">Ignorer</button></span></div>`;
+}
+function render(){
+ const w=document.getElementById('win');w.className='win m-neutre'+(nuit?' nuit':'');
+ const th=EN.filter(e=>!e.fact).reduce((s,e)=>s+e.min,0);
+ document.getElementById('sous-titre').textContent=`${hm(EN.filter(e=>mem(e.d,TODAY)).reduce((s,e)=>s+e.min,0))} saisies aujourd’hui, ${hm(th)} non facturées`;
+ const pa=document.getElementById('pastille');pa.innerHTML=notice?`<i></i>${notice}`:(ch.on&&!ch.conf?`<i></i>Chronomètre en cours sur ${ch.dos}`:`<i></i>Aucun chronomètre en cours`);
+ document.getElementById('chrono').innerHTML=cadreChrono();
+ const sa=document.getElementById('saisie');const hadFocus=document.activeElement&&sa.contains(document.activeElement)?document.activeElement.id:'';sa.innerHTML=cadreSaisie();
+ document.getElementById('sugg').innerHTML=suggestion();
+ document.getElementById('barre-l').innerHTML=`<h3>Mes saisies</h3><div class="seg" role="group" aria-label="Filtrer"><button data-f="tous" aria-pressed="${filtre==='tous'}">Toutes</button><button data-f="nf" aria-pressed="${filtre==='nf'}">Non facturées</button><button data-f="f" aria-pressed="${filtre==='f'}">Facturées</button></div><div class="seg dr" role="group" aria-label="Périmètre"><button data-sc="cab" aria-pressed="${scope==='cab'}">Le cabinet</button><button data-sc="moi" aria-pressed="${scope==='moi'}">Mes temps</button></div>`;
+ document.getElementById('liste').innerHTML=liste();
+ document.getElementById('droite').innerHTML=droite();
+ const cp=document.getElementById('cp-t');if(cp)cp.parentElement.style.display=ch.on&&!ch.conf?'':'none';
+ bind();
+ if(hadFocus){const f=document.getElementById(hadFocus);if(f){f.focus();if(f.setSelectionRange&&f.type==='text'){const n=f.value.length;f.setSelectionRange(n,n)}}}
+}
+function flash(t,ms){notice=t;render();setTimeout(()=>{notice='';render()},ms||2000)}
+function ajouter(dos,who,min,desc){EN.unshift(T(TODAY,dos,who,min,desc));}
+function bind(){
+ const g=i=>document.getElementById(i),$=(s,f)=>document.querySelectorAll(s).forEach(f);
+ if(g('c-d'))g('c-d').oninput=e=>{ch.desc=e.target.value};
+ if(g('c-p'))g('c-p').onclick=()=>{ch.pause=!ch.pause;render()};
+ if(g('c-s'))g('c-s').onclick=()=>{ch.pause=true;ch.conf=true;render()};
+ if(g('c-rep'))g('c-rep').onclick=()=>{ch.conf=false;ch.pause=false;render()};
+ if(g('c-ok'))g('c-ok').onclick=()=>{const mm=Math.max(1,Math.round(ch.s/60));ajouter(ch.dos,'M',mm,ch.desc||'Chronomètre');ch={on:false,pause:false,s:0,dos:ch.dos,desc:'',conf:false};flash(`${mm} minutes enregistrées sur ${F.dos===''?'':'le dossier'}`,2200)};
+ if(g('c-go'))g('c-go').onclick=()=>{ch={on:true,pause:false,s:0,dos:F.dos,desc:'',conf:false};render()};
+ const sync=()=>{F.dos=g('s-d').value;F.who=g('s-w').value;F.dur=g('s-u').value;F.desc=g('s-t').value;const m=parseDur(F.dur),tx=taux({dos:F.dos,who:F.who});
+  g('apercu').innerHTML=m?`<b>${hm(m)}</b>, soit <b>${eur2(rnd(m/60*tx[0]))} HT</b> au ${tx[1]} (${eur(tx[0])} par heure), figé à l’enregistrement.`:'Durées acceptées : 1 h 30, 45 min, 0,75. La date est celle d’aujourd’hui.';g('s-ok').disabled=!(m&&F.desc.trim())};
+ ['s-d','s-w','s-u','s-t'].forEach(i=>{if(g(i)){g(i).oninput=sync;g(i).onchange=sync}});
+ if(g('s-ok'))g('s-ok').onclick=()=>{sync();const m=parseDur(F.dur);if(!(m&&F.desc.trim()))return;ajouter(F.dos,F.who,m,F.desc.trim());F.dur='';F.desc='';flash(`${hm(m)} enregistrées sur ${F.dos}`,2200)};
+ if(g('g-ok'))g('g-ok').onclick=()=>{ajouter('2026-042','M',14,'Lecture du mail « Communication de pièces adverses »');sugg=false;flash('14 minutes ajoutées au dossier 2026-042',2200)};
+ if(g('g-no'))g('g-no').onclick=()=>{sugg=false;render()};
+ $('[data-f]',b=>b.onclick=()=>{filtre=b.dataset.f;render()});
+ $('[data-sc]',b=>b.onclick=()=>{scope=b.dataset.sc;render()});
+ $('[data-del]',b=>b.onclick=ev=>{ev.stopPropagation();EN=EN.filter(e=>e.id!==+b.dataset.del);flash('Saisie supprimée',1800)});
+ $('[data-dosf]',b=>b.onclick=()=>{dosF=dosF===b.dataset.dosf?'':b.dataset.dosf;render()});
+ if(g('d-raz'))g('d-raz').onclick=()=>{dosF='';render()};
+ if(g('d-fact'))g('d-fact').onclick=()=>flash('Dans l’application : Facturation, onglet À facturer',2200);
+}
+document.getElementById('d-saisir').onclick=()=>{const i=document.getElementById('s-u');if(i)i.focus()};
+document.addEventListener('keydown',e=>{if((e.key==='t'||e.key==='T')&&!/input|select|textarea/i.test(document.activeElement.tagName)){e.preventDefault();const i=document.getElementById('s-u');if(i)i.focus()}});
+setInterval(()=>{if(ch.on&&!ch.pause&&!ch.conf){ch.s++;const cp=document.getElementById('cp-t');if(cp)cp.textContent=hm(Math.floor(ch.s/60));const g=document.querySelector('#chrono .chrono-g');if(g)g.innerHTML=`${hm(Math.floor(ch.s/60))}<small>:${String(ch.s%60).padStart(2,'0')}</small>`}},1000);
+window.menuChoix=k=>{};
+document.querySelector('[data-m="temps"]').classList.add('on');
+render();
+
+</script>
+</body>
+</html>
