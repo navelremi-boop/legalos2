@@ -223,6 +223,15 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
     - `node tests/recette/j11-boites.mjs` → exit 0 : deux comptes nominatifs ne sont visibles que par leur titulaire ; une boîte partagée est visible par ses membres et absente chez un non-membre ; le tableau de santé montre la dernière relève, un refus d'authentification et un envoi en échec ; notification de bureau à l'arrivée d'un mail.
     - `node tests/recette/j11-journee-sans-outlook.mjs` → exit 0 (app Tauri, GreenMail et Dovecot) : recevoir, lire, classer, répondre avec historique, transférer avec pièce jointe, rédiger un mail neuf avec pièce jointe et signature, reprendre un brouillon sur un second poste, accepter une invitation, retrouver un ancien mail par la recherche ; tout depuis l'app, sans autre client mail.
     - Suggestion de temps tirée d'un mail (consigne du 10/10/2026) : un mail lu ou traité propose des minutes à saisir sur le dossier où il est classé, proposition offerte à l'écran Temps et à La journée (écrans livrés par la Finition des écrans), jamais enregistrée sans validation de l'utilisateur ; couverte par `node tests/recette/j11-redaction.mjs` ou `node tests/recette/j11-journee-sans-outlook.mjs`.
+    - Critères ajoutés (consigne de l'architecte du 10/10/2026), chacun couvert par une recette avec essai négatif :
+      - (a) modèles de message réutilisables sans recompiler : table, routes, gestion dans Réglages — `node tests/recette/j11-redaction.mjs` ;
+      - (b) invitations : demande, mise à jour (SEQUENCE) et annulation reflétées dans l'agenda du seul titulaire ; réponse à l'organisateur ; fuseaux Europe/Paris et étranger, passage à l'heure d'hiver — `node tests/recette/j11-invitation.mjs` ;
+      - (c) HTML reçu et texte collé depuis Word nettoyés : aucun script, aucun contenu distant — `node tests/recette/j11-redaction.mjs` ;
+      - (d) en-têtes non injectables : un retour à la ligne dans l'objet ou dans une adresse est refusé — `node tests/recette/j11-redaction-api.mjs` ;
+      - (e) la copie cachée n'apparaît jamais dans les en-têtes reçus par les autres destinataires — `node tests/recette/j11-redaction-api.mjs` ;
+      - (f) In-Reply-To et References posés ; « répondre à tous » exclut l'adresse de l'expéditeur — `node tests/recette/j11-redaction-api.mjs` ;
+      - (g) brouillons repris sur un second poste et disponibles hors ligne — `node tests/recette/j11-redaction.mjs` ;
+      - (h) droits : un collaborateur ne lit pas la boîte nominative d'un autre, ni par l'API ni par la synchronisation ; essai négatif sur les deux — `node tests/recette/j11-boites.mjs`.
     - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
 - [ ] **Finition des écrans** — après J11 — critères validés par l'architecte le 07/10/2026
