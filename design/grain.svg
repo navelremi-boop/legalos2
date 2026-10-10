@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220">
-  <!-- Tuile fixe stitch (~4 % dopacité moyenne), cahier § 7.3  jamais recalculée en JS -->
+  <!-- Tuile fixe stitch, grain des maquettes (consigne de l'architecte du 10/10/2026) : mÃªme filtre, sans attÃ©nuation d'opacitÃ© ; jamais recalculÃ©e en JS -->
   <filter id="n" x="0" y="0" width="100%" height="100%">
     <feTurbulence
       type="fractalNoise"
@@ -16,5 +16,5 @@
               0.3 0 0 0 -0.1"
     />
   </filter>
-  <rect width="220" height="220" filter="url(#n)" opacity="0.04" />
+  <rect width="220" height="220" filter="url(#n)" />
 </svg>
