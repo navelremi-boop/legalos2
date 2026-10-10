@@ -127,6 +127,32 @@
     color: var(--barre-texte);
   }
 
+  .barre-haut__avatar {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--barre-compteur);
+    box-shadow: var(--barre-surface-bord);
+    color: var(--barre-texte);
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .barre-haut__avatar[data-initiales]::before {
+    content: attr(data-initiales);
+  }
+
+  .barre-haut__avatar:hover {
+    background: var(--barre-surface);
+  }
+
+  .barre-haut__avatar[aria-expanded="true"] {
+    box-shadow: inset 0 0 0 2px var(--barre-texte);
+  }
+
   .barre-haut__kbd {
     border-radius: 5px;
     padding: 1px 6px;

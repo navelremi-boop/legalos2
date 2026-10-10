@@ -13,6 +13,7 @@ import {
   type OngletDossier,
   type SyncEtat,
 } from "@/coque/BarreHaut";
+import { initialesDuCompte } from "@/coque/identiteCompte";
 import { MenuCompte } from "@/coque/MenuCompte";
 import { FormulaireDelai } from "@/delais/FormulaireDelai";
 import { EcranAgenda } from "@/agenda/EcranAgenda";
@@ -76,6 +77,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
   const [mailsAClasser, setMailsAClasser] = useState(0);
   const [navigateurHorsLigne, setNavigateurHorsLigne] = useState(!navigator.onLine);
   const [instanceHorsLigne, setInstanceHorsLigne] = useState(false);
+  const [initiales] = useState<string | null>(initialesDuCompte);
 
   useEffect(() => {
     document.documentElement.dataset.theme = resolveTheme(themeMode);
@@ -475,6 +477,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
 
   const compteMenu = (
     <MenuCompte
+      initiales={initiales}
       onTemps={() => {
         setPanneau("temps");
       }}

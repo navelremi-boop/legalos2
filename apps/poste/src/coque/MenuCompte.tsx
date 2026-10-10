@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { IconUser } from "@tabler/icons-react";
 import { createPortal } from "react-dom";
 import { fr } from "@/lib/fr";
 
@@ -12,6 +13,8 @@ export type MenuCompteProps = {
   onDeconnecter?: () => void;
   /** Entrée de développement, absente des builds distribués. */
   onGalerie?: () => void;
+  /** Initiales de l'utilisateur connecté ; absentes (null) : icône de personne. */
+  initiales?: string | null;
 };
 
 type Entree = {
@@ -34,6 +37,7 @@ export function MenuCompte({
   onVerrouiller,
   onDeconnecter,
   onGalerie,
+  initiales = null,
 }: MenuCompteProps) {
   const [ouvert, setOuvert] = useState(false);
   const [position, setPosition] = useState({ top: 0, right: 0 });
@@ -112,7 +116,9 @@ export function MenuCompte({
         ref={boutonRef}
         id={idBouton}
         type="button"
-        className="barre-haut__pilule"
+        className="barre-haut__avatar"
+        aria-label={fr("Menu du compte")}
+        data-initiales={initiales ?? undefined}
         aria-expanded={ouvert}
         aria-haspopup="menu"
         data-testid="menu-compte"
@@ -126,7 +132,9 @@ export function MenuCompte({
           setOuvert(true);
         }}
       >
-        {fr("Compte")}
+        {/* Texte « Compte » conservé pour les lecteurs d'écran et les recettes ; les initiales sont dessinées par le CSS. */}
+        <span className="sr-only">{fr("Compte")}</span>
+        {initiales === null ? <IconUser size={16} stroke={1.8} aria-hidden /> : null}
       </button>
       {ouvert
         ? createPortal(

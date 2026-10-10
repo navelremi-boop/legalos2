@@ -53,6 +53,16 @@ const creds = { email: demoEmail, password: demoPassword, secret: totpSecretB32,
     const send = page.send;
     await attendre("menu du compte", `Boolean(document.querySelector("[data-testid=menu-compte]"))`, send);
 
+    // Avatar : les initiales de l'utilisateur connecté (table locale users) s'affichent une fois synchronisées.
+    await attendre(
+      "initiales de l'avatar",
+      String.raw`/^\p{L}{1,2}$/u.test(document.querySelector("[data-testid=menu-compte]")?.getAttribute("data-initiales") ?? "")`,
+      send,
+      60_000,
+    );
+    const initiales = await evaluate(send, `document.querySelector("[data-testid=menu-compte]").getAttribute("data-initiales")`);
+    ok(`avatar du compte : initiales « ${initiales} » de l'utilisateur connecté`);
+
     const nav = await evaluate(
       send,
       `JSON.stringify([...document.querySelectorAll("[data-testid^=nav-]")].map((e) => e.getAttribute("data-testid").replace("nav-", "")))`,

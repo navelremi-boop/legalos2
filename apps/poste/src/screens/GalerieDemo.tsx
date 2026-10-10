@@ -296,6 +296,7 @@ export function GalerieDemo() {
           mailsCompteur={aClasser}
           compteMenu={
             <MenuCompte
+              initiales="JM"
               onTemps={() => {
                 setDernierChoixCompte("temps");
               }}

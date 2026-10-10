@@ -216,7 +216,7 @@ export function Reglages({
 
   return (
     <div
-      className="fond-neutre relative flex h-full min-h-0 flex-col px-[42px] pt-[28px]"
+      className="fond-neutre relative flex h-full min-h-0 flex-col px-[30px] pt-[28px]"
       data-testid="ecran-reglages"
       data-fond="neutre"
     >

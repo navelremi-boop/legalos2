@@ -67,7 +67,17 @@ try {
   if (await estOuvert()) fail("le menu est ouvert au départ");
   if ((await liste.count()) !== 0) fail("la liste est dans le DOM alors que le menu est fermé");
   if ((await bouton.textContent())?.trim() !== "Compte") fail("le bouton ne s'appelle pas « Compte »");
-  ok("état initial : fermé, bouton « Compte »");
+  // Avatar du compte (maquette) : initiales dessinées par le CSS, rond de 32 px, nom accessible conservé.
+  const avatar = await bouton.evaluate((el) => ({
+    initiales: getComputedStyle(el, "::before").content,
+    largeur: Math.round(el.getBoundingClientRect().width),
+    rayon: getComputedStyle(el).borderRadius,
+    nom: el.getAttribute("aria-label"),
+  }));
+  if (avatar.initiales !== '"JM"') fail(`avatar : initiales ${avatar.initiales} au lieu de "JM"`);
+  if (avatar.largeur !== 32) fail(`avatar : largeur ${avatar.largeur} px au lieu de 32`);
+  if (avatar.nom !== "Menu du compte") fail(`avatar : nom accessible ${avatar.nom}`);
+  ok("état initial : fermé, avatar « JM » de 32 px, texte « Compte » conservé");
 
   // — navigation principale : cinq entrées, ni Temps ni Réglages —
   const nav = await page.locator("[data-testid^=nav-]").evaluateAll((els) =>

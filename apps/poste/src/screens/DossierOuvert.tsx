@@ -427,7 +427,7 @@ export function DossierOuvert({
 
       <BarreActions
         actions={[
-          { id: "nouveau-mail", label: "Nouveau mail", onClick: onNouveauMail },
+          { id: "nouveau-mail", label: "Nouveau mail", primaire: true, onClick: onNouveauMail },
           { id: "saisir-temps", label: "Saisir du temps", raccourci: "T", onClick: onSaisirTemps },
           { id: "facturer", label: "Facturer", onClick: onFacturer },
           {

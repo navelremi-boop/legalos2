@@ -156,7 +156,7 @@ export function Journee({
 
   return (
     <div
-      className="fond-neutre relative flex h-full min-h-0 flex-col px-[42px] pt-[28px] pb-0"
+      className="fond-neutre relative flex h-full min-h-0 flex-col px-[30px] pt-[28px] pb-0"
       data-testid="ecran-journee"
       data-fond="neutre"
     >
@@ -196,7 +196,7 @@ export function Journee({
       </Feuille>
       <BarreActions
         actions={[
-          { id: "nouveau-dossier", label: "Nouveau dossier", onClick: onNouveauDossier },
+          { id: "nouveau-dossier", label: "Nouveau dossier", primaire: true, onClick: onNouveauDossier },
           { id: "nouveau-mail", label: "Nouveau mail", onClick: onNouveauMail },
           { id: "saisir-temps", label: "Saisir du temps", raccourci: "T", onClick: onSaisirTemps },
         ]}

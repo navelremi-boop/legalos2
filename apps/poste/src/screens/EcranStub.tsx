@@ -8,7 +8,7 @@ type StubProps = {
 
 export function EcranStub({ titre, testId }: StubProps) {
   return (
-    <div className="fond-neutre relative flex h-full min-h-0 flex-col px-[42px] pt-[28px]" data-testid={testId}>
+    <div className="fond-neutre relative flex h-full min-h-0 flex-col px-[30px] pt-[28px]" data-testid={testId}>
       <h1 className="mb-4 text-[length:var(--font-size-journee)] font-extrabold text-sur-chemise">
         {fr(titre)}
       </h1>

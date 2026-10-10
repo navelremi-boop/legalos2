@@ -222,7 +222,7 @@ async function runCaptures() {
         kraft: "rgb(110, 81, 40)",
         "bleu-classeur": "rgb(47, 79, 122)",
         "vert-amande": "rgb(46, 90, 61)",
-        neutre: "rgb(17, 23, 26)",
+        neutre: "rgb(30, 38, 41)",
       },
     };
     for (const theme of ["light", "dark"]) {

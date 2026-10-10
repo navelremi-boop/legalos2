@@ -271,7 +271,7 @@ export function EcranMails({
 
   return (
     <div
-      className="fond-neutre relative flex h-full min-h-0 flex-col px-[42px] pt-[28px]"
+      className="fond-neutre relative flex h-full min-h-0 flex-col px-[30px] pt-[28px]"
       data-testid="ecran-mails"
       data-fond="neutre"
     >
@@ -544,7 +544,7 @@ export function EcranMails({
               onNouveauDossier?.();
             },
           },
-          { id: "nouveau-mail", label: "Nouveau mail", onClick: () => undefined },
+          { id: "nouveau-mail", label: "Nouveau mail", primaire: true, onClick: () => undefined },
           {
             id: "saisir-temps",
             label: "Saisir du temps",

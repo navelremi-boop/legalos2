@@ -32,8 +32,8 @@
   --echeance-fond: #fbe9e7;
   --synchro: #7bd89a;
   --sur-chemise: #141a1c;
-  /* Texte posé sur le fond neutre : sombre sur le lin du jour, clair sur l'ardoise de la nuit */
-  --texte-sur-neutre: #3a3022;
+  /* Texte posé sur le fond neutre : quasi noir sur le lin du jour (maquettes), clair sur l'ardoise de la nuit */
+  --texte-sur-neutre: #141a1c;
   --focus: #141a1c;
 
   /* Chrome barre / dock : barre claire en jour (texte sombre sur --barre), sombre en nuit */
@@ -140,7 +140,7 @@
   --filet: #2b3438;
   --survol: #222a2d;
   --barre: rgb(16 21 23 / 0.86);
-  --neutre: #11171a;
+  --neutre: #1e2629;
   --definitif: #bdb4f5;
   --definitif-fond: rgb(189 180 245 / 0.1);
   --definitif-bord: rgb(189 180 245 / 0.25);
@@ -219,7 +219,7 @@
     --filet: #2b3438;
     --survol: #222a2d;
     --barre: rgb(16 21 23 / 0.86);
-    --neutre: #11171a;
+    --neutre: #1e2629;
     --definitif: #bdb4f5;
     --definitif-fond: rgb(189 180 245 / 0.1);
     --definitif-bord: rgb(189 180 245 / 0.25);

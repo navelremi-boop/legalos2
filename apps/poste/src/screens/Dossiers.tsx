@@ -67,7 +67,7 @@ export function Dossiers({
 
   return (
     <div
-      className="fond-neutre relative flex h-full min-h-0 flex-col px-[42px] pt-[28px]"
+      className="fond-neutre relative flex h-full min-h-0 flex-col px-[30px] pt-[28px]"
       data-testid="ecran-dossiers"
       data-fond="neutre"
     >
@@ -149,6 +149,7 @@ export function Dossiers({
         actions={[
           {
             id: "nouveau-dossier",
+            primaire: true,
             label: "Nouveau dossier",
             onClick: () => {
               onNouveauDossier?.();

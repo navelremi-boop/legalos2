@@ -15,6 +15,7 @@ import {
 } from "@/lib/auth/client";
 import { fr } from "@/lib/fr";
 import {
+  saveAccountEmail,
   saveInstanceUrl,
   saveSessionTokens,
 } from "@/lib/session/storage";
@@ -42,11 +43,12 @@ export function FirstLaunchFlow({ initialInstanceUrl, onComplete }: FirstLaunchF
   const finishWithTokens = useCallback(
     (accessToken: string, refreshToken: string, url: string) => {
       saveInstanceUrl(url);
+      saveAccountEmail(email.trim());
       void saveSessionTokens(accessToken, refreshToken).then(() => {
         onComplete({ instanceUrl: url });
       });
     },
-    [onComplete],
+    [onComplete, email],
   );
 
   const handleInstanceSubmit = (event: SubmitEvent) => {
