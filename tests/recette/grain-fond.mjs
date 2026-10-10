@@ -9,8 +9,10 @@
  * - Jour : l'écart-type du poste est compris entre 5 et 8 (maquette : 6,84).
  * - Nuit : l'écart-type du poste est compris entre 1,0 et 2,5 (maquette : 1,45). Le grain de la
  *   maquette est noir ; sur le fond sombre il se voit peu, et la cible de nuit est la maquette.
- * - Essais négatifs : l'ancienne tuile à 0,04 d'opacité échoue en jour ; un grain nul échoue en jour
- *   et en nuit.
+ * - Essai négatif : l'ancienne tuile à 0,04 d'opacité échoue en jour.
+ * - Test différentiel (même zone, avec et sans grain, `--grain: none`) : l'écart d'écart-type est d'au moins 4
+ *   en jour (zone principale) et 0,5 en nuit (sous-zone plate 60 par 10 px : sur la zone principale la lumière
+ *   radiale du fond donne déjà environ 1,7 sans grain).
  *
  * Usage : node tests/recette/grain-fond.mjs
  */
@@ -24,10 +26,13 @@ const JOUR_MIN = 5;
 const JOUR_MAX = 8;
 const NUIT_MIN = 1.0;
 const NUIT_MAX = 2.5;
-// Sous-zone plate pour l'essai négatif de nuit : sur 200 par 30 px, la lumière radiale du fond ajoute
+// Sous-zone plate du test différentiel de nuit : sur 200 par 30 px, la lumière radiale du fond ajoute
 // environ 1,7 d'écart-type même sans grain (donc dans [1,0 ; 2,5]) ; sur 60 par 10 px elle est négligeable.
 const ZONE_PLATE = { x: 700, y: 72, width: 60, height: 10 };
 const ECART_MAQUETTE_MAX = 2;
+// Test différentiel (décision de l'architecte du 10/10/2026) : écart minimal d'écart-type entre la même zone avec et sans grain.
+const DIFF_JOUR_MIN = 4;
+const DIFF_NUIT_MIN = 0.5;
 
 function fail(msg) {
   console.error(`grain-fond: FAIL — ${msg}`);
@@ -136,14 +141,18 @@ try {
   }
   console.log(`grain-fond: essai négatif OK — l'ancienne tuile à 0,04 donne ${avecAncien.ecart.toFixed(2)} (< ${JOUR_MIN})`);
 
-  // — essai négatif : sans grain, le jour échoue —
+  // — test différentiel du jour : même zone avec et sans grain —
   await page.goto(URL_GALERIE, { waitUntil: "networkidle" });
+  const jourAvecGrain = await mesurerPoste("Jour");
   await page.addStyleTag({ content: `:root, :root[data-theme="light"], :root[data-theme="dark"] { --grain: none; }` });
   const jourSansGrain = await mesurerPoste("Jour");
-  if (jourSansGrain.ecart >= JOUR_MIN) {
-    fail(`essai négatif : sans grain, le jour donne ${jourSansGrain.ecart.toFixed(2)}, il aurait dû échouer (< ${JOUR_MIN})`);
+  const ecartJour = jourAvecGrain.ecart - jourSansGrain.ecart;
+  if (ecartJour < DIFF_JOUR_MIN) {
+    fail(`test différentiel : jour ${jourAvecGrain.ecart.toFixed(2)} avec grain, ${jourSansGrain.ecart.toFixed(2)} sans, écart ${ecartJour.toFixed(2)} < ${DIFF_JOUR_MIN}`);
   }
-  console.log(`grain-fond: essai négatif OK — sans grain, le jour donne ${jourSansGrain.ecart.toFixed(2)} (< ${JOUR_MIN})`);
+  console.log(
+    `grain-fond: différentiel jour OK — ${jourAvecGrain.ecart.toFixed(2)} avec grain, ${jourSansGrain.ecart.toFixed(2)} sans, écart ${ecartJour.toFixed(2)} (>= ${DIFF_JOUR_MIN})`,
+  );
 
   // — nuit : la cible est la maquette (grain noir, peu visible sur fond sombre) —
   await page.goto(URL_GALERIE, { waitUntil: "networkidle" });
@@ -154,18 +163,16 @@ try {
   }
   console.log(`grain-fond: nuit OK — dans [${NUIT_MIN}, ${NUIT_MAX}]`);
 
-  // — essai négatif : sans grain, la nuit échoue (mesuré sur la sous-zone plate, voir ZONE_PLATE) —
-  const nuitPlate = await mesurerPoste("Nuit", ZONE_PLATE);
-  if (nuitPlate.ecart < NUIT_MIN) {
-    fail(`nuit, sous-zone plate : écart-type ${nuitPlate.ecart.toFixed(2)} < ${NUIT_MIN} alors que le grain est présent`);
-  }
+  // — test différentiel de nuit : même zone avec et sans grain (sous-zone plate, voir ZONE_PLATE) —
+  const nuitAvecGrain = await mesurerPoste("Nuit", ZONE_PLATE);
   await page.addStyleTag({ content: `:root, :root[data-theme="light"], :root[data-theme="dark"] { --grain: none; }` });
   const nuitSansGrain = await mesurerPoste("Nuit", ZONE_PLATE);
-  if (nuitSansGrain.ecart >= NUIT_MIN) {
-    fail(`essai négatif : sans grain, la nuit donne ${nuitSansGrain.ecart.toFixed(2)}, elle aurait dû échouer (< ${NUIT_MIN})`);
+  const ecartNuit = nuitAvecGrain.ecart - nuitSansGrain.ecart;
+  if (ecartNuit < DIFF_NUIT_MIN) {
+    fail(`test différentiel : nuit ${nuitAvecGrain.ecart.toFixed(2)} avec grain, ${nuitSansGrain.ecart.toFixed(2)} sans, écart ${ecartNuit.toFixed(2)} < ${DIFF_NUIT_MIN}`);
   }
   console.log(
-    `grain-fond: essai négatif OK — sous-zone plate de nuit : ${nuitPlate.ecart.toFixed(2)} avec grain, ${nuitSansGrain.ecart.toFixed(2)} sans grain (< ${NUIT_MIN})`,
+    `grain-fond: différentiel nuit OK — ${nuitAvecGrain.ecart.toFixed(2)} avec grain, ${nuitSansGrain.ecart.toFixed(2)} sans, écart ${ecartNuit.toFixed(2)} (>= ${DIFF_NUIT_MIN})`,
   );
   console.log("grain-fond: OK");
 } finally {
