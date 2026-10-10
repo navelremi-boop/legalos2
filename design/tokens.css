@@ -23,8 +23,8 @@
   --feuille-2: #f6f8f7;
   --filet: #e8eceb;
   --survol: #f3f6f5;
-  --barre: rgb(16 21 23 / 0.86);
-  --neutre: #2a3337;
+  --barre: rgb(255 255 255 / 0.74);
+  --neutre: #d6cfc2;
   --definitif: #43388a;
   --definitif-fond: rgb(67 56 138 / 0.09);
   --definitif-bord: rgb(67 56 138 / 0.2);
@@ -32,33 +32,40 @@
   --echeance-fond: #fbe9e7;
   --synchro: #7bd89a;
   --sur-chemise: #141a1c;
-  /* Texte posé sur fond neutre (§ 7.3) : toujours clair, y compris en jour */
-  --texte-sur-neutre: #f2f5f4;
+  /* Texte posé sur le fond neutre : sombre sur le lin du jour, clair sur l'ardoise de la nuit */
+  --texte-sur-neutre: #3a3022;
   --focus: #141a1c;
 
-  /* Chrome barre / dock (texte clair sur --barre) */
-  --barre-texte: #e6ecea;
-  --barre-texte-muet: #aeb8bc;
-  --barre-pilule: #f2f5f4;
-  --barre-kbd: #c9d1d4;
+  /* Chrome barre / dock : barre claire en jour (texte sombre sur --barre), sombre en nuit */
+  --barre-texte: #141a1c;
+  --barre-texte-muet: #4a565b;
+  --barre-pilule: #141a1c;
+  --barre-kbd: #4a565b;
   --verre: rgb(255 255 255 / 0.3);
   --verre-bord: rgb(255 255 255 / 0.42);
   --verre-fort: rgb(255 255 255 / 0.6);
   --arc-piste: rgb(20 26 28 / 0.14);
-  --barre-inset: inset 0 -1px 0 rgb(255 255 255 / 0.06);
-  --barre-compteur: rgb(255 255 255 / 0.12);
-  --barre-surface: rgb(255 255 255 / 0.08);
-  --barre-surface-bord: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+  --barre-inset: inset 0 -1px 0 rgb(20 26 28 / 0.1);
+  --barre-compteur: rgb(20 26 28 / 0.08);
+  --barre-surface: rgb(20 26 28 / 0.06);
+  --barre-surface-bord: inset 0 0 0 1px rgb(20 26 28 / 0.08);
   --barre-onglet-reflet: linear-gradient(
     rgb(255 255 255 / 0.2),
     rgb(255 255 255 / 0) 60%
   );
   --barre-onglet-ombre: inset 0 1px 0 rgb(255 255 255 / 0.32);
-  --barre-onglet-inactif-bord: inset 0 1px 0 rgb(255 255 255 / 0.06);
-  --barre-pastille-anneau: 0 0 0 2px rgb(255 255 255 / 0.12);
-  --barre-chrono-anneau: 0 0 0 3px rgb(255 255 255 / 0.1);
-  --barre-kbd-fond: rgb(255 255 255 / 0.1);
-  --dock-hover: rgb(255 255 255 / 0.1);
+  --barre-onglet-inactif-bord: inset 0 1px 0 rgb(20 26 28 / 0.08);
+  --barre-pastille-anneau: 0 0 0 2px rgb(20 26 28 / 0.12);
+  --barre-chrono-anneau: 0 0 0 3px rgb(20 26 28 / 0.1);
+  --barre-kbd-fond: rgb(20 26 28 / 0.08);
+  /* Barre d'actions (dock) : claire en jour */
+  --dock-fond: rgb(255 255 255 / 0.82);
+  --dock-texte: #141a1c;
+  --dock-hover: rgb(20 26 28 / 0.07);
+  --dock-prim-fond: #141a1c;
+  --dock-prim-texte: #f2f5f4;
+  /* Voile des fenêtres modales : sombre dans les deux thèmes */
+  --voile: rgb(16 21 23 / 0.86);
   --intercalaire-ombre-actif: 12px 10px 24px -18px rgb(0 0 0 / 0.45);
   --intercalaire-ombre-inactif:
     inset 0 1px 0 var(--verre-bord),
@@ -76,10 +83,10 @@
   --lumiere:
     radial-gradient(
       120% 90% at 8% -12%,
-      rgb(255 255 255 / 0.36),
+      rgb(255 255 255 / 0.22),
       rgb(255 255 255 / 0) 55%
     ),
-    radial-gradient(90% 80% at 110% 120%, rgb(0 0 0 / 0.18), rgb(0 0 0 / 0) 60%);
+    radial-gradient(90% 80% at 110% 120%, rgb(0 0 0 / 0.22), rgb(0 0 0 / 0) 60%);
 
   --ombre-carte:
     0 1px 0 rgb(255 255 255 / 0.9) inset,
@@ -87,7 +94,7 @@
     0 2px 8px rgb(0 0 0 / 0.06);
   --ombre-etiquette: 0 10px 24px -16px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.08);
   --ombre-dock:
-    0 18px 40px -16px rgb(0 0 0 / 0.55), inset 0 0 0 1px rgb(255 255 255 / 0.08);
+    0 18px 40px -20px rgb(0 0 0 / 0.35), inset 0 0 0 1px rgb(20 26 28 / 0.1);
   --shadow-floating: 0 12px 40px rgb(31 38 41 / 0.12);
 
   --font-family: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI",
@@ -165,7 +172,12 @@
   --barre-pastille-anneau: 0 0 0 2px rgb(255 255 255 / 0.12);
   --barre-chrono-anneau: 0 0 0 3px rgb(255 255 255 / 0.1);
   --barre-kbd-fond: rgb(255 255 255 / 0.1);
+  --dock-fond: rgb(16 21 23 / 0.86);
+  --dock-texte: #e6ecea;
   --dock-hover: rgb(255 255 255 / 0.1);
+  --dock-prim-fond: #f2f5f4;
+  --dock-prim-texte: #141a1c;
+  --voile: rgb(16 21 23 / 0.86);
   --intercalaire-ombre-actif: 12px 10px 24px -18px rgb(0 0 0 / 0.45);
   --intercalaire-ombre-inactif:
     inset 0 1px 0 var(--verre-bord),
@@ -239,7 +251,12 @@
     --barre-pastille-anneau: 0 0 0 2px rgb(255 255 255 / 0.12);
     --barre-chrono-anneau: 0 0 0 3px rgb(255 255 255 / 0.1);
     --barre-kbd-fond: rgb(255 255 255 / 0.1);
+    --dock-fond: rgb(16 21 23 / 0.86);
+    --dock-texte: #e6ecea;
     --dock-hover: rgb(255 255 255 / 0.1);
+    --dock-prim-fond: #f2f5f4;
+    --dock-prim-texte: #141a1c;
+    --voile: rgb(16 21 23 / 0.86);
     --intercalaire-ombre-actif: 12px 10px 24px -18px rgb(0 0 0 / 0.45);
     --intercalaire-ombre-inactif:
       inset 0 1px 0 var(--verre-bord),

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { BarreHaut } from "@/coque/BarreHaut";
+import { MenuCompte } from "@/coque/MenuCompte";
 import { CHRONO_DEMO } from "@/coque/chrono/donneesDemo";
 import { DossierOuvert, DOSSIERS_DEMO } from "@/screens/DossierOuvert";
 import { EcranAgenda } from "@/agenda/EcranAgenda";
@@ -18,6 +19,8 @@ import { fr } from "@/lib/fr";
 export function GalerieDemo() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [chemise, setChemise] = useState<ChemiseId>("kraft");
+  /** Dernière entrée choisie dans le menu du compte (la galerie n'exécute rien), lue par les recettes. */
+  const [dernierChoixCompte, setDernierChoixCompte] = useState("");
   const [vue, setVue] = useState<
     "dossier" | "journee" | "dossiers" | "mails" | "agenda" | "facturation" | "reglages"
   >("dossier");
@@ -291,8 +294,30 @@ export function GalerieDemo() {
           onChrono={vue === "dossier" ? () => undefined : undefined}
           onPalette={() => undefined}
           mailsCompteur={aClasser}
+          compteMenu={
+            <MenuCompte
+              onTemps={() => {
+                setDernierChoixCompte("temps");
+              }}
+              onReglages={() => {
+                setDernierChoixCompte("reglages");
+              }}
+              onPalette={() => {
+                setDernierChoixCompte("palette");
+              }}
+              onVerrouiller={() => {
+                setDernierChoixCompte("verrouiller");
+              }}
+              onDeconnecter={() => {
+                setDernierChoixCompte("deconnexion");
+              }}
+            />
+          }
         />
         <div className="coque-workspace min-h-0 flex-1">
+          <span className="sr-only" data-testid="galerie-menu-dernier-choix">
+            {dernierChoixCompte}
+          </span>
           {vue === "dossier" ? (
             <DossierOuvert
               dossier={dossier}

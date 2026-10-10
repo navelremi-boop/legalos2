@@ -546,7 +546,7 @@
     gap: 2px;
     padding: 6px;
     border-radius: var(--radius-overlay);
-    background: var(--barre);
+    background: var(--dock-fond);
     -webkit-backdrop-filter: blur(16px) saturate(1.4);
     backdrop-filter: blur(16px) saturate(1.4);
     box-shadow: var(--ombre-dock);
@@ -558,7 +558,7 @@
     gap: 8px;
     padding: 8px 12px;
     border-radius: 11px;
-    color: var(--barre-texte);
+    color: var(--dock-texte);
     font-size: var(--font-size-dense);
     white-space: nowrap;
     transition: background-color var(--duration-hover) ease;
@@ -581,8 +581,8 @@
   }
 
   .fond-neutre .barre-actions__btn--prim {
-    background: var(--feuille);
-    color: var(--encre);
+    background: var(--dock-prim-fond);
+    color: var(--dock-prim-texte);
   }
 
   .barre-actions__kbd {
@@ -600,7 +600,7 @@
     z-index: 40;
     display: grid;
     place-items: center;
-    background: var(--barre);
+    background: var(--voile);
   }
 
   .panneau-modal__carte {

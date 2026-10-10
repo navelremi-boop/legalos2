@@ -13,6 +13,7 @@ import {
   type OngletDossier,
   type SyncEtat,
 } from "@/coque/BarreHaut";
+import { MenuCompte } from "@/coque/MenuCompte";
 import { FormulaireDelai } from "@/delais/FormulaireDelai";
 import { EcranAgenda } from "@/agenda/EcranAgenda";
 import { emettreRappelsEchus } from "@/agenda/rappels";
@@ -24,6 +25,7 @@ import { isChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
 import { instanceReachable } from "@/lib/instanceReachable";
 import { libelleReferenceDossier } from "@/lib/referenceDossier";
+import { clearSession } from "@/lib/session/storage";
 import { DossierOuvert, type DossierVue } from "@/screens/DossierOuvert";
 import { Dossiers } from "@/screens/Dossiers";
 import { EcranMails } from "@/messagerie/EcranMails";
@@ -70,7 +72,6 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
   const [ongletActifId, setOngletActifId] = useState<string | null>(null);
   const [dossierCharge, setDossierCharge] = useState<DossierVue | null>(null);
   const [panneau, setPanneau] = useState<Panneau>("aucun");
-  const [menuCompteOuvert, setMenuCompteOuvert] = useState(false);
   const [enAttente, setEnAttente] = useState(0);
   const [mailsAClasser, setMailsAClasser] = useState(0);
   const [navigateurHorsLigne, setNavigateurHorsLigne] = useState(!navigator.onLine);
@@ -334,7 +335,6 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
 
   const naviguer = useCallback((id: NavId) => {
     setNav(id);
-    setMenuCompteOuvert(false);
   }, []);
 
   let contenu: ReactNode;
@@ -474,67 +474,34 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
   }
 
   const compteMenu = (
-    <div className="relative">
-      <button
-        type="button"
-        className="barre-haut__pilule"
-        aria-expanded={menuCompteOuvert}
-        aria-haspopup="menu"
-        data-testid="menu-compte"
-        onClick={() => {
-          setMenuCompteOuvert((v) => !v);
-        }}
-      >
-        {fr("Compte")}
-      </button>
-      {menuCompteOuvert ? (
-        <ul
-          className="absolute right-0 bottom-full mb-2 min-w-[160px] rounded-[var(--radius-control)] bg-feuille p-1 text-encre shadow-[var(--ombre-etiquette)]"
-          role="menu"
-        >
-          <li role="none">
-            <button
-              type="button"
-              role="menuitem"
-              className="w-full rounded-[var(--radius-control)] px-3 py-2 text-left hover:bg-survol"
-              onClick={() => {
-                setPanneau("temps");
-                setMenuCompteOuvert(false);
-              }}
-            >
-              {fr("Temps")}
-            </button>
-          </li>
-          <li role="none">
-            <button
-              type="button"
-              role="menuitem"
-              className="w-full rounded-[var(--radius-control)] px-3 py-2 text-left hover:bg-survol"
-              data-testid="menu-reglages"
-              onClick={() => {
-                naviguer("reglages");
-              }}
-            >
-              {fr("Réglages")}
-            </button>
-          </li>
-          {import.meta.env.DEV ? (
-            <li role="none">
-              <button
-                type="button"
-                role="menuitem"
-                className="w-full rounded-[var(--radius-control)] px-3 py-2 text-left hover:bg-survol"
-                onClick={() => {
-                  naviguer("galerie");
-                }}
-              >
-                {fr("Galerie (dev)")}
-              </button>
-            </li>
-          ) : null}
-        </ul>
-      ) : null}
-    </div>
+    <MenuCompte
+      onTemps={() => {
+        setPanneau("temps");
+      }}
+      onReglages={() => {
+        naviguer("reglages");
+      }}
+      onPalette={() => {
+        setPanneau("palette");
+      }}
+      onVerrouiller={onReconnect}
+      onDeconnecter={
+        onResetSession === undefined
+          ? undefined
+          : () => {
+              void clearSession().then(() => {
+                onResetSession();
+              });
+            }
+      }
+      onGalerie={
+        import.meta.env.DEV
+          ? () => {
+              naviguer("galerie");
+            }
+          : undefined
+      }
+    />
   );
 
   return (

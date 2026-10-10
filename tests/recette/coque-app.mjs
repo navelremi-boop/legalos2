@@ -215,7 +215,8 @@ async function runCaptures() {
         kraft: "rgb(206, 154, 85)",
         "bleu-classeur": "rgb(111, 162, 224)",
         "vert-amande": "rgb(108, 191, 132)",
-        neutre: "rgb(42, 51, 55)",
+        // Fond lin du jour (Coque claire, 07/10/2026) ; l'ardoise sombre rgb(42, 51, 55) est l'ancienne valeur.
+        neutre: "rgb(214, 207, 194)",
       },
       dark: {
         kraft: "rgb(110, 81, 40)",
