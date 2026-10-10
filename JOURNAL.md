@@ -764,3 +764,11 @@ Contrôleur sur `a1f39ed` : **détails de la coque conformes** (bouton primaire 
 **Limites connues** : le garde lit des chaînes de commande, pas la configuration git : une édition de `.git/config` par un outil de fichier n'est pas vue ; `permissions.deny` fonctionne par motifs de texte. `git push --no-verify` reste possible pour le commandement, hors agent, pour le lot qui sort 2.
 
 **En attente (réserves du contrôleur sur le grain, partie A)** : (1) retirer `x`, `y`, `width`, `height` du filtre de `design/grain.svg` au prochain commit qui touche `design/`, sans nouvelle revalidation ; (2) après le push, remplacer l'essai négatif de nuit par un test différentiel (même zone avec et sans grain, écart d'au moins 0,5 en nuit, 4 en jour). Rien d'autre n'a changé : Coque claire non cochée, rien n'est poussé.
+
+## 2026-10-10 (nuit) — Coque claire cochée
+
+Le commandement a poussé `main` (`7fcdb6f`). CI **verte** sur ce commit (`gh run view 38060526322` : perimetre, gouvernance, frontend, rust, facturx, webdriver-macos, s1-instance). Contrôleur VALIDÉ (détails de la coque `a1f39ed`, grain `b53fd0f`). Commit `plan:` : **Coque claire cochée**, dette du grain soldée ; branche `avant-reword` supprimée.
+
+Partie A.2 de la décision de l'architecte faite : `grain-fond.mjs` remplace l'essai négatif de nuit par un test différentiel (même zone avec et sans grain) : jour 6,62 contre 0,72 (écart 5,90 ≥ 4) ; nuit, sous-zone plate 60×10 : 1,30 contre 0,55 (écart 0,76 ≥ 0,5). Sur la zone de 200×30 de nuit l'écart n'est que de 0,39 (lumière radiale : 1,69 sans grain), d'où la sous-zone. Le PLAN décrit encore « essais négatifs : l'ancienne tuile et un grain nul » (ligne du critère du grain) : formulation à mettre à jour sur consigne si l'architecte le veut. Reste A.1 : retirer `x`, `y`, `width`, `height` du filtre de `design/grain.svg` au prochain commit qui touche `design/` (aucun depuis).
+
+**Prochaine action** : J11 (ordre du PLAN), puis les écrans Temps et La journée dans « Finition des écrans ». Les 30 passes en mode build : ce soir, poste libre. Push : les deux derniers commits (`plan:` + recette) ne touchent pas le jeu protégé ; je ne pousse pas tant que le commandement n'a pas levé la consigne « ne pousse rien » par un message explicite.
