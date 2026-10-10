@@ -256,7 +256,7 @@ const dossierLiens = new Table(
   { indexes: { dossier: ["dossier_id"], lie: ["lie_a_id"] } },
 );
 
-/** Audiences, rendez-vous et tâches (§ 4.2 n° 4). Pas les invitations mail (J11). */
+/** Audiences, rendez-vous et tâches (§ 4.2 n° 4). Les invitations mail sont à part. */
 const agendaElements = new Table(
   {
     cabinet_id: column.text,
@@ -290,6 +290,26 @@ const comptesMail = new Table(
   },
   { indexes: { titulaire: ["titulaire_id"] } },
 );
+
+/** Invitation reçue, visible du seul titulaire. Pas de dossier. */
+const invitationsAgenda = new Table(
+  {
+    cabinet_id: column.text,
+    titulaire_id: column.text,
+    uid_ical: column.text,
+    sequence: column.integer,
+    effet: column.text,
+    fuseau: column.text,
+    debut: column.text,
+    fin: column.text,
+    objet: column.text,
+    organisateur: column.text,
+    revision: column.integer,
+    cree_le: column.text,
+  },
+  { indexes: { titulaire: ["titulaire_id"], uid: ["uid_ical"] } },
+);
+
 const messages = new Table(
   {
     cabinet_id: column.text,
@@ -337,6 +357,7 @@ export const AppSchema = new Schema({
   contacts,
   dossier_liens: dossierLiens,
   agenda_elements: agendaElements,
+  invitations_agenda: invitationsAgenda,
   messages,
   comptes_mail: comptesMail,
 });

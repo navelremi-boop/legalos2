@@ -64,6 +64,7 @@ const fluxAttendus = [
   "messages_a_classer",
   "messages_nominatifs",
   "comptes_nominatifs",
+  "invitations_titulaire",
 ];
 
 /** Extrait le bloc YAML d'un flux nommé (clés de flux : exactement 2 espaces). */
@@ -297,6 +298,17 @@ function compterTables(sql) {
   const from = [...sql.matchAll(/\bFROM\s+([a-z_][a-z0-9_]*)/gi)].map((m) => m[1].toLowerCase());
   const joins = [...sql.matchAll(/\bJOIN\s+([a-z_][a-z0-9_]*)/gi)].map((m) => m[1].toLowerCase());
   return new Set([...from, ...joins]).size;
+}
+
+const invitations = blocFlux("invitations_titulaire");
+if (!/FROM invitations_agenda/.test(invitations)) {
+  fail("invitations_titulaire : table invitations_agenda requise");
+}
+if (!/titulaire_id::text = auth\.user_id\(\)/.test(invitations)) {
+  fail("invitations_titulaire : filtre titulaire requis");
+}
+if (/JOIN/i.test(invitations)) {
+  fail("invitations_titulaire : jointure interdite (un bucket par titulaire)");
 }
 
 const requetes = [...yaml.matchAll(/(?:^|\n)\s{4,}-\s*(SELECT[\s\S]*?)(?=\n\s{4}-\s*SELECT|\n\s{2}[a-z_]+:|\n*$)/gi)]
