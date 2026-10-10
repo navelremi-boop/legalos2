@@ -37,6 +37,90 @@ for (const [motif, raison] of interdits) {
   }
 }
 
+// Politique de push autonome (décision de l'architecte du 10/10/2026) : le garde refuse, quelle que soit la place
+// de `git` dans la commande (options globales `-C`, `-c`, enchaînements), les formes qui contourneraient le hook
+// pre-push ou la revue du commandement : --no-verify, -f / --force*, +refspec, --delete, --tags, tout refspec
+// contenant « : », et toute modification de core.hooksPath. Les options longues sont reconnues par préfixe
+// (git accepte `--no-ver`, `--forc`, `--dele`).
+const OPTIONS_PUSH_AVEC_VALEUR = new Set(["-o", "--push-option", "--repo", "--receive-pack", "--exec"]);
+const OPTIONS_GIT_AVEC_VALEUR = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env", "--exec-path", "--super-prefix"]);
+const LECTURE_CONFIG = /^--(get|get-all|get-regexp|get-urlmatch|list|show-origin|show-scope|name-only)$|^-l$/;
+
+function motsDe(segment) {
+  return segment
+    .trim()
+    .split(/\s+/)
+    .map((mot) => mot.replace(/^["']+|["']+$/g, ""))
+    .filter(Boolean);
+}
+
+/** Raison du refus pour un segment de commande, ou null. */
+function raisonGit(segment) {
+  const mots = motsDe(segment);
+  const debut = mots.findIndex((mot) => /^(?:.*[\\/])?git(?:\.exe)?$/i.test(mot));
+  if (debut >= 0) {
+    let k = debut + 1;
+    while (k < mots.length && mots[k].startsWith("-")) {
+      const [nom, valeurEgale] = mots[k].split(/=(.*)/s);
+      let valeur = valeurEgale;
+      if (valeur === undefined && OPTIONS_GIT_AVEC_VALEUR.has(nom)) {
+        k += 1;
+        valeur = mots[k] ?? "";
+      }
+      if ((nom === "-c" || nom === "--config-env") && /hookspath/i.test(valeur ?? "")) return "modification de core.hooksPath";
+      k += 1;
+    }
+    const sousCommande = mots[k];
+    const args = mots.slice(k + 1);
+    if (sousCommande === "push") {
+      let positionnel = 0;
+      for (let i = 0; i < args.length; i += 1) {
+        const arg = args[i];
+        if (arg.startsWith("--")) {
+          const nom = arg.split("=")[0];
+          if (/^--no-v/.test(nom)) return "push sans le hook pre-push (--no-verify)";
+          if (/^--for/.test(nom)) return "push forcé";
+          if (/^--ta/.test(nom)) return "push de tag";
+          if (/^--de/.test(nom)) return "suppression de branche distante";
+          if (/^--(mi|prune)/.test(nom)) return "push miroir ou avec élagage (suppressions distantes)";
+          if (OPTIONS_PUSH_AVEC_VALEUR.has(nom) && !arg.includes("=")) i += 1;
+        } else if (arg.startsWith("-") && arg.length > 1) {
+          if (/f/.test(arg)) return "push forcé (-f)";
+          if (OPTIONS_PUSH_AVEC_VALEUR.has(arg)) i += 1;
+        } else {
+          positionnel += 1;
+          if (arg.startsWith("+")) return "push forcé (refspec +)";
+          const adresse = /^[a-z][a-z0-9+.-]*:\/\//i.test(arg) || /^[\w.-]+@[\w.-]+:/.test(arg) || /^[A-Za-z]:[\\/]/.test(arg);
+          if (arg.includes(":") && !(positionnel === 1 && adresse)) return "refspec contenant « : » (suppression ou renommage distant)";
+        }
+      }
+    }
+    if (sousCommande === "config" && args.some((a) => /hookspath/i.test(a) || a === "-e" || a === "--edit")) {
+      const edition = args.some((a) => a === "-e" || a === "--edit");
+      const lecture = args.some((a) => LECTURE_CONFIG.test(a));
+      const positionnels = args.filter((a) => !a.startsWith("-"));
+      const cle = positionnels.findIndex((a) => /hookspath/i.test(a));
+      const ecriture = args.some((a) => /^--(unset|unset-all|add|replace-all|rename-section|remove-section)$/.test(a)) || (cle >= 0 && cle + 1 < positionnels.length && !lecture);
+      if (edition || ecriture) return "modification de core.hooksPath ou édition de la configuration git";
+    }
+  }
+  // Autres moyens de poser core.hooksPath : variables GIT_CONFIG_*, écriture directe dans la configuration.
+  if (/hookspath/i.test(segment)) {
+    const variable = /GIT_CONFIG_(KEY|COUNT|PARAMETERS)/i.test(segment);
+    const ecritureDirecte = /\.git[\\/]config|\.gitconfig/i.test(segment) && /(>>?|\bsed\b.*\s-i|Set-Content|Add-Content|Out-File|\btee\b)/i.test(segment);
+    if (variable || ecritureDirecte) return "modification de core.hooksPath";
+  }
+  return null;
+}
+
+for (const segment of c.split(/;|&&|\|\||&|\||\r?\n/)) {
+  const raison = raisonGit(segment);
+  if (raison) {
+    refuser(lu.valeur, `Commande bloquée par garde-commandes : ${raison}.`,
+      "Politique de push autonome (décision de l'architecte du 10/10/2026) : pas de contournement du hook pre-push, pas de push forcé, de tag ni de suppression, pas de modification de core.hooksPath. Le commandement relit et pousse ce qui touche le jeu protégé.");
+  }
+}
+
 // Worktrees des sous-agents : uniquement sous .worktrees/ à la racine du dépôt (ordre d'opération § 4.3).
 const racines = racinesDe(lu.valeur)
   .map((racine) => normaliser(String(racine)).replace(/\/+$/, ""));

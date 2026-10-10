@@ -178,6 +178,63 @@ expectDenyClaude("garde-commandes.mjs", claudeBash("git push origin --delete lot
 expectDenyClaude("garde-commandes.mjs", claudeBash("git filter-repo --force"), "historique");
 expectAllowClaude("garde-commandes.mjs", claudeBash("git status"));
 expectAllowClaude("garde-commandes.mjs", claudeBash("git commit -m ok", "PowerShell"));
+
+// Politique de push autonome (10/10/2026) : formes refusées dans les deux formats (Cursor et Claude Code),
+// y compris derrière des options globales de git, un enchaînement ou une abréviation d'option.
+const poussesRefusees = [
+  ["git push --no-verify origin main", "--no-verify"],
+  ["git push origin main --no-verify", "--no-verify"],
+  ["git push --no-ver origin main", "--no-verify"],
+  ["git push -f origin main", "forcé"],
+  ["git push origin main -fu", "forcé"],
+  ["git push --force origin main", "forcé"],
+  ["git push --force-with-lease origin main", "forcé"],
+  ["git push --forc origin main", "forcé"],
+  ["git push origin +main", "forcé"],
+  ["git push origin --delete lot/x", "suppression de branche"],
+  ["git push origin --de lot/x", "suppression de branche"],
+  ["git push --tags", "tag"],
+  ["git push --ta origin", "tag"],
+  ["git push --mirror origin", "miroir"],
+  ["git push origin :main", "«"],
+  ["git push origin main:main", "«"],
+  ["git push origin HEAD:refs/heads/autre", "«"],
+  ["git -C . push -f origin main", "forcé"],
+  ["git -c user.name=x push --no-verify", "--no-verify"],
+  ["git status && git push --no-verify", "--no-verify"],
+  ["git config core.hooksPath .githooks", "core.hooksPath"],
+  ["git config --local core.hooksPath /dev/null", "core.hooksPath"],
+  ["git config --unset core.hooksPath", "core.hooksPath"],
+  ["git config --edit", "core.hooksPath"],
+  ["git -c core.hooksPath=. commit -m x", "core.hooksPath"],
+  ["git -c core.hooksPath=. push origin main", "core.hooksPath"],
+  ["git --config-env=core.hooksPath=VAR push origin main", "core.hooksPath"],
+  ["GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=. git push origin main", "core.hooksPath"],
+];
+const poussesAutorisees = [
+  "git push origin main",
+  "git push",
+  "git push -u origin main",
+  "git push --dry-run origin main",
+  "git -C . push origin main",
+  "git push https://github.com/exemple/depot.git main",
+  "git push git@github.com:exemple/depot.git main",
+  "git config core.hooksPath",
+  "git config --get core.hooksPath",
+  "git config user.name test",
+  "grep -n hooksPath README.md",
+];
+for (const [commande, fragment] of poussesRefusees) {
+  for (const outil of ["Bash", "PowerShell"]) {
+    expectDenyClaude("garde-commandes.mjs", claudeBash(commande, outil), fragment);
+  }
+  expectDeny("garde-commandes.mjs", JSON.stringify({ command: commande }), fragment);
+  expectDeny("garde-commandes.mjs", JSON.stringify({ command: `git status; ${commande}` }), fragment);
+}
+for (const commande of poussesAutorisees) {
+  expectAllowClaude("garde-commandes.mjs", claudeBash(commande));
+  expectAllow("garde-commandes.mjs", JSON.stringify({ command: commande }));
+}
 for (const prefixe of prefixes) {
   expectDenyClaude("garde-commandes.mjs", claudeBash(`${prefixe}; git push --force --dry-run origin main`), "forcé");
   expectDenyClaude("garde-commandes.mjs", claudeBash(`${prefixe} | git push origin main --force-with-lease`, "PowerShell"), "forcé");
@@ -382,6 +439,24 @@ repondre(c.includes("--force") ? { permission: "deny", user_message: "refus" } :
   } catch (erreur) {
     fail(`.claude/settings.json illisible : ${erreur.message}`);
   }
+  const FORMES_INTERDITES = [
+    "git push *--no-verify*",
+    "git push *--force*",
+    "git push -f*",
+    "git push * -f",
+    "git push * -f *",
+    "git push *--delete*",
+    "git push *--tags*",
+    "git push *--mirror*",
+    "git push * *:*",
+    "git config core.hooksPath *",
+    "git config * core.hooksPath *",
+    "git config --unset*core.hooksPath*",
+    "git config --edit*",
+    "git config -e*",
+    "git -c core.hooksPath*",
+    "git * -c core.hooksPath*",
+  ];
   const verifierReglages = (r) => {
     const ecarts = [];
     const autorisations = r.permissions?.allow ?? [];
@@ -409,6 +484,13 @@ repondre(c.includes("--force") ? { permission: "deny", user_message: "refus" } :
     }
     if (autorisations.some((regle) => /^(?:Bash|PowerShell)\(git push\b/.test(regle))) {
       ecarts.push("git push dans permissions.allow : à placer dans permissions.ask");
+    }
+    // Politique de push autonome (10/10/2026) : formes interdites aussi en permissions.deny (le garde reste la barrière).
+    const interdites = r.permissions?.deny ?? [];
+    for (const forme of FORMES_INTERDITES) {
+      for (const outil of ["Bash", "PowerShell"]) {
+        if (!interdites.includes(`${outil}(${forme})`)) ecarts.push(`permissions.deny sans ${outil}(${forme})`);
+      }
     }
     if (r.permissions?.blockReadsOutsideWorkingDirectories !== true) ecarts.push("blockReadsOutsideWorkingDirectories absent");
     if (r.permissions?.disableBypassPermissionsMode !== "disable") ecarts.push("disableBypassPermissionsMode absent");
@@ -445,7 +527,16 @@ repondre(c.includes("--force") ? { permission: "deny", user_message: "refus" } :
   pushSansDemande.permissions.ask = [];
   const sansAutorisation = structuredClone(reglages);
   sansAutorisation.permissions.allow = sansAutorisation.permissions.allow.filter((a) => !a.includes("cargo"));
+  const sansDeny = structuredClone(reglages);
+  delete sansDeny.permissions.deny;
+  const denyAmputee = structuredClone(reglages);
+  denyAmputee.permissions.deny = denyAmputee.permissions.deny.filter((r) => !r.includes("--no-verify"));
+  const denyHooksPath = structuredClone(reglages);
+  denyHooksPath.permissions.deny = denyHooksPath.permissions.deny.filter((r) => !r.includes("-c core.hooksPath"));
   for (const [libelle, variante] of [
+    ["permissions.deny retiré", sansDeny],
+    ["--no-verify retiré de permissions.deny", denyAmputee],
+    ["git -c core.hooksPath retiré de permissions.deny", denyHooksPath],
     ["blockReads retiré", sansBloc],
     ["hook Stop ajouté", avecStop],
     ["garde-secrets retiré", sansSecrets],
