@@ -7,9 +7,10 @@
  * à droite du titre), sur la capture du poste (galerie, écran La journée) et sur la maquette
  * `prototype-journee.html` dans la même zone.
  * - Jour : l'écart-type du poste est compris entre 5 et 8 (maquette : 6,3 à 6,8 selon la zone).
- * - Nuit : le grain de la maquette est noir ; sur le fond sombre il vaut environ 1,4 (maquette comme
- *   poste). Le poste est comparé à la maquette ; l'intervalle 5 à 8 demandé « en jour et en nuit »
- *   n'est PAS atteignable avec ce grain (voir JOURNAL.md) : il est affiché, pas vérifié.
+ * - Nuit : critère de l'architecte, l'écart-type est aussi compris entre 5 et 8. Le grain de la
+ *   maquette est noir ; sur le fond sombre il ne donne qu'environ 1,45 (maquette) et 2,08 (poste) :
+ *   cette partie ÉCHOUE tant que l'architecte n'a pas tranché (grain clair en nuit, mesuré à 7,15,
+ *   ou autre intervalle ; voir la dette du grain dans PLAN.md). Ne pas assouplir cette assertion.
  * - Essai négatif : l'ancienne tuile à 0,04 d'opacité fait échouer la mesure du jour.
  *
  * Usage : node tests/recette/grain-fond.mjs
@@ -135,12 +136,12 @@ try {
   await page.goto(URL_GALERIE, { waitUntil: "networkidle" });
   const nuit = await mesurerPoste("Nuit");
   console.log(`grain-fond: nuit — poste ${nuit.ecart.toFixed(2)}, maquette ${maquette.nuit.ecart.toFixed(2)}`);
-  if (Math.abs(nuit.ecart - maquette.nuit.ecart) > ECART_MAQUETTE_MAX) {
-    fail(`nuit : écart-type du poste ${nuit.ecart.toFixed(2)} trop éloigné de la maquette ${maquette.nuit.ecart.toFixed(2)}`);
+  if (!(nuit.ecart >= JOUR_MIN && nuit.ecart <= JOUR_MAX)) {
+    fail(
+      `nuit : écart-type ${nuit.ecart.toFixed(2)} hors de [${JOUR_MIN}, ${JOUR_MAX}] (maquette : ${maquette.nuit.ecart.toFixed(2)}, qui n'y est pas non plus) — critère de l'architecte non atteint, décision attendue`,
+    );
   }
-  console.log(
-    `grain-fond: nuit conforme à la maquette ; NOTE : l'intervalle ${JOUR_MIN}-${JOUR_MAX} demandé en nuit n'est pas atteignable avec le grain noir de la maquette (${nuit.ecart.toFixed(2)})`,
-  );
+  console.log(`grain-fond: nuit OK — dans [${JOUR_MIN}, ${JOUR_MAX}]`);
   console.log("grain-fond: OK");
 } finally {
   if (navigateur) await navigateur.close();
