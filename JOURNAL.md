@@ -774,3 +774,11 @@ Partie A.2 de la décision de l'architecte faite : `grain-fond.mjs` remplace l'e
 **Prochaine action** : J11 (ordre du PLAN), puis les écrans Temps et La journée dans « Finition des écrans ». Les 30 passes en mode build : ce soir, poste libre. Push : les deux derniers commits (`plan:` + recette) ne touchent pas le jeu protégé ; je ne pousse pas tant que le commandement n'a pas levé la consigne « ne pousse rien » par un message explicite.
 
 2026-10-10 (nuit) — Reprise : lecture de PLAN.md, BLOCAGES.md et de la dernière entrée ; J11 ouvert, état des lieux de `lot/j11` confié à un sous-agent Explore. Rien n'est poussé (consigne du commandement toujours en vigueur).
+
+## 2026-10-10 (soir) — J11 : plan validé par l'architecte, étape 1a engagée
+
+**Décision de l'architecte du 10/10/2026** : plan J11 validé ; critères (a) à (h) ajoutés au PLAN (`5f3268c`, `plan-gouvernance` exit 0). Étape 1 découpée : **1a** = migration 038 (signatures et modèles), routes de composition, envoi par la file ; **1b** = brouillons IMAP, complétion des destinataires, pièces jointes ; un commit par sous-étape avec les commandes de preuve. Étape 4 (poste) : Coque claire cochée, donc permise, mais l'ordre 1 → 3 d'abord. `executant` : jamais l'éditeur de rédaction, le nettoyage du HTML ni les invitations ; seulement la mise en page des signatures dans Réglages, la logique faite.
+
+**Contrainte machine** : ce soir, code des étapes 1 à 3 écrit, mais **aucune recette qui utilise Docker, GreenMail ou Dovecot** tant que les 30 passes en mode build tournent ; recettes J11 de jour seulement, jamais en parallèle d'autre chose qui utilise l'instance. État constaté à 19 h 06 : conteneurs de l'instance actifs, aucun processus `ab-conflits` en cours (les 30 passes ne sont pas lancées). Le sous-agent `messagerie` a reçu la consigne : écrire `j11-redaction-api.mjs` sans la lancer, tests Rust sans service externe, clippy.
+
+**Mesure de durée de l'étape 1a** (demande de l'architecte, pour réestimer J11) : début **vers 19 h 05** le 10/10/2026 (lancement du sous-agent `messagerie`) ; fin à consigner ici avec le nombre de sessions et de fenêtres d'usage consommées.
