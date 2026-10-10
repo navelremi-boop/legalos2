@@ -1,0 +1,3 @@
+#!/bin/sh
+# Politique de push autonome (voir scripts/pre-push-check.mjs). Activation : git config core.hooksPath .githooks
+exec node "$(git rev-parse --show-toplevel)/scripts/pre-push-check.mjs" "$@"
