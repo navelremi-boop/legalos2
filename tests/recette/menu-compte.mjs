@@ -41,6 +41,10 @@ try {
 }
 
 const vite = demarrerVite(racine);
+// fail() appelle process.exit(1) : le finally ne s'exécute pas, Vite serait laissé actif sur le port 1420.
+process.on("exit", () => {
+  arreterVite(vite);
+});
 let navigateur;
 try {
   await attendreUrl(URL_GALERIE, 60_000).catch((err) => fail(err.message));
