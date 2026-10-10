@@ -10,6 +10,10 @@
  *
  * Usage : node tests/recette/ab-conflits.mjs [--passes 8] [--recette conflits-poste-tauri.mjs]
  *                                            [--sortie docs/journal/ab-powersync.md]
+ *                                            [--arbres base,nouveau] [--env CLE=VALEUR] [--titre "…"]
+ * Mesure du préchauffage de Vite (dette conflits-poste-tauri) : un seul arbre, une variable
+ * d'environnement : --arbres nouveau --env LEGALOS_VITE_PRECHAUFFE=1 --passes 20
+ *                   --sortie docs/journal/prechauffe-vite.md
  * Le fichier de sortie est réécrit après chaque passe : un arrêt garde les passes déjà mesurées.
  */
 import { spawn, spawnSync } from "node:child_process";
@@ -29,11 +33,23 @@ const passes = Number(option("passes", "8"));
 const recette = option("recette", "conflits-poste-tauri.mjs");
 const sortie = join(root, option("sortie", "docs/journal/ab-powersync.md"));
 const delaiMaxMs = 25 * 60_000;
+const titre = option("titre", "Banc A/B de la Montée PowerSync");
+const arbresVoulus = option("arbres", "base,nouveau").split(",");
+/** `--env CLE=VALEUR` (répétable) : variables ajoutées à l'environnement des passes. */
+const envSupplementaire = {};
+process.argv.forEach((arg, i) => {
+  const suivant = process.argv[i + 1];
+  if (arg === "--env" && suivant?.includes("=")) {
+    const egal = suivant.indexOf("=");
+    envSupplementaire[suivant.slice(0, egal)] = suivant.slice(egal + 1);
+  }
+});
 
-const ARBRES = [
+const TOUS_LES_ARBRES = [
   { nom: "base", dir: join(root, ".worktrees/ab-base"), cargo: join(root, ".worktrees/ab-base/target") },
   { nom: "nouveau", dir: root, cargo: join(root, "target") },
 ];
+const ARBRES = TOUS_LES_ARBRES.filter((a) => arbresVoulus.includes(a.nom));
 
 function fail(msg) {
   console.error(`ab-conflits: FAIL — ${msg}`);
@@ -106,7 +122,7 @@ async function unePasse(arbre, numero) {
     let out = "";
     const child = spawn(process.execPath, [join(arbre.dir, "tests/recette", recette)], {
       cwd: arbre.dir,
-      env: { ...process.env, CARGO_TARGET_DIR: arbre.cargo },
+      env: { ...process.env, ...envSupplementaire, CARGO_TARGET_DIR: arbre.cargo },
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
     });
@@ -146,12 +162,19 @@ function ecrireRapport(resultats, debutGlobal, fini) {
   }
   const cellule = (s) => String(s).replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
   const lignes = [
-    "# Banc A/B de la Montée PowerSync",
+    `# ${titre}`,
     "",
-    `Recette mesurée : \`tests/recette/${recette}\` (version de HEAD dans les deux arbres), ${passes} passes par arbre, en série, base puis nouveau en alternance.`,
+    `Recette mesurée : \`tests/recette/${recette}\` (version de HEAD dans chaque arbre), ${passes} passes par arbre, en série, arbres en alternance (${ARBRES.map((a) => a.nom).join(", ")}).${
+      Object.keys(envSupplementaire).length > 0
+        ? ` Variables : ${Object.entries(envSupplementaire).map(([k, v]) => `${k}=${v}`).join(", ")}.`
+        : ""
+    }`,
     "",
-    `- **base** : \`${ARBRES[0].commit}\` (worktree \`${relative(root, ARBRES[0].dir).replace(/\\/g, "/")}\`, juste avant « monter PowerSync en 0.1.0 »), \`CARGO_TARGET_DIR\` propre.`,
-    `- **nouveau** : \`${ARBRES[1].commit}\` (dépôt), \`CARGO_TARGET_DIR\` = \`target\`.`,
+    ...ARBRES.map((a) =>
+      a.nom === "base"
+        ? `- **base** : \`${a.commit}\` (worktree \`${relative(root, a.dir).replace(/\\/g, "/")}\`, juste avant « monter PowerSync en 0.1.0 »), \`CARGO_TARGET_DIR\` propre.`
+        : `- **nouveau** : \`${a.commit}\` (dépôt), \`CARGO_TARGET_DIR\` = \`target\`.`,
+    ),
     "- Même Docker, même instance (API, PowerSync, Postgres), même port 1420 : seul le poste (dépendances Rust et JavaScript) diffère entre les arbres.",
     `- Début : ${new Date(debutGlobal).toISOString()} ; ${fini ? "terminé" : "en cours"} (${new Date().toISOString()}).`,
     "",

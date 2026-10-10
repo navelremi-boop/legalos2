@@ -128,23 +128,34 @@ function portPoste(id) {
   throw new Error(`poste inconnu: ${id}`);
 }
 
+/**
+ * Hypothèse « course au démarrage de Vite » (dette conflits-poste-tauri) : avec
+ * LEGALOS_VITE_PRECHAUFFE=1, Vite est chauffé (page, graphe de modules, optimisation des
+ * dépendances) avant que le port 1420 s'ouvre, donc avant que Tauri lance l'application.
+ */
+const viteChaud = process.env.LEGALOS_VITE_PRECHAUFFE === "1";
+
 function startApp(id) {
   const port = portPoste(id);
   const dir = join(tmpdir(), `legalos-webview-conflits-${id}-${marque}`);
   mkdirSync(dir, { recursive: true });
   const configPath = join(tmpdir(), `legalos-conflits-${id}-${marque}.json`);
-  writeFileSync(
-    configPath,
-    JSON.stringify({
-      app: {
-        windows: [
-          {
-            additionalBrowserArgs: `--remote-debugging-port=${port} --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`,
-          },
-        ],
-      },
-    }),
-  );
+  const configTauri = {
+    app: {
+      windows: [
+        {
+          additionalBrowserArgs: `--remote-debugging-port=${port} --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`,
+        },
+      ],
+    },
+  };
+  if (viteChaud) {
+    configTauri.build = {
+      // Sans guillemets : Tauri les transmet tels quels au shell et node ne trouve plus le fichier.
+      beforeDevCommand: `node ${join(root, "tests/recette/lib/vite-prechauffe.mjs")}`,
+    };
+  }
+  writeFileSync(configPath, JSON.stringify(configTauri));
   const child = spawn("cmd.exe", ["/d", "/s", "/c", `pnpm tauri dev --config ${configPath}`], {
     cwd: poste,
     env: {
@@ -160,12 +171,20 @@ function startApp(id) {
   let log = "";
   const onData = (chunk) => {
     log += chunk.toString();
-    if (log.length > 12000) log = log.slice(-12000);
+    if (log.length > 40000) log = log.slice(-40000);
   };
   child.stdout.on("data", onData);
   child.stderr.on("data", onData);
   child.port = port;
-  child.logTail = () => log.slice(-1500);
+  child.logTail = (n = 1500) => log.slice(-n);
+  /** Journal de Vite et de Tauri sans séquences ANSI, tel quel (début de journal compris). */
+  child.logVite = (n = 3000) =>
+    log
+      .replace(/\x1b\[[0-9;]*m/g, "")
+      .split(/\r?\n/)
+      .filter((l) => l.trim() !== "" && !/Building \[|Compiling/.test(l))
+      .join(" ⏎ ")
+      .slice(-n);
   return child;
 }
 
@@ -194,6 +213,7 @@ async function connectCdp(port) {
   const pending = new Map();
   /** Erreurs JS et messages de console d'erreur de la page, pour le diagnostic d'un écran absent. */
   const erreurs = [];
+  const requetes = new Map();
   ws.addEventListener("message", (event) => {
     const msg = JSON.parse(String(event.data));
     const done = pending.get(msg.id);
@@ -207,8 +227,22 @@ async function connectCdp(port) {
       erreurs.push(
         `console.error: ${(msg.params.args ?? []).map((a) => a.value ?? a.description ?? "?").join(" ")}`.slice(0, 400),
       );
+    } else if (msg.method === "Log.entryAdded" && ["error", "warning"].includes(msg.params?.entry?.level)) {
+      // Échecs de chargement d'un module (504, réseau) : journal du navigateur, pas d'exception JS.
+      const e = msg.params.entry;
+      erreurs.push(`log ${e.level}: ${e.text} ${e.url ?? ""}`.slice(0, 400));
+    } else if (msg.method === "Network.requestWillBeSent") {
+      if (requetes.size < 600) requetes.set(msg.params.requestId, msg.params.request?.url ?? "?");
+    } else if (msg.method === "Network.responseReceived") {
+      const r = msg.params.response;
+      if (r && r.status >= 400) erreurs.push(`réseau ${r.status} ${r.url}`.slice(0, 400));
+    } else if (msg.method === "Network.loadingFailed") {
+      const url = requetes.get(msg.params.requestId) ?? msg.params.requestId;
+      erreurs.push(`réseau échec ${url} : ${msg.params.errorText ?? "?"}`.slice(0, 400));
     }
-    if (erreurs.length > 8) erreurs.shift();
+    // Le 404 de favicon.ico est du bruit, pas une erreur de chargement de l'application.
+    if (erreurs.length > 0 && /favicon.ico/.test(erreurs[erreurs.length - 1])) erreurs.pop();
+    if (erreurs.length > 16) erreurs.shift();
   });
   const send = (method, params = {}) =>
     new Promise((resolve) => {
@@ -218,6 +252,8 @@ async function connectCdp(port) {
     });
   send.erreurs = erreurs;
   await send("Runtime.enable");
+  await send("Log.enable");
+  await send("Network.enable");
   return { ws, send };
 }
 
@@ -268,8 +304,12 @@ async function setField(send, id, value) {
   if (!ok) throw new Error(`champ ${id}`);
 }
 
-/** Diagnostic d'un écran absent : page, cibles CDP, processus et ports encore présents. */
-async function diagnosticEcran(send, port) {
+/**
+ * Diagnostic d'un écran absent (dette conflits-poste-tauri) : état de la page, requêtes du module
+ * d'entrée, état de Vite, journal de Vite, version de WebView2, capture d'écran, processus et
+ * ports encore présents. Une seule ligne, pour le message d'échec.
+ */
+async function diagnosticEcran(send, child) {
   const lire = async (expression) => {
     try {
       return await evaluate(send, expression);
@@ -278,22 +318,78 @@ async function diagnosticEcran(send, port) {
     }
   };
   const page = await lire(
-    `JSON.stringify({ href: location.href, etat: document.readyState, html: document.documentElement.outerHTML.length, racine: document.getElementById("root")?.childElementCount ?? null })`,
+    `JSON.stringify({ href: location.href, etat: document.readyState, html: document.documentElement.outerHTML.length, racine: document.getElementById("root")?.childElementCount ?? null, scripts: [...document.scripts].map((s) => s.src.replace(location.origin, "") + (s.type ? " (" + s.type + ")" : "")) })`,
   );
-  const cibles = await fetch(`http://127.0.0.1:${port}/json`)
+  // Requêtes de la page vues par le navigateur, y compris celles d'avant la connexion CDP.
+  const requetes = await lire(
+    `JSON.stringify((() => {
+      const toutes = performance.getEntriesByType("resource");
+      const gardees = toutes.filter((e) => /\\/src\\/main\\.tsx|@vite\\/client|@react-refresh|\\.vite\\/deps\\//.test(e.name));
+      return {
+        total: toutes.length,
+        horsSucces: toutes.filter((e) => !(e.responseStatus >= 200 && e.responseStatus < 400)).length,
+        entree: gardees.slice(0, 12).map((e) => e.name.replace(location.origin, "").slice(0, 80) + " " + e.responseStatus + " " + Math.round(e.duration) + "ms"),
+      };
+    })())`,
+  );
+  const cibles = await fetch(`http://127.0.0.1:${child.port}/json`)
     .then((r) => r.json())
     .then((l) => l.map((t) => `${t.type}:${t.url}`).join(" | "))
     .catch((err) => `illisible (${err.message})`);
+  const navigateur = await fetch(`http://127.0.0.1:${child.port}/json/version`)
+    .then((r) => r.json())
+    .then((v) => `${v.Browser ?? "?"} / ${v["Protocol-Version"] ?? "?"}`)
+    .catch((err) => `illisible (${err.message})`);
+  // Vite répond-il au moment de l'échec ? (page et module d'entrée, depuis le poste de recette)
+  const sondeVite = async (chemin) => {
+    const t0 = Date.now();
+    try {
+      const res = await fetch(`http://localhost:1420${chemin}`, { signal: AbortSignal.timeout(5_000) });
+      await res.text();
+      return `${chemin} ${res.status} ${Date.now() - t0}ms`;
+    } catch (err) {
+      return `${chemin} ${err.name} ${Date.now() - t0}ms`;
+    }
+  };
+  const vite = `${await sondeVite("/")} ; ${await sondeVite("/src/main.tsx")}`;
+  let capture = "aucune";
+  try {
+    const msg = await Promise.race([
+      send("Page.captureScreenshot", { format: "png" }),
+      sleep(10_000).then(() => {
+        throw new Error("délai");
+      }),
+    ]);
+    const donnees = msg.result?.data;
+    if (donnees) {
+      capture = join(tmpdir(), `legalos-echec-${marque}-${child.port}-${Date.now()}.png`);
+      writeFileSync(capture, Buffer.from(donnees, "base64"));
+    }
+  } catch (err) {
+    capture = `impossible (${err.message})`;
+  }
   const processus = spawnSync(
     "powershell",
     [
       "-NoProfile",
       "-Command",
-      `Get-CimInstance Win32_Process | Where-Object { $_.Name -in 'legal-os-poste.exe','msedgewebview2.exe','node.exe' -and $_.CommandLine -match 'legalos|legal-os|tauri|vite' } | ForEach-Object { "$($_.Name) pid=$($_.ProcessId) parent=$($_.ParentProcessId)" }; Get-NetTCPConnection -State Listen -LocalPort 1420,9252,9253,9254 -ErrorAction SilentlyContinue | ForEach-Object { "écoute $($_.LocalPort) pid=$($_.OwningProcess)" }`,
+      `[Console]::OutputEncoding = [Text.Encoding]::UTF8; Get-CimInstance Win32_Process | Where-Object { $_.Name -in 'legal-os-poste.exe','msedgewebview2.exe','node.exe' -and $_.CommandLine -match 'legalos|legal-os|tauri|vite' } | ForEach-Object { "$($_.Name) pid=$($_.ProcessId) parent=$($_.ParentProcessId)" }; Get-NetTCPConnection -State Listen -LocalPort 1420,9252,9253,9254 -ErrorAction SilentlyContinue | ForEach-Object { "écoute $($_.LocalPort) pid=$($_.OwningProcess)" }`,
     ],
     { encoding: "utf8" },
-  ).stdout.trim().replace(/\r?\n/g, " ; ");
-  return `page=${page} erreurs=[${(send.erreurs ?? []).join(" | ")}] cibles=[${cibles}] processus=[${processus}]`;
+  )
+    .stdout.trim()
+    .replace(/\r?\n/g, " ; ");
+  return [
+    `page=${page}`,
+    `requetes=${requetes}`,
+    `erreurs=[${(send.erreurs ?? []).join(" | ")}]`,
+    `vite=[${vite}]`,
+    `webview2=${navigateur}`,
+    `capture=${capture}`,
+    `journalVite=[${child.logVite(2500)}]`,
+    `cibles=[${cibles}]`,
+    `processus=[${processus}]`,
+  ].join(" ");
 }
 
 async function ecranAuth(send) {
@@ -323,7 +419,7 @@ async function ecranAuth(send) {
  */
 async function login(send, email, password, secret, nomAppareil, opts = {}) {
   const horsLigne = opts.horsLigne === true;
-  const portCdp = opts.port;
+  const child = opts.child;
   const pret = Date.now();
   let ecran = "";
   while (Date.now() - pret < 60_000) {
@@ -364,14 +460,14 @@ async function login(send, email, password, secret, nomAppareil, opts = {}) {
   }
   if (!ecran) {
     const texte = await evaluate(send, "document.body?.innerText ?? ''");
-    const diag = await diagnosticEcran(send, portCdp);
+    const diag = await diagnosticEcran(send, child);
     throw new Error(
       `écran auth absent — ${String(texte).replace(/\s+/g, " ").slice(-240)} — ${diag}`,
     );
   }
   if (ecran === "local" && !horsLigne) {
     const texte = await evaluate(send, "document.body?.innerText ?? ''");
-    const diag = await diagnosticEcran(send, portCdp);
+    const diag = await diagnosticEcran(send, child);
     throw new Error(
       `reconnexion absente (toujours hors ligne) — ${String(texte).replace(/\s+/g, " ").slice(-240)} — ${diag}`,
     );
@@ -454,7 +550,7 @@ async function avecPoste(id, email, password, secret, nom, fn) {
   try {
     await waitCdp(child);
     const page = await connectCdp(child.port);
-    await login(page.send, email, password, secret, nom, { port: child.port });
+    await login(page.send, email, password, secret, nom, { child });
     const result = await fn(page.send, child);
     page.ws.close();
     return result;
@@ -476,7 +572,7 @@ async function ecrireApresDeconnexion(id, email, password, secret, nom, idsJeu, 
     await waitCdp(child);
     const page = await connectCdp(child.port);
     // Pas de reconnexion : on écrit hors ligne dans la file locale.
-    await login(page.send, email, password, secret, nom, { horsLigne: true, port: child.port });
+    await login(page.send, email, password, secret, nom, { horsLigne: true, child });
     await attendreJeuLocal(page.send, idsJeu);
     await hook(page.send, `window.__legalosRecette.disconnectSync()`);
     await sleep(500);
