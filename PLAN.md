@@ -187,7 +187,7 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
     - `.cursor/` reste fonctionnel. Contrôleur (sous-agent `controleur`) VALIDÉ ; CI verte.
     - Maquettes : `design/maquettes/` (les six `prototype-*.html`) et `design/maquettes/LISEZMOI.md` de trois lignes, commit unique « design: maquettes validées des écrans V1 », aucun autre fichier modifié ; rien n'est implémenté d'après elles avant l'inscription de la consigne du 07/10/2026.
 
-- [ ] **Montée PowerSync** — après la Bascule vers Claude Code, avant J11 — critères validés par l'architecte le 04/10/2026
+- [x] **Montée PowerSync** — VALIDÉ `cbd4e4c` (contrôleur 10/10/2026 sur `cbd4e4c`, CI [37984697441](https://github.com/navelremi-boop/legalos2/actions/runs/37984697441) sur `f209eb1` ; les commits suivants n'ajoutent que de la documentation et `tests/recette/ab-conflits.mjs`) — décision de l'architecte du 10/10/2026 sur le banc A/B (`docs/journal/ab-powersync.md`) : l'instabilité de `conflits-poste-tauri.mjs` précède la montée ; dette ouverte ci-dessous — après la Bascule vers Claude Code, avant J11 — critères validés par l'architecte le 04/10/2026
   - **Critères d'acceptation (commandes)** :
     - `node tests/recette/powersync-0-1.mjs` → exit 0 : `tauri-plugin-powersync` 0.1.x et crate `powersync` 0.1.x ; connecteur adapté ; les quatre exceptions RustSec absentes de `deny.toml` ; `patches/time-macros` et `patches/time-macros-impl` absents ; `rand` 0.7.3 absent du `Cargo.lock` ; `docs/versions.md` et `docs/audit-dependances.md` à jour ; B12 clos.
     - `node tests/recette/s5-sync-streams.mjs`, `node tests/recette/s6-documents.mjs`, `node tests/recette/conflits-poste-tauri.mjs` et `node tests/recette/s5-buckets-volume.mjs` → exit 0.
