@@ -155,7 +155,7 @@ function ecrireRapport(resultats, debutGlobal, fini) {
   const en = echecs("nouveau").length;
   let lecture = "Mesure en cours.";
   if (fini) {
-    if (eb === 0 && en === 0) lecture = "Aucun échec de part et d'autre : non concluant.";
+    if (eb === 0 && en === 0) lecture = "Aucun échec : non concluant.";
     else if (eb > 0 && en > 0) lecture = "Échecs sur les deux arbres : l'instabilité précède la montée.";
     else if (en > 0) lecture = "Échecs seulement sur « nouveau » : régression attribuable à la montée.";
     else lecture = "Échecs seulement sur « base » : cas non prévu par la règle du commandement, à lui soumettre.";
@@ -175,10 +175,12 @@ function ecrireRapport(resultats, debutGlobal, fini) {
         ? `- **base** : \`${a.commit}\` (worktree \`${relative(root, a.dir).replace(/\\/g, "/")}\`, juste avant « monter PowerSync en 0.1.0 »), \`CARGO_TARGET_DIR\` propre.`
         : `- **nouveau** : \`${a.commit}\` (dépôt), \`CARGO_TARGET_DIR\` = \`target\`.`,
     ),
-    "- Même Docker, même instance (API, PowerSync, Postgres), même port 1420 : seul le poste (dépendances Rust et JavaScript) diffère entre les arbres.",
+    ...(ARBRES.length > 1
+      ? ["- Même Docker, même instance (API, PowerSync, Postgres), même port 1420 : seul le poste (dépendances Rust et JavaScript) diffère entre les arbres."]
+      : []),
     `- Début : ${new Date(debutGlobal).toISOString()} ; ${fini ? "terminé" : "en cours"} (${new Date().toISOString()}).`,
     "",
-    `**Bilan** : base ${eb} échec(s) sur ${valides("base").length} passe(s) valide(s) ; nouveau ${en} échec(s) sur ${valides("nouveau").length}. ${lecture}`,
+    `**Bilan** : ${ARBRES.map((a) => `${a.nom} ${echecs(a.nom).length} échec(s) sur ${valides(a.nom).length} passe(s) valide(s)`).join(" ; ")}. ${lecture}`,
     "",
     "| Passe | Arbre | Exit | Durée (s) | Ligne d'échec |",
     "| --- | --- | --- | --- | --- |",
