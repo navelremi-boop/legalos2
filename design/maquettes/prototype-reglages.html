@@ -105,6 +105,9 @@ button{background:none;border:0;padding:0;cursor:pointer}
 .menu-compte button .kb{margin-left:auto;font-size:11px;padding:1px 6px;border-radius:5px;background:var(--feuille-2);color:var(--graphite);box-shadow:inset 0 0 0 1px var(--filet-m)}
 .menu-compte hr{border:0;border-top:1px solid var(--filet-m);margin:6px 0}
 .menu-compte button.on{font-weight:700;background:var(--feuille-2)}
+.chrono-p{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:999px;background:var(--barre-pastille);box-shadow:inset 0 0 0 1px var(--barre-ligne);font-size:13px;color:var(--barre-texte);white-space:nowrap}
+.chrono-p i{width:9px;height:9px;border-radius:50%;background:#CE9A55;flex:none}
+.chrono-p b{font-weight:800;font-variant-numeric:tabular-nums}
 /* Hauteur contrainte : les zones de liste défilent au lieu de dépasser la fenêtre */
 .ecran{grid-template-rows:auto minmax(0,1fr)}
 .feuille{grid-template-rows:minmax(0,1fr)}
@@ -332,7 +335,7 @@ function taux(){
   <div class="lg"><label for="t-m">Me Julien Marchal</label><span class="un"><input id="t-m" data-d type="text" value="280">€ HT par heure</span></div>
   <div class="lg"><label for="t-r">Me Camille Roux</label><span class="un"><input id="t-r" data-d type="text" value="220">€ HT par heure</span></div>
   <div class="lg"><label for="t-l">M. Antoine Lefort</label><span class="un"><input id="t-l" data-d type="text" value="90">€ HT par heure</span></div></div>
- <div class="carte-i">${ic.info}<div><b>Quel taux est retenu ?</b>Dans l’ordre : le taux de l’intervenant sur le dossier, puis celui du dossier, puis celui du client, puis celui du cabinet.</div></div>
+ <div class="carte-i">${ic.info}<div><b>Quel taux est retenu ?</b>Dans l’ordre : le taux de l’intervenant sur le dossier, puis celui du dossier, puis celui du client, puis le taux général de l’intervenant, puis celui du cabinet.</div></div>
  <h5>Conditions particulières</h5><div class="tb">
   <div class="tr" style="grid-template-columns:90px minmax(0,1fr) 110px 70px"><span><span class="puce-s neutre"><i></i>Client</span></span><span><b>SCI Les Tilleuls</b></span><span>250 € par heure</span><span class="dr"><button class="btn">Modifier</button></span></div>
   <div class="tr" style="grid-template-columns:90px minmax(0,1fr) 110px 70px"><span><span class="puce-s neutre"><i></i>Dossier</span></span><span><b>2026-049, Albaret Menuiserie</b></span><span>Forfait de 6 500 €</span><span class="dr"><button class="btn">Modifier</button></span></div></div>
