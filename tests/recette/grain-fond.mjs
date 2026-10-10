@@ -6,12 +6,11 @@
  * Mesure : écart-type de la luminosité (0-255) d'une zone de fond plate (200 par 30 px, sous la barre,
  * à droite du titre), sur la capture du poste (galerie, écran La journée) et sur la maquette
  * `prototype-journee.html` dans la même zone.
- * - Jour : l'écart-type du poste est compris entre 5 et 8 (maquette : 6,3 à 6,8 selon la zone).
- * - Nuit : critère de l'architecte, l'écart-type est aussi compris entre 5 et 8. Le grain de la
- *   maquette est noir ; sur le fond sombre il ne donne qu'environ 1,45 (maquette) et 2,08 (poste) :
- *   cette partie ÉCHOUE tant que l'architecte n'a pas tranché (grain clair en nuit, mesuré à 7,15,
- *   ou autre intervalle ; voir la dette du grain dans PLAN.md). Ne pas assouplir cette assertion.
- * - Essai négatif : l'ancienne tuile à 0,04 d'opacité fait échouer la mesure du jour.
+ * - Jour : l'écart-type du poste est compris entre 5 et 8 (maquette : 6,84).
+ * - Nuit : l'écart-type du poste est compris entre 1,0 et 2,5 (maquette : 1,45). Le grain de la
+ *   maquette est noir ; sur le fond sombre il se voit peu, et la cible de nuit est la maquette.
+ * - Essais négatifs : l'ancienne tuile à 0,04 d'opacité échoue en jour ; un grain nul échoue en jour
+ *   et en nuit.
  *
  * Usage : node tests/recette/grain-fond.mjs
  */
@@ -23,6 +22,11 @@ const racine = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const ZONE = { x: 700, y: 72, width: 200, height: 30 };
 const JOUR_MIN = 5;
 const JOUR_MAX = 8;
+const NUIT_MIN = 1.0;
+const NUIT_MAX = 2.5;
+// Sous-zone plate pour l'essai négatif de nuit : sur 200 par 30 px, la lumière radiale du fond ajoute
+// environ 1,7 d'écart-type même sans grain (donc dans [1,0 ; 2,5]) ; sur 60 par 10 px elle est négligeable.
+const ZONE_PLATE = { x: 700, y: 72, width: 60, height: 10 };
 const ECART_MAQUETTE_MAX = 2;
 
 function fail(msg) {
@@ -96,7 +100,7 @@ try {
   const page = await navigateur.newPage({ viewport: { width: 1320, height: 900 } });
   await page.goto(URL_GALERIE, { waitUntil: "networkidle" });
   const commandes = page.locator("[data-testid=galerie-commandes]");
-  async function mesurerPoste(libelleTheme) {
+  async function mesurerPoste(libelleTheme, zone = ZONE) {
     await commandes.getByRole("button", { name: libelleTheme, exact: true }).click();
     await commandes.getByRole("button", { name: "La journée", exact: true }).click();
     await page.waitForSelector("[data-testid=ecran-journee]");
@@ -104,7 +108,7 @@ try {
     const box = await page.locator("[data-testid=galerie-scene]").boundingBox();
     if (box === null) fail("galerie : scène introuvable");
     const png = await page.screenshot({
-      clip: { x: box.x + ZONE.x, y: box.y + ZONE.y, width: ZONE.width, height: ZONE.height },
+      clip: { x: box.x + zone.x, y: box.y + zone.y, width: zone.width, height: zone.height },
     });
     return ecartType(outil, png);
   }
@@ -132,16 +136,37 @@ try {
   }
   console.log(`grain-fond: essai négatif OK — l'ancienne tuile à 0,04 donne ${avecAncien.ecart.toFixed(2)} (< ${JOUR_MIN})`);
 
-  // — nuit : comparaison à la maquette (le grain noir se voit peu sur fond sombre) —
+  // — essai négatif : sans grain, le jour échoue —
+  await page.goto(URL_GALERIE, { waitUntil: "networkidle" });
+  await page.addStyleTag({ content: `:root, :root[data-theme="light"], :root[data-theme="dark"] { --grain: none; }` });
+  const jourSansGrain = await mesurerPoste("Jour");
+  if (jourSansGrain.ecart >= JOUR_MIN) {
+    fail(`essai négatif : sans grain, le jour donne ${jourSansGrain.ecart.toFixed(2)}, il aurait dû échouer (< ${JOUR_MIN})`);
+  }
+  console.log(`grain-fond: essai négatif OK — sans grain, le jour donne ${jourSansGrain.ecart.toFixed(2)} (< ${JOUR_MIN})`);
+
+  // — nuit : la cible est la maquette (grain noir, peu visible sur fond sombre) —
   await page.goto(URL_GALERIE, { waitUntil: "networkidle" });
   const nuit = await mesurerPoste("Nuit");
   console.log(`grain-fond: nuit — poste ${nuit.ecart.toFixed(2)}, maquette ${maquette.nuit.ecart.toFixed(2)}`);
-  if (!(nuit.ecart >= JOUR_MIN && nuit.ecart <= JOUR_MAX)) {
-    fail(
-      `nuit : écart-type ${nuit.ecart.toFixed(2)} hors de [${JOUR_MIN}, ${JOUR_MAX}] (maquette : ${maquette.nuit.ecart.toFixed(2)}, qui n'y est pas non plus) — critère de l'architecte non atteint, décision attendue`,
-    );
+  if (!(nuit.ecart >= NUIT_MIN && nuit.ecart <= NUIT_MAX)) {
+    fail(`nuit : écart-type ${nuit.ecart.toFixed(2)} hors de [${NUIT_MIN}, ${NUIT_MAX}] (maquette : ${maquette.nuit.ecart.toFixed(2)})`);
   }
-  console.log(`grain-fond: nuit OK — dans [${JOUR_MIN}, ${JOUR_MAX}]`);
+  console.log(`grain-fond: nuit OK — dans [${NUIT_MIN}, ${NUIT_MAX}]`);
+
+  // — essai négatif : sans grain, la nuit échoue (mesuré sur la sous-zone plate, voir ZONE_PLATE) —
+  const nuitPlate = await mesurerPoste("Nuit", ZONE_PLATE);
+  if (nuitPlate.ecart < NUIT_MIN) {
+    fail(`nuit, sous-zone plate : écart-type ${nuitPlate.ecart.toFixed(2)} < ${NUIT_MIN} alors que le grain est présent`);
+  }
+  await page.addStyleTag({ content: `:root, :root[data-theme="light"], :root[data-theme="dark"] { --grain: none; }` });
+  const nuitSansGrain = await mesurerPoste("Nuit", ZONE_PLATE);
+  if (nuitSansGrain.ecart >= NUIT_MIN) {
+    fail(`essai négatif : sans grain, la nuit donne ${nuitSansGrain.ecart.toFixed(2)}, elle aurait dû échouer (< ${NUIT_MIN})`);
+  }
+  console.log(
+    `grain-fond: essai négatif OK — sous-zone plate de nuit : ${nuitPlate.ecart.toFixed(2)} avec grain, ${nuitSansGrain.ecart.toFixed(2)} sans grain (< ${NUIT_MIN})`,
+  );
   console.log("grain-fond: OK");
 } finally {
   if (navigateur) await navigateur.close();
