@@ -25,3 +25,5 @@ secrets/
 target/
 node_modules/
 dist/
+apps/poste/dist-recette/
+target-recette/

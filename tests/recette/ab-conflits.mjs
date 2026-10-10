@@ -34,6 +34,8 @@ const recette = option("recette", "conflits-poste-tauri.mjs");
 const sortie = join(root, option("sortie", "docs/journal/ab-powersync.md"));
 const delaiMaxMs = 25 * 60_000;
 const titre = option("titre", "Banc A/B de la Montée PowerSync");
+/** `--args "--build"` : arguments transmis à la recette (séparés par des espaces). */
+const argsRecette = option("args", "").split(" ").filter(Boolean);
 const arbresVoulus = option("arbres", "base,nouveau").split(",");
 /** `--env CLE=VALEUR` (répétable) : variables ajoutées à l'environnement des passes. */
 const envSupplementaire = {};
@@ -120,7 +122,7 @@ async function unePasse(arbre, numero) {
   const fichierLog = join(logs, `${String(numero).padStart(2, "0")}-${arbre.nom}.log`);
   const texte = await new Promise((resolve) => {
     let out = "";
-    const child = spawn(process.execPath, [join(arbre.dir, "tests/recette", recette)], {
+    const child = spawn(process.execPath, [join(arbre.dir, "tests/recette", recette), ...argsRecette], {
       cwd: arbre.dir,
       env: { ...process.env, ...envSupplementaire, CARGO_TARGET_DIR: arbre.cargo },
       stdio: ["ignore", "pipe", "pipe"],
@@ -144,7 +146,8 @@ async function unePasse(arbre, numero) {
   writeFileSync(fichierLog, texte.out);
   const duree = Math.round((Date.now() - debut) / 1000);
   const { echec, diagnostic } = texte.code === 0 ? { echec: "", diagnostic: "" } : extraire(texte.out);
-  return { arbre: arbre.nom, numero, exit: texte.code, duree, echec, diagnostic };
+  const relances = Number(/relances de lancement : (\d+)/.exec(texte.out)?.[1] ?? 0);
+  return { arbre: arbre.nom, numero, exit: texte.code, duree, relances, echec, diagnostic };
 }
 
 function ecrireRapport(resultats, debutGlobal, fini) {
@@ -168,7 +171,7 @@ function ecrireRapport(resultats, debutGlobal, fini) {
       Object.keys(envSupplementaire).length > 0
         ? ` Variables : ${Object.entries(envSupplementaire).map(([k, v]) => `${k}=${v}`).join(", ")}.`
         : ""
-    }`,
+    }${argsRecette.length > 0 ? ` Arguments : ${argsRecette.join(" ")}.` : ""}`,
     "",
     ...ARBRES.map((a) =>
       a.nom === "base"
@@ -182,9 +185,9 @@ function ecrireRapport(resultats, debutGlobal, fini) {
     "",
     `**Bilan** : ${ARBRES.map((a) => `${a.nom} ${echecs(a.nom).length} échec(s) sur ${valides(a.nom).length} passe(s) valide(s)`).join(" ; ")}. ${lecture}`,
     "",
-    "| Passe | Arbre | Exit | Durée (s) | Ligne d'échec |",
-    "| --- | --- | --- | --- | --- |",
-    ...resultats.map((r) => `| ${r.numero} | ${r.arbre} | ${r.exit} | ${r.duree} | ${cellule(r.echec)} |`),
+    "| Passe | Arbre | Exit | Durée (s) | Relances | Ligne d'échec |",
+    "| --- | --- | --- | --- | --- | --- |",
+    ...resultats.map((r) => `| ${r.numero} | ${r.arbre} | ${r.exit} | ${r.duree} | ${r.relances ?? 0} | ${cellule(r.echec)} |`),
   ];
   const avecDiag = resultats.filter((r) => r.diagnostic);
   if (avecDiag.length > 0) {

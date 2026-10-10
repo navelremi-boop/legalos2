@@ -12,7 +12,11 @@
  *
  * L'API doit exposer `temps_saisis.revision` (migration 019). Sinon le script échoue.
  *
- * Usage : node tests/recette/conflits-poste-tauri.mjs
+ * Usage : node tests/recette/conflits-poste-tauri.mjs [--build]
+ * Par défaut, l'app est lancée par `tauri dev` (serveur Vite). Avec --build, elle est construite avec
+ * l'interface embarquée (`tauri build --debug --no-bundle`, dossier cible `target-recette`) et lancée
+ * sans serveur Vite : mode du critère de solde de la dette « instabilité au lancement » (30 passes
+ * consécutives). Jamais le mode par défaut.
  * Ne journalise aucun secret.
  */
 import { randomUUID } from "node:crypto";
@@ -25,6 +29,13 @@ import {
   CHAMP_SEUL_PAR_TABLE,
   TABLES_MODIFIABLES,
 } from "../../apps/poste/src/sync/uploadContrat.ts";
+import {
+  activerDiagnostic,
+  creerCollecteur,
+  creerRelanceUnique,
+  diagnosticLancement,
+  EchecLancement,
+} from "./lib/lancement.mjs";
 import {
   accessToken,
   demoAccessToken,
@@ -128,6 +139,45 @@ function portPoste(id) {
   throw new Error(`poste inconnu: ${id}`);
 }
 
+/** Mode build : binaire à interface embarquée, sans serveur Vite (voir l'en-tête). */
+const modeBuild = process.argv.includes("--build");
+const cibleBuild = join(root, "target-recette");
+const exeBuild = join(cibleBuild, "debug", "legal-os-poste.exe");
+const optionsNavigateur = (port) =>
+  `--remote-debugging-port=${port} --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`;
+
+/**
+ * Construit le binaire du mode build : interface compilée par Vite dans `dist-recette` (avec les hooks
+ * de recette, `VITE_LEGALOS_RECETTE_HOOKS=1`) et embarquée par Tauri. Dossier cible à part pour ne pas
+ * écraser le binaire de développement. Incrémental : sans changement, la construction est rapide.
+ */
+function construireModeBuild() {
+  const configPath = join(tmpdir(), `legalos-conflits-build-${marque}.json`);
+  writeFileSync(
+    configPath,
+    JSON.stringify({
+      build: {
+        frontendDist: "../dist-recette",
+        beforeBuildCommand: "pnpm exec vite build --outDir dist-recette --emptyOutDir",
+      },
+    }),
+  );
+  console.log("conflits-poste: mode build — construction du binaire à interface embarquée (sans serveur Vite)");
+  const r = spawnSync("cmd.exe", ["/d", "/s", "/c", `pnpm tauri build --debug --no-bundle --config ${configPath}`], {
+    cwd: poste,
+    env: {
+      ...process.env,
+      CARGO_TARGET_DIR: cibleBuild,
+      VITE_LEGALOS_RECETTE_HOOKS: "1",
+      LIBCLANG_PATH: process.env.LIBCLANG_PATH ?? "C:\\Program Files\\LLVM\\bin",
+    },
+    stdio: "inherit",
+    windowsHide: true,
+  });
+  if (r.status !== 0) fail(`construction du mode build exit ${r.status ?? 1}`);
+  if (!existsSync(exeBuild)) fail(`binaire du mode build absent (${exeBuild})`);
+}
+
 /**
  * Hypothèse « course au démarrage de Vite » (dette conflits-poste-tauri) : avec
  * LEGALOS_VITE_PRECHAUFFE=1, Vite est chauffé (page, graphe de modules, optimisation des
@@ -149,25 +199,33 @@ function startApp(id) {
       ],
     },
   };
-  if (viteChaud) {
+  if (viteChaud && !modeBuild) {
     configTauri.build = {
       // Sans guillemets : Tauri les transmet tels quels au shell et node ne trouve plus le fichier.
       beforeDevCommand: `node ${join(root, "tests/recette/lib/vite-prechauffe.mjs")}`,
     };
   }
   writeFileSync(configPath, JSON.stringify(configTauri));
-  const child = spawn("cmd.exe", ["/d", "/s", "/c", `pnpm tauri dev --config ${configPath}`], {
-    cwd: poste,
-    env: {
-      ...process.env,
-      LEGALOS_POSTE_ID: id,
-      WEBVIEW2_USER_DATA_FOLDER: dir,
-      LIBCLANG_PATH: process.env.LIBCLANG_PATH ?? "C:\\Program Files\\LLVM\\bin",
-      VITE_LEGALOS_RECETTE_HOOKS: "1",
-    },
-    stdio: ["ignore", "pipe", "pipe"],
-    windowsHide: true,
-  });
+  const envApp = {
+    ...process.env,
+    LEGALOS_POSTE_ID: id,
+    WEBVIEW2_USER_DATA_FOLDER: dir,
+    LIBCLANG_PATH: process.env.LIBCLANG_PATH ?? "C:\\Program Files\\LLVM\\bin",
+    VITE_LEGALOS_RECETTE_HOOKS: "1",
+  };
+  const child = modeBuild
+    ? spawn(exeBuild, [], {
+        cwd: poste,
+        env: { ...envApp, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: optionsNavigateur(port) },
+        stdio: ["ignore", "pipe", "pipe"],
+        windowsHide: true,
+      })
+    : spawn("cmd.exe", ["/d", "/s", "/c", `pnpm tauri dev --config ${configPath}`], {
+        cwd: poste,
+        env: envApp,
+        stdio: ["ignore", "pipe", "pipe"],
+        windowsHide: true,
+      });
   let log = "";
   const onData = (chunk) => {
     log += chunk.toString();
@@ -211,38 +269,17 @@ async function connectCdp(port) {
   });
   let seq = 0;
   const pending = new Map();
-  /** Erreurs JS et messages de console d'erreur de la page, pour le diagnostic d'un écran absent. */
-  const erreurs = [];
-  const requetes = new Map();
+  /** Erreurs JS, du journal du navigateur et du réseau, pour le diagnostic d'un écran absent. */
+  const collecteur = creerCollecteur();
   ws.addEventListener("message", (event) => {
     const msg = JSON.parse(String(event.data));
     const done = pending.get(msg.id);
     if (done) {
       pending.delete(msg.id);
       done(msg);
-    } else if (msg.method === "Runtime.exceptionThrown") {
-      const d = msg.params?.exceptionDetails;
-      erreurs.push(`exception: ${d?.exception?.description ?? d?.text ?? "?"}`.slice(0, 400));
-    } else if (msg.method === "Runtime.consoleAPICalled" && msg.params?.type === "error") {
-      erreurs.push(
-        `console.error: ${(msg.params.args ?? []).map((a) => a.value ?? a.description ?? "?").join(" ")}`.slice(0, 400),
-      );
-    } else if (msg.method === "Log.entryAdded" && ["error", "warning"].includes(msg.params?.entry?.level)) {
-      // Échecs de chargement d'un module (504, réseau) : journal du navigateur, pas d'exception JS.
-      const e = msg.params.entry;
-      erreurs.push(`log ${e.level}: ${e.text} ${e.url ?? ""}`.slice(0, 400));
-    } else if (msg.method === "Network.requestWillBeSent") {
-      if (requetes.size < 600) requetes.set(msg.params.requestId, msg.params.request?.url ?? "?");
-    } else if (msg.method === "Network.responseReceived") {
-      const r = msg.params.response;
-      if (r && r.status >= 400) erreurs.push(`réseau ${r.status} ${r.url}`.slice(0, 400));
-    } else if (msg.method === "Network.loadingFailed") {
-      const url = requetes.get(msg.params.requestId) ?? msg.params.requestId;
-      erreurs.push(`réseau échec ${url} : ${msg.params.errorText ?? "?"}`.slice(0, 400));
+    } else {
+      collecteur.traiter(msg);
     }
-    // Le 404 de favicon.ico est du bruit, pas une erreur de chargement de l'application.
-    if (erreurs.length > 0 && /favicon.ico/.test(erreurs[erreurs.length - 1])) erreurs.pop();
-    if (erreurs.length > 16) erreurs.shift();
   });
   const send = (method, params = {}) =>
     new Promise((resolve) => {
@@ -250,10 +287,8 @@ async function connectCdp(port) {
       pending.set(id, resolve);
       ws.send(JSON.stringify({ id, method, params }));
     });
-  send.erreurs = erreurs;
-  await send("Runtime.enable");
-  await send("Log.enable");
-  await send("Network.enable");
+  send.collecteur = collecteur;
+  await activerDiagnostic(send);
   return { ws, send };
 }
 
@@ -304,93 +339,24 @@ async function setField(send, id, value) {
   if (!ok) throw new Error(`champ ${id}`);
 }
 
-/**
- * Diagnostic d'un écran absent (dette conflits-poste-tauri) : état de la page, requêtes du module
- * d'entrée, état de Vite, journal de Vite, version de WebView2, capture d'écran, processus et
- * ports encore présents. Une seule ligne, pour le message d'échec.
- */
-async function diagnosticEcran(send, child) {
-  const lire = async (expression) => {
-    try {
-      return await evaluate(send, expression);
-    } catch (err) {
-      return `illisible (${err.message})`;
-    }
-  };
-  const page = await lire(
-    `JSON.stringify({ href: location.href, etat: document.readyState, html: document.documentElement.outerHTML.length, racine: document.getElementById("root")?.childElementCount ?? null, scripts: [...document.scripts].map((s) => s.src.replace(location.origin, "") + (s.type ? " (" + s.type + ")" : "")) })`,
-  );
-  // Requêtes de la page vues par le navigateur, y compris celles d'avant la connexion CDP.
-  const requetes = await lire(
-    `JSON.stringify((() => {
-      const toutes = performance.getEntriesByType("resource");
-      const gardees = toutes.filter((e) => /\\/src\\/main\\.tsx|@vite\\/client|@react-refresh|\\.vite\\/deps\\//.test(e.name));
-      return {
-        total: toutes.length,
-        horsSucces: toutes.filter((e) => !(e.responseStatus >= 200 && e.responseStatus < 400)).length,
-        entree: gardees.slice(0, 12).map((e) => e.name.replace(location.origin, "").slice(0, 80) + " " + e.responseStatus + " " + Math.round(e.duration) + "ms"),
-      };
-    })())`,
-  );
-  const cibles = await fetch(`http://127.0.0.1:${child.port}/json`)
-    .then((r) => r.json())
-    .then((l) => l.map((t) => `${t.type}:${t.url}`).join(" | "))
-    .catch((err) => `illisible (${err.message})`);
-  const navigateur = await fetch(`http://127.0.0.1:${child.port}/json/version`)
-    .then((r) => r.json())
-    .then((v) => `${v.Browser ?? "?"} / ${v["Protocol-Version"] ?? "?"}`)
-    .catch((err) => `illisible (${err.message})`);
-  // Vite répond-il au moment de l'échec ? (page et module d'entrée, depuis le poste de recette)
-  const sondeVite = async (chemin) => {
-    const t0 = Date.now();
-    try {
-      const res = await fetch(`http://localhost:1420${chemin}`, { signal: AbortSignal.timeout(5_000) });
-      await res.text();
-      return `${chemin} ${res.status} ${Date.now() - t0}ms`;
-    } catch (err) {
-      return `${chemin} ${err.name} ${Date.now() - t0}ms`;
-    }
-  };
-  const vite = `${await sondeVite("/")} ; ${await sondeVite("/src/main.tsx")}`;
-  let capture = "aucune";
-  try {
-    const msg = await Promise.race([
-      send("Page.captureScreenshot", { format: "png" }),
-      sleep(10_000).then(() => {
-        throw new Error("délai");
-      }),
-    ]);
-    const donnees = msg.result?.data;
-    if (donnees) {
-      capture = join(tmpdir(), `legalos-echec-${marque}-${child.port}-${Date.now()}.png`);
-      writeFileSync(capture, Buffer.from(donnees, "base64"));
-    }
-  } catch (err) {
-    capture = `impossible (${err.message})`;
-  }
-  const processus = spawnSync(
-    "powershell",
-    [
-      "-NoProfile",
-      "-Command",
-      `[Console]::OutputEncoding = [Text.Encoding]::UTF8; Get-CimInstance Win32_Process | Where-Object { $_.Name -in 'legal-os-poste.exe','msedgewebview2.exe','node.exe' -and $_.CommandLine -match 'legalos|legal-os|tauri|vite' } | ForEach-Object { "$($_.Name) pid=$($_.ProcessId) parent=$($_.ParentProcessId)" }; Get-NetTCPConnection -State Listen -LocalPort 1420,9252,9253,9254 -ErrorAction SilentlyContinue | ForEach-Object { "écoute $($_.LocalPort) pid=$($_.OwningProcess)" }`,
-    ],
-    { encoding: "utf8" },
-  )
-    .stdout.trim()
-    .replace(/\r?\n/g, " ; ");
-  return [
-    `page=${page}`,
-    `requetes=${requetes}`,
-    `erreurs=[${(send.erreurs ?? []).join(" | ")}]`,
-    `vite=[${vite}]`,
-    `webview2=${navigateur}`,
-    `capture=${capture}`,
-    `journalVite=[${child.logVite(2500)}]`,
-    `cibles=[${cibles}]`,
-    `processus=[${processus}]`,
-  ].join(" ");
+/** Diagnostic d'un écran absent et signature de l'instabilité connue (lib/lancement.mjs). */
+function diagnostiquer(send, child) {
+  return diagnosticLancement({
+    send,
+    evaluer: evaluate,
+    child,
+    collecteur: send.collecteur,
+    dossierCaptures: tmpdir(),
+    marque,
+    modeBuild,
+  });
 }
+
+/** Relance unique d'un lancement portant la signature « #root vide » ; la deuxième de l'exécution échoue. */
+const relance = creerRelanceUnique({ etiquette: "conflits-poste" });
+process.on("exit", () => {
+  console.log(`conflits-poste: relances de lancement : ${relance.relances}`);
+});
 
 async function ecranAuth(send) {
   // Priorité aux formulaires d'auth : après sync l'app ouvre La journée, pas Réglages
@@ -460,16 +426,18 @@ async function login(send, email, password, secret, nomAppareil, opts = {}) {
   }
   if (!ecran) {
     const texte = await evaluate(send, "document.body?.innerText ?? ''");
-    const diag = await diagnosticEcran(send, child);
-    throw new Error(
-      `écran auth absent — ${String(texte).replace(/\s+/g, " ").slice(-240)} — ${diag}`,
+    const diag = await diagnostiquer(send, child);
+    throw new EchecLancement(
+      `écran auth absent — ${String(texte).replace(/\s+/g, " ").slice(-240)} — ${diag.texte}`,
+      { signatureRootVide: diag.signature },
     );
   }
   if (ecran === "local" && !horsLigne) {
     const texte = await evaluate(send, "document.body?.innerText ?? ''");
-    const diag = await diagnosticEcran(send, child);
-    throw new Error(
-      `reconnexion absente (toujours hors ligne) — ${String(texte).replace(/\s+/g, " ").slice(-240)} — ${diag}`,
+    const diag = await diagnostiquer(send, child);
+    throw new EchecLancement(
+      `reconnexion absente (toujours hors ligne) — ${String(texte).replace(/\s+/g, " ").slice(-240)} — ${diag.texte}`,
+      { signatureRootVide: diag.signature },
     );
   }
   if (ecran === "login") {
@@ -546,20 +514,22 @@ async function attendreSql(requete, attendu, ms = 90_000) {
 }
 
 async function avecPoste(id, email, password, secret, nom, fn) {
-  const child = startApp(id);
-  try {
-    await waitCdp(child);
-    const page = await connectCdp(child.port);
-    await login(page.send, email, password, secret, nom, { child });
-    const result = await fn(page.send, child);
-    page.ws.close();
-    return result;
-  } catch (err) {
-    console.error(child.logTail());
-    throw err;
-  } finally {
-    await stopApp(child);
-  }
+  return relance.lancer(`poste ${id}`, async () => {
+    const child = startApp(id);
+    try {
+      await waitCdp(child);
+      const page = await connectCdp(child.port);
+      await login(page.send, email, password, secret, nom, { child });
+      const result = await fn(page.send, child);
+      page.ws.close();
+      return result;
+    } catch (err) {
+      console.error(child.logTail());
+      throw err;
+    } finally {
+      await stopApp(child);
+    }
+  });
 }
 
 /**
@@ -567,35 +537,39 @@ async function avecPoste(id, email, password, secret, nom, fn) {
  * L'upload n'a lieu qu'au prochain login (connect_powersync).
  */
 async function ecrireApresDeconnexion(id, email, password, secret, nom, idsJeu, fn) {
-  const child = startApp(id);
-  try {
-    await waitCdp(child);
-    const page = await connectCdp(child.port);
-    // Pas de reconnexion : on écrit hors ligne dans la file locale.
-    await login(page.send, email, password, secret, nom, { horsLigne: true, child });
-    await attendreJeuLocal(page.send, idsJeu);
-    await hook(page.send, `window.__legalosRecette.disconnectSync()`);
-    await sleep(500);
-    const result = await fn(page.send, child);
-    const crud = await hook(
-      page.send,
-      `window.__legalosRecette.lireSqlite("SELECT COUNT(*) AS n FROM ps_crud")`,
-    );
-    const nCrud = Array.isArray(crud) ? Number(crud[0]?.n ?? 0) : 0;
-    if (nCrud < 1) {
-      throw new Error("file ps_crud vide après écriture hors ligne");
+  return relance.lancer(`poste ${id} hors ligne`, async () => {
+    const child = startApp(id);
+    try {
+      await waitCdp(child);
+      const page = await connectCdp(child.port);
+      // Pas de reconnexion : on écrit hors ligne dans la file locale.
+      await login(page.send, email, password, secret, nom, { horsLigne: true, child });
+      await attendreJeuLocal(page.send, idsJeu);
+      await hook(page.send, `window.__legalosRecette.disconnectSync()`);
+      await sleep(500);
+      const result = await fn(page.send, child);
+      const crud = await hook(
+        page.send,
+        `window.__legalosRecette.lireSqlite("SELECT COUNT(*) AS n FROM ps_crud")`,
+      );
+      const nCrud = Array.isArray(crud) ? Number(crud[0]?.n ?? 0) : 0;
+      if (nCrud < 1) {
+        throw new Error("file ps_crud vide après écriture hors ligne");
+      }
+      page.ws.close();
+      return result;
+    } catch (err) {
+      console.error(child.logTail());
+      throw err;
+    } finally {
+      await stopApp(child);
     }
-    page.ws.close();
-    return result;
-  } catch (err) {
-    console.error(child.logTail());
-    throw err;
-  } finally {
-    await stopApp(child);
-  }
+  });
 }
 
 async function ouvrirReglages(send) {
+  // Deux appels : dans l'app construite, le menu n'est dans le DOM qu'après la fin du clic sur
+  // « Compte » (rendu React différé) ; chercher « Réglages » dans le même appel échoue.
   await evaluate(
     send,
     `(() => {
@@ -603,6 +577,13 @@ async function ouvrirReglages(send) {
         /^Compte$/i.test((b.textContent || "").trim()),
       );
       compte?.click();
+      return Boolean(compte);
+    })()`,
+  );
+  await sleep(300);
+  await evaluate(
+    send,
+    `(() => {
       const reglages = [...document.querySelectorAll("button")].find((b) =>
         /réglages|reglages/i.test(b.textContent || ""),
       );
@@ -833,6 +814,8 @@ if (!(await apiConflitsPrete())) {
 for (const table of TABLES_MODIFIABLES) {
   if (!CHAMP_SEUL_PAR_TABLE[table]) fail(`champ seul manquant pour ${table}`);
 }
+
+if (modeBuild) construireModeBuild();
 
 // Reprise si un run précédent a laissé api/powersync en pause.
 await compose(["unpause", "api", "powersync"]).catch(() => undefined);

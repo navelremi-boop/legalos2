@@ -8,6 +8,13 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { totpNow } from "./demo-auth.mjs";
+import {
+  activerDiagnostic,
+  creerCollecteur,
+  creerRelanceUnique,
+  diagnosticLancement,
+  EchecLancement,
+} from "./lancement.mjs";
 
 const repoRoot = join(fileURLToPath(new URL(".", import.meta.url)), "../../..");
 
@@ -201,6 +208,13 @@ export function creerSession(etiquette) {
     child.stderr.on("data", onData);
     child.port = port;
     child.logTail = () => log.slice(-2_000);
+    child.logVite = (n = 3_000) =>
+      log
+        .replace(/\x1b\[[0-9;]*m/g, "")
+        .split(/\r?\n/)
+        .filter((l) => l.trim() !== "" && !/Building \[|Compiling/.test(l))
+        .join(" ⏎ ")
+        .slice(-n);
     return child;
   }
 
@@ -245,7 +259,7 @@ export function creerSession(etiquette) {
     throw new Error(`webview ${child.port} — ${child.logTail()}`);
   }
 
-  async function connectCdp(port) {
+  async function connectCdp(port, { diagnostic = false } = {}) {
     const list = await fetch(`http://127.0.0.1:${port}/json`).then((r) => r.json());
     const page = list.find((t) => t.type === "page" && t.webSocketDebuggerUrl);
     if (!page) throw new Error("webview absente");
@@ -257,12 +271,15 @@ export function creerSession(etiquette) {
     let seq = 0;
     const pending = new Map();
     sockets.push(ws);
+    const collecteur = diagnostic ? creerCollecteur() : null;
     ws.addEventListener("message", (event) => {
       const msg = JSON.parse(String(event.data));
       const done = pending.get(msg.id);
       if (done) {
         pending.delete(msg.id);
         done(msg);
+      } else if (collecteur) {
+        collecteur.traiter(msg);
       }
     });
     const send = (method, params = {}) =>
@@ -271,6 +288,10 @@ export function creerSession(etiquette) {
         pending.set(id, resolve);
         ws.send(JSON.stringify({ id, method, params }));
       });
+    if (collecteur) {
+      send.collecteur = collecteur;
+      await activerDiagnostic(send);
+    }
     return { ws, send };
   }
 
@@ -433,6 +454,55 @@ export function creerSession(etiquette) {
     throw new Error("coque absente après auth");
   }
 
+  /**
+   * Relance unique d'un lancement (dette conflits-poste-tauri, décision du 10/10/2026) : un échec de
+   * lancement portant la signature « #root vide, sans erreur JavaScript, Vite répond » est relancé UNE
+   * fois ; la relance est journalisée et comptée, la deuxième de l'exécution fait échouer la recette ;
+   * tout autre échec n'est jamais relancé. Sans serveur Vite (mode « copie »), aucune relance.
+   */
+  const relance = creerRelanceUnique({ etiquette });
+  process.on("exit", () => {
+    console.log(`${etiquette}: relances de lancement : ${relance.relances}`);
+  });
+
+  /**
+   * Lance le poste, attend la webview, connecte CDP et authentifie. Retourne { child, page } ;
+   * l'appelant arrête l'app (stopApp) et ferme la page. Une application d'un essai raté est arrêtée.
+   */
+  function ouvrirPoste(id, port, { email, password, secret, nomAppareil, mode } = {}) {
+    return relance.lancer(`poste ${id}`, async () => {
+      const child = startApp(id, port, mode);
+      let page;
+      try {
+        await waitCdp(child);
+        page = await connectCdp(child.port, { diagnostic: true });
+        await login(page.send, email, password, secret, nomAppareil);
+        return { child, page };
+      } catch (err) {
+        let echec = err;
+        if (page && /écran auth absent/.test(String(err.message))) {
+          const diag = await diagnosticLancement({
+            send: page.send,
+            evaluer: evaluate,
+            child,
+            collecteur: page.send.collecteur,
+            dossierCaptures: tmpdir(),
+            marque,
+            modeBuild: mode === "copie",
+          });
+          echec = new EchecLancement(`${err.message} — ${diag.texte}`, { signatureRootVide: diag.signature });
+        }
+        try {
+          page?.ws.close();
+        } catch {
+          /* déjà fermé */
+        }
+        await stopApp(child);
+        throw echec;
+      }
+    });
+  }
+
   async function ouvrirFormulaire(send) {
     if (await evaluate(send, `Boolean(document.getElementById("dossier-nom"))`)) return;
     await evaluate(
@@ -586,6 +656,7 @@ export function creerSession(etiquette) {
     stopApp,
     waitCdp,
     connectCdp,
+    ouvrirPoste,
     evaluate,
     setField,
     ecranAuth,
