@@ -537,7 +537,7 @@ Contrastes mesurés : encre sur feuille 17,6:1 (jour) et 14,0:1 (nuit) ; graphit
 Contrastes mesurés, minimum sur les huit chemises : texte sur le fond 6,5:1 (jour) et 6,2:1 (nuit) ; texte sur la teinte 7,3:1 ; référence sur l'étiquette 8,5:1 ; accent sur les fonds secondaires 3,4:1 (éléments non textuels).
 
 **Matière et lumière**
-- **Grain** : bruit fin et uniforme sur la chemise et l'onglet actif, opacité moyenne d'environ 4 %. Tuile fixe embarquée dans `design/`, jamais calculée en continu.
+- **Grain** : bruit fin et uniforme sur la chemise, l'onglet actif et le fond neutre, tel que dans les maquettes (`design/maquettes/`) : même filtre, sans atténuation d'opacité (l'opacité moyenne d'environ 4 % de la version précédente est abandonnée). Tuile fixe embarquée dans `design/`, jamais calculée en continu.
 - **Lumière** : deux halos radiaux très doux sur la chemise, clair en haut à gauche, sombre en bas à droite, plus discrets en nuit ; léger reflet en haut de l'onglet actif.
 - **Jamais** de dégradé multicolore ni de halo coloré.
 
