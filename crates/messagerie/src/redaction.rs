@@ -5,6 +5,7 @@
 //! Les octets RFC822 servent tels quels à l'APPEND IMAP du brouillon.
 
 use std::collections::BTreeSet;
+use std::time::SystemTime;
 
 use lettre::message::header::ContentType;
 use lettre::message::{Attachment, Mailbox, Message, MultiPart, SinglePart};
@@ -54,6 +55,9 @@ pub struct DemandeRedaction {
     /// HTML saisi. Vide : le texte est repris en HTML échappé.
     pub html: String,
     pub signature: String,
+    /// Signature en HTML (nettoyée avant insertion). Vide : le texte de `signature` est repris
+    /// en HTML échappé. Non vide avec `signature` vide : le texte en est tiré.
+    pub signature_html: String,
     /// Identifiant figé par l'appelant. Jamais régénéré ici.
     pub identifiant: String,
     pub origine: Option<MessageOrigine>,
@@ -203,11 +207,87 @@ pub fn destinataires_redaction(
     accu.figer()
 }
 
+/// Fil de discussion d'un message déjà composé : `In-Reply-To` et `References`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FilMessage {
+    pub en_reponse_a: String,
+    pub references: Vec<String>,
+}
+
+/// Message prêt à partir. `copie` garde l'en-tête `Bcc` (brouillon, dossier « Envoyés ») ;
+/// `transport` ne le porte pas (il n'est jamais transmis aux destinataires). L'enveloppe
+/// comprend les destinataires en copie cachée.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MessageSortant {
+    pub copie: Vec<u8>,
+    pub transport: Vec<u8>,
+    pub expediteur: String,
+    pub destinataires: Vec<String>,
+}
+
 /// Octets RFC822. Le brouillon dépose ces octets avec [`crate::SessionActions::appender`].
 pub fn construire_message(
     genre: GenreRedaction,
     demande: &DemandeRedaction,
 ) -> Result<Vec<u8>, ErreurMail> {
+    let message = assembler(genre, demande, None, true, SystemTime::now())?;
+    Ok(message.formatted())
+}
+
+/// Message déjà composé (brouillon repris, envoi) : ni historique cité, ni signature, ni
+/// préfixe d'objet ajoutés ; `origine` est ignorée, le fil vient de `fil`. Garde le `Bcc`.
+pub fn construire_message_compose(
+    demande: &DemandeRedaction,
+    fil: Option<&FilMessage>,
+) -> Result<Vec<u8>, ErreurMail> {
+    let demande = sans_signature_ni_origine(demande);
+    let message = assembler(GenreRedaction::Nouveau, &demande, fil, true, SystemTime::now())?;
+    Ok(message.formatted())
+}
+
+/// Comme [`construire_message_compose`], avec la variante de transport (sans `Bcc`) et
+/// l'enveloppe. Les deux variantes partagent le même `Message-ID` et la même date.
+pub fn construire_message_sortant(
+    demande: &DemandeRedaction,
+    fil: Option<&FilMessage>,
+) -> Result<MessageSortant, ErreurMail> {
+    let demande = sans_signature_ni_origine(demande);
+    let date = SystemTime::now();
+    let copie = assembler(GenreRedaction::Nouveau, &demande, fil, true, date)?;
+    let transport = assembler(GenreRedaction::Nouveau, &demande, fil, false, date)?;
+    let enveloppe = copie.envelope();
+    let expediteur = enveloppe
+        .from()
+        .map(ToString::to_string)
+        .ok_or(ErreurMail::Protocole)?;
+    let destinataires: Vec<String> = enveloppe.to().iter().map(ToString::to_string).collect();
+    if destinataires.is_empty() {
+        return Err(ErreurMail::Protocole);
+    }
+    Ok(MessageSortant {
+        copie: copie.formatted(),
+        transport: transport.formatted(),
+        expediteur,
+        destinataires,
+    })
+}
+
+fn sans_signature_ni_origine(demande: &DemandeRedaction) -> DemandeRedaction {
+    let mut propre = demande.clone();
+    propre.signature.clear();
+    propre.signature_html.clear();
+    propre.origine = None;
+    propre
+}
+
+fn assembler(
+    genre: GenreRedaction,
+    demande: &DemandeRedaction,
+    fil: Option<&FilMessage>,
+    garder_bcc: bool,
+    date: SystemTime,
+) -> Result<Message, ErreurMail> {
+    verifier_en_tetes(demande, fil)?;
     let identifiant = identifiant_chevron(&demande.identifiant)?;
     let dest = destinataires_redaction(genre, demande)?;
     let objet = objet_redaction(genre, &demande.objet);
@@ -223,7 +303,10 @@ pub fn construire_message(
         .from(analyse_boite(&demande.de)?)
         .message_id(Some(identifiant))
         .subject(objet)
-        .keep_bcc();
+        .date(date);
+    if garder_bcc {
+        builder = builder.keep_bcc();
+    }
     for boite in &dest.a {
         builder = builder.to(analyse_boite(boite)?);
     }
@@ -237,15 +320,19 @@ pub fn construire_message(
         builder = builder
             .in_reply_to(identifiant_chevron(&origine.identifiant)?)
             .references(references_de(origine)?);
+    } else if let Some(fil) = fil {
+        builder = builder
+            .in_reply_to(identifiant_chevron(&fil.en_reponse_a)?)
+            .references(references_du_fil(fil)?);
     }
     let alternatif = MultiPart::alternative()
         .singlepart(SinglePart::plain(texte))
         .singlepart(SinglePart::html(html));
     let pieces = pieces_a_joindre(genre, demande);
-    let message = if pieces.is_empty() {
+    if pieces.is_empty() {
         builder
             .multipart(alternatif)
-            .map_err(|_| ErreurMail::Protocole)?
+            .map_err(|_| ErreurMail::Protocole)
     } else {
         let mut mixte = MultiPart::mixed().multipart(alternatif);
         for piece in &pieces {
@@ -254,11 +341,8 @@ pub fn construire_message(
                 Attachment::new(nom_piece(&piece.nom)).body(piece.contenu.clone(), mime),
             );
         }
-        builder
-            .multipart(mixte)
-            .map_err(|_| ErreurMail::Protocole)?
-    };
-    Ok(message.formatted())
+        builder.multipart(mixte).map_err(|_| ErreurMail::Protocole)
+    }
 }
 
 fn repond(genre: GenreRedaction) -> bool {
@@ -300,7 +384,7 @@ fn corps_texte(
     if !corps.is_empty() {
         blocs.push(corps.to_owned());
     }
-    if let Some(signature) = signature_texte(&demande.signature) {
+    if let Some(signature) = signature_texte(demande) {
         blocs.push(signature);
     }
     if let Some(origine) = origine.filter(|_| historique(genre)) {
@@ -327,7 +411,7 @@ fn corps_html(
         demande.html.clone()
     };
     html.push_str(&nettoyer_html(&neuf));
-    if let Some(signature) = signature_html(&demande.signature) {
+    if let Some(signature) = signature_html(demande) {
         html.push_str(&signature);
     }
     if let Some(origine) = origine.filter(|_| historique(genre)) {
@@ -344,8 +428,15 @@ fn corps_html(
     nettoyer_html(&html)
 }
 
-fn signature_texte(signature: &str) -> Option<String> {
-    let signature = signature.trim();
+fn signature_texte(demande: &DemandeRedaction) -> Option<String> {
+    let tiree;
+    let signature = if demande.signature.trim().is_empty() && !demande.signature_html.trim().is_empty()
+    {
+        tiree = texte_depuis_html(&nettoyer_html(&demande.signature_html));
+        tiree.trim()
+    } else {
+        demande.signature.trim()
+    };
     if signature.is_empty() {
         None
     } else {
@@ -353,8 +444,14 @@ fn signature_texte(signature: &str) -> Option<String> {
     }
 }
 
-fn signature_html(signature: &str) -> Option<String> {
-    let signature = signature.trim();
+fn signature_html(demande: &DemandeRedaction) -> Option<String> {
+    if !demande.signature_html.trim().is_empty() {
+        return Some(format!(
+            "<div>-- <br>{}</div>",
+            nettoyer_html(&demande.signature_html)
+        ));
+    }
+    let signature = demande.signature.trim();
     if signature.is_empty() {
         None
     } else {
@@ -440,6 +537,58 @@ fn references_de(origine: &MessageOrigine) -> Result<String, ErreurMail> {
     let courant = identifiant_chevron(&origine.identifiant)?;
     if vus.insert(courant.to_ascii_lowercase()) {
         ids.push(courant);
+    }
+    Ok(ids.join(" "))
+}
+
+/// Vrai si la valeur peut entrer dans un en-tête : ni retour à la ligne ni autre caractère de
+/// contrôle (injection d'en-tête, par exemple un `Bcc:` glissé dans l'objet).
+pub fn champ_en_tete_valide(valeur: &str) -> bool {
+    !valeur.chars().any(|c| c.is_control())
+}
+
+fn verifier_en_tetes(
+    demande: &DemandeRedaction,
+    fil: Option<&FilMessage>,
+) -> Result<(), ErreurMail> {
+    let mut champs: Vec<&str> = vec![
+        &demande.objet,
+        &demande.de,
+        &demande.adresse_compte,
+        &demande.identifiant,
+    ];
+    for liste in [&demande.a, &demande.cc, &demande.cci] {
+        champs.extend(liste.iter().map(String::as_str));
+    }
+    if let Some(fil) = fil {
+        champs.push(&fil.en_reponse_a);
+        champs.extend(fil.references.iter().map(String::as_str));
+    }
+    if let Some(origine) = &demande.origine {
+        champs.push(&origine.identifiant);
+        champs.push(&origine.expediteur);
+        champs.extend(origine.references.iter().map(String::as_str));
+        champs.extend(origine.a.iter().map(String::as_str));
+        champs.extend(origine.cc.iter().map(String::as_str));
+    }
+    if champs.iter().all(|c| champ_en_tete_valide(c)) {
+        Ok(())
+    } else {
+        Err(ErreurMail::Protocole)
+    }
+}
+
+fn references_du_fil(fil: &FilMessage) -> Result<String, ErreurMail> {
+    let mut ids = Vec::new();
+    let mut vus = BTreeSet::new();
+    for brut in fil.references.iter().chain([&fil.en_reponse_a]) {
+        if brut.trim().is_empty() {
+            continue;
+        }
+        let id = identifiant_chevron(brut)?;
+        if vus.insert(id.to_ascii_lowercase()) {
+            ids.push(id);
+        }
     }
     Ok(ids.join(" "))
 }
@@ -533,6 +682,7 @@ mod tests {
             corps: "Texte nouveau du cabinet.".to_owned(),
             html: String::new(),
             signature: "SignatureFictiveJ11".to_owned(),
+            signature_html: String::new(),
             identifiant: "<reponse-j11@cabinet.example>".to_owned(),
             origine: Some(origine()),
             pieces: Vec::new(),

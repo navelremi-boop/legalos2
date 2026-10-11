@@ -3,6 +3,7 @@
 
 mod chemin;
 mod classement;
+mod composition;
 mod file_envoi;
 mod html;
 mod imap;
@@ -26,11 +27,14 @@ pub use invitation::{
     ReponseInvitation,
 };
 pub use moteur::{diff_repli, Changement, RapportMoteur};
+pub use composition::{analyser_composition, origine_depuis_octets, MessageComposition};
 pub use redaction::{
-    construire_message, destinataires_redaction, objet_redaction, DemandeRedaction, Destinataires,
-    GenreRedaction, MessageOrigine, PieceJointe, DOSSIER_BROUILLONS,
+    champ_en_tete_valide, construire_message, construire_message_compose,
+    construire_message_sortant, destinataires_redaction, objet_redaction, DemandeRedaction,
+    Destinataires, FilMessage, GenreRedaction, MessageOrigine, MessageSortant, PieceJointe,
+    DOSSIER_BROUILLONS,
 };
-pub use smtp::{envoyer_message_fixe, octets_rfc822, ParametresSmtp};
+pub use smtp::{envoyer_message_fixe, envoyer_octets, octets_rfc822, ParametresSmtp};
 
 use thiserror::Error;
 
@@ -119,6 +123,11 @@ impl SessionActions {
     /// APPEND RFC822 dans un dossier IMAP.
     pub fn appender(&mut self, dossier: &str, octets: &[u8]) -> Result<(), ErreurMail> {
         self.interne.appender(dossier, octets)
+    }
+
+    /// Octets RFC822 d'un message (origine d'une réponse ou d'un transfert).
+    pub fn lire_rfc822(&mut self, dossier: &str, uid: u32) -> Result<Vec<u8>, ErreurMail> {
+        self.interne.lire_rfc822(dossier, uid)
     }
 
     pub fn lire_corps(&mut self, dossier: &str, uid: u32) -> Result<imap::CorpsLu, ErreurMail> {

@@ -331,6 +331,35 @@ impl Session {
         Ok((etat.uid_validity, messages))
     }
 
+    /// Octets RFC822 d'un UID.
+    pub fn lire_rfc822(&mut self, dossier: &str, uid: u32) -> Result<Vec<u8>, ErreurMail> {
+        self.selectionner(dossier)?;
+        let jeu = sequence_un(uid)?;
+        let items = MacroOrMessageDataItemNames::MessageDataItemNames(vec![
+            MessageDataItemName::Uid,
+            MessageDataItemName::Rfc822,
+        ]);
+        let fetched = self
+            .client
+            .fetch(
+                jeu,
+                items,
+                ImapMessageFetchOptions {
+                    uid: true,
+                    modifiers: Vec::new(),
+                },
+            )
+            .map_err(|_| ErreurMail::Protocole)?;
+        for (_cle, morceaux) in fetched {
+            for item in morceaux {
+                if let MessageDataItem::Rfc822(valeur) = item {
+                    return Ok(nstring_octets(&valeur));
+                }
+            }
+        }
+        Err(ErreurMail::Protocole)
+    }
+
     /// RFC822 d'un UID : HTML nettoyé, texte, lu. Le décodage MIME reste `mail-parser`.
     pub fn lire_corps(&mut self, dossier: &str, uid: u32) -> Result<CorpsLu, ErreurMail> {
         self.selectionner(dossier)?;

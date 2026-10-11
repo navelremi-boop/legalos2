@@ -1,5 +1,6 @@
 //! Envoi SMTP via `lettre`. Aucun journal du contenu.
 
+use lettre::address::Envelope;
 use lettre::message::Mailbox;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::transport::smtp::SmtpTransport;
@@ -43,6 +44,45 @@ pub fn envoyer_message_fixe(
         .body(corps.to_owned())
         .map_err(|_| ErreurMail::Protocole)?;
     envoyer_brut(parametres, &message)
+}
+
+/// Envoie des octets RFC822 déjà construits (variante sans `Bcc`) avec l'enveloppe donnée.
+/// Le `Message-ID` est celui des octets ; rien n'est régénéré.
+pub fn envoyer_octets(
+    parametres: &ParametresSmtp,
+    expediteur: &str,
+    destinataires: &[String],
+    octets: &[u8],
+) -> Result<(), ErreurMail> {
+    let de = expediteur.parse().map_err(|_| ErreurMail::Protocole)?;
+    let mut a = Vec::with_capacity(destinataires.len());
+    for destinataire in destinataires {
+        a.push(destinataire.parse().map_err(|_| ErreurMail::Protocole)?);
+    }
+    let enveloppe = Envelope::new(Some(de), a).map_err(|_| ErreurMail::Protocole)?;
+    let creds = Credentials::new(
+        parametres.utilisateur.clone(),
+        parametres.mot_de_passe.clone(),
+    );
+    let mailer = SmtpTransport::builder_dangerous(&parametres.hote)
+        .port(parametres.port)
+        .credentials(creds)
+        .build();
+    mailer
+        .send_raw(&enveloppe, octets)
+        .map_err(|err| classer_erreur_smtp(&err.to_string()))?;
+    Ok(())
+}
+
+fn classer_erreur_smtp(texte: &str) -> ErreurMail {
+    let texte = texte.to_ascii_lowercase();
+    if texte.contains("authenticat") || texte.contains("535") {
+        ErreurMail::Authentification
+    } else if texte.contains("connect") || texte.contains("timed out") {
+        ErreurMail::Connexion
+    } else {
+        ErreurMail::Protocole
+    }
 }
 
 fn envoyer_brut(parametres: &ParametresSmtp, message: &Message) -> Result<(), ErreurMail> {

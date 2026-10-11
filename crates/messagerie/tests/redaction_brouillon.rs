@@ -60,6 +60,7 @@ fn demande(identifiant: &str) -> DemandeRedaction {
         corps: "Texte nouveau du cabinet.".to_owned(),
         html: String::new(),
         signature: "SignatureFictiveJ11".to_owned(),
+        signature_html: String::new(),
         identifiant: identifiant.to_owned(),
         origine: Some(origine()),
         pieces: Vec::new(),
