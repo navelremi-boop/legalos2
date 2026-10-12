@@ -241,7 +241,13 @@ pub fn construire_message_compose(
     fil: Option<&FilMessage>,
 ) -> Result<Vec<u8>, ErreurMail> {
     let demande = sans_signature_ni_origine(demande);
-    let message = assembler(GenreRedaction::Nouveau, &demande, fil, true, SystemTime::now())?;
+    let message = assembler(
+        GenreRedaction::Nouveau,
+        &demande,
+        fil,
+        true,
+        SystemTime::now(),
+    )?;
     Ok(message.formatted())
 }
 
@@ -430,13 +436,13 @@ fn corps_html(
 
 fn signature_texte(demande: &DemandeRedaction) -> Option<String> {
     let tiree;
-    let signature = if demande.signature.trim().is_empty() && !demande.signature_html.trim().is_empty()
-    {
-        tiree = texte_depuis_html(&nettoyer_html(&demande.signature_html));
-        tiree.trim()
-    } else {
-        demande.signature.trim()
-    };
+    let signature =
+        if demande.signature.trim().is_empty() && !demande.signature_html.trim().is_empty() {
+            tiree = texte_depuis_html(&nettoyer_html(&demande.signature_html));
+            tiree.trim()
+        } else {
+            demande.signature.trim()
+        };
     if signature.is_empty() {
         None
     } else {

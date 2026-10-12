@@ -19,6 +19,7 @@ pub use classement::{
     decider, integrer_releve, DecisionClassement, DossierPourClassement, EntreeClassement,
     MessageReleve, ReleveConnue,
 };
+pub use composition::{analyser_composition, origine_depuis_octets, MessageComposition};
 pub use file_envoi::{appliquer, decider_action, ActionEnvoi, EntreeFileEnvoi, EtatFileEnvoi};
 pub use html::{nettoyer_html, texte_depuis_html};
 pub use imap::{CorpsLu, EnteteRecu, EtatUid, ReleveDossier};
@@ -27,7 +28,6 @@ pub use invitation::{
     ReponseInvitation,
 };
 pub use moteur::{diff_repli, Changement, RapportMoteur};
-pub use composition::{analyser_composition, origine_depuis_octets, MessageComposition};
 pub use redaction::{
     champ_en_tete_valide, construire_message, construire_message_compose,
     construire_message_sortant, destinataires_redaction, objet_redaction, DemandeRedaction,
