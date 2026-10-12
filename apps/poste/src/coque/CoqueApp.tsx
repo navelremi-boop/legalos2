@@ -29,6 +29,7 @@ import { libelleReferenceDossier } from "@/lib/referenceDossier";
 import { clearSession } from "@/lib/session/storage";
 import { DossierOuvert, type DossierVue } from "@/screens/DossierOuvert";
 import { Dossiers } from "@/screens/Dossiers";
+import { CONDITION_SQL_A_CLASSER } from "@/messagerie/classement";
 import { EcranMails } from "@/messagerie/EcranMails";
 import { Journee } from "@/screens/Journee";
 import { Reglages, type ThemeMode } from "@/screens/Reglages";
@@ -142,7 +143,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
       void getPowerSyncDatabase()
         .then((database) =>
           database.getAll<{ n: number }>(
-            "SELECT COUNT(*) AS n FROM messages WHERE etat_classement = 'a_classer'",
+            `SELECT COUNT(*) AS n FROM messages WHERE ${CONDITION_SQL_A_CLASSER}`,
           ),
         )
         .then((rows) => {
@@ -417,12 +418,10 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
     contenu = (
       <EcranMails
         instanceUrl={instanceUrl}
-        onNouveauDossier={() => {
-          setPanneau("dossier-form");
-        }}
         onSaisirTemps={() => {
           setPanneau("temps");
         }}
+        onOuvrirDossier={ouvrirDossier}
       />
     );
   } else if (nav === "agenda") {

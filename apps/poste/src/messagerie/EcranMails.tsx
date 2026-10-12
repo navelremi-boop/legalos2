@@ -1,217 +1,134 @@
-import { useEffect, useRef, useState } from "react";
-import { BarreActions } from "@/coque/BarreActions";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BarreActions, type ActionBarre } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
-import { apiUrl } from "@/lib/auth/client";
-import { composantesAffichees } from "@/agenda/fuseauParis";
-import { formatDateCourte, formatDateLongue, formatHeureMur } from "@/lib/format";
 import { fr } from "@/lib/fr";
-import { loadSessionTokens } from "@/lib/session/storage";
+import {
+  annulerEnvoi,
+  classerMessage,
+  lireCorpsMessage,
+  lireFileEnvoi,
+  relancerEnvoi,
+} from "@/messagerie/apiMessagerie";
+import {
+  compterNonLusReception,
+  construireRail,
+  identifiantUtilisateur,
+  mailsDuDossier,
+  vueParDefaut,
+  type BoiteRail,
+} from "@/messagerie/boitesMail";
+import {
+  compterAClasser,
+  estAClasser,
+  sousTitreEcran,
+  type DossierClassement,
+} from "@/messagerie/classement";
+import { lireDonneesMails, lireTexteStocke, type DonneesMails } from "@/messagerie/donneesMails";
+import { invitationDuMessage } from "@/messagerie/invitations";
+import { LectureMail, type DemandeComposition } from "@/messagerie/LectureMail";
+import { PanneauListe } from "@/messagerie/PanneauListe";
+import { filtrerMails, groupesParJour, trierParDate, type FiltreListe } from "@/messagerie/listeMails";
+import { RailMails, type VueMails } from "@/messagerie/RailMails";
+import { libelleReleve } from "@/messagerie/releve";
 import { rechercherMailsHorsLigne, type ResultatRechercheMail } from "@/messagerie/rechercheMails";
+import {
+  ErreurReponseInvitation,
+  reponseInvitation,
+  type ReponseInvitation,
+} from "@/messagerie/reponseInvitation";
+import type { DemonstrationMails, LigneEnvoi, MailLocal } from "@/messagerie/typesMails";
 import { getPowerSyncDatabase } from "@/sync/database";
 
-type LigneEnvoi = {
-  id: string;
-  objet: string;
-  destinataire: string;
-  etat: string;
-};
-
-export type MailLocal = {
-  id: string;
-  objet: string | null;
-  etat_classement: string | null;
-  dossier_id: string | null;
-  suggestion_dossier_id: string | null;
-  expediteur: string | null;
-  destinataires?: string | null;
-  destinataires_texte?: string | null;
-  pieces_texte?: string | null;
-  extrait_texte?: string | null;
-  texte_brut?: string | null;
-  cree_le?: string | null;
-  dossier_imap?: string | null;
-  pieces?: string[];
-};
-
-type DossierLocal = { id: string; nom: string; chemise: string };
-type CompteLocal = { id: string; adresse: string; type_compte: string; etat_connexion?: string | null };
-
-const LIBELLES: Record<string, string> = {
-  brouillon: "Brouillon",
-  en_attente: "En attente",
-  envoye: "Envoyé",
-  copie_envoyes_confirmee: "Copie dans « Envoyés » confirmée",
-  echec: "Échec",
-};
-
-const DOSSIERS_IMAP = [
-  { id: "INBOX", libelle: "Boîte de réception" },
-  { id: "Envoyés", libelle: "Envoyés" },
-] as const;
-
-function dansDossier(mail: MailLocal, id: string): boolean {
-  const dossier = (mail.dossier_imap ?? "INBOX").trim().toLowerCase();
-  if (id === "INBOX") return dossier === "" || dossier === "inbox";
-  return dossier === "envoyés" || dossier === "envoyes" || dossier === "sent";
-}
-
-function dateListe(valeur: string | null | undefined): string {
-  if (!valeur) return "";
-  const mur = composantesAffichees(valeur);
-  return mur ? formatDateCourte(mur.jour) : "";
-}
-
-function dateLecture(valeur: string | null | undefined): string {
-  if (!valeur) return "";
-  const mur = composantesAffichees(valeur);
-  if (!mur) return "";
-  const jour = formatDateLongue(mur.jour);
-  if (mur.heure === null || mur.minute === null) return jour;
-  return `${jour}, ${formatHeureMur(mur.heure, mur.minute)}`;
-}
-
-function listePieces(mail: MailLocal): string[] {
-  if (mail.pieces && mail.pieces.length > 0) return mail.pieces;
-  return (mail.pieces_texte ?? "")
-    .split("\n")
-    .map((nom) => nom.trim())
-    .filter((nom) => nom !== "");
-}
-
-function extrait(mail: MailLocal): string {
-  const source =
-    (mail.texte_brut ?? "").trim() !== "" ? mail.texte_brut : mail.extrait_texte;
-  const texte = source?.replace(/\s+/g, " ").trim() ?? "";
-  if (texte === "") return "";
-  return texte.length > 90 ? `${texte.slice(0, 90)}…` : texte;
-}
-
-async function lireFile(instanceUrl: string): Promise<LigneEnvoi[]> {
-  const jeton = loadSessionTokens().accessToken;
-  if (jeton === null || jeton === "") return [];
-  const reponse = await fetch(apiUrl(instanceUrl, "/messagerie/file-envoi"), {
-    headers: { authorization: `Bearer ${jeton}` },
-  });
-  if (!reponse.ok) return [];
-  const json: unknown = await reponse.json();
-  if (!Array.isArray(json)) return [];
-  const lignes: LigneEnvoi[] = [];
-  for (const ligne of json) {
-    if (typeof ligne !== "object" || ligne === null) continue;
-    const row = ligne as Record<string, unknown>;
-    if (typeof row.id !== "string" || typeof row.etat !== "string") continue;
-    lignes.push({
-      id: row.id,
-      objet: typeof row.objet === "string" ? row.objet : "",
-      destinataire: typeof row.destinataire === "string" ? row.destinataire : "",
-      etat: row.etat,
-    });
-  }
-  return lignes;
-}
-
-async function lireCorps(instanceUrl: string, id: string): Promise<string> {
-  const jeton = loadSessionTokens().accessToken;
-  if (jeton === null || jeton === "") return "";
-  const reponse = await fetch(apiUrl(instanceUrl, `/messagerie/messages/${id}/corps`), {
-    method: "POST",
-    headers: { authorization: `Bearer ${jeton}` },
-  });
-  if (!reponse.ok) return "";
-  const json: unknown = await reponse.json();
-  if (typeof json !== "object" || json === null) return "";
-  const texte = (json as { texte?: unknown }).texte;
-  return typeof texte === "string" ? texte : "";
-}
-
-async function poster(instanceUrl: string, chemin: string, corps?: unknown): Promise<boolean> {
-  const jeton = loadSessionTokens().accessToken;
-  if (jeton === null || jeton === "") return false;
-  const reponse = await fetch(apiUrl(instanceUrl, chemin), {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${jeton}`,
-      ...(corps === undefined ? {} : { "content-type": "application/json" }),
-    },
-    body: corps === undefined ? undefined : JSON.stringify(corps),
-  });
-  return reponse.ok;
-}
-
-export type DemonstrationMails = {
-  comptes: CompteLocal[];
-  mails: MailLocal[];
-  dossiers: DossierLocal[];
-  file?: LigneEnvoi[];
-};
+export type { DemonstrationMails, MailLocal } from "@/messagerie/typesMails";
+export type { DemandeComposition, GenreComposition } from "@/messagerie/LectureMail";
 
 type EcranMailsProps = {
   instanceUrl: string;
-  onNouveauDossier?: () => void;
+  /**
+   * Demande de rédaction (nouveau mail, réponse, réponse à tous, transfert). Branchée par la partie B de
+   * l'étape 4 ; sans elle, les boutons sont visibles mais n'ouvrent rien.
+   */
+  onComposer?: (demande: DemandeComposition) => void;
   onSaisirTemps?: () => void;
+  /** Ouvre le dossier où le mail est classé. Sans lui, le bouton « Ouvrir le dossier » n'est pas proposé. */
+  onOuvrirDossier?: (id: string, nom: string, chemise: string, reference?: string | null) => void;
   /** Galerie seulement : pas d'appel PowerSync. */
   demonstration?: DemonstrationMails;
 };
 
+const DONNEES_VIDES: DonneesMails = { comptes: [], mails: [], dossiers: [], invitations: [] };
+
+function memeDonnees(a: DonneesMails, b: DonneesMails): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function titreDeLaVue(vue: VueMails, rail: readonly BoiteRail[]): string {
+  if (vue.genre === "a-classer") return "À classer";
+  const dossier = rail.find((boite) => boite.id === vue.boite)?.dossiers.find((entree) => entree.cle === vue.dossier);
+  return dossier?.libelle ?? "Boîte de réception";
+}
+
 /**
- * Trois volets (§ 7.6) : comptes et dossiers IMAP, liste, lecture.
- * La recherche est en tête de liste. La file d'envoi est hors du volet de lecture.
+ * Trois volets (§ 7.6, maquette prototype-mails) : boîtes et dossiers avec la file d'envoi ; liste groupée
+ * par jour ; lecture. Données de la base locale ; l'API ne sert qu'au corps absent, au classement et à la file.
  */
 export function EcranMails({
   instanceUrl,
-  onNouveauDossier,
+  onComposer,
   onSaisirTemps,
+  onOuvrirDossier,
   demonstration,
 }: EcranMailsProps) {
-  const [lignes, setLignes] = useState<LigneEnvoi[]>(demonstration?.file ?? []);
+  const [donneesSync, setDonneesSync] = useState<DonneesMails>(DONNEES_VIDES);
+  const [fileSync, setFileSync] = useState<LigneEnvoi[]>([]);
+  const [maintenantSync, setMaintenantSync] = useState(() => new Date());
+  const [vueChoisie, setVueChoisie] = useState<VueMails | null>(null);
+  const [filtre, setFiltre] = useState<FiltreListe>("tous");
   const [terme, setTerme] = useState("");
   const [hits, setHits] = useState<ResultatRechercheMail[]>([]);
-  const [comptes, setComptes] = useState<CompteLocal[]>([]);
-  const [mails, setMails] = useState<MailLocal[]>([]);
-  const [dossiers, setDossiers] = useState<DossierLocal[]>([]);
-  const [dossierImap, setDossierImap] = useState<(typeof DOSSIERS_IMAP)[number]["id"]>("INBOX");
-  const [corpsLu, setCorpsLu] = useState<Record<string, string>>({});
+  const [selection, setSelection] = useState<string | null>(demonstration?.selectionInitiale ?? null);
+  const [corpsLus, setCorpsLus] = useState<Record<string, string>>({});
   const [classesLocal, setClassesLocal] = useState<Record<string, string>>({});
-  const [cibles, setCibles] = useState<Record<string, string>>({});
-  const demandesCorps = useRef(new Set<string>());
-  const [selection, setSelection] = useState<string | null>(() => {
-    const aClasser = demonstration?.mails.find((mail) => mail.etat_classement !== "classe");
-    return aClasser?.id ?? demonstration?.mails[0]?.id ?? null;
-  });
+  const [erreurClassement, setErreurClassement] = useState<{ id: string; message: string } | null>(null);
+  const [erreurFile, setErreurFile] = useState<string | null>(null);
+  const [reponsesInvitation, setReponsesInvitation] = useState<Record<string, ReponseInvitation>>({});
+  const [erreurInvitation, setErreurInvitation] = useState<{ id: string; message: string } | null>(null);
+  const [reponseEnCours, setReponseEnCours] = useState(false);
+  const corpsDemandes = useRef(new Set<string>());
 
+  const enDemo = demonstration !== undefined;
+  const donnees: DonneesMails = demonstration
+    ? {
+        comptes: demonstration.comptes,
+        mails: demonstration.mails,
+        dossiers: demonstration.dossiers,
+        invitations: demonstration.invitations ?? [],
+      }
+    : donneesSync;
+  const file = demonstration ? (demonstration.file ?? []) : fileSync;
+  const maintenantDemo = demonstration?.maintenant;
+  const maintenant = useMemo(
+    () => (maintenantDemo === undefined ? maintenantSync : new Date(maintenantDemo)),
+    [maintenantDemo, maintenantSync],
+  );
+
+  // Lecture périodique de la base locale et de la file d'envoi.
   useEffect(() => {
-    if (demonstration) return;
+    if (enDemo) return;
     let stop = false;
     const tick = () => {
-      void lireFile(instanceUrl).then((rows) => {
-        if (!stop) setLignes(rows);
+      void lireFileEnvoi(instanceUrl).then((lignes) => {
+        if (!stop) setFileSync(lignes);
       });
       void getPowerSyncDatabase()
-        .then(async (database) => {
-          const [comptesRows, mailRows, dossierRows] = await Promise.all([
-            database.getAll<CompteLocal>(
-              "SELECT id, adresse, type_compte, etat_connexion FROM comptes_mail ORDER BY adresse",
-            ),
-            database.getAll<MailLocal>(
-              `SELECT id, objet, etat_classement, dossier_id, suggestion_dossier_id, expediteur,
-                      destinataires_texte, pieces_texte, extrait_texte, texte_brut, cree_le, dossier_imap
-               FROM messages ORDER BY cree_le DESC`,
-            ),
-            database.getAll<DossierLocal>("SELECT id, nom, chemise FROM dossiers"),
-          ]);
-          return { comptesRows, mailRows, dossierRows };
-        })
-        .then((rows) => {
+        .then((database) => lireDonneesMails(database))
+        .then((lues) => {
           if (stop) return;
-          setComptes(rows.comptesRows);
-          setMails(rows.mailRows);
-          setDossiers(rows.dossierRows);
+          setDonneesSync((actuelles) => (memeDonnees(actuelles, lues) ? actuelles : lues));
+          setMaintenantSync(new Date());
         })
         .catch(() => {
-          if (stop) return;
-          setComptes([]);
-          setMails([]);
-          setDossiers([]);
+          if (!stop) setDonneesSync(DONNEES_VIDES);
         });
     };
     tick();
@@ -220,10 +137,11 @@ export function EcranMails({
       stop = true;
       window.clearInterval(timer);
     };
-  }, [instanceUrl, demonstration]);
+  }, [instanceUrl, enDemo]);
 
+  // Recherche hors ligne (index FTS5 local).
   useEffect(() => {
-    if (demonstration) return;
+    if (enDemo) return;
     let stop = false;
     void rechercherMailsHorsLigne(terme)
       .then((rows) => {
@@ -235,325 +153,255 @@ export function EcranMails({
     return () => {
       stop = true;
     };
-  }, [terme, demonstration]);
+  }, [terme, enDemo]);
 
+  const monId = identifiantUtilisateur(donnees.comptes);
+  const classesDeja = useMemo(() => new Set(Object.keys(classesLocal)), [classesLocal]);
+  const dossiersParId = useMemo(() => {
+    const table = new Map<string, DossierClassement>();
+    for (const dossier of donnees.dossiers) table.set(dossier.id, dossier);
+    return table;
+  }, [donnees.dossiers]);
+  const rail = useMemo(
+    () => construireRail(donnees.comptes, donnees.mails, monId),
+    [donnees.comptes, donnees.mails, monId],
+  );
+  const aClasser = compterAClasser(donnees.mails, classesDeja);
+  const nonLus = compterNonLusReception(donnees.mails, monId);
+
+  const vue = useMemo<VueMails>(
+    () => vueChoisie ?? { genre: "dossier", ...vueParDefaut(donnees.mails, monId) },
+    [vueChoisie, donnees.mails, monId],
+  );
+  const enRecherche = terme.trim() !== "";
+
+  const mailsDeLaVue = useMemo<MailLocal[]>(() => {
+    if (enRecherche) {
+      if (enDemo) {
+        const mot = terme.trim().toLowerCase();
+        return donnees.mails.filter((mail) =>
+          `${mail.objet ?? ""} ${mail.expediteur ?? ""} ${mail.debut_texte ?? ""} ${mail.extrait_texte ?? ""}`
+            .toLowerCase()
+            .includes(mot),
+        );
+      }
+      const parId = new Map(donnees.mails.map((mail) => [mail.id, mail]));
+      return hits.flatMap((hit) => {
+        const mail = parId.get(hit.id);
+        return mail === undefined ? [] : [mail];
+      });
+    }
+    if (vue.genre === "a-classer") {
+      return donnees.mails.filter((mail) => estAClasser(mail.etat_classement) && !classesDeja.has(mail.id));
+    }
+    return mailsDuDossier(donnees.mails, vue.boite, vue.dossier, monId);
+  }, [enRecherche, enDemo, terme, hits, donnees.mails, vue, monId, classesDeja]);
+
+  const mailsFiltres = useMemo(() => filtrerMails(mailsDeLaVue, filtre), [mailsDeLaVue, filtre]);
+  const groupes = useMemo(() => groupesParJour(mailsFiltres, maintenant), [mailsFiltres, maintenant]);
+
+  const messageVide = enRecherche
+    ? "Aucun mail ne correspond."
+    : filtre !== "tous"
+      ? "Aucun mail ne correspond."
+      : vue.genre === "a-classer"
+        ? "Tous les mails sont classés."
+        : "Aucun message dans cette boîte.";
+
+  const choisi =
+    donnees.mails.find((mail) => mail.id === selection) ?? trierParDate(mailsFiltres)[0] ?? null;
+  const choisiId = choisi?.id ?? null;
+  const classeLocal = choisi === null ? undefined : classesLocal[choisi.id];
+
+  // Corps du message choisi : base locale, sinon l'API le récupère à la demande.
   useEffect(() => {
-    if (demonstration || selection === null) return;
-    const mail = mails.find((ligne) => ligne.id === selection);
-    if (!mail || (mail.texte_brut ?? "").trim() !== "") return;
-    if (demandesCorps.current.has(selection)) return;
-    demandesCorps.current.add(selection);
-    void lireCorps(instanceUrl, selection).then((texte) => {
-      setCorpsLu((actuel) => ({ ...actuel, [selection]: texte }));
-    });
-  }, [demonstration, instanceUrl, mails, selection]);
+    if (choisiId === null || enDemo) return;
+    if (corpsDemandes.current.has(choisiId)) return;
+    corpsDemandes.current.add(choisiId);
+    void getPowerSyncDatabase()
+      .then((database) => lireTexteStocke(database, choisiId))
+      .then(async (texte) => (texte.trim() !== "" ? texte : lireCorpsMessage(instanceUrl, choisiId)))
+      .catch(() => "")
+      .then((texte) => {
+        setCorpsLus((actuel) => ({ ...actuel, [choisiId]: texte }));
+      });
+  }, [choisiId, enDemo, instanceUrl]);
 
-  const comptesAffiches = demonstration?.comptes ?? comptes;
-  const mailsAffiches = (demonstration?.mails ?? mails).filter((mail) => dansDossier(mail, dossierImap));
-  const dossiersAffiches = demonstration?.dossiers ?? dossiers;
-  const parId = new Map(dossiersAffiches.map((dossier) => [dossier.id, dossier]));
-  const choisi = mailsAffiches.find((mail) => mail.id === selection) ?? mailsAffiches[0] ?? null;
-  const rangement = choisi ? classesLocal[choisi.id] : undefined;
-  const classe = choisi?.etat_classement === "classe" || Boolean(rangement);
-  const dossierClasseId =
-    choisi?.etat_classement === "classe" ? choisi.dossier_id : (rangement ?? null);
-  const dossierClasse = dossierClasseId ? parId.get(dossierClasseId) : undefined;
-  const dossierCible = choisi ? (cibles[choisi.id] ?? "") : "";
-  const suggestionId = choisi?.suggestion_dossier_id ?? choisi?.dossier_id ?? null;
-  const suggestion = suggestionId ? parId.get(suggestionId) : undefined;
-  const libelleDossier = DOSSIERS_IMAP.find((dossier) => dossier.id === dossierImap)?.libelle ?? dossierImap;
-  const resultats = demonstration
-    ? mailsAffiches.filter((mail) => {
-        const tas = `${mail.objet ?? ""} ${mail.texte_brut ?? ""} ${mail.expediteur ?? ""}`.toLowerCase();
-        return terme.trim() === "" || tas.includes(terme.trim().toLowerCase());
-      })
-    : null;
+  const corps = choisi === null ? undefined : enDemo ? (demonstration.corps?.[choisi.id] ?? "") : corpsLus[choisi.id];
+
+  const adressesPropres = useMemo(
+    () => donnees.comptes.filter((compte) => compte.type_compte === "nominatif").map((compte) => compte.adresse),
+    [donnees.comptes],
+  );
+  const invitation = choisi === null ? null : invitationDuMessage(choisi, donnees.invitations);
+
+  const classer = useCallback(
+    (mailId: string, dossierId: string) => {
+      if (enDemo) return;
+      setErreurClassement(null);
+      void classerMessage(instanceUrl, mailId, dossierId).then((resultat) => {
+        if (resultat.ok) {
+          setClassesLocal((actuel) => ({ ...actuel, [mailId]: dossierId }));
+        } else {
+          setErreurClassement({ id: mailId, message: `Classement impossible. ${resultat.message}` });
+        }
+      });
+    },
+    [enDemo, instanceUrl],
+  );
+
+  const repondreInvitation = useCallback(
+    (invitationId: string, reponse: ReponseInvitation) => {
+      setErreurInvitation(null);
+      setReponseEnCours(true);
+      void reponseInvitation(instanceUrl, invitationId, reponse)
+        .then(() => {
+          setReponsesInvitation((actuel) => ({ ...actuel, [invitationId]: reponse }));
+        })
+        .catch((err: unknown) => {
+          const message =
+            err instanceof ErreurReponseInvitation ? err.message : "La réponse n'a pas pu être envoyée.";
+          setErreurInvitation({ id: invitationId, message });
+        })
+        .finally(() => {
+          setReponseEnCours(false);
+        });
+    },
+    [instanceUrl],
+  );
+
+  const actionFile = useCallback(
+    (action: (url: string, id: string) => Promise<{ ok: true } | { ok: false; message: string }>, id: string) => {
+      setErreurFile(null);
+      void action(instanceUrl, id)
+        .then(async (resultat) => {
+          if (!resultat.ok) setErreurFile(resultat.message);
+          setFileSync(await lireFileEnvoi(instanceUrl));
+        })
+        .catch(() => {
+          setErreurFile("L'instance est injoignable.");
+        });
+    },
+    [instanceUrl],
+  );
+
+  const dossierDuChoisi: DossierClassement | undefined =
+    choisi === null
+      ? undefined
+      : dossiersParId.get(classeLocal ?? (choisi.etat_classement === "classe" ? (choisi.dossier_id ?? "") : ""));
+
+  const actions: ActionBarre[] = [
+    {
+      id: "nouveau-mail",
+      label: "Nouveau mail",
+      primaire: true,
+      onClick: () => {
+        onComposer?.({ genre: "nouveau" });
+      },
+    },
+    {
+      id: "saisir-temps",
+      label: "Saisir du temps",
+      onClick: () => {
+        onSaisirTemps?.();
+      },
+    },
+  ];
+  if (onOuvrirDossier !== undefined && dossierDuChoisi !== undefined) {
+    const ouvrir = dossierDuChoisi;
+    actions.push({
+      id: "ouvrir-dossier",
+      label: "Ouvrir le dossier",
+      onClick: () => {
+        onOuvrirDossier(ouvrir.id, ouvrir.nom, ouvrir.chemise, ouvrir.reference);
+      },
+    });
+  }
+
+  const releve = libelleReleve(demonstration?.derniereReleve, maintenant);
 
   return (
     <div
-      className="fond-neutre relative flex h-full min-h-0 flex-col px-[30px] pt-[28px]"
+      className="fond-neutre relative flex h-full max-h-[calc(100vh-58px)] min-h-0 flex-col overflow-hidden px-[30px] pt-[28px]"
       data-testid="ecran-mails"
       data-fond="neutre"
     >
+      <header className="mails-tete" data-testid="mails-entete">
+        <div>
+          <h1>{fr("Mails")}</h1>
+          <p data-testid="mails-sous-titre">{fr(sousTitreEcran(aClasser, nonLus))}</p>
+        </div>
+        {releve === null ? null : (
+          <span className="mails-releve" data-testid="mails-releve">
+            <i aria-hidden />
+            {fr(releve)}
+          </span>
+        )}
+      </header>
       <Feuille uneColonne className="min-h-[420px]">
-        <div className="flex h-full min-h-[420px] flex-col">
-          <div className="grid min-h-0 flex-1 grid-cols-[200px_minmax(0,1fr)_minmax(0,1.2fr)]" data-testid="mails-trois-volets">
-            <aside className="border-r border-filet p-3" data-testid="mails-comptes">
-              <h2 className="mb-2 text-[length:var(--font-size-dense)] font-extrabold">{fr("Comptes")}</h2>
-              {comptesAffiches.length === 0 ? (
-                <p className="mb-3 text-graphite">{fr("Aucun compte synchronisé.")}</p>
-              ) : (
-                <ul className="mb-3">
-                  {comptesAffiches.map((compte) => (
-                  <li key={compte.id} data-testid="compte-mail">
-                    {fr(compte.adresse)}
-                    {compte.etat_connexion === "identifiants_refuses" ? (
-                      <span data-testid="compte-identifiants-refuses">{fr("Identifiants refusés")}</span>
-                    ) : null}
-                  </li>
-                  ))}
-                </ul>
-              )}
-              <h2 className="mb-2 text-[length:var(--font-size-dense)] font-extrabold">{fr("Dossiers")}</h2>
-              <ul>
-                {DOSSIERS_IMAP.map((dossier) => (
-                  <li key={dossier.id}>
-                    <button
-                      type="button"
-                      className="w-full rounded-[var(--radius-control)] px-2 py-1 text-left hover:bg-survol"
-                      data-testid="dossier-imap"
-                      data-dossier={dossier.id}
-                      aria-pressed={dossierImap === dossier.id}
-                      onClick={() => {
-                        setDossierImap(dossier.id);
-                      }}
-                    >
-                      {fr(dossier.libelle)}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </aside>
-            <section className="border-r border-filet p-3" data-testid="mails-liste">
-              <h2 className="mb-2 text-[length:var(--font-size-dense)] font-extrabold">{fr(libelleDossier)}</h2>
-              <label className="mb-2 block text-[length:var(--font-size-dense)] text-graphite" htmlFor="recherche-mails">
-                {fr("Recherche")}
-              </label>
-              <input
-                id="recherche-mails"
-                className="mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-feuille px-3 py-2 text-encre"
-                data-testid="recherche-mails"
-                value={terme}
-                onChange={(event) => {
-                  setTerme(event.target.value);
-                }}
-              />
-              {terme.trim() !== "" && !demonstration ? (
-                <ul className="mb-3" data-testid="recherche-mails-resultats">
-                  {hits.map((hit) => (
-                    <li key={hit.id} data-testid="recherche-mail-hit" data-id={hit.id}>
-                      {fr(hit.objet || "(sans objet)")}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              {mailsAffiches.length === 0 ? (
-                <p className="text-graphite">{fr("Aucun message dans cette boîte.")}</p>
-              ) : (
-                <ul>
-                  {(resultats ?? mailsAffiches).map((mail) => {
-                    const dossier = mail.dossier_id ? parId.get(mail.dossier_id) : undefined;
-                    const apercu = extrait(mail);
-                    return (
-                      <li key={mail.id}>
-                        <button
-                          type="button"
-                          className="flex w-full flex-col gap-0.5 rounded-[var(--radius-control)] px-2 py-2 text-left hover:bg-survol"
-                          data-testid="mail-ligne"
-                          data-id={mail.id}
-                          data-etat={mail.etat_classement ?? ""}
-                          onClick={() => {
-                            setSelection(mail.id);
-                          }}
-                        >
-                          <span className="flex items-center gap-2">
-                            {mail.etat_classement === "classe" && dossier ? (
-                              <span
-                                className="ligne-journee__pastille"
-                                data-testid="pastille-mail"
-                                data-chemise={dossier.chemise}
-                                aria-hidden
-                              />
-                            ) : null}
-                            <span className="min-w-0 flex-1 truncate font-bold">{fr(mail.expediteur || "—")}</span>
-                            <span className="shrink-0 text-[length:var(--font-size-meta)] text-graphite">
-                              {dateListe(mail.cree_le)}
-                            </span>
-                          </span>
-                          <span className="truncate">{fr(mail.objet?.trim() || "(sans objet)")}</span>
-                          {apercu !== "" ? (
-                            <span className="truncate text-[length:var(--font-size-meta)] text-graphite">{fr(apercu)}</span>
-                          ) : null}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+        <div className="mails-feuille" data-testid="mails-trois-volets">
+          <RailMails
+            aClasser={aClasser}
+            vue={vue}
+            onVue={(nouvelle) => {
+              setVueChoisie(nouvelle);
+              setTerme("");
+            }}
+            boites={rail}
+            file={file}
+            erreurFile={erreurFile}
+            onAnnuler={(id) => {
+              actionFile(annulerEnvoi, id);
+            }}
+            onRelancer={(id) => {
+              actionFile(relancerEnvoi, id);
+            }}
+          />
+          <PanneauListe
+            titre={enRecherche ? "Résultats" : titreDeLaVue(vue, rail)}
+            terme={terme}
+            onTerme={setTerme}
+            filtre={filtre}
+            onFiltre={setFiltre}
+            groupes={groupes}
+            enRecherche={enRecherche}
+            messageVide={messageVide}
+            selection={choisiId}
+            onSelection={setSelection}
+            dossiers={dossiersParId}
+            classesLocal={classesLocal}
+            maintenant={maintenant}
+          />
+          {choisi === null ? (
+            <section className="mails-lecture" data-testid="mails-lecture">
+              <p className="mails-vide">{fr("Aucun message à lire.")}</p>
             </section>
-            <section className="overflow-auto p-3" data-testid="mails-lecture">
-              {choisi ? (
-                <>
-                  <p className="font-bold" data-testid="lecture-expediteur">
-                    {fr(choisi.expediteur || "—")}
-                  </p>
-                  <p className="text-graphite" data-testid="lecture-destinataires">
-                    {fr(
-                      choisi.destinataires?.trim() ||
-                        choisi.destinataires_texte?.trim() ||
-                        "—",
-                    )}
-                  </p>
-                  <p className="mb-3 text-[length:var(--font-size-meta)] text-graphite" data-testid="lecture-date">
-                    {dateLecture(choisi.cree_le) || "—"}
-                  </p>
-                  <h2 className="mb-3 text-[length:var(--font-size-section)] font-extrabold">
-                    {fr(choisi.objet?.trim() || "(sans objet)")}
-                  </h2>
-                  {!classe ? (
-                    <p className="mb-3 rounded-[var(--radius-control)] bg-survol px-3 py-2" data-testid="banniere-classer">
-                      {fr(`Classer dans ${suggestion?.nom ?? "un dossier"}`)}
-                    </p>
-                  ) : null}
-                  {classe && dossierClasse ? (
-                    <p className="mb-3 flex items-center gap-2">
-                      <span
-                        className="ligne-journee__pastille"
-                        data-testid="pastille-lecture"
-                        data-chemise={dossierClasse.chemise}
-                        aria-hidden
-                      />
-                      {fr(dossierClasse.nom)}
-                    </p>
-                  ) : null}
-                  {!classe ? (
-                    <div className="mb-4 flex flex-wrap items-center gap-2">
-                      {choisi.suggestion_dossier_id ? null : (
-                        <select
-                          className="rounded-[var(--radius-control)] border border-filet px-2 py-2"
-                          data-testid="classer-dossier"
-                          value={dossierCible}
-                          onChange={(event) => {
-                            const id = choisi.id;
-                            const valeur = event.target.value;
-                            setCibles((actuel) => ({ ...actuel, [id]: valeur }));
-                          }}
-                        >
-                          <option value="">{fr("Choisir un dossier")}</option>
-                          {dossiersAffiches.map((dossier) => (
-                            <option key={dossier.id} value={dossier.id}>
-                              {fr(dossier.nom)}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                      <button
-                        type="button"
-                        className="rounded-[var(--radius-control)] border border-filet px-3 py-2"
-                        data-testid="bouton-classer"
-                        onClick={() => {
-                          if (demonstration) return;
-                          const cible = choisi.suggestion_dossier_id ?? dossierCible;
-                          if (cible === "") return;
-                          const chemin = choisi.suggestion_dossier_id
-                            ? `/messagerie/messages/${choisi.id}/accepter-suggestion`
-                            : `/messagerie/messages/${choisi.id}/classer`;
-                          const corps = choisi.suggestion_dossier_id
-                            ? undefined
-                            : { dossier_id: cible };
-                          void poster(instanceUrl, chemin, corps).then((ok) => {
-                            if (ok) setClassesLocal((actuel) => ({ ...actuel, [choisi.id]: cible }));
-                          });
-                        }}
-                      >
-                        {fr("Classer")}
-                      </button>
-                    </div>
-                  ) : null}
-                  <p className="whitespace-pre-wrap" data-testid="lecture-corps">
-                    {fr(
-                      (choisi.texte_brut ?? "").trim() !== ""
-                        ? (choisi.texte_brut ?? "")
-                        : (corpsLu[choisi.id] ?? ""),
-                    )}
-                  </p>
-                  <h3 className="mt-4 mb-2 text-[length:var(--font-size-dense)] font-extrabold">{fr("Pièces jointes")}</h3>
-                  {(listePieces(choisi).length === 0) ? (
-                    <p className="text-graphite">{fr("Aucune pièce jointe.")}</p>
-                  ) : (
-                    <ul data-testid="lecture-pieces">
-                      {listePieces(choisi).map((piece, index) => (
-                        <li key={piece + "-" + String(index)}>{fr(piece)}</li>
-                      ))}
-                    </ul>
-                  )}
-                </>
-              ) : (
-                <p className="text-graphite">{fr("Sélectionnez un message.")}</p>
-              )}
-            </section>
-          </div>
-          <section className="border-t border-filet p-3" data-testid="mails-file">
-            <h3 className="mb-2 text-[length:var(--font-size-dense)] font-extrabold">{fr("File d'envoi")}</h3>
-            {lignes.length === 0 ? (
-              <p className="text-graphite">{fr("Aucun envoi pour l'instant.")}</p>
-            ) : (
-              <ul className="divide-y divide-filet">
-                {lignes.map((ligne) => (
-                  <li
-                    key={ligne.id}
-                    className="flex flex-wrap items-center gap-3 py-2"
-                    data-testid="file-envoi-ligne"
-                    data-id={ligne.id}
-                    data-etat={ligne.etat}
-                  >
-                    <span className="font-bold">{fr(LIBELLES[ligne.etat] ?? ligne.etat)}</span>
-                    <span className="min-w-0 flex-1 truncate">{fr(ligne.objet || "(sans objet)")}</span>
-                    <span className="text-graphite">{fr(ligne.destinataire)}</span>
-                    {ligne.etat === "en_attente" ? (
-                      <button
-                        type="button"
-                        className="rounded-[var(--radius-control)] border border-filet px-2 py-1"
-                        data-testid="file-envoi-annuler"
-                        onClick={() => {
-                          void poster(instanceUrl, `/messagerie/file-envoi/${ligne.id}/annuler`).then(() =>
-                            lireFile(instanceUrl).then(setLignes),
-                          );
-                        }}
-                      >
-                        {fr("Annuler")}
-                      </button>
-                    ) : null}
-                    {ligne.etat === "echec" ? (
-                      <button
-                        type="button"
-                        className="rounded-[var(--radius-control)] border border-filet px-2 py-1"
-                        data-testid="file-envoi-reessayer"
-                        onClick={() => {
-                          void poster(instanceUrl, `/messagerie/file-envoi/${ligne.id}/traiter`).then(() =>
-                            lireFile(instanceUrl).then(setLignes),
-                          );
-                        }}
-                      >
-                        {fr("Nouvelle tentative")}
-                      </button>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          ) : (
+            <LectureMail
+              key={choisi.id}
+              mail={choisi}
+              maintenant={maintenant}
+              adressesPropres={adressesPropres}
+              corps={corps}
+              dossiers={dossiersParId}
+              classeLocal={classeLocal}
+              erreurClassement={erreurClassement?.id === choisi.id ? erreurClassement.message : null}
+              onClasser={(dossierId) => {
+                classer(choisi.id, dossierId);
+              }}
+              invitation={invitation}
+              reponseConfirmee={invitation === null ? undefined : reponsesInvitation[invitation.id]}
+              erreurInvitation={
+                invitation !== null && erreurInvitation?.id === invitation.id ? erreurInvitation.message : null
+              }
+              reponseEnCours={reponseEnCours}
+              onRepondreInvitation={repondreInvitation}
+              onComposer={onComposer}
+            />
+          )}
         </div>
       </Feuille>
-      <BarreActions
-        actions={[
-          {
-            id: "nouveau-dossier",
-            label: "Nouveau dossier",
-            onClick: () => {
-              onNouveauDossier?.();
-            },
-          },
-          { id: "nouveau-mail", label: "Nouveau mail", primaire: true, onClick: () => undefined },
-          {
-            id: "saisir-temps",
-            label: "Saisir du temps",
-            onClick: () => {
-              onSaisirTemps?.();
-            },
-          },
-        ]}
-      />
+      <BarreActions actions={actions} />
     </div>
   );
 }

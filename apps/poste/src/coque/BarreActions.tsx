@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import {
   IconCalendarEvent,
   IconClock,
+  IconFolder,
   IconFileInvoice,
   IconFolderPlus,
   IconMail,
@@ -33,6 +34,8 @@ function IconeAction({ id }: { id: string }): ReactNode {
       return <IconCalendarEvent {...props} />;
     case "nouveau-dossier":
       return <IconFolderPlus {...props} />;
+    case "ouvrir-dossier":
+      return <IconFolder {...props} />;
     default:
       return null;
   }

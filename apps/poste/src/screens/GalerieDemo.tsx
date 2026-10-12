@@ -5,6 +5,7 @@ import { CHRONO_DEMO } from "@/coque/chrono/donneesDemo";
 import { DossierOuvert, DOSSIERS_DEMO } from "@/screens/DossierOuvert";
 import { EcranAgenda } from "@/agenda/EcranAgenda";
 import { EcranFacturation } from "@/facturation/EcranFacturation";
+import { estAClasser } from "@/messagerie/classement";
 import { EcranMails, type DemonstrationMails } from "@/messagerie/EcranMails";
 import { Dossiers } from "@/screens/Dossiers";
 import { Journee } from "@/screens/Journee";
@@ -26,59 +27,190 @@ export function GalerieDemo() {
   >("dossier");
 
   const mailsDemo = useMemo<DemonstrationMails>(() => {
-    const aujourd = new Date().toISOString().slice(0, 10);
+    // Jeu fictif de la maquette prototype-mails, daté d'après un instant fixe pour des captures stables.
+    const moi = "demo-utilisateur";
+    const boite = "j.marchal@cabinet-marchal.example";
     return {
+      maintenant: "2026-10-09T10:00:00+02:00",
+      derniereReleve: "2026-10-09T09:59:00+02:00",
+      selectionInitiale: "mail-2",
       comptes: [
-        { id: "compte-demo", adresse: "avocat@cabinet.example", type_compte: "nominatif" },
+        { id: "compte-perso", adresse: boite, type_compte: "nominatif", titulaire_id: moi },
+        { id: "compte-partage", adresse: "contact@cabinet-marchal.example", type_compte: "partage" },
       ],
-      dossiers: [{ id: "ferrand", nom: "Ferrand Métal", chemise: "kraft" }],
+      dossiers: [
+        { id: "d-tilleuls", nom: "SCI Les Tilleuls", chemise: "kraft", reference: "2026-042" },
+        { id: "d-ferrand", nom: "Ferrand Métal", chemise: "bleu-classeur", reference: "2026-031" },
+        { id: "d-moreau", nom: "Succession Moreau", chemise: "vert-amande", reference: "2026-057" },
+      ],
       file: [
-        { id: "envoi-1", objet: "Conclusions en réplique", destinataire: "greffe@example.com", etat: "en_attente" },
-        { id: "envoi-2", objet: "Bordereau de pièces", destinataire: "confrere@example.com", etat: "copie_envoyes_confirmee" },
+        {
+          id: "envoi-1",
+          objet: "Conclusions en réplique",
+          destinataire: "Me Anne Perrin",
+          etat: "copie_envoyes_confirmee",
+        },
+        {
+          id: "envoi-2",
+          objet: "Bordereau de pièces",
+          destinataire: "Me Lucas Garnier",
+          etat: "en_attente",
+        },
       ],
+      invitations: [
+        {
+          id: "invitation-1",
+          uid_ical: "demo-acte-partage@etude-garnier.example",
+          sequence: 0,
+          effet: "demande",
+          fuseau: "Europe/Paris",
+          debut: "2026-10-08T10:00:00",
+          fin: "2026-10-08T11:00:00",
+          objet: "Signature de l'acte de partage",
+          organisateur: "Me Lucas Garnier <l.garnier@etude-garnier.example>",
+        },
+      ],
+      corps: {
+        "mail-1":
+          "Cher Confrère,\n\nJe vous prie de bien vouloir trouver ci-joint communication des pièces n° 14 à 19, dont le bordereau récapitulatif est joint au présent envoi.\n\nBien confraternellement.\n\nClément Vasseur\nAvocat au Barreau de Lyon",
+        "mail-2":
+          "Maître,\n\nL'affaire enregistrée sous le numéro RG 25/04417 est fixée à l'audience de mise en état du 12 novembre à 9 h 30.\n\nLe greffe",
+        "mail-3":
+          "Maître,\n\nVoici les deux derniers bons de livraison que vous m'aviez demandés pour l'audience de lundi.\n\nBien cordialement.\n\nInès Ferrand\nDirectrice administrative, SAS Ferrand Métal",
+        "mail-4":
+          "Maître,\n\nJe vous propose de fixer la signature de l'acte de partage de la succession Moreau au jeudi 8 octobre à 10 h, en présence de Mme Moreau.\n\nBien à vous.",
+        "mail-5":
+          "Maître,\n\nFaisant suite à nos échanges, nous vous adressons une proposition de protocole d'accord, que nous vous remercions de soumettre à votre cliente.\n\nLe service contentieux",
+        "mail-6":
+          "Mes chers Confrères,\n\nVous trouverez dans cette lettre le programme de formation continue du trimestre et le calendrier des permanences.",
+        "mail-7":
+          "Mon cher Confrère,\n\nJe vous prie de trouver ci-joint mes conclusions récapitulatives, notifiées ce jour par RPVA.\n\nBien confraternellement.",
+      },
       mails: [
         {
-          id: "mail-classe",
-          objet: "Pièces du dossier",
+          id: "mail-1",
+          objet: "Communication de pièces adverses n° 14 à 19",
+          expediteur: "Me Clément Vasseur <c.vasseur@cabinet-vasseur.example>",
+          destinataires_texte: boite,
+          pieces_texte: "Bordereau n° 4.pdf\nPièce 14, contrat de prêt.pdf\nPièce 15, avenant.pdf",
+          debut_texte: "Cher Confrère, je vous prie de bien vouloir trouver ci-joint communication des pièces…",
           etat_classement: "classe",
-          dossier_id: "ferrand",
+          dossier_id: "d-tilleuls",
           suggestion_dossier_id: null,
-          expediteur: "tiers@example.com",
-          destinataires: "avocat@cabinet.example",
-          texte_brut: "Veuillez trouver les pièces communiquées ce jour.",
-          cree_le: `${aujourd}T08:30:00`,
+          titulaire_id: moi,
+          lu: 0,
           dossier_imap: "INBOX",
-          pieces: ["Bordereau.pdf"],
+          cree_le: "2026-10-09T09:12:00+02:00",
         },
         {
-          id: "mail-a-classer",
-          objet: "Courrier à ranger",
+          id: "mail-2",
+          objet: "Avis de fixation, RG 25/04417",
+          expediteur: "Greffe de la cour d'appel de Lyon <greffe.ca-lyon@justice.example>",
+          destinataires_texte: boite,
+          pieces_texte: "Avis de fixation.pdf",
+          debut_texte: "L'affaire est fixée à l'audience de mise en état du 12 novembre à 9 h 30…",
+          etat_classement: "suggestion",
+          dossier_id: null,
+          suggestion_dossier_id: "d-tilleuls",
+          titulaire_id: moi,
+          lu: 0,
+          dossier_imap: "INBOX",
+          cree_le: "2026-10-09T08:40:00+02:00",
+        },
+        {
+          id: "mail-3",
+          objet: "Re : dossier de plaidoirie",
+          expediteur: "Mme Inès Ferrand <i.ferrand@ferrand-metal.example>",
+          destinataires_texte: boite,
+          pieces_texte: "Bon de livraison 1184.pdf\nBon de livraison 1192.pdf",
+          debut_texte: "Maître, voici les deux derniers bons de livraison que vous m'aviez demandés…",
+          etat_classement: "classe",
+          dossier_id: "d-ferrand",
+          suggestion_dossier_id: null,
+          titulaire_id: moi,
+          lu: 1,
+          dossier_imap: "INBOX",
+          cree_le: "2026-10-09T08:05:00+02:00",
+        },
+        {
+          id: "mail-4",
+          objet: "Invitation : signature de l'acte de partage",
+          expediteur: "Me Lucas Garnier <l.garnier@etude-garnier.example>",
+          destinataires_texte: boite,
+          pieces_texte: "",
+          debut_texte: "Rendez-vous le jeudi 8 octobre, 10 h à 11 h, à l'étude. Merci de confirmer votre présence.",
+          etat_classement: "classe",
+          dossier_id: "d-moreau",
+          suggestion_dossier_id: null,
+          titulaire_id: moi,
+          lu: 1,
+          dossier_imap: "INBOX",
+          cree_le: "2026-10-08T17:20:00+02:00",
+        },
+        {
+          id: "mail-5",
+          objet: "Proposition de protocole d'accord",
+          expediteur: "Banque Rhodanienne, service contentieux <contentieux@banque-rhodanienne.example>",
+          destinataires_texte: boite,
+          pieces_texte: "Projet de protocole.docx",
+          debut_texte: "Maître, faisant suite à nos échanges, nous vous adressons une proposition de protocole…",
+          etat_classement: "suggestion",
+          dossier_id: null,
+          suggestion_dossier_id: "d-tilleuls",
+          titulaire_id: moi,
+          lu: 0,
+          dossier_imap: "INBOX",
+          cree_le: "2026-10-08T11:02:00+02:00",
+        },
+        {
+          id: "mail-6",
+          objet: "Lettre d'information d'octobre",
+          expediteur: "Ordre des avocats de Lyon <communication@barreau-lyon.example>",
+          destinataires_texte: "contact@cabinet-marchal.example",
+          pieces_texte: "",
+          debut_texte: "Formation continue, permanences et calendrier des audiences solennelles…",
           etat_classement: "a_classer",
           dossier_id: null,
-          suggestion_dossier_id: "ferrand",
-          expediteur: "greffe@example.com",
-          destinataires: "avocat@cabinet.example",
-          texte_brut: "Convocation à l'audience du 12 octobre.",
-          cree_le: `${aujourd}T09:15:00`,
+          suggestion_dossier_id: null,
+          titulaire_id: null,
+          lu: 1,
           dossier_imap: "INBOX",
-          pieces: ["Convocation.pdf"],
+          cree_le: "2026-10-05T07:30:00+02:00",
         },
         {
-          id: "mail-envoye",
-          objet: "Note au confrère",
+          id: "mail-7",
+          objet: "Conclusions récapitulatives",
+          expediteur: "Me Anne Perrin <a.perrin@perrin-avocats.example>",
+          destinataires_texte: boite,
+          pieces_texte: "Conclusions récapitulatives.pdf",
+          debut_texte: "Mon cher Confrère, je vous prie de trouver ci-joint mes conclusions récapitulatives…",
           etat_classement: "classe",
-          dossier_id: "ferrand",
+          dossier_id: "d-ferrand",
           suggestion_dossier_id: null,
-          expediteur: "avocat@cabinet.example",
-          destinataires: "confrere@example.com",
-          texte_brut: "Je vous adresse le projet de protocole.",
-          cree_le: `${aujourd}T11:00:00`,
-          dossier_imap: "Envoyés",
+          titulaire_id: moi,
+          lu: 1,
+          dossier_imap: "INBOX",
+          cree_le: "2026-10-01T18:42:00+02:00",
+        },
+        {
+          id: "mail-8",
+          objet: "Réponse à la proposition de protocole",
+          expediteur: boite,
+          destinataires_texte: "Banque Rhodanienne, service contentieux <contentieux@banque-rhodanienne.example>",
+          pieces_texte: "",
+          debut_texte: "Madame, Monsieur, ma cliente accepte le principe d'une transaction…",
+          etat_classement: "classe",
+          dossier_id: "d-tilleuls",
+          suggestion_dossier_id: null,
+          titulaire_id: moi,
+          lu: 1,
+          dossier_imap: "Drafts",
+          cree_le: "2026-10-09T09:31:00+02:00",
         },
       ],
     };
   }, []);
-  const aClasser = mailsDemo.mails.filter((mail) => mail.etat_classement === "a_classer").length;
+  const aClasser = mailsDemo.mails.filter((mail) => estAClasser(mail.etat_classement)).length;
   const dossiersDemo = useMemo(
     () => [
       {
@@ -350,8 +482,9 @@ export function GalerieDemo() {
             <EcranMails
               instanceUrl="http://127.0.0.1:8088"
               demonstration={mailsDemo}
-              onNouveauDossier={() => undefined}
+              onComposer={() => undefined}
               onSaisirTemps={() => undefined}
+              onOuvrirDossier={() => undefined}
             />
           ) : null}
           {vue === "agenda" ? (

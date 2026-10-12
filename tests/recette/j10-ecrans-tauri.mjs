@@ -192,10 +192,10 @@ async function main() {
     await attendreSelecteur(cdp.send, "[data-testid=mails-comptes]");
     await attendreSelecteur(cdp.send, "[data-testid=mails-liste]");
     await attendreSelecteur(cdp.send, "[data-testid=mails-lecture]");
-    await evaluate(
-      cdp.send,
-      `document.querySelector("[data-testid=mail-ligne][data-etat=a_classer]")?.click()`,
-    );
+    // Écran Mails V1 : le mail du jeu d'essai est dans la boîte partagée ; la vue « À classer » le montre.
+    await cliquer(cdp.send, "[data-testid=vue-a-classer]");
+    await attendreSelecteur(cdp.send, `[data-testid=mail-ligne][data-id="${idAClasser}"]`);
+    await cliquer(cdp.send, `[data-testid=mail-ligne][data-id="${idAClasser}"]`);
     const debut = Date.now();
     let banniere = "";
     while (Date.now() - debut < 15_000) {
@@ -209,6 +209,9 @@ async function main() {
       await sleep(300);
     }
     if (!banniere.includes("Classer dans")) fail("bandeau de classement absent");
+    // Le mail classé du jeu d'essai est dans la réception de la boîte partagée.
+    await cliquer(cdp.send, "[data-testid=dossier-imap][data-boite=partagee][data-dossier=reception]");
+    await attendreSelecteur(cdp.send, "[data-testid=pastille-mail]");
     const pastille = Boolean(
       await evaluate(cdp.send, `Boolean(document.querySelector("[data-testid=pastille-mail]"))`),
     );
