@@ -280,3 +280,12 @@ streams:
       FROM invitations_agenda
       WHERE titulaire_id::text = auth.user_id()
         AND cabinet_id::text = auth.parameter('cabinet_id')
+
+  brouillons_titulaire:
+    auto_subscribe: true
+    query: |
+      SELECT id, cabinet_id, auteur_id, compte_id, genre, origine_message_id, dossier_id, a, cc, cci, objet, corps_html, corps, message_id, en_reponse_a, references_texte, pieces_texte, revision, cree_le::text AS cree_le, modifie_le::text AS modifie_le
+      FROM brouillons_message
+      WHERE auteur_id::text = auth.user_id()
+        AND imap_etat <> 'a_retirer'
+        AND cabinet_id::text = auth.parameter('cabinet_id')

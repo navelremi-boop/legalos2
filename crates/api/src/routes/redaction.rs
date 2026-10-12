@@ -12,10 +12,10 @@ use axum::{
     Json,
 };
 use legalos_messagerie::{
-    analyser_composition, champ_en_tete_valide, construire_message, construire_message_sortant,
-    nettoyer_html, origine_depuis_octets, texte_depuis_html, DemandeRedaction, FilMessage,
-    GenreRedaction, MessageComposition, MessageOrigine, MessageSortant, ParametresCompte,
-    PieceJointe, SessionActions,
+    analyser_composition, champ_en_tete_valide, construire_message, construire_message_brouillon,
+    construire_message_sortant, nettoyer_html, origine_depuis_octets, texte_depuis_html,
+    DemandeRedaction, FilMessage, GenreRedaction, MessageComposition, MessageOrigine,
+    MessageSortant, ParametresCompte, PieceJointe, SessionActions,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -31,8 +31,8 @@ use crate::state::AppState;
 /// Taille cumulée maximale des pièces d'un envoi, annoncée à l'écran de rédaction.
 pub const TAILLE_MAX_PIECES: usize = 25 * 1024 * 1024;
 const NOM_MAX: usize = 120;
-const OBJET_MAX: usize = 300;
-const HTML_MAX: usize = 200_000;
+pub(crate) const OBJET_MAX: usize = 300;
+pub(crate) const HTML_MAX: usize = 200_000;
 /// Destinataire provisoire d'un message de départ sans destinataire (message neuf, transfert) :
 /// la construction exige un destinataire, la réponse n'en garde pas.
 const DESTINATAIRE_PROVISOIRE: &str = "a-saisir@invalid.example";
@@ -162,6 +162,24 @@ pub fn sortant_depuis_contenu(
     expediteur: &str,
     contenu: &ContenuEnvoi,
 ) -> Result<MessageSortant, legalos_messagerie::ErreurMail> {
+    let (demande, fil) = demande_depuis_contenu(expediteur, contenu);
+    construire_message_sortant(&demande, fil.as_ref())
+}
+
+/// Copie d'un brouillon pour le dossier Brouillons du serveur : la même demande que l'envoi,
+/// avec `Bcc` et pièces, tolérante aux destinataires absents ou incomplets.
+pub fn octets_brouillon(
+    expediteur: &str,
+    contenu: &ContenuEnvoi,
+) -> Result<Vec<u8>, legalos_messagerie::ErreurMail> {
+    let (demande, fil) = demande_depuis_contenu(expediteur, contenu);
+    construire_message_brouillon(&demande, fil.as_ref())
+}
+
+fn demande_depuis_contenu(
+    expediteur: &str,
+    contenu: &ContenuEnvoi,
+) -> (DemandeRedaction, Option<FilMessage>) {
     let demande = DemandeRedaction {
         de: expediteur.to_owned(),
         adresse_compte: expediteur.to_owned(),
@@ -185,7 +203,7 @@ pub fn sortant_depuis_contenu(
             en_reponse_a: id.clone(),
             references: contenu.references.clone(),
         });
-    construire_message_sortant(&demande, fil.as_ref())
+    (demande, fil)
 }
 
 /// Message de départ d'une rédaction : le même assemblage que l'envoi (lettre, MIME), relu pour
@@ -210,7 +228,7 @@ pub fn composer_depart(
     Ok(compose)
 }
 
-fn est_doublon(err: &sqlx::Error) -> bool {
+pub(crate) fn est_doublon(err: &sqlx::Error) -> bool {
     matches!(err, sqlx::Error::Database(e) if e.code().as_deref() == Some("23505"))
 }
 
@@ -220,7 +238,7 @@ fn est_doublon(err: &sqlx::Error) -> bool {
 
 /// Compte du cabinet que l'utilisateur a le droit d'utiliser : la boîte nominative d'un autre
 /// collaborateur est introuvable (404), pas interdite, pour ne rien révéler.
-async fn compte_accessible(
+pub(crate) async fn compte_accessible(
     state: &AppState,
     claims: &AccessClaims,
     compte_id: Uuid,
@@ -247,6 +265,25 @@ async fn parametres_imap(
     compte_id: Uuid,
     type_compte: &str,
 ) -> Result<ParametresCompte, ApiError> {
+    parametres_imap_depuis(
+        &state.pool,
+        &state.totp_cipher_key,
+        state.messagerie.as_ref(),
+        compte_id,
+        type_compte,
+    )
+    .await
+}
+
+/// Comme [`parametres_imap`], sans l'état de l'API : le moteur de fond (reprise des copies de
+/// brouillons) n'a que la base, la clé de chiffrement et la boîte de classement.
+pub(crate) async fn parametres_imap_depuis(
+    pool: &sqlx::PgPool,
+    cle: &[u8; 32],
+    classement: Option<&ParametresCompte>,
+    compte_id: Uuid,
+    type_compte: &str,
+) -> Result<ParametresCompte, ApiError> {
     let ligne = sqlx::query_as::<
         _,
         (
@@ -260,13 +297,13 @@ async fn parametres_imap(
         "SELECT hote, port, utilisateur, tls, secret_chiffre FROM comptes_mail WHERE id = $1",
     )
     .bind(compte_id)
-    .fetch_one(&state.pool)
+    .fetch_one(pool)
     .await
     .map_err(|_| ApiError::internal("Lecture compte"))?;
     if let (Some(hote), Some(port), Some(utilisateur), Some(secret)) =
         (ligne.0, ligne.1, ligne.2, ligne.4)
     {
-        let clair = crate::auth::totp::dechiffrer_secret_totp(&secret, &state.totp_cipher_key)
+        let clair = crate::auth::totp::dechiffrer_secret_totp(&secret, cle)
             .map_err(|_| ApiError::internal("Déchiffrement"))?;
         let mot_de_passe =
             String::from_utf8(clair).map_err(|_| ApiError::internal("Déchiffrement"))?;
@@ -279,9 +316,8 @@ async fn parametres_imap(
         });
     }
     if type_compte == "classement" {
-        return state
-            .messagerie
-            .clone()
+        return classement
+            .cloned()
             .ok_or_else(|| ApiError::bad_request("Messagerie non configurée"));
     }
     Err(ApiError::bad_request(
@@ -387,7 +423,7 @@ pub(crate) async fn lire_origine(
 }
 
 /// Adresse d'expéditeur de l'instance (celle de l'enveloppe) ou, à défaut, celle du compte.
-fn expediteur_de(state: &AppState, adresse_compte: &str) -> String {
+pub(crate) fn expediteur_de(state: &AppState, adresse_compte: &str) -> String {
     state
         .messagerie_smtp
         .as_ref()
@@ -1123,10 +1159,26 @@ mod tests {
             "/messagerie/comptes/{compte_id}/signature",
             "/messagerie/modeles",
             "/messagerie/modeles/{modele_id}",
+            "/messagerie/brouillons",
+            "/messagerie/brouillons/{id}",
+            "/messagerie/brouillons/{id}/pieces",
+            "/messagerie/brouillons/{id}/pieces/{piece_id}",
+            "/messagerie/brouillons/{id}/envoyer",
+            "/messagerie/destinataires",
         ] {
             assert!(chemins.contains_key(chemin), "chemin absent : {chemin}");
         }
         assert!(doc["components"]["schemas"]["CompositionResponse"].is_object());
+        assert!(doc["components"]["schemas"]["BrouillonResponse"].is_object());
+        assert!(doc["components"]["schemas"]["DestinataireSuggere"].is_object());
+        // Les méthodes sont celles du contrat : écriture partielle (PUT), suppression, envoi.
+        let brouillon = &doc["paths"]["/messagerie/brouillons/{id}"];
+        for methode in ["get", "put", "delete"] {
+            assert!(
+                brouillon[methode].is_object(),
+                "méthode absente : {methode}"
+            );
+        }
     }
 
     fn origine() -> MessageOrigine {

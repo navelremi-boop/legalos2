@@ -29,10 +29,10 @@ pub use invitation::{
 };
 pub use moteur::{diff_repli, Changement, RapportMoteur};
 pub use redaction::{
-    champ_en_tete_valide, construire_message, construire_message_compose,
-    construire_message_sortant, destinataires_redaction, objet_redaction, DemandeRedaction,
-    Destinataires, FilMessage, GenreRedaction, MessageOrigine, MessageSortant, PieceJointe,
-    DOSSIER_BROUILLONS,
+    adresse_et_nom, champ_en_tete_valide, construire_message, construire_message_brouillon,
+    construire_message_compose, construire_message_sortant, destinataires_redaction,
+    objet_redaction, type_mime_piece, DemandeRedaction, Destinataires, FilMessage, GenreRedaction,
+    MessageOrigine, MessageSortant, PieceJointe, DOSSIER_BROUILLONS,
 };
 pub use smtp::{envoyer_message_fixe, envoyer_octets, octets_rfc822, ParametresSmtp};
 
@@ -123,6 +123,48 @@ impl SessionActions {
     /// APPEND RFC822 dans un dossier IMAP.
     pub fn appender(&mut self, dossier: &str, octets: &[u8]) -> Result<(), ErreurMail> {
         self.interne.appender(dossier, octets)
+    }
+
+    /// Dossier des brouillons du compte : celui que le serveur annonce avec l'attribut spécial
+    /// `\Drafts` (LIST), sinon « Drafts » ou « Brouillons » s'ils existent, sinon
+    /// [`DOSSIER_BROUILLONS`] (créé au premier dépôt).
+    pub fn dossier_brouillons(&mut self) -> Result<String, ErreurMail> {
+        self.interne.dossier_brouillons()
+    }
+
+    /// Dépose une version d'un brouillon (APPEND avec `\Draft` et `\Seen`), puis retire les
+    /// versions précédentes de même `Message-ID`. Si l'APPEND échoue, les anciennes versions
+    /// restent : jamais zéro copie. Retourne le nombre d'anciennes versions retirées.
+    pub fn deposer_brouillon(
+        &mut self,
+        dossier: &str,
+        message_id: &str,
+        octets: &[u8],
+    ) -> Result<usize, ErreurMail> {
+        self.interne.deposer_brouillon(dossier, message_id, octets)
+    }
+
+    /// Retire du dossier tous les messages portant ce `Message-ID`. Retourne leur nombre.
+    pub fn retirer_message_id(
+        &mut self,
+        dossier: &str,
+        message_id: &str,
+    ) -> Result<usize, ErreurMail> {
+        self.interne.retirer_message_id(dossier, message_id)
+    }
+
+    /// UID des messages portant ce `Message-ID` dans le dossier (vide si le dossier n'existe pas).
+    pub fn uids_message_id(
+        &mut self,
+        dossier: &str,
+        message_id: &str,
+    ) -> Result<Vec<u32>, ErreurMail> {
+        self.interne.uids_message_id(dossier, message_id)
+    }
+
+    /// Drapeaux d'un UID, sous la forme « \Draft \Seen » (triés).
+    pub fn drapeaux(&mut self, dossier: &str, uid: u32) -> Result<String, ErreurMail> {
+        self.interne.drapeaux(dossier, uid)
     }
 
     /// Octets RFC822 d'un message (origine d'une réponse ou d'un transfert).

@@ -4,11 +4,13 @@ use crate::error::ApiErrorBody;
 use crate::routes::auth::{
     ConnexionRequest, ConnexionResponse, TotpVerifyRequest, TotpVerifyResponse,
 };
+use crate::routes::brouillons::{BrouillonResponse, EcrireBrouillonRequest, PieceBrouillon};
 use crate::routes::cabinets::{
     CabinetResponse, PatchCabinetRequest, PutReferenceRequest, ReferenceCabinetResponse,
     RemiseAZeroApi,
 };
 use crate::routes::collaborateurs::{CollaborateurResponse, CreerCollaborateurRequest};
+use crate::routes::destinataires::DestinataireSuggere;
 use crate::routes::documents::{
     CreerDocumentRequest, CreerRepertoireRequest, DepotDocument, DocumentResponse, LectureDocument,
     PatchDocumentRequest, PatchRepertoireRequest, PreparerVersionRequest, RepertoireResponse,
@@ -66,6 +68,14 @@ use crate::routes::redaction::{
         crate::routes::redaction::creer_modele,
         crate::routes::redaction::patch_modele,
         crate::routes::redaction::supprimer_modele,
+        crate::routes::brouillons::ecrire_brouillon,
+        crate::routes::brouillons::lister_brouillons,
+        crate::routes::brouillons::lire_brouillon,
+        crate::routes::brouillons::supprimer_brouillon,
+        crate::routes::brouillons::ajouter_piece,
+        crate::routes::brouillons::retirer_piece,
+        crate::routes::brouillons::envoyer_brouillon,
+        crate::routes::destinataires::completer_destinataires,
     ),
     components(schemas(
         HealthResponse,
@@ -111,6 +121,10 @@ use crate::routes::redaction::{
         ModeleResponse,
         CreerModeleRequest,
         PatchModeleRequest,
+        EcrireBrouillonRequest,
+        BrouillonResponse,
+        PieceBrouillon,
+        DestinataireSuggere,
         ApiErrorBody,
     )),
     modifiers(&SecurityAddon),

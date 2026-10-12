@@ -65,6 +65,7 @@ const fluxAttendus = [
   "messages_nominatifs",
   "comptes_nominatifs",
   "invitations_titulaire",
+  "brouillons_titulaire",
 ];
 
 /** Extrait le bloc YAML d'un flux nommé (clés de flux : exactement 2 espaces). */
@@ -311,6 +312,60 @@ if (/JOIN/i.test(invitations)) {
   fail("invitations_titulaire : jointure interdite (un bucket par titulaire)");
 }
 
+/**
+ * Flux propre à son auteur (J11, brouillons de message) : un collaborateur ne reçoit jamais le
+ * brouillon d'un autre (invariant S5). Renvoie les manquements du bloc ; vide s'il est conforme.
+ */
+function manquementsBrouillons(bloc) {
+  const manques = [];
+  if (!/\bFROM brouillons_message\b/.test(bloc)) manques.push("table brouillons_message requise");
+  if (!/auteur_id::text\s*=\s*auth\.user_id\(\)/.test(bloc)) {
+    manques.push("filtre auteur_id = auth.user_id() requis (un seul auteur par brouillon)");
+  }
+  if (!/cabinet_id::text\s*=\s*auth\.parameter\('cabinet_id'\)/.test(bloc)) {
+    manques.push("cabinet du jeton requis");
+  }
+  if (/\bJOIN\b/i.test(bloc)) manques.push("jointure interdite (un seau par auteur)");
+  if (!/imap_etat\s*<>\s*'a_retirer'/.test(bloc)) {
+    manques.push("un brouillon supprimé ou envoyé (a_retirer) doit quitter le flux");
+  }
+  const colonnes = (bloc.match(/SELECT([\s\S]*?)\bFROM\b/i) ?? ["", ""])[1];
+  if (/\bimap_etat\b|\bimap_maj_le\b|\bexpediteur\b|\bcontenu\b/.test(colonnes)) {
+    manques.push("colonne interne ou binaire exposée au poste");
+  }
+  if (!/\bpieces_texte\b/.test(colonnes)) manques.push("résumé des pièces (pieces_texte) requis");
+  return manques;
+}
+
+const brouillons = blocFlux("brouillons_titulaire");
+{
+  const reel = manquementsBrouillons(brouillons);
+  if (reel.length > 0) fail(`brouillons_titulaire : ${reel.join(" ; ")}`);
+  // Essais négatifs : le même contrôle refuse chaque dérive du flux.
+  const filtreAuteur = /auteur_id::text = auth\.user_id\(\)/;
+  const derives = {
+    "sans filtre d'auteur": brouillons.replace(filtreAuteur, "TRUE"),
+    "filtre sur un autre champ que l'auteur": brouillons.replace(filtreAuteur, "auteur_id IS NOT NULL"),
+    "avec jointure": brouillons.replace(
+      "FROM brouillons_message",
+      "FROM brouillons_message INNER JOIN utilisateurs ON utilisateurs.id = brouillons_message.auteur_id",
+    ),
+    "état IMAP exposé": brouillons.replace("revision,", "revision, imap_etat,"),
+    "contenu binaire exposé": brouillons.replace("revision,", "revision, contenu,"),
+    "brouillon retiré encore synchronisé": brouillons.replace("AND imap_etat <> 'a_retirer'", ""),
+    "sans cabinet": brouillons.replace(/AND cabinet_id::text = auth\.parameter\('cabinet_id'\)/, ""),
+  };
+  for (const [nom, bloc] of Object.entries(derives)) {
+    if (bloc === brouillons) fail(`essai négatif brouillons_titulaire (${nom}) : dérive non appliquée`);
+    if (manquementsBrouillons(bloc).length === 0) {
+      fail(`essai négatif brouillons_titulaire (${nom}) : le contrôle n'a pas refusé la dérive`);
+    }
+  }
+}
+if (/FROM brouillons_message_pieces/.test(yaml)) {
+  fail("brouillons_message_pieces ne se synchronise jamais (contenu binaire)");
+}
+
 const requetes = [...yaml.matchAll(/(?:^|\n)\s{4,}-\s*(SELECT[\s\S]*?)(?=\n\s{4}-\s*SELECT|\n\s{2}[a-z_]+:|\n*$)/gi)]
   .map((m) => m[1])
   .concat(
@@ -345,5 +400,5 @@ if (existsSync(join(root, "docs/sync-rules.md"))) {
 }
 
 console.log(
-  "s5-sync-streams: OK — flux Sync Streams (cabinet, journal ×3, dossiers, parties, repertoires, documents, versions, temps, brouillons, taux, intercalaires, éléments)",
+  "s5-sync-streams: OK — flux Sync Streams (cabinet, journal ×3, dossiers, parties, repertoires, documents, versions, temps, brouillons de facture, taux, intercalaires, éléments, brouillons de message propres à leur auteur)",
 );

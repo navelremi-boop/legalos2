@@ -62,6 +62,7 @@ Fichier déployé : `instance/powersync/sync-config.yaml`, monté via `sync_conf
 | `contacts` | Annuaire du cabinet (SIREN, n° TVA, type de client F8) — un flux, pas un seau par dossier |
 | `agenda_elements` | Audiences, rendez-vous, tâches (§ 4.2 n° 4) — flux publics / restreints |
 | `invitations_agenda` | Invitation reçue par mail — un flux titulaire, sans dossier |
+| `brouillons_message` | Brouillon de message (J11) — propre à son auteur : un flux, un seau par auteur, sans dossier ; écrit par le poste (file d'upload), recopié dans le dossier Brouillons du serveur IMAP par l'API ; les pièces (`brouillons_message_pieces`, binaire) ne sont jamais synchronisées, seul leur résumé `pieces_texte` l'est |
 | `dossier_liens` | Dossiers liés, une ligne par sens — flux public (les deux dossiers publics) ou restreint |
 | `users` / `postes` | (schéma client ; flux à ajouter si réplication) |
 
@@ -105,6 +106,9 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 | `messages_nominatifs` | messages du titulaire (`titulaire_id = auth.user_id()`), sans secret — un bucket par titulaire, pas par dossier |
 | `comptes_nominatifs` | `comptes_mail` nominatif du titulaire (`titulaire_id = auth.user_id()`), sans `secret_ref` — un bucket par titulaire, pas par dossier |
 | `invitations_titulaire` | `invitations_agenda` du titulaire (`titulaire_id = auth.user_id()`) — un bucket par titulaire, pas par dossier ; absente chez un autre collaborateur |
+| `brouillons_titulaire` | `brouillons_message` de l'auteur (`auteur_id = auth.user_id()`) et du cabinet du jeton, sans jointure — un bucket par auteur, pas par dossier. Colonnes utiles au poste seulement : ni `imap_etat`, ni `imap_maj_le`, ni `expediteur`, jamais de contenu binaire. Un brouillon supprimé ou envoyé (`imap_etat = 'a_retirer'`, colonne filtrée et non envoyée) quitte le flux aussitôt, même si sa copie IMAP reste à retirer |
+
+**Invariant S5 (brouillons) :** un collaborateur ne reçoit jamais le brouillon d'un autre ; le flux `brouillons_titulaire` filtre sur `auteur_id = auth.user_id()`, `tests/recette/s5-sync-streams.mjs` le vérifie avec un essai négatif par dérive (filtre d'auteur retiré ou remplacé, jointure, colonne interne ou binaire exposée, brouillon retiré encore synchronisé, cabinet absent) et `tests/recette/j11-redaction-api.mjs` vérifie côté API qu'un autre collaborateur obtient 404.
 
 **Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants (`parties`, `repertoires`, `documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, `taux_horaires`, `intercalaires_personnalises`, `intercalaire_elements`, `dossier_liens` ancrés sur ce dossier) dans la SQLite locale. L'annuaire `contacts` est celui du cabinet : il n'est pas un enfant de dossier. Preuve SQLite (fichier `legalos-powersync-*.db` du poste Tauri) : `tests/recette/j5-poste-tauri.mjs` ; couverture par flux : `tests/recette/s5-sqlite-par-flux.mjs` ; contrôle statique des flux : `tests/recette/s5-sync-streams.mjs`. Filtre JOIN Postgres (sans SQLite) : `tests/recette/s9-s5-temps.mjs`.
 

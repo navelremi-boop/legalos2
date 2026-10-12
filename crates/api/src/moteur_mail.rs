@@ -13,6 +13,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::auth::totp::{chiffrer_secret_totp, dechiffrer_secret_totp};
+use crate::depot_brouillons::DepotBrouillons;
 
 const AUTRES_DOSSIERS: &[&str] = &["Sent", "Envoyés"];
 
@@ -33,7 +34,13 @@ pub fn delai_echec(echecs: u32) -> Duration {
     Duration::from_secs((1_u64 << pas).min(RELEVE_SANS_REVEIL_SECS))
 }
 
-pub fn demarrer(pool: PgPool, cle: [u8; 32]) {
+/// Période du balayage des copies de brouillons dans le dossier Brouillons.
+pub const BALAYAGE_BROUILLONS_SECS: u64 = 15;
+/// Un brouillon dont la copie est en retard n'est repris qu'après ce délai : sa propre tâche de
+/// dépôt, lancée à l'écriture, a eu le temps de finir.
+pub const REPRISE_BROUILLON_SECS: i64 = 30;
+
+pub fn demarrer(pool: PgPool, cle: [u8; 32], classement: Option<ParametresCompte>) {
     std::thread::Builder::new()
         .name("moteur-mail".into())
         .spawn(move || {
@@ -41,10 +48,28 @@ pub fn demarrer(pool: PgPool, cle: [u8; 32]) {
                 .enable_all()
                 .build()
             {
-                runtime.block_on(boucle(pool, cle));
+                runtime.block_on(async move {
+                    // Les copies de brouillons ont leur propre tâche : une connexion lente ne
+                    // retarde jamais la relève des boîtes.
+                    tokio::spawn(balayage_brouillons(DepotBrouillons::new(
+                        pool.clone(),
+                        cle,
+                        classement,
+                    )));
+                    boucle(pool, cle).await;
+                });
             }
         })
         .ok();
+}
+
+/// Reprend les brouillons dont la copie IMAP est en retard (dépôt échoué, tâche perdue au
+/// redémarrage) et finit les retraits. Le dossier Brouillons n'est jamais relevé par le moteur.
+async fn balayage_brouillons(depot: DepotBrouillons) {
+    loop {
+        tokio::time::sleep(Duration::from_secs(BALAYAGE_BROUILLONS_SECS)).await;
+        depot.balayer(REPRISE_BROUILLON_SECS).await;
+    }
 }
 
 async fn boucle(pool: PgPool, cle: [u8; 32]) {

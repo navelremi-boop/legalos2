@@ -16,6 +16,8 @@ Sources : cahier § 3.4 (« dernière écriture gagnante par champ par défaut, 
 | `taux_horaires` | `centimes_par_heure` | `revision` (à ajouter) | — |
 | `intercalaires_personnalises` | `nom` | `revision` | — |
 
+**Exception : `brouillons_message` (brouillons de message, J11).** Un brouillon n'a qu'un seul auteur et n'est synchronisé que vers lui (flux `brouillons_titulaire`). Il n'y a donc pas de conflit entre personnes : `PUT /messagerie/brouillons/{id}` est une écriture partielle, rejouable, **dernière écriture gagnante, sans `base_revision` et sans 409 de révision**, et n'écrit rien au journal des modifications. Les écritures venues de deux postes du même auteur se succèdent dans l'ordre d'arrivée ; la `revision` n'augmente que si le contenu change. Seuls `compte_id`, `genre`, `origine_message_id` et `message_id` (figés à la création, redonnés à l'identique ils sont acceptés) et l'appartenance du brouillon (404 pour un autre auteur ou un autre cabinet) sont refusés.
+
 Restent hors de ce jalon : la visibilité d'un dossier (changement de droits, action serveur dédiée), les suppressions hors intercalaires personnalisés (toujours refusées ou explicites, voir § 5). Les intercalaires **standards** ne sont pas des lignes synchronisées et n'ont pas d'API de retrait.
 
 ## 2. Protocole

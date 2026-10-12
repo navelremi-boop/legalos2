@@ -1,8 +1,10 @@
 pub mod agenda;
 pub mod auth;
+pub mod brouillons;
 pub mod cabinets;
 pub mod collaborateurs;
 pub mod contacts;
+pub mod destinataires;
 pub mod documents;
 pub mod dossiers;
 pub mod factures;
@@ -17,6 +19,7 @@ pub mod temps;
 use std::sync::Arc;
 
 use axum::{
+    extract::DefaultBodyLimit,
     routing::{delete, get, patch, post},
     Router,
 };
@@ -136,6 +139,31 @@ pub fn router(state: Arc<AppState>) -> Router {
             post(messagerie::creer_compte_nominatif),
         )
         .route("/messagerie/composition", post(redaction::composer))
+        .route("/messagerie/brouillons", get(brouillons::lister_brouillons))
+        .route(
+            "/messagerie/brouillons/{id}",
+            get(brouillons::lire_brouillon)
+                .put(brouillons::ecrire_brouillon)
+                .delete(brouillons::supprimer_brouillon),
+        )
+        // Seule route à dépasser la limite de corps par défaut : la pièce arrive en corps brut.
+        .route(
+            "/messagerie/brouillons/{id}/pieces",
+            post(brouillons::ajouter_piece)
+                .layer(DefaultBodyLimit::max(redaction::TAILLE_MAX_PIECES + 1024)),
+        )
+        .route(
+            "/messagerie/brouillons/{id}/pieces/{piece_id}",
+            delete(brouillons::retirer_piece),
+        )
+        .route(
+            "/messagerie/brouillons/{id}/envoyer",
+            post(brouillons::envoyer_brouillon),
+        )
+        .route(
+            "/messagerie/destinataires",
+            get(destinataires::completer_destinataires),
+        )
         .route(
             "/messagerie/comptes/{compte_id}/signature",
             get(redaction::lire_signature).put(redaction::ecrire_signature),

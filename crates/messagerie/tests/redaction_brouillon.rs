@@ -204,3 +204,141 @@ fn brouillon_transfert_conserve_la_piece() {
     assert!(corps.texte.contains("confirmer le creneau"));
     assert!(corps.html.contains("confirmer le creneau"));
 }
+
+fn brouillon_octets(identifiant: &str, objet: &str, corps: &str, avec_piece: bool) -> Vec<u8> {
+    use legalos_messagerie::construire_message_brouillon;
+    let mut demande = demande(identifiant);
+    demande.origine = None;
+    demande.a = vec!["destinataire@example.com".to_owned()];
+    demande.objet = objet.to_owned();
+    demande.corps = corps.to_owned();
+    demande.signature.clear();
+    if avec_piece {
+        demande.pieces = vec![PieceJointe {
+            nom: "note-fictive.txt".to_owned(),
+            type_mime: "text/plain".to_owned(),
+            contenu: b"contenu fictif".to_vec(),
+        }];
+    }
+    construire_message_brouillon(&demande, None).expect("construction du brouillon")
+}
+
+#[test]
+fn depot_de_versions_successives_garde_une_seule_copie_avec_les_drapeaux_brouillon() {
+    let _garde = verrouiller();
+    let mut session = connecter();
+    let identifiant = "<depot-versions-j11@cabinet.example>";
+    let dossier = session
+        .dossier_brouillons()
+        .expect("dossier des brouillons");
+    // GreenMail n'annonce pas \Drafts : « Brouillons » (ou « Drafts » s'il existe déjà).
+    assert!(dossier == DOSSIER_BROUILLONS || dossier.eq_ignore_ascii_case("drafts"));
+    session
+        .retirer_message_id(&dossier, identifiant)
+        .expect("nettoyage");
+
+    let v1 = brouillon_octets(identifiant, "Version un", "Texte de la version un.", false);
+    assert_eq!(
+        session
+            .deposer_brouillon(&dossier, identifiant, &v1)
+            .expect("depot 1"),
+        0,
+        "premier dépôt : rien à retirer"
+    );
+    let uids = session
+        .uids_message_id(&dossier, identifiant)
+        .expect("uids");
+    assert_eq!(uids.len(), 1);
+    assert_eq!(
+        session.drapeaux(&dossier, uids[0]).expect("drapeaux"),
+        "\\Draft \\Seen",
+        "le brouillon porte \\Draft et \\Seen"
+    );
+
+    let v2 = brouillon_octets(
+        identifiant,
+        "Version deux",
+        "Texte de la version deux.",
+        true,
+    );
+    assert_eq!(
+        session
+            .deposer_brouillon(&dossier, identifiant, &v2)
+            .expect("depot 2"),
+        1,
+        "la version précédente est retirée"
+    );
+    let uids = session
+        .uids_message_id(&dossier, identifiant)
+        .expect("uids");
+    assert_eq!(uids.len(), 1, "une seule copie après la seconde version");
+    let corps = session.lire_corps(&dossier, uids[0]).expect("corps");
+    assert!(corps.texte.contains("version deux"));
+    assert!(!corps.texte.contains("version un"));
+    let octets = session.lire_rfc822(&dossier, uids[0]).expect("rfc822");
+    assert!(String::from_utf8_lossy(&octets).contains("note-fictive.txt"));
+
+    // Un identifiant qui en contient un autre n'est pas confondu avec lui (essai négatif de la
+    // recherche exacte, sur laquelle le retrait s'appuie).
+    let voisin = "<xx-depot-versions-j11@cabinet.example>";
+    let v_voisin = brouillon_octets(voisin, "Voisin", "Texte du voisin.", false);
+    session
+        .deposer_brouillon(&dossier, voisin, &v_voisin)
+        .expect("depot voisin");
+    assert_eq!(
+        session
+            .uids_message_id(&dossier, identifiant)
+            .expect("uids")
+            .len(),
+        1
+    );
+    assert_eq!(
+        session
+            .uids_message_id(&dossier, voisin)
+            .expect("uids")
+            .len(),
+        1
+    );
+
+    // Retrait : la copie disparaît, le voisin reste.
+    assert_eq!(
+        session
+            .retirer_message_id(&dossier, identifiant)
+            .expect("retrait"),
+        1
+    );
+    assert!(session
+        .uids_message_id(&dossier, identifiant)
+        .expect("uids")
+        .is_empty());
+    assert_eq!(
+        session
+            .uids_message_id(&dossier, voisin)
+            .expect("uids")
+            .len(),
+        1
+    );
+    assert_eq!(
+        session
+            .retirer_message_id(&dossier, identifiant)
+            .expect("retrait à vide"),
+        0,
+        "retirer une copie absente n'est pas une erreur"
+    );
+    session
+        .retirer_message_id(&dossier, voisin)
+        .expect("nettoyage");
+}
+
+#[test]
+fn recherche_dans_un_dossier_absent_ne_trouve_rien_sans_erreur() {
+    let _garde = verrouiller();
+    let mut session = connecter();
+    let uids = session
+        .uids_message_id("DossierQuiNExistePasJ11", "<absent-j11@cabinet.example>")
+        .expect("recherche");
+    assert!(uids.is_empty());
+    assert!(session
+        .uids_message_id("Brouillons", "<contient\nretour@cabinet.example>")
+        .is_err());
+}

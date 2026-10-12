@@ -527,6 +527,168 @@ impl Session {
         Ok(())
     }
 
+    /// Dossiers du compte avec leurs attributs (LIST "" "*"), noms décodés.
+    pub fn lister_dossiers(&mut self) -> Result<Vec<DossierListe>, ErreurMail> {
+        let reference = boite("")?;
+        let motif: io_imap::types::mailbox::ListMailbox<'static> = "*"
+            .to_owned()
+            .try_into()
+            .map_err(|_| ErreurMail::Protocole)?;
+        let lignes = self
+            .client
+            .list(reference, motif)
+            .map_err(|_| ErreurMail::Protocole)?;
+        Ok(lignes
+            .into_iter()
+            .map(|(nom, delimiteur, attributs)| DossierListe {
+                nom: nom_boite(&nom),
+                delimiteur: delimiteur.map(|d| d.inner()),
+                attributs: attributs.iter().map(ToString::to_string).collect(),
+            })
+            .collect())
+    }
+
+    /// Dossier des brouillons : attribut `\Drafts` annoncé par le serveur, à défaut « Drafts »
+    /// ou « Brouillons » existants, à défaut [`crate::DOSSIER_BROUILLONS`].
+    pub fn dossier_brouillons(&mut self) -> Result<String, ErreurMail> {
+        let dossiers = self.lister_dossiers()?;
+        Ok(choisir_dossier_brouillons(&dossiers))
+    }
+
+    /// UID des messages dont le `Message-ID` est exactement celui-ci (forme avec chevrons : une
+    /// recherche sans chevrons trouverait aussi les identifiants qui le contiennent).
+    pub fn uids_message_id(
+        &mut self,
+        dossier: &str,
+        message_id: &str,
+    ) -> Result<Vec<u32>, ErreurMail> {
+        let nu = message_id
+            .trim()
+            .trim_start_matches('<')
+            .trim_end_matches('>');
+        if nu.is_empty() || nu.contains(['\r', '\n', '<', '>']) {
+            return Err(ErreurMail::Protocole);
+        }
+        if self.selectionner(dossier).is_err() {
+            // Dossier absent : aucune copie à retrouver.
+            return Ok(Vec::new());
+        }
+        let champ =
+            AString::try_from("Message-ID".to_owned()).map_err(|_| ErreurMail::Protocole)?;
+        let valeur = AString::try_from(format!("<{nu}>")).map_err(|_| ErreurMail::Protocole)?;
+        let criteres = Vec1::try_from(vec![SearchKey::Header(champ, valeur)])
+            .map_err(|_| ErreurMail::Protocole)?;
+        let mut uids: Vec<u32> = self
+            .client
+            .search(criteres, ImapMessageSearchOptions { uid: true })
+            .map_err(|_| ErreurMail::Protocole)?
+            .into_iter()
+            .map(NonZeroU32::get)
+            .collect();
+        uids.sort_unstable();
+        uids.dedup();
+        Ok(uids)
+    }
+
+    /// APPEND d'une version de brouillon (`\Draft`, `\Seen`), puis retrait des versions
+    /// précédentes de même `Message-ID`. L'APPEND passe en premier : s'il échoue, rien n'est
+    /// retiré.
+    pub fn deposer_brouillon(
+        &mut self,
+        dossier: &str,
+        message_id: &str,
+        octets: &[u8],
+    ) -> Result<usize, ErreurMail> {
+        self.assurer_dossier(dossier)?;
+        let anciennes = self.uids_message_id(dossier, message_id)?;
+        let options = ImapMessageAppendOptions {
+            flags: vec![Flag::Draft, Flag::Seen],
+            ..ImapMessageAppendOptions::default()
+        };
+        self.client
+            .append(boite(dossier)?, octets, options)
+            .map_err(|_| ErreurMail::Protocole)?;
+        if anciennes.is_empty() {
+            return Ok(0);
+        }
+        self.supprimer_uids(dossier, &anciennes)?;
+        Ok(anciennes.len())
+    }
+
+    /// Retire du dossier tous les messages de ce `Message-ID`.
+    pub fn retirer_message_id(
+        &mut self,
+        dossier: &str,
+        message_id: &str,
+    ) -> Result<usize, ErreurMail> {
+        let uids = self.uids_message_id(dossier, message_id)?;
+        if uids.is_empty() {
+            return Ok(0);
+        }
+        self.supprimer_uids(dossier, &uids)?;
+        Ok(uids.len())
+    }
+
+    fn supprimer_uids(&mut self, dossier: &str, uids: &[u32]) -> Result<(), ErreurMail> {
+        if uids.is_empty() {
+            return Ok(());
+        }
+        self.selectionner(dossier)?;
+        let jeu: SequenceSet = uids
+            .iter()
+            .map(u32::to_string)
+            .collect::<Vec<_>>()
+            .join(",")
+            .parse()
+            .map_err(|_| ErreurMail::Protocole)?;
+        self.client
+            .store(
+                jeu.clone(),
+                StoreType::Add,
+                vec![Flag::Deleted],
+                ImapMessageStoreOptions { uid: true },
+            )
+            .map_err(|_| ErreurMail::Protocole)?;
+        self.client
+            .uid_expunge(jeu)
+            .map_err(|_| ErreurMail::Protocole)?;
+        Ok(())
+    }
+
+    /// Drapeaux d'un UID (« \Draft \Seen »), triés.
+    pub fn drapeaux(&mut self, dossier: &str, uid: u32) -> Result<String, ErreurMail> {
+        self.selectionner(dossier)?;
+        let jeu = sequence_un(uid)?;
+        let fetched = self
+            .client
+            .fetch(
+                jeu,
+                MacroOrMessageDataItemNames::MessageDataItemNames(vec![
+                    MessageDataItemName::Uid,
+                    MessageDataItemName::Flags,
+                ]),
+                ImapMessageFetchOptions {
+                    uid: true,
+                    modifiers: Vec::new(),
+                },
+            )
+            .map_err(|_| ErreurMail::Protocole)?;
+        let mut noms = Vec::new();
+        for (_cle, morceaux) in fetched {
+            for item in morceaux {
+                if let MessageDataItem::Flags(drapeaux) = item {
+                    for drapeau in &drapeaux {
+                        if let io_imap::types::flag::FlagFetch::Flag(flag) = drapeau {
+                            noms.push(flag.to_string());
+                        }
+                    }
+                }
+            }
+        }
+        noms.sort();
+        Ok(noms.join(" "))
+    }
+
     fn selectionner(&mut self, dossier: &str) -> Result<(), ErreurMail> {
         let boite = boite(dossier)?;
         self.client
@@ -556,6 +718,57 @@ impl Session {
             .map_err(|_| ErreurMail::Protocole)?;
         Ok(())
     }
+}
+
+/// Dossier tel que le serveur le liste (aucun type io-imap).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DossierListe {
+    pub nom: String,
+    pub delimiteur: Option<char>,
+    /// Attributs avec leur antislash (`\Drafts`, `\HasNoChildren`…).
+    pub attributs: Vec<String>,
+}
+
+fn nom_boite(boite: &Mailbox<'_>) -> String {
+    match boite {
+        Mailbox::Inbox => "INBOX".to_owned(),
+        Mailbox::Other(autre) => String::from_utf8_lossy(autre.as_ref()).into_owned(),
+    }
+}
+
+/// Choix du dossier des brouillons parmi ceux que le serveur liste. Pur, donc testé sans serveur.
+/// Ordre : attribut `\Drafts` (sélectionnable) ; nom « Drafts » ; nom « Brouillons » ; défaut.
+/// Le dernier composant du nom compte (« INBOX.Drafts », « INBOX/Brouillons »).
+pub(crate) fn choisir_dossier_brouillons(dossiers: &[DossierListe]) -> String {
+    let selectionnable = |d: &&DossierListe| {
+        !d.attributs
+            .iter()
+            .any(|a| a.eq_ignore_ascii_case("\\Noselect"))
+    };
+    if let Some(d) = dossiers.iter().filter(selectionnable).find(|d| {
+        d.attributs
+            .iter()
+            .any(|a| a.eq_ignore_ascii_case("\\Drafts"))
+    }) {
+        return d.nom.clone();
+    }
+    let dernier = |d: &DossierListe| -> String {
+        d.nom
+            .rsplit(|c| c == '/' || c == '.' || Some(c) == d.delimiteur)
+            .next()
+            .unwrap_or_default()
+            .to_owned()
+    };
+    for nom in ["drafts", "brouillons"] {
+        if let Some(d) = dossiers
+            .iter()
+            .filter(selectionnable)
+            .find(|d| dernier(d).eq_ignore_ascii_case(nom))
+        {
+            return d.nom.clone();
+        }
+    }
+    crate::DOSSIER_BROUILLONS.to_owned()
 }
 
 /// Flux de veille. Le type io-imap reste dans ce module.
@@ -1245,6 +1458,41 @@ mod tests {
         };
         assert_eq!(noms_pieces(&multi), vec!["Convocation.pdf".to_owned()]);
         assert!(noms_pieces(&texte()).is_empty());
+    }
+
+    fn dossier(nom: &str, attributs: &[&str]) -> super::DossierListe {
+        super::DossierListe {
+            nom: nom.to_owned(),
+            delimiteur: Some('/'),
+            attributs: attributs.iter().map(|a| (*a).to_owned()).collect(),
+        }
+    }
+
+    #[test]
+    fn dossier_des_brouillons_attribut_special_puis_noms_connus_puis_defaut() {
+        use super::choisir_dossier_brouillons as choisir;
+        // L'attribut annoncé par le serveur l'emporte, même sur un dossier nommé « Drafts ».
+        let avec_attribut = vec![
+            dossier("INBOX", &["\\HasNoChildren"]),
+            dossier("Drafts", &[]),
+            dossier("Ebauches", &["\\Drafts", "\\HasNoChildren"]),
+        ];
+        assert_eq!(choisir(&avec_attribut), "Ebauches");
+        // Essai négatif : sans l'attribut, le nom connu est retenu.
+        let sans_attribut = vec![dossier("INBOX", &[]), dossier("Drafts", &[])];
+        assert_eq!(choisir(&sans_attribut), "Drafts");
+        assert_eq!(
+            choisir(&[dossier("INBOX", &[]), dossier("INBOX/Brouillons", &[])]),
+            "INBOX/Brouillons"
+        );
+        // Un dossier non sélectionnable n'est pas retenu.
+        assert_eq!(
+            choisir(&[dossier("Ebauches", &["\\Drafts", "\\Noselect"])]),
+            crate::DOSSIER_BROUILLONS
+        );
+        // Aucun dossier connu : le défaut, créé au premier dépôt.
+        assert_eq!(choisir(&[dossier("INBOX", &[])]), "Brouillons");
+        assert_eq!(choisir(&[]), "Brouillons");
     }
 
     #[test]

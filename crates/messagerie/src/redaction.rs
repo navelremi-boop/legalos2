@@ -278,6 +278,97 @@ pub fn construire_message_sortant(
     })
 }
 
+/// Copie d'un brouillon pour le dossier Brouillons du serveur : comme [`construire_message_compose`]
+/// (garde le `Bcc`, ni historique cité ni signature ajoutés), mais tolérante, car un brouillon est
+/// incomplet par nature. Les adresses illisibles sont écartées de la copie (la ligne synchronisée
+/// reste la source de vérité) ; sans aucun destinataire valable, le message est construit sans
+/// `To`. Les caractères de contrôle dans l'objet, une adresse ou le fil restent refusés.
+pub fn construire_message_brouillon(
+    demande: &DemandeRedaction,
+    fil: Option<&FilMessage>,
+) -> Result<Vec<u8>, ErreurMail> {
+    let mut demande = sans_signature_ni_origine(demande);
+    verifier_en_tetes(&demande, fil)?;
+    for liste in [&mut demande.a, &mut demande.cc, &mut demande.cci] {
+        liste.retain(|brut| !brut.trim().is_empty() && analyse_boite(brut).is_ok());
+    }
+    let sans_destinataire = demande.a.is_empty() && demande.cc.is_empty() && demande.cci.is_empty();
+    let fil = fil.filter(|fil| {
+        identifiant_chevron(&fil.en_reponse_a).is_ok()
+            && fil
+                .references
+                .iter()
+                .all(|r| r.trim().is_empty() || identifiant_chevron(r).is_ok())
+    });
+    let message = if sans_destinataire {
+        assembler_sans_destinataire(&demande, fil, SystemTime::now())?
+    } else {
+        assembler(
+            GenreRedaction::Nouveau,
+            &demande,
+            fil,
+            true,
+            SystemTime::now(),
+        )?
+    };
+    Ok(message.formatted())
+}
+
+/// Adresse électronique (minuscules) et nom d'affichage d'une adresse « Nom <adresse> » ou nue.
+/// `None` si elle n'est pas lisible. Sert à la complétion des destinataires.
+pub fn adresse_et_nom(brut: &str) -> Option<(String, String)> {
+    let boite = analyse_boite(brut).ok()?;
+    let nom = boite.name.clone().unwrap_or_default();
+    Some((boite.email.to_string().to_ascii_lowercase(), nom))
+}
+
+/// Type MIME d'une pièce téléversée : celui annoncé par le client s'il a la forme `type/sous-type`
+/// (jeton RFC 2045, sans paramètre), sinon déduit de l'extension du nom, sinon
+/// `application/octet-stream`. Jamais de type vide ni mal formé dans un message construit.
+pub fn type_mime_piece(nom: &str, annonce: Option<&str>) -> String {
+    const GENERIQUE: &str = "application/octet-stream";
+    if let Some(annonce) = annonce {
+        let type_seul = annonce
+            .split(';')
+            .next()
+            .unwrap_or_default()
+            .trim()
+            .to_ascii_lowercase();
+        let jeton = |s: &str| {
+            !s.is_empty()
+                && s.chars()
+                    .all(|c| c.is_ascii_alphanumeric() || "!#$&^_.+-".contains(c))
+        };
+        let valide = type_seul
+            .split_once('/')
+            .is_some_and(|(genre, sous)| jeton(genre) && jeton(sous));
+        if valide && type_seul != GENERIQUE {
+            return type_seul;
+        }
+    }
+    let extension = nom
+        .rsplit_once('.')
+        .map(|(_, ext)| ext.to_ascii_lowercase())
+        .unwrap_or_default();
+    match extension.as_str() {
+        "pdf" => "application/pdf",
+        "txt" => "text/plain",
+        "csv" => "text/csv",
+        "html" | "htm" => "text/html",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "doc" => "application/msword",
+        "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "xls" => "application/vnd.ms-excel",
+        "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "odt" => "application/vnd.oasis.opendocument.text",
+        "zip" => "application/zip",
+        _ => GENERIQUE,
+    }
+    .to_owned()
+}
+
 fn sans_signature_ni_origine(demande: &DemandeRedaction) -> DemandeRedaction {
     let mut propre = demande.clone();
     propre.signature.clear();
@@ -349,6 +440,52 @@ fn assembler(
         }
         builder.multipart(mixte).map_err(|_| ErreurMail::Protocole)
     }
+}
+
+/// Message sans destinataire (brouillon commencé par l'objet ou le corps). Le message n'a pas
+/// d'en-tête `To` ; lettre exige pourtant un destinataire d'enveloppe, qui n'est jamais écrit
+/// dans le message.
+fn assembler_sans_destinataire(
+    demande: &DemandeRedaction,
+    fil: Option<&FilMessage>,
+    date: SystemTime,
+) -> Result<Message, ErreurMail> {
+    use lettre::address::Envelope;
+    let expediteur = analyse_boite(&demande.de)?;
+    let identifiant = identifiant_chevron(&demande.identifiant)?;
+    let provisoire = "brouillon@invalid.example"
+        .parse()
+        .map_err(|_| ErreurMail::Protocole)?;
+    let enveloppe = Envelope::new(Some(expediteur.email.clone()), vec![provisoire])
+        .map_err(|_| ErreurMail::Protocole)?;
+    let texte = corps_texte(GenreRedaction::Nouveau, demande, None);
+    let html = corps_html(GenreRedaction::Nouveau, demande, None);
+    let mut builder = Message::builder()
+        .from(expediteur)
+        .message_id(Some(identifiant))
+        .subject(objet_redaction(GenreRedaction::Nouveau, &demande.objet))
+        .date(date)
+        .envelope(enveloppe);
+    if let Some(fil) = fil {
+        builder = builder
+            .in_reply_to(identifiant_chevron(&fil.en_reponse_a)?)
+            .references(references_du_fil(fil)?);
+    }
+    let alternatif = MultiPart::alternative()
+        .singlepart(SinglePart::plain(texte))
+        .singlepart(SinglePart::html(html));
+    if demande.pieces.is_empty() {
+        return builder
+            .multipart(alternatif)
+            .map_err(|_| ErreurMail::Protocole);
+    }
+    let mut mixte = MultiPart::mixed().multipart(alternatif);
+    for piece in &demande.pieces {
+        let mime = type_mime(&piece.type_mime)?;
+        mixte = mixte
+            .singlepart(Attachment::new(nom_piece(&piece.nom)).body(piece.contenu.clone(), mime));
+    }
+    builder.multipart(mixte).map_err(|_| ErreurMail::Protocole)
 }
 
 fn repond(genre: GenreRedaction) -> bool {
@@ -939,5 +1076,124 @@ mod tests {
         sans_origine.origine = None;
         assert!(construire_message(GenreRedaction::ReponseATous, &sans_origine).is_err());
         assert!(construire_message(GenreRedaction::Transfert, &sans_origine).is_err());
+    }
+
+    // --- Copie de brouillon (J11, étape 1b) ---------------------------------------------------
+
+    #[test]
+    fn brouillon_sans_destinataire_est_construit_sans_en_tete_to() {
+        use super::construire_message_brouillon;
+        let mut brouillon = demande();
+        brouillon.cci.clear();
+        brouillon.objet = "Note interne".to_owned();
+        brouillon.identifiant = "<brouillon-vide-j11@cabinet.example>".to_owned();
+        let octets = construire_message_brouillon(&brouillon, None).expect("brouillon vide");
+        let message = analyser(&octets);
+        assert_eq!(message.subject(), Some("Note interne"));
+        assert!(message.to().is_none() && message.cc().is_none() && message.bcc().is_none());
+        assert!(!String::from_utf8_lossy(&octets).contains("invalid.example"));
+        // Essai négatif : la construction d'un message à envoyer, elle, exige un destinataire.
+        assert!(super::construire_message_compose(&brouillon, None).is_err());
+    }
+
+    #[test]
+    fn brouillon_garde_la_copie_cachee_les_pieces_et_ecarte_les_adresses_illisibles() {
+        use super::construire_message_brouillon;
+        let mut brouillon = demande();
+        brouillon.a = vec![
+            "Confrere Fictif <confrere@example.com>".to_owned(),
+            "jean@".to_owned(),
+        ];
+        brouillon.pieces = vec![piece("note-fictive.txt")];
+        brouillon.identifiant = "<brouillon-bcc-j11@cabinet.example>".to_owned();
+        let octets = construire_message_brouillon(&brouillon, None).expect("brouillon");
+        let message = analyser(&octets);
+        assert_eq!(
+            emails(message.to()),
+            vec!["confrere@example.com".to_owned()]
+        );
+        assert_eq!(
+            emails(message.bcc()),
+            vec!["archive@cabinet.example".to_owned()]
+        );
+        assert_eq!(message.attachments().count(), 1);
+        assert_eq!(
+            message.message_id(),
+            Some("brouillon-bcc-j11@cabinet.example")
+        );
+        // Ni signature ni historique ajoutés : le brouillon est déjà composé.
+        assert!(!message
+            .body_text(0)
+            .expect("texte")
+            .contains("SignatureFictiveJ11"));
+    }
+
+    #[test]
+    fn brouillon_garde_le_fil_et_refuse_l_injection() {
+        use super::{construire_message_brouillon, FilMessage};
+        let mut brouillon = demande();
+        brouillon.a = vec!["confrere@example.com".to_owned()];
+        let fil = FilMessage {
+            en_reponse_a: "<origine-j11@cabinet.example>".to_owned(),
+            references: vec!["<ancien-j11@cabinet.example>".to_owned()],
+        };
+        let octets = construire_message_brouillon(&brouillon, Some(&fil)).expect("brouillon");
+        let message = analyser(&octets);
+        assert_eq!(
+            idents(message.in_reply_to()),
+            vec!["origine-j11@cabinet.example".to_owned()]
+        );
+        assert_eq!(
+            idents(message.references()),
+            vec![
+                "ancien-j11@cabinet.example".to_owned(),
+                "origine-j11@cabinet.example".to_owned()
+            ]
+        );
+        let mut injecte = brouillon.clone();
+        injecte.objet = "Note\r\nBcc: pirate@example.com".to_owned();
+        assert!(construire_message_brouillon(&injecte, None).is_err());
+        let mut adresse = brouillon.clone();
+        adresse.a = vec!["x@example.com\r\nBcc: pirate@example.com".to_owned()];
+        assert!(construire_message_brouillon(&adresse, None).is_err());
+    }
+
+    #[test]
+    fn type_mime_annonce_valide_sinon_deduit_de_l_extension() {
+        use super::type_mime_piece;
+        assert_eq!(
+            type_mime_piece("a.bin", Some("Application/PDF; charset=x")),
+            "application/pdf"
+        );
+        assert_eq!(type_mime_piece("Convocation.PDF", None), "application/pdf");
+        assert_eq!(
+            type_mime_piece("Convocation.pdf", Some("application/octet-stream")),
+            "application/pdf"
+        );
+        assert_eq!(
+            type_mime_piece("sans-extension", Some("pas un type")),
+            "application/octet-stream"
+        );
+        assert_eq!(
+            type_mime_piece("x.pdf", Some("text/plain\r\nBcc: x")),
+            "application/pdf"
+        );
+    }
+
+    #[test]
+    fn adresse_et_nom_lit_les_deux_formes() {
+        use super::adresse_et_nom;
+        assert_eq!(
+            adresse_et_nom("\"Dupont, Jeanne\" <Jeanne.Dupont@Example.com>"),
+            Some((
+                "jeanne.dupont@example.com".to_owned(),
+                "Dupont, Jeanne".to_owned()
+            ))
+        );
+        assert_eq!(
+            adresse_et_nom("x@example.com"),
+            Some(("x@example.com".to_owned(), String::new()))
+        );
+        assert_eq!(adresse_et_nom("jean@"), None);
     }
 }

@@ -2,6 +2,7 @@ pub mod auth;
 pub mod config;
 pub mod conflits;
 pub mod db;
+pub mod depot_brouillons;
 pub mod error;
 pub mod facturation;
 pub mod identifiants;

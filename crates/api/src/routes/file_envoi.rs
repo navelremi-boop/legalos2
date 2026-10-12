@@ -487,7 +487,7 @@ fn vers_reponse(row: LigneEnvoi) -> FileEnvoiResponse {
     }
 }
 
-async fn charger_reponse(
+pub(crate) async fn charger_reponse(
     state: &AppState,
     claims: &AccessClaims,
     id: Uuid,
