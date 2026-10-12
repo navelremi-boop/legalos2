@@ -23,6 +23,10 @@ use crate::routes::intercalaires::{
     IntercalaireResponse, PatchIntercalaireRequest, RattacherElementRequest,
     RetirerIntercalaireRequest, RetirerIntercalaireResponse,
 };
+use crate::routes::redaction::{
+    CompositionRequest, CompositionResponse, CreerModeleRequest, EcrireSignatureRequest,
+    ModeleResponse, PatchModeleRequest, PieceResume, SignatureResponse,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -55,6 +59,13 @@ use crate::routes::intercalaires::{
         crate::routes::documents::preparer_version,
         crate::routes::documents::sceller_version,
         crate::routes::documents::lire_version,
+        crate::routes::redaction::composer,
+        crate::routes::redaction::lire_signature,
+        crate::routes::redaction::ecrire_signature,
+        crate::routes::redaction::lister_modeles,
+        crate::routes::redaction::creer_modele,
+        crate::routes::redaction::patch_modele,
+        crate::routes::redaction::supprimer_modele,
     ),
     components(schemas(
         HealthResponse,
@@ -92,13 +103,22 @@ use crate::routes::intercalaires::{
         ScellerVersionRequest,
         VersionScellee,
         LectureDocument,
+        CompositionRequest,
+        CompositionResponse,
+        PieceResume,
+        SignatureResponse,
+        EcrireSignatureRequest,
+        ModeleResponse,
+        CreerModeleRequest,
+        PatchModeleRequest,
         ApiErrorBody,
     )),
     modifiers(&SecurityAddon),
     tags(
         (name = "systeme", description = "Santé et métadonnées"),
         (name = "auth", description = "Connexion, TOTP, jetons PowerSync"),
-        (name = "cabinets", description = "Cabinet courant (sync PowerSync)")
+        (name = "cabinets", description = "Cabinet courant (sync PowerSync)"),
+        (name = "messagerie", description = "Rédaction, signatures et modèles de message")
     )
 )]
 pub struct ApiDoc;

@@ -157,11 +157,12 @@ pub async fn lister_messages(
         r#"
         SELECT id, dossier_id, etat_classement, suggestion_dossier_id, objet, expediteur, message_id
         FROM messages
-        WHERE cabinet_id = $1
+        WHERE cabinet_id = $1 AND (titulaire_id IS NULL OR titulaire_id = $2)
         ORDER BY cree_le ASC
         "#,
     )
     .bind(claims.cabinet_id)
+    .bind(claims.sub)
     .fetch_all(&state.pool)
     .await
     .map_err(|_| ApiError::internal("Lecture messages"))?;

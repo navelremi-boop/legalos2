@@ -10,6 +10,7 @@ pub mod file_envoi;
 pub mod health;
 pub mod intercalaires;
 pub mod messagerie;
+pub mod redaction;
 pub mod synchro;
 pub mod temps;
 
@@ -133,6 +134,19 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route(
             "/messagerie/comptes",
             post(messagerie::creer_compte_nominatif),
+        )
+        .route("/messagerie/composition", post(redaction::composer))
+        .route(
+            "/messagerie/comptes/{compte_id}/signature",
+            get(redaction::lire_signature).put(redaction::ecrire_signature),
+        )
+        .route(
+            "/messagerie/modeles",
+            get(redaction::lister_modeles).post(redaction::creer_modele),
+        )
+        .route(
+            "/messagerie/modeles/{modele_id}",
+            patch(redaction::patch_modele).delete(redaction::supprimer_modele),
         )
         .route(
             "/messagerie/oauth/autorisation",

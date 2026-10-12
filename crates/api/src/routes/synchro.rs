@@ -270,6 +270,7 @@ pub async fn rechercher(
         FROM contenus_messages c
         INNER JOIN messages m ON m.id = c.message_id_ref
         WHERE c.cabinet_id = $1
+          AND (m.titulaire_id IS NULL OR m.titulaire_id = $3)
           AND c.texte_tsv @@ plainto_tsquery('french', $2)
         ORDER BY c.cree_le DESC
         LIMIT 20
@@ -277,6 +278,7 @@ pub async fn rechercher(
     )
     .bind(claims.cabinet_id)
     .bind(&q.q)
+    .bind(claims.sub)
     .fetch_all(&state.pool)
     .await
     .map_err(|_| ApiError::internal("Recherche messages"))?;
@@ -302,10 +304,12 @@ pub async fn lire_contenu(
         FROM contenus_messages c
         INNER JOIN messages m ON m.id = c.message_id_ref
         WHERE m.cabinet_id = $1 AND m.message_id = $2
+          AND (m.titulaire_id IS NULL OR m.titulaire_id = $3)
         "#,
     )
     .bind(claims.cabinet_id)
     .bind(&q.message_id)
+    .bind(claims.sub)
     .fetch_optional(&state.pool)
     .await
     .map_err(|_| ApiError::internal("Lecture contenu"))?
