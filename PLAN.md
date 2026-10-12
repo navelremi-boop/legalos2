@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-10-07 (jalon en cours : **Bascule vers Claude Code**).
+Dernière mise à jour : 2026-10-12 (jalon en cours : **J11**, étape 1a faite, étape 1b engagée).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
