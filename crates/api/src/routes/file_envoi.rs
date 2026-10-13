@@ -348,6 +348,23 @@ pub async fn traiter_envoi(
     Path(id): Path<Uuid>,
     Query(query): Query<TraiterQuery>,
 ) -> Result<Json<FileEnvoiResponse>, ApiError> {
+    let (couper_smtp, forcer_echec) = match query.couper_apres.as_deref() {
+        Some(v) if v.eq_ignore_ascii_case("smtp") => (true, false),
+        Some(v) if v.eq_ignore_ascii_case("echec") => (false, true),
+        _ => (false, false),
+    };
+    traiter(&state, &claims, id, couper_smtp, forcer_echec).await
+}
+
+/// Fait avancer un envoi de la file jusqu'à « copie dans Envoyés confirmée » (ou jusqu'au premier
+/// échec). Reprenable à tout moment : « Envoyés » est consulté avant chaque nouvelle tentative.
+pub(crate) async fn traiter(
+    state: &AppState,
+    claims: &AccessClaims,
+    id: Uuid,
+    couper_smtp: bool,
+    forcer_echec: bool,
+) -> Result<Json<FileEnvoiResponse>, ApiError> {
     let smtp = state
         .messagerie_smtp
         .as_ref()
@@ -356,14 +373,9 @@ pub async fn traiter_envoi(
         .messagerie
         .as_ref()
         .ok_or_else(|| ApiError::bad_request("IMAP de messagerie non configuré"))?;
-    let (couper_smtp, forcer_echec) = match query.couper_apres.as_deref() {
-        Some(v) if v.eq_ignore_ascii_case("smtp") => (true, false),
-        Some(v) if v.eq_ignore_ascii_case("echec") => (false, true),
-        _ => (false, false),
-    };
 
     loop {
-        let mut entree = charger_entree(&state, &claims, id).await?;
+        let mut entree = charger_entree(state, claims, id).await?;
         if entree.etat == EtatFileEnvoi::CopieEnvoyesConfirmee {
             break;
         }
@@ -376,20 +388,20 @@ pub async fn traiter_envoi(
             ActionEnvoi::Rien => break,
             ActionEnvoi::ConfirmerCopie => {
                 appliquer(&mut entree, action, true);
-                sauver_entree(&state, id, &entree).await?;
-                classer_copie(&state, claims.cabinet_id, id, &entree).await?;
+                sauver_entree(state, id, &entree).await?;
+                classer_copie(state, claims.cabinet_id, id, &entree).await?;
                 break;
             }
             ActionEnvoi::MettreEnAttente => {
                 appliquer(&mut entree, action, true);
-                sauver_entree(&state, id, &entree).await?;
+                sauver_entree(state, id, &entree).await?;
             }
             ActionEnvoi::EnvoyerSmtp | ActionEnvoi::Retenter => {
                 // Transport sans Bcc ; les destinataires en copie cachée sont dans l'enveloppe.
                 let ok = if forcer_echec {
                     false
                 } else {
-                    match preparer_sortant(&state, &claims, id, &smtp.adresse_from).await? {
+                    match preparer_sortant(state, claims, id, &smtp.adresse_from).await? {
                         Some(sortant) => {
                             let smtp = smtp.clone();
                             tokio::task::spawn_blocking(move || {
@@ -408,27 +420,27 @@ pub async fn traiter_envoi(
                     }
                 };
                 appliquer(&mut entree, action, ok);
-                sauver_entree(&state, id, &entree).await?;
+                sauver_entree(state, id, &entree).await?;
                 if !ok || couper_smtp {
                     break;
                 }
             }
             ActionEnvoi::CopierDansEnvoyes => {
                 // La copie « Envoyés » garde le Bcc.
-                let ok = match preparer_sortant(&state, &claims, id, &smtp.adresse_from).await? {
+                let ok = match preparer_sortant(state, claims, id, &smtp.adresse_from).await? {
                     Some(sortant) => session.appender(DOSSIER_ENVOYES, &sortant.copie).is_ok(),
                     None => false,
                 };
                 appliquer(&mut entree, action, ok);
-                sauver_entree(&state, id, &entree).await?;
+                sauver_entree(state, id, &entree).await?;
                 if ok {
-                    classer_copie(&state, claims.cabinet_id, id, &entree).await?;
+                    classer_copie(state, claims.cabinet_id, id, &entree).await?;
                 }
                 break;
             }
         }
     }
-    charger_reponse(&state, &claims, id).await
+    charger_reponse(state, claims, id).await
 }
 
 pub async fn lister_file_envoi(

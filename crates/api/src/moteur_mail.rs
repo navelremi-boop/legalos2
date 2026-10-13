@@ -6,20 +6,25 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use legalos_messagerie::{
-    diff_repli, Changement, EnteteRecu, ErreurMail, EtatUid, FournisseurMail, ParametresCompte,
-    ReleveDossier, SessionActions, VeilleReception,
+    diff_repli, invitation_du_message, Changement, EnteteRecu, ErreurMail, EtatUid,
+    FournisseurMail, InvitationLue, ParametresCompte, ReleveDossier, SessionActions,
+    VeilleReception,
 };
 use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::auth::totp::{chiffrer_secret_totp, dechiffrer_secret_totp};
 use crate::depot_brouillons::DepotBrouillons;
+use crate::invitations::{enregistrer_invitation, InvitationRecue};
 
 const AUTRES_DOSSIERS: &[&str] = &["Sent", "Envoyés"];
 
 struct CompteMoteur {
     id: Uuid,
     cabinet_id: Uuid,
+    /// Titulaire d'une boîte **nominative** ; `None` pour une boîte partagée : ses messages ne
+    /// créent l'invitation de personne.
+    titulaire_id: Option<Uuid>,
     parametres: ParametresCompte,
     empreinte: String,
 }
@@ -99,9 +104,23 @@ async fn boucle(pool: PgPool, cle: [u8; 32]) {
 }
 
 async fn charger(pool: &PgPool, cle: &[u8; 32]) -> Result<Vec<CompteMoteur>, sqlx::Error> {
-    let rows = sqlx::query_as::<_, (Uuid, Uuid, String, i32, String, bool, String, String)>(
+    let rows = sqlx::query_as::<
+        _,
+        (
+            Uuid,
+            Uuid,
+            String,
+            i32,
+            String,
+            bool,
+            String,
+            String,
+            Option<Uuid>,
+        ),
+    >(
         r#"
-        SELECT id, cabinet_id, hote, port, utilisateur, tls, secret_chiffre, etat_connexion
+        SELECT id, cabinet_id, hote, port, utilisateur, tls, secret_chiffre, etat_connexion,
+               CASE WHEN type_compte = 'nominatif' THEN titulaire_id END
         FROM comptes_mail
         WHERE hote IS NOT NULL AND port IS NOT NULL AND utilisateur IS NOT NULL
           AND secret_chiffre IS NOT NULL
@@ -125,6 +144,7 @@ async fn charger(pool: &PgPool, cle: &[u8; 32]) -> Result<Vec<CompteMoteur>, sql
         comptes.push(CompteMoteur {
             id: row.0,
             cabinet_id: row.1,
+            titulaire_id: row.8,
             parametres: ParametresCompte {
                 hote: row.2,
                 port: u16::try_from(row.3).unwrap_or(143),
@@ -477,6 +497,9 @@ async fn appliquer_dossier(
         })
         .collect();
     let entetes = entetes_des_ajouts(&compte.parametres, dossier, &ajouts).await;
+    // Les invitations d'abord : si la lecture du message échoue, rien n'est inscrit ni curseur
+    // avancé, et la relève suivante revoit les mêmes messages (l'enregistrement est rejouable).
+    traiter_invitations(pool, compte, dossier, &ajouts, &entetes).await?;
     if !retires.is_empty() {
         sqlx::query(
             "DELETE FROM messages WHERE compte_id = $1 AND dossier_imap = $2 AND uid = ANY($3)",
@@ -518,6 +541,82 @@ async fn appliquer_dossier(
     )
     .await?;
     Ok(())
+}
+
+/// Invitations de calendrier des messages reçus dans la boîte de réception d'une boîte
+/// nominative. Seuls les messages dont BODYSTRUCTURE annonce une partie calendrier sont relus en
+/// entier. Une boîte sans titulaire, ou un autre dossier que la réception (Envoyés : ce sont les
+/// invitations du titulaire lui-même), n'enregistre rien.
+async fn traiter_invitations(
+    pool: &PgPool,
+    compte: &CompteMoteur,
+    dossier: &str,
+    ajouts: &[EtatUid],
+    entetes: &[EnteteRecu],
+) -> Result<(), sqlx::Error> {
+    let Some(titulaire_id) = compte.titulaire_id else {
+        return Ok(());
+    };
+    if dossier != "INBOX" {
+        return Ok(());
+    }
+    let candidats: Vec<(u32, String)> = ajouts
+        .iter()
+        .filter_map(|etat| {
+            let entete = entetes.iter().find(|entete| entete.uid == etat.uid)?;
+            entete
+                .calendrier
+                .then(|| (entete.uid, entete.message_id.clone()))
+        })
+        .collect();
+    if candidats.is_empty() {
+        return Ok(());
+    }
+    let lues = lire_invitations(&compte.parametres, dossier, &candidats)
+        .await
+        .map_err(|_| sqlx::Error::Protocol("lecture des invitations impossible".into()))?;
+    for (message_id, lue) in &lues {
+        let issue = enregistrer_invitation(
+            pool,
+            &InvitationRecue {
+                cabinet_id: compte.cabinet_id,
+                titulaire_id,
+                compte_id: compte.id,
+                message_id,
+                lue,
+            },
+        )
+        .await?;
+        tracing::info!(compte = %compte.id, issue = ?issue, "invitation de calendrier relevée");
+    }
+    Ok(())
+}
+
+/// Relit les messages en entier (une connexion) et en tire l'invitation. Un calendrier illisible
+/// est écarté sans bloquer la relève ; une connexion qui échoue fait échouer l'appel.
+async fn lire_invitations(
+    parametres: &ParametresCompte,
+    dossier: &str,
+    candidats: &[(u32, String)],
+) -> Result<Vec<(String, InvitationLue)>, ErreurMail> {
+    let parametres = parametres.clone();
+    let dossier = dossier.to_owned();
+    let candidats = candidats.to_vec();
+    tokio::task::spawn_blocking(move || {
+        let mut session = SessionActions::connecter(&parametres)?;
+        let mut lues = Vec::new();
+        for (uid, message_id) in candidats {
+            let octets = session.lire_rfc822(&dossier, uid)?;
+            match invitation_du_message(&octets) {
+                Ok(Some(lue)) => lues.push((message_id, lue)),
+                Ok(None) => {}
+                Err(_) => tracing::warn!(uid, "calendrier illisible, message écarté"),
+            }
+        }
+        Ok(lues)
+    })
+    .await
+    .map_err(|_| ErreurMail::Connexion)?
 }
 
 async fn entetes_des_ajouts(
@@ -872,6 +971,7 @@ mod tests {
             destinataires: vec!["un@example.com".into(), "deux@example.com".into()],
             pieces: Vec::new(),
             extrait: String::new(),
+            calendrier: false,
         };
         assert_eq!(
             texte_destinataires(Some(&entete)),

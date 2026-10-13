@@ -41,6 +41,9 @@ pub struct EnteteRecu {
     pub pieces: Vec<String>,
     /// Début du corps, pour la liste. Le corps complet reste à la demande.
     pub extrait: String,
+    /// Le message porte une partie calendrier (`text/calendar` ou `application/ics`), vue dans
+    /// BODYSTRUCTURE : seuls ces messages sont relus en entier pour en tirer l'invitation.
+    pub calendrier: bool,
 }
 
 /// Corps d'un message relevé. `html` est déjà passé par `ammonia`.
@@ -301,7 +304,7 @@ impl Session {
             for (_cle, items) in fetched {
                 let mut uid_lu = None;
                 let mut en_tetes = None;
-                let mut pieces = Vec::new();
+                let mut structure_lue = StructureLue::default();
                 for item in items {
                     match item {
                         MessageDataItem::Uid(valeur) => uid_lu = Some(valeur.get()),
@@ -309,7 +312,7 @@ impl Session {
                             en_tetes = Some(nstring_octets(&valeur));
                         }
                         MessageDataItem::BodyStructure(structure) => {
-                            pieces = noms_pieces(&structure);
+                            structure_lue = lire_structure(&structure);
                         }
                         _ => {}
                     }
@@ -322,7 +325,7 @@ impl Session {
                     uid_lu,
                     &octets,
                     &analyseur,
-                    pieces,
+                    structure_lue,
                     extrait_depuis(&octets, carte.get(&uid_lu).map(Vec::as_slice), &analyseur),
                 ));
             }
@@ -1120,7 +1123,7 @@ impl Session {
             for (_cle, items) in fetched {
                 let mut uid_lu = None;
                 let mut octets = None;
-                let mut pieces = Vec::new();
+                let mut structure_lue = StructureLue::default();
                 for item in items {
                     match item {
                         MessageDataItem::Uid(valeur) => uid_lu = Some(valeur.get()),
@@ -1128,7 +1131,7 @@ impl Session {
                             octets = Some(nstring_octets(&valeur))
                         }
                         MessageDataItem::BodyStructure(structure) => {
-                            pieces = noms_pieces(&structure);
+                            structure_lue = lire_structure(&structure);
                         }
                         _ => {}
                     }
@@ -1139,7 +1142,7 @@ impl Session {
                         uid_lu,
                         &octets,
                         &analyseur,
-                        pieces,
+                        structure_lue,
                         extrait_depuis(&octets, carte.get(&uid_lu).map(Vec::as_slice), &analyseur),
                     ));
                 }
@@ -1228,7 +1231,7 @@ fn entete_depuis_rfc822(
     uid: u32,
     octets: &[u8],
     analyseur: &MessageParser,
-    pieces: Vec<String>,
+    structure: StructureLue,
     extrait: String,
 ) -> EnteteRecu {
     let message = analyseur.parse(octets);
@@ -1266,8 +1269,9 @@ fn entete_depuis_rfc822(
         objet,
         expediteur,
         destinataires,
-        pieces,
+        pieces: structure.pieces,
         extrait,
+        calendrier: structure.calendrier,
     }
 }
 
@@ -1299,6 +1303,38 @@ fn extrait_depuis(en_tetes: &[u8], corps: Option<&[u8]>, analyseur: &MessagePars
         .chars()
         .take(160)
         .collect()
+}
+
+/// Ce que BODYSTRUCTURE apprend sur un message sans le télécharger.
+#[derive(Default)]
+struct StructureLue {
+    pieces: Vec<String>,
+    calendrier: bool,
+}
+
+fn lire_structure(structure: &io_imap::types::body::BodyStructure<'_>) -> StructureLue {
+    StructureLue {
+        pieces: noms_pieces(structure),
+        calendrier: a_partie_calendrier(structure),
+    }
+}
+
+/// Une partie `text/calendar` ou `application/ics`, à n'importe quelle profondeur.
+fn a_partie_calendrier(structure: &io_imap::types::body::BodyStructure<'_>) -> bool {
+    use io_imap::types::body::{BodyStructure, SpecificFields};
+    match structure {
+        BodyStructure::Single { body, .. } => match &body.specific {
+            SpecificFields::Text { subtype, .. } => {
+                chaine_imap(subtype).eq_ignore_ascii_case("calendar")
+            }
+            SpecificFields::Basic { r#type, subtype } => {
+                chaine_imap(r#type).eq_ignore_ascii_case("application")
+                    && chaine_imap(subtype).eq_ignore_ascii_case("ics")
+            }
+            SpecificFields::Message { .. } => false,
+        },
+        BodyStructure::Multi { bodies, .. } => bodies.as_ref().iter().any(a_partie_calendrier),
+    }
 }
 
 fn noms_pieces(structure: &io_imap::types::body::BodyStructure<'_>) -> Vec<String> {
@@ -1388,7 +1424,7 @@ fn ancrage_imap_codec() -> usize {
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
-    use super::noms_pieces;
+    use super::{a_partie_calendrier, noms_pieces};
     use io_imap::types::body::{
         BasicFields, Body, BodyStructure, Disposition, SinglePartExtensionData, SpecificFields,
     };
@@ -1458,6 +1494,58 @@ mod tests {
         };
         assert_eq!(noms_pieces(&multi), vec!["Convocation.pdf".to_owned()]);
         assert!(noms_pieces(&texte()).is_empty());
+    }
+
+    fn calendrier(type_texte: bool) -> BodyStructure<'static> {
+        BodyStructure::Single {
+            body: Body {
+                basic: BasicFields {
+                    parameter_list: vec![(chaine("method"), chaine("REQUEST"))],
+                    id: vide(),
+                    description: vide(),
+                    content_transfer_encoding: chaine("7bit"),
+                    size: 300,
+                },
+                specific: if type_texte {
+                    SpecificFields::Text {
+                        subtype: chaine("CALENDAR"),
+                        number_of_lines: 10,
+                    }
+                } else {
+                    SpecificFields::Basic {
+                        r#type: chaine("application"),
+                        subtype: chaine("ics"),
+                    }
+                },
+            },
+            extension_data: None,
+        }
+    }
+
+    #[test]
+    fn partie_calendrier_vue_dans_la_structure_a_toute_profondeur() {
+        assert!(a_partie_calendrier(&calendrier(true)));
+        assert!(a_partie_calendrier(&calendrier(false)));
+        let alternative = BodyStructure::Multi {
+            bodies: Vec1::try_from(vec![texte(), calendrier(true)]).expect("parties"),
+            subtype: chaine("alternative"),
+            extension_data: None,
+        };
+        let englobant = BodyStructure::Multi {
+            bodies: Vec1::try_from(vec![alternative, pdf()]).expect("parties"),
+            subtype: chaine("mixed"),
+            extension_data: None,
+        };
+        assert!(a_partie_calendrier(&englobant));
+        // Essais négatifs : ni un texte simple, ni une pièce PDF, ni leur assemblage.
+        assert!(!a_partie_calendrier(&texte()));
+        assert!(!a_partie_calendrier(&pdf()));
+        let sans = BodyStructure::Multi {
+            bodies: Vec1::try_from(vec![texte(), pdf()]).expect("parties"),
+            subtype: chaine("mixed"),
+            extension_data: None,
+        };
+        assert!(!a_partie_calendrier(&sans));
     }
 
     fn dossier(nom: &str, attributs: &[&str]) -> super::DossierListe {

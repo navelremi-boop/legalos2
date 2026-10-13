@@ -25,6 +25,7 @@ use crate::routes::intercalaires::{
     IntercalaireResponse, PatchIntercalaireRequest, RattacherElementRequest,
     RetirerIntercalaireRequest, RetirerIntercalaireResponse,
 };
+use crate::routes::invitations::{InvitationResponse, ReponseInvitationRequest};
 use crate::routes::redaction::{
     CompositionRequest, CompositionResponse, CreerModeleRequest, EcrireSignatureRequest,
     ModeleResponse, PatchModeleRequest, PieceResume, SignatureResponse,
@@ -76,6 +77,8 @@ use crate::routes::redaction::{
         crate::routes::brouillons::retirer_piece,
         crate::routes::brouillons::envoyer_brouillon,
         crate::routes::destinataires::completer_destinataires,
+        crate::routes::invitations::lister_invitations,
+        crate::routes::invitations::repondre_invitation,
     ),
     components(schemas(
         HealthResponse,
@@ -125,6 +128,8 @@ use crate::routes::redaction::{
         BrouillonResponse,
         PieceBrouillon,
         DestinataireSuggere,
+        InvitationResponse,
+        ReponseInvitationRequest,
         ApiErrorBody,
     )),
     modifiers(&SecurityAddon),

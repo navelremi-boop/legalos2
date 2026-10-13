@@ -301,15 +301,58 @@ function compterTables(sql) {
   return new Set([...from, ...joins]).size;
 }
 
+/**
+ * Flux propre à son titulaire (J11, invitations reçues par mail) : un collaborateur ne reçoit
+ * jamais l'invitation d'un autre (invariant S5). Renvoie les manquements du bloc ; vide s'il est
+ * conforme.
+ */
+function manquementsInvitations(bloc) {
+  const manques = [];
+  if (!/\bFROM invitations_agenda\b/.test(bloc)) manques.push("table invitations_agenda requise");
+  if (!/titulaire_id::text\s*=\s*auth\.user_id\(\)/.test(bloc)) {
+    manques.push("filtre titulaire_id = auth.user_id() requis (un seul titulaire par invitation)");
+  }
+  if (!/cabinet_id::text\s*=\s*auth\.parameter\('cabinet_id'\)/.test(bloc)) {
+    manques.push("cabinet du jeton requis");
+  }
+  if (/\bJOIN\b/i.test(bloc)) manques.push("jointure interdite (un bucket par titulaire)");
+  const colonnes = (bloc.match(/SELECT([\s\S]*?)\bFROM\b/i) ?? ["", ""])[1];
+  if (/\bcompte_id\b|\breponse_envoi_id\b/.test(colonnes)) {
+    manques.push("colonne interne exposée au poste (boîte de réception, envoi de la file)");
+  }
+  for (const colonne of ["debut_utc", "fin_utc", "message_id", "reponse"]) {
+    if (!new RegExp(`\\b${colonne}\\b`).test(colonnes)) manques.push(`colonne ${colonne} requise`);
+  }
+  return manques;
+}
+
 const invitations = blocFlux("invitations_titulaire");
-if (!/FROM invitations_agenda/.test(invitations)) {
-  fail("invitations_titulaire : table invitations_agenda requise");
-}
-if (!/titulaire_id::text = auth\.user_id\(\)/.test(invitations)) {
-  fail("invitations_titulaire : filtre titulaire requis");
-}
-if (/JOIN/i.test(invitations)) {
-  fail("invitations_titulaire : jointure interdite (un bucket par titulaire)");
+{
+  const reel = manquementsInvitations(invitations);
+  if (reel.length > 0) fail(`invitations_titulaire : ${reel.join(" ; ")}`);
+  // Essais négatifs : le même contrôle refuse chaque dérive du flux.
+  const filtreTitulaire = /titulaire_id::text = auth\.user_id\(\)/;
+  const derives = {
+    "sans filtre de titulaire": invitations.replace(filtreTitulaire, "TRUE"),
+    "filtre sur un autre champ que le titulaire": invitations.replace(
+      filtreTitulaire,
+      "titulaire_id IS NOT NULL",
+    ),
+    "avec jointure": invitations.replace(
+      "FROM invitations_agenda",
+      "FROM invitations_agenda INNER JOIN utilisateurs ON utilisateurs.id = invitations_agenda.titulaire_id",
+    ),
+    "boîte de réception exposée": invitations.replace("revision,", "revision, compte_id,"),
+    "envoi de la file exposé": invitations.replace("revision,", "revision, reponse_envoi_id,"),
+    "instant UTC retiré": invitations.replace("debut_utc, ", ""),
+    "sans cabinet": invitations.replace(/AND cabinet_id::text = auth\.parameter\('cabinet_id'\)/, ""),
+  };
+  for (const [nom, bloc] of Object.entries(derives)) {
+    if (bloc === invitations) fail(`essai négatif invitations_titulaire (${nom}) : dérive non appliquée`);
+    if (manquementsInvitations(bloc).length === 0) {
+      fail(`essai négatif invitations_titulaire (${nom}) : le contrôle n'a pas refusé la dérive`);
+    }
+  }
 }
 
 /**

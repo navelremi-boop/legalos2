@@ -7,6 +7,7 @@ pub mod error;
 pub mod facturation;
 pub mod identifiants;
 pub mod install;
+pub mod invitations;
 pub mod moteur_mail;
 pub mod oauth_mail;
 pub mod openapi;

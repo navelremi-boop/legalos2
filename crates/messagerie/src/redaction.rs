@@ -422,10 +422,22 @@ fn assembler(
             .in_reply_to(identifiant_chevron(&fil.en_reponse_a)?)
             .references(references_du_fil(fil)?);
     }
-    let alternatif = MultiPart::alternative()
+    // Réponse à une invitation (iTIP, `text/calendar; method=REPLY`) : partie alternative du
+    // message, comme le font Outlook et Gmail, et non pièce jointe.
+    let (reponses_itip, pieces): (Vec<PieceJointe>, Vec<PieceJointe>) =
+        pieces_a_joindre(genre, demande)
+            .into_iter()
+            .partition(est_reponse_itip);
+    let mut alternatif = MultiPart::alternative()
         .singlepart(SinglePart::plain(texte))
         .singlepart(SinglePart::html(html));
-    let pieces = pieces_a_joindre(genre, demande);
+    for reponse in &reponses_itip {
+        alternatif = alternatif.singlepart(
+            SinglePart::builder()
+                .header(type_mime(&reponse.type_mime)?)
+                .body(String::from_utf8_lossy(&reponse.contenu).into_owned()),
+        );
+    }
     if pieces.is_empty() {
         builder
             .multipart(alternatif)
@@ -757,6 +769,14 @@ fn courriel(brut: &str) -> Result<String, ErreurMail> {
     Ok(boite.email.to_string().to_ascii_lowercase())
 }
 
+/// Pièce portant une réponse d'invitation : `text/calendar` avec `method=REPLY`. Les pièces
+/// d'un utilisateur ne gardent jamais les paramètres de leur type (`type_mime_piece`) : seul le
+/// serveur fabrique une telle pièce.
+fn est_reponse_itip(piece: &PieceJointe) -> bool {
+    let type_mime = piece.type_mime.to_ascii_lowercase();
+    type_mime.starts_with("text/calendar") && type_mime.contains("method=reply")
+}
+
 fn type_mime(brut: &str) -> Result<ContentType, ErreurMail> {
     let candidat = if brut.trim().is_empty() {
         "application/octet-stream"
@@ -1065,6 +1085,72 @@ mod tests {
         let texte = message.body_text(0).expect("texte");
         assert_eq!(texte.trim(), "Texte nouveau du cabinet.");
         assert!(idents(message.in_reply_to()).is_empty());
+    }
+
+    fn calendrier(type_mime: &str) -> PieceJointe {
+        PieceJointe {
+            nom: "reponse.ics".to_owned(),
+            type_mime: type_mime.to_owned(),
+            contenu: b"BEGIN:VCALENDAR\r\nMETHOD:REPLY\r\nEND:VCALENDAR\r\n".to_vec(),
+        }
+    }
+
+    fn types_des_parties(message: &mail_parser::Message<'_>) -> Vec<String> {
+        message
+            .parts
+            .iter()
+            .filter_map(|partie| partie.content_type())
+            .map(|genre| {
+                format!(
+                    "{}/{}",
+                    genre.c_type,
+                    genre.c_subtype.as_deref().unwrap_or_default()
+                )
+                .to_ascii_lowercase()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn reponse_d_invitation_est_une_partie_alternative_et_non_une_piece_jointe() {
+        let mut demande = demande();
+        demande.origine = None;
+        demande.a = vec!["organisateur@example.com".to_owned()];
+        demande.identifiant = "<reponse-itip-j11@cabinet.example>".to_owned();
+        demande.pieces = vec![calendrier("text/calendar; method=REPLY; charset=utf-8")];
+        let octets = construire_message(GenreRedaction::Nouveau, &demande).expect("octets");
+        let message = analyser(&octets);
+        let types = types_des_parties(&message);
+        assert!(
+            types.contains(&"multipart/alternative".to_owned()),
+            "{types:?}"
+        );
+        assert!(types.contains(&"text/calendar".to_owned()), "{types:?}");
+        assert!(
+            !types.contains(&"multipart/mixed".to_owned()),
+            "la réponse n'est pas une pièce jointe : {types:?}"
+        );
+        let brut = String::from_utf8_lossy(&octets).to_ascii_lowercase();
+        assert!(brut.contains("method=reply"), "{brut}");
+        assert!(!brut.contains("content-disposition: attachment"), "{brut}");
+        assert!(brut.contains("begin:vcalendar"), "{brut}");
+    }
+
+    #[test]
+    fn calendrier_d_une_autre_methode_reste_une_piece_jointe() {
+        // Essai négatif : un `.ics` de méthode REQUEST (invitation transférée) n'est pas lu comme
+        // une réponse ; il reste joint comme n'importe quelle pièce.
+        let mut demande = demande();
+        demande.origine = None;
+        demande.a = vec!["destinataire@example.com".to_owned()];
+        demande.identifiant = "<transfert-itip-j11@cabinet.example>".to_owned();
+        demande.pieces = vec![calendrier("text/calendar; method=REQUEST")];
+        let octets = construire_message(GenreRedaction::Nouveau, &demande).expect("octets");
+        let message = analyser(&octets);
+        let types = types_des_parties(&message);
+        assert!(types.contains(&"multipart/mixed".to_owned()), "{types:?}");
+        let brut = String::from_utf8_lossy(&octets).to_ascii_lowercase();
+        assert!(brut.contains("content-disposition: attachment"), "{brut}");
     }
 
     #[test]

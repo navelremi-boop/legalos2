@@ -11,6 +11,7 @@ pub mod factures;
 pub mod file_envoi;
 pub mod health;
 pub mod intercalaires;
+pub mod invitations;
 pub mod messagerie;
 pub mod redaction;
 pub mod synchro;
@@ -137,6 +138,14 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route(
             "/messagerie/comptes",
             post(messagerie::creer_compte_nominatif),
+        )
+        .route(
+            "/messagerie/invitations",
+            get(invitations::lister_invitations),
+        )
+        .route(
+            "/messagerie/invitations/{id}/reponse",
+            post(invitations::repondre_invitation),
         )
         .route("/messagerie/composition", post(redaction::composer))
         .route("/messagerie/brouillons", get(brouillons::lister_brouillons))
