@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 use crate::auth::totp::{chiffrer_secret_totp, dechiffrer_secret_totp};
 use crate::depot_brouillons::DepotBrouillons;
-use crate::invitations::{enregistrer_invitation, InvitationRecue};
+use crate::invitations::{enregistrer_invitation, InvitationRecue, IssueInvitation};
 
 const AUTRES_DOSSIERS: &[&str] = &["Sent", "Envoyés"];
 
@@ -415,6 +415,24 @@ async fn noter(pool: &PgPool, compte: Uuid, issue: &str) -> Result<(), sqlx::Err
     Ok(())
 }
 
+/// Note une relève hors du moteur (boîte de classement, relevée à la demande) pour le tableau de
+/// santé : même table et mêmes issues que le moteur. Une erreur d'écriture n'interrompt jamais la
+/// relève (la note est une information, pas une condition).
+pub async fn noter_releve(pool: &PgPool, compte: Uuid, issue: Result<(), &ErreurMail>) {
+    let (issue, etat) = match issue {
+        Ok(()) => ("ok", "connecte"),
+        Err(ErreurMail::Authentification) => ("authentification", "identifiants_refuses"),
+        Err(_) => ("connexion", "inconnu"),
+    };
+    if noter(pool, compte, issue).await.is_err() {
+        tracing::warn!(compte = %compte, "note de relève non enregistrée");
+    }
+    // Un échec de connexion ne dit rien des identifiants : l'état précédent est conservé.
+    if etat != "inconnu" && marquer_etat(pool, compte, etat, None).await.is_err() {
+        tracing::warn!(compte = %compte, "état de connexion non enregistré");
+    }
+}
+
 async fn marquer_etat(
     pool: &PgPool,
     compte: Uuid,
@@ -456,6 +474,7 @@ async fn appliquer_dossier(
     let mut connus = charger_etats(pool, compte.id, dossier).await?;
     connus.sort_by_key(|etat| etat.uid);
     let validity = lire_validity(pool, compte.id, dossier).await?;
+    let notifiable = arrivee_notifiable(dossier, validity, releve.uid_validity);
     if validity != 0 && validity != i64::from(releve.uid_validity) {
         sqlx::query("DELETE FROM messages WHERE compte_id = $1 AND dossier_imap = $2")
             .bind(compte.id)
@@ -517,6 +536,7 @@ async fn appliquer_dossier(
         releve.uid_validity,
         &ajouts,
         &entetes,
+        notifiable,
     )
     .await?;
     maj_drapeaux(pool, compte.id, dossier, &drapeaux).await?;
@@ -587,7 +607,18 @@ async fn traiter_invitations(
             },
         )
         .await?;
-        tracing::info!(compte = %compte.id, issue = ?issue, "invitation de calendrier relevée");
+        match issue {
+            // Journal de relève : l'identifiant du message et le motif, jamais d'adresse ni d'objet.
+            IssueInvitation::Refusee(motif) => tracing::warn!(
+                compte = %compte.id,
+                message = %message_id,
+                motif = motif.motif(),
+                "invitation de calendrier refusée : origine non confirmée"
+            ),
+            _ => {
+                tracing::info!(compte = %compte.id, issue = ?issue, "invitation de calendrier relevée")
+            }
+        }
     }
     Ok(())
 }
@@ -677,6 +708,15 @@ async fn lire_validity(pool: &PgPool, compte: Uuid, dossier: &str) -> Result<i64
     Ok(row.map(|valeur| valeur.0).unwrap_or(0))
 }
 
+/// Un message ajouté est-il une arrivée à signaler (notification de bureau) ? Seulement dans la
+/// réception, et seulement si la boîte était déjà relevée avec le même UIDVALIDITY : la première
+/// relève et la reprise après changement d'UIDVALIDITY ramènent de l'historique, pas des arrivées.
+/// Un message déjà lu à l'arrivée (lu depuis un autre client avant la relève) ne notifie pas.
+#[must_use]
+pub fn arrivee_notifiable(dossier: &str, validity_connue: i64, validity_releve: u32) -> bool {
+    dossier == "INBOX" && validity_connue != 0 && validity_connue == i64::from(validity_releve)
+}
+
 struct Lignes {
     ids: Vec<Uuid>,
     messages: Vec<String>,
@@ -764,6 +804,7 @@ async fn inserer_ajouts(
     uid_validity: u32,
     ajouts: &[EtatUid],
     entetes: &[EnteteRecu],
+    notifiable: bool,
 ) -> Result<(), sqlx::Error> {
     if ajouts.is_empty() {
         return Ok(());
@@ -778,11 +819,13 @@ async fn inserer_ajouts(
             r#"
             INSERT INTO messages (
                 id, cabinet_id, compte_id, message_id, uid_validity, uid,
-                objet, expediteur, destinataires_texte, pieces_texte, extrait_texte, etat_classement, dossier_imap, lu, drapeaux
+                objet, expediteur, destinataires_texte, pieces_texte, extrait_texte, etat_classement, dossier_imap, lu, drapeaux,
+                arrivee_notifiable
             )
             SELECT t.id, t.cabinet_id, t.compte_id, t.message_id, t.uid_validity, t.uid,
                    t.objet, t.expediteur, t.destinataires_texte, t.pieces_texte, t.extrait_texte, t.etat_classement, t.dossier_imap, t.lu,
-                   CASE WHEN t.drapeaux = '' THEN '{}'::text[] ELSE string_to_array(t.drapeaux, ' ') END
+                   CASE WHEN t.drapeaux = '' THEN '{}'::text[] ELSE string_to_array(t.drapeaux, ' ') END,
+                   $16::boolean AND NOT t.lu
             FROM unnest(
                 $1::uuid[], $2::uuid[], $3::uuid[], $4::text[], $5::bigint[], $6::bigint[],
                 $7::text[], $8::text[], $9::text[], $10::text[], $11::text[], $12::text[], $13::text[], $14::boolean[], $15::text[]
@@ -823,6 +866,7 @@ async fn inserer_ajouts(
         .bind(vec![dossier.to_owned(); taille])
         .bind(lignes.lus[debut..fin].to_vec())
         .bind(lignes.drapeaux[debut..fin].to_vec())
+        .bind(notifiable)
         .execute(pool)
         .await?;
         debut = fin;
@@ -957,7 +1001,8 @@ pub fn poser_drapeau_imap(
 #[cfg(test)]
 mod tests {
     use super::{
-        delai_echec, texte_destinataires, RELEVE_SANS_REVEIL_SECS, RENOUVELLEMENT_IDLE_SECS,
+        arrivee_notifiable, delai_echec, texte_destinataires, RELEVE_SANS_REVEIL_SECS,
+        RENOUVELLEMENT_IDLE_SECS,
     };
     use legalos_messagerie::EnteteRecu;
 
@@ -978,6 +1023,18 @@ mod tests {
             "un@example.com, deux@example.com"
         );
         assert_eq!(texte_destinataires(None), "");
+    }
+
+    #[test]
+    fn arrivee_notifiable_seulement_apres_une_premiere_releve() {
+        // Première relève (rien de connu) : historique.
+        assert!(!arrivee_notifiable("INBOX", 0, 77));
+        // Boîte déjà relevée, même UIDVALIDITY : arrivée.
+        assert!(arrivee_notifiable("INBOX", 77, 77));
+        // UIDVALIDITY changé : tout est rechargé, aucune arrivée.
+        assert!(!arrivee_notifiable("INBOX", 77, 78));
+        // Envoyés : ce sont les envois de l'utilisateur.
+        assert!(!arrivee_notifiable("Sent", 77, 77));
     }
 
     #[test]

@@ -186,14 +186,14 @@ pub async fn completer_destinataires(
     }
 
     // 3. Messages lisibles par l'utilisateur : mêmes règles que `lister_messages` (boîte
-    //    nominative du seul titulaire) et que `charger_message` (dossier restreint réservé à ses
-    //    accès).
+    //    nominative du seul titulaire, boîte partagée de ses membres) et que `charger_message`
+    //    (dossier restreint réservé à ses accès).
     let messages = sqlx::query_as::<_, (String, String)>(
         r#"
         SELECT m.expediteur, m.destinataires_texte
         FROM messages m
         WHERE m.cabinet_id = $1
-          AND (m.titulaire_id IS NULL OR m.titulaire_id = $2)
+          AND compte_mail_lisible_par(m.compte_id, $2)
           AND (
             m.dossier_id IS NULL
             OR EXISTS (

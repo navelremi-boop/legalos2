@@ -24,9 +24,10 @@ pub use file_envoi::{appliquer, decider_action, ActionEnvoi, EntreeFileEnvoi, Et
 pub use html::{nettoyer_html, texte_depuis_html};
 pub use imap::{CorpsLu, EnteteRecu, EtatUid, ReleveDossier};
 pub use invitation::{
-    decider_invitation, invitation_depuis_stockage, invitation_du_message, lire_invitation,
-    reponse_invitation, DecisionInvitation, EffetInvitation, InstantsInvitation, InvitationConnue,
-    InvitationLue, InvitationStockee, ReponseInvitation, FUSEAU_FLOTTANT,
+    decider_invitation, invitation_depuis_stockage, invitation_du_message, juger_origine,
+    lire_invitation, reponse_invitation, DecisionInvitation, EffetInvitation, InstantsInvitation,
+    InvitationConnue, InvitationLue, InvitationStockee, ReponseInvitation, VerdictOrigine,
+    FUSEAU_FLOTTANT,
 };
 pub use moteur::{diff_repli, Changement, RapportMoteur};
 pub use redaction::{

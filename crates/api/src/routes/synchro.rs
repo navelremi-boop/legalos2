@@ -136,7 +136,7 @@ pub async fn marquer_lu(
     match resultat {
         Ok(reel) => {
             let _ = sqlx::query(
-                "UPDATE messages SET lu = $1, revision = revision + 1 WHERE cabinet_id = $2 AND uid = $3 AND dossier_imap = 'INBOX'",
+                "UPDATE messages SET lu = $1, revision = revision + 1 WHERE cabinet_id = $2 AND uid = $3 AND dossier_imap = 'INBOX' AND compte_id IN (SELECT id FROM comptes_mail WHERE cabinet_id = $2 AND type_compte = 'classement')",
             )
             .bind(lu)
             .bind(claims.cabinet_id)
@@ -178,7 +178,7 @@ pub async fn deplacer_message(
     match resultat {
         Ok(()) => {
             let _ = sqlx::query(
-                "UPDATE messages SET dossier_imap = $1, revision = revision + 1 WHERE cabinet_id = $2 AND uid = $3",
+                "UPDATE messages SET dossier_imap = $1, revision = revision + 1 WHERE cabinet_id = $2 AND uid = $3 AND compte_id IN (SELECT id FROM comptes_mail WHERE cabinet_id = $2 AND type_compte = 'classement')",
             )
             .bind(&destination)
             .bind(claims.cabinet_id)
@@ -213,7 +213,7 @@ pub async fn supprimer_message(
             .map_err(|_| ApiError::internal("Action interrompue"))?;
     match resultat {
         Ok(()) => {
-            let _ = sqlx::query("DELETE FROM messages WHERE cabinet_id = $1 AND uid = $2 AND dossier_imap = 'INBOX'")
+            let _ = sqlx::query("DELETE FROM messages WHERE cabinet_id = $1 AND uid = $2 AND dossier_imap = 'INBOX' AND compte_id IN (SELECT id FROM comptes_mail WHERE cabinet_id = $1 AND type_compte = 'classement')")
                 .bind(claims.cabinet_id)
                 .bind(i64::from(corps.uid))
                 .execute(&state.pool)
@@ -270,7 +270,7 @@ pub async fn rechercher(
         FROM contenus_messages c
         INNER JOIN messages m ON m.id = c.message_id_ref
         WHERE c.cabinet_id = $1
-          AND (m.titulaire_id IS NULL OR m.titulaire_id = $3)
+          AND compte_mail_lisible_par(m.compte_id, $3)
           AND c.texte_tsv @@ plainto_tsquery('french', $2)
         ORDER BY c.cree_le DESC
         LIMIT 20
@@ -304,7 +304,7 @@ pub async fn lire_contenu(
         FROM contenus_messages c
         INNER JOIN messages m ON m.id = c.message_id_ref
         WHERE m.cabinet_id = $1 AND m.message_id = $2
-          AND (m.titulaire_id IS NULL OR m.titulaire_id = $3)
+          AND compte_mail_lisible_par(m.compte_id, $3)
         "#,
     )
     .bind(claims.cabinet_id)

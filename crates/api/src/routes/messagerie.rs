@@ -63,17 +63,25 @@ pub async fn relever_classement(
     let dossiers = charger_dossiers_classement(&state.pool, claims.cabinet_id).await?;
     let mut connue = charger_releve(&state.pool, compte_id).await?;
 
-    let mut session = SessionActions::connecter(parametres).map_err(|e| match e {
-        legalos_messagerie::ErreurMail::Authentification => {
-            ApiError::internal("Authentification IMAP refusée")
+    let mut session = match SessionActions::connecter(parametres) {
+        Ok(session) => session,
+        Err(e) => {
+            // Tableau de santé : la boîte de classement n'a pas de tâche de fond, ses relèves
+            // sont notées ici.
+            crate::moteur_mail::noter_releve(&state.pool, compte_id, Err(&e)).await;
+            return Err(match e {
+                legalos_messagerie::ErreurMail::Authentification => {
+                    ApiError::internal("Authentification IMAP refusée")
+                }
+                legalos_messagerie::ErreurMail::Connexion => {
+                    ApiError::internal("Connexion IMAP impossible")
+                }
+                legalos_messagerie::ErreurMail::Protocole => {
+                    ApiError::internal("Protocole IMAP refusé à la connexion")
+                }
+            });
         }
-        legalos_messagerie::ErreurMail::Connexion => {
-            ApiError::internal("Connexion IMAP impossible")
-        }
-        legalos_messagerie::ErreurMail::Protocole => {
-            ApiError::internal("Protocole IMAP refusé à la connexion")
-        }
-    })?;
+    };
     let apres = if connue.dernier_uid == 0 {
         None
     } else {
@@ -82,6 +90,7 @@ pub async fn relever_classement(
     let (uid_validity, entetes) = session
         .relever_entetes("INBOX", apres, query.limite)
         .map_err(|_| ApiError::internal("Relève IMAP refusée"))?;
+    crate::moteur_mail::noter_releve(&state.pool, compte_id, Ok(())).await;
 
     let lots: Vec<MessageReleve> = entetes
         .iter()
@@ -138,6 +147,31 @@ pub async fn relever_classement(
     }))
 }
 
+/// Le message existe dans le cabinet et l'utilisateur peut le lire : boîte nominative de son
+/// titulaire, boîte partagée de ses membres, boîte de classement du cabinet (dossier restreint
+/// fermé aux autres). Un message illisible est introuvable, comme un message absent.
+pub(crate) async fn message_lisible(
+    pool: &PgPool,
+    cabinet_id: Uuid,
+    utilisateur_id: Uuid,
+    message_id: Uuid,
+) -> Result<bool, ApiError> {
+    let lisible = sqlx::query_scalar::<_, Option<bool>>(
+        r#"
+        SELECT message_lisible_par(m.compte_id, m.dossier_id, $3)
+        FROM messages m
+        WHERE m.id = $1 AND m.cabinet_id = $2
+        "#,
+    )
+    .bind(message_id)
+    .bind(cabinet_id)
+    .bind(utilisateur_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|_| ApiError::internal("Lecture des droits du message"))?;
+    Ok(lisible.flatten().unwrap_or(false))
+}
+
 pub async fn lister_messages(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -157,7 +191,7 @@ pub async fn lister_messages(
         r#"
         SELECT id, dossier_id, etat_classement, suggestion_dossier_id, objet, expediteur, message_id
         FROM messages
-        WHERE cabinet_id = $1 AND (titulaire_id IS NULL OR titulaire_id = $2)
+        WHERE cabinet_id = $1 AND message_lisible_par(compte_id, dossier_id, $2)
         ORDER BY cree_le ASC
         "#,
     )
@@ -202,26 +236,24 @@ pub async fn lire_corps_message(
             Option<String>,
             Option<bool>,
             Option<String>,
-            Option<Uuid>,
         ),
     >(
         r#"
-        SELECT m.uid, m.dossier_imap, a.hote, a.port, a.utilisateur, a.tls, a.secret_chiffre, a.titulaire_id
+        SELECT m.uid, m.dossier_imap, a.hote, a.port, a.utilisateur, a.tls, a.secret_chiffre
         FROM messages m
         INNER JOIN comptes_mail a ON a.id = m.compte_id
         WHERE m.id = $1 AND m.cabinet_id = $2
+          AND message_lisible_par(m.compte_id, m.dossier_id, $3)
         "#,
     )
     .bind(message_id)
     .bind(claims.cabinet_id)
+    .bind(claims.sub)
     .fetch_optional(&state.pool)
     .await
     .map_err(|_| ApiError::internal("Lecture message"))?
     .ok_or_else(|| ApiError::not_found("Message introuvable"))?;
 
-    if row.7.is_some_and(|titulaire| titulaire != claims.sub) {
-        return Err(ApiError::not_found("Message introuvable"));
-    }
     if let Some(texte) = sqlx::query_scalar::<_, String>(
         "SELECT texte_brut FROM contenus_messages WHERE message_id_ref = $1",
     )
@@ -300,16 +332,7 @@ pub async fn accepter_suggestion(
     AuthAccess(claims): AuthAccess,
     Path(message_id): Path<Uuid>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    let titulaire = sqlx::query_scalar::<_, Option<Uuid>>(
-        "SELECT titulaire_id FROM messages WHERE id = $1 AND cabinet_id = $2",
-    )
-    .bind(message_id)
-    .bind(claims.cabinet_id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(|_| ApiError::internal("Lecture suggestion"))?
-    .ok_or_else(|| ApiError::not_found("Suggestion introuvable"))?;
-    if titulaire.is_some_and(|id| id != claims.sub) {
+    if !message_lisible(&state.pool, claims.cabinet_id, claims.sub, message_id).await? {
         return Err(ApiError::not_found("Suggestion introuvable"));
     }
     let suggestion = sqlx::query_scalar::<_, Uuid>(
@@ -380,12 +403,11 @@ pub async fn classer_message(
     Path(message_id): Path<Uuid>,
     Json(corps): Json<ClasserCorps>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    let ligne = sqlx::query_as::<_, (String, Option<Uuid>)>(
-        r#"
-        SELECT etat_classement, titulaire_id
-        FROM messages
-        WHERE id = $1 AND cabinet_id = $2
-        "#,
+    if !message_lisible(&state.pool, claims.cabinet_id, claims.sub, message_id).await? {
+        return Err(ApiError::not_found("Message introuvable"));
+    }
+    let etat = sqlx::query_scalar::<_, String>(
+        "SELECT etat_classement FROM messages WHERE id = $1 AND cabinet_id = $2",
     )
     .bind(message_id)
     .bind(claims.cabinet_id)
@@ -393,10 +415,7 @@ pub async fn classer_message(
     .await
     .map_err(|_| ApiError::internal("Lecture message"))?
     .ok_or_else(|| ApiError::not_found("Message introuvable"))?;
-    if ligne.1.is_some_and(|id| id != claims.sub) {
-        return Err(ApiError::not_found("Message introuvable"));
-    }
-    if ligne.0 != "a_classer" && ligne.0 != "suggestion" {
+    if etat != "a_classer" && etat != "suggestion" {
         return Err(ApiError::bad_request("Message déjà classé"));
     }
     if !dossier_visible(&state, claims.cabinet_id, claims.sub, corps.dossier_id).await? {

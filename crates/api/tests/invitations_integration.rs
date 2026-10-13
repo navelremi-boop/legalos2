@@ -15,7 +15,7 @@ use http_body_util::BodyExt;
 use legalos_api::config::{Config, ParametresMessagerie};
 use legalos_api::invitations::{enregistrer_invitation, InvitationRecue, IssueInvitation};
 use legalos_api::{build_app_state, build_router};
-use legalos_messagerie::lire_invitation;
+use legalos_messagerie::{lire_invitation, VerdictOrigine};
 use serde_json::{json, Value};
 use totp_rs::{Algorithm, Builder, Secret, Totp};
 use tower::ServiceExt;
@@ -201,8 +201,20 @@ struct Cadre {
 }
 
 impl Cadre {
+    /// Invitation reçue de l'organisateur lui-même (`From` = `ORGANIZER`).
     async fn recevoir(&self, texte: &str, message_id: &str) -> IssueInvitation {
-        let lue = lire_invitation(texte).expect("invitation lisible");
+        self.recevoir_de(texte, message_id, &[ORGANISATEUR]).await
+    }
+
+    /// Invitation reçue d'un message dont `From` / `Sender` sont `expediteurs`.
+    async fn recevoir_de(
+        &self,
+        texte: &str,
+        message_id: &str,
+        expediteurs: &[&str],
+    ) -> IssueInvitation {
+        let mut lue = lire_invitation(texte).expect("invitation lisible");
+        lue.expediteurs = expediteurs.iter().map(|e| (*e).to_owned()).collect();
         enregistrer_invitation(
             &self.pool,
             &InvitationRecue {
@@ -790,4 +802,163 @@ async fn scenario(url_base_jetable: String) {
         StatusCode::CONFLICT,
         "A atteint sa ligne annulée (409) alors que B a 404"
     );
+    // =========================================================================================
+    // Origine : seul l'organisateur enregistré met à jour ou annule ; l'ORGANIZER ne change pas
+    // =========================================================================================
+    let uid_o = "inv-j11-origine@example.com";
+    let intrus = "intrus@example.com";
+    let secretariat = "secretariat@example.com";
+    let ligne_o = || async {
+        sqlx::query_as::<_, (i32, String, String, String, bool)>(
+            "SELECT sequence, effet, objet, organisateur, verifiee FROM invitations_agenda WHERE titulaire_id = $1 AND uid_ical = $2",
+        )
+        .bind(id_a)
+        .bind(uid_o)
+        .fetch_one(&pool)
+        .await
+        .expect("ligne d'origine")
+    };
+
+    // Création par un expéditeur qui n'est pas l'ORGANIZER annoncé : enregistrée, non vérifiée.
+    assert_eq!(
+        cadre
+            .recevoir_de(
+                &ics("REQUEST", uid_o, 0, paris, "Audience origine"),
+                "<o0@example.com>",
+                &[secretariat]
+            )
+            .await,
+        IssueInvitation::Creee
+    );
+    assert!(!ligne_o().await.4, "création par un tiers : non vérifiée");
+    let (statut, liste) = appel(&app, "GET", "/messagerie/invitations", &a, Value::Null).await;
+    assert_eq!(statut, StatusCode::OK);
+    let exposee = liste
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["uid_ical"] == json!(uid_o))
+        .expect("invitation exposée")
+        .clone();
+    assert_eq!(exposee["verifiee"], json!(false), "l'API expose le doute");
+    // Essai négatif : une création par l'organisateur est vérifiée.
+    cadre
+        .recevoir(
+            &ics(
+                "REQUEST",
+                "inv-j11-origine-ok@example.com",
+                0,
+                paris,
+                "Audience directe",
+            ),
+            "<o-ok@example.com>",
+        )
+        .await;
+    let directe: bool = sqlx::query_scalar(
+        "SELECT verifiee FROM invitations_agenda WHERE titulaire_id = $1 AND uid_ical = 'inv-j11-origine-ok@example.com'",
+    )
+    .bind(id_a)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(directe, "création par l'organisateur : vérifiée");
+
+    // Mise à jour (SEQUENCE supérieure) par un tiers : aucun effet.
+    let avant = ligne_o().await;
+    let revision_avant: i64 = sqlx::query_scalar(
+        "SELECT revision FROM invitations_agenda WHERE titulaire_id = $1 AND uid_ical = $2",
+    )
+    .bind(id_a)
+    .bind(uid_o)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        cadre
+            .recevoir_de(
+                &ics(
+                    "REQUEST",
+                    uid_o,
+                    4,
+                    paris,
+                    "Audience deplacee par un intrus"
+                ),
+                "<o1@example.com>",
+                &[intrus]
+            )
+            .await,
+        IssueInvitation::Refusee(VerdictOrigine::ExpediteurTiers)
+    );
+    // Annulation (SEQUENCE supérieure) par un tiers : aucun effet.
+    assert_eq!(
+        cadre
+            .recevoir_de(
+                &ics("CANCEL", uid_o, 5, paris, "Audience origine"),
+                "<o2@example.com>",
+                &[intrus]
+            )
+            .await,
+        IssueInvitation::Refusee(VerdictOrigine::ExpediteurTiers)
+    );
+    assert_eq!(
+        ligne_o().await,
+        avant,
+        "ni mise à jour ni annulation par un tiers"
+    );
+    let revision_apres: i64 = sqlx::query_scalar(
+        "SELECT revision FROM invitations_agenda WHERE titulaire_id = $1 AND uid_ical = $2",
+    )
+    .bind(id_a)
+    .bind(uid_o)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(revision_apres, revision_avant, "la révision ne bouge pas");
+
+    // ORGANIZER modifié dans une mise à jour envoyée par l'organisateur enregistré : refusé.
+    let organisateur_change = ics("REQUEST", uid_o, 6, paris, "Audience reprise").replace(
+        &format!("ORGANIZER:mailto:{ORGANISATEUR}"),
+        "ORGANIZER:mailto:autre-organisateur@example.com",
+    );
+    assert_eq!(
+        cadre
+            .recevoir_de(&organisateur_change, "<o3@example.com>", &[ORGANISATEUR])
+            .await,
+        IssueInvitation::Refusee(VerdictOrigine::OrganisateurModifie)
+    );
+    assert_eq!(
+        ligne_o().await,
+        avant,
+        "l'organisateur enregistré ne change pas"
+    );
+
+    // Essais négatifs : les mêmes messages, envoyés par l'organisateur enregistré, s'appliquent.
+    assert_eq!(
+        cadre
+            .recevoir_de(
+                &ics("REQUEST", uid_o, 4, paris, "Audience deplacee"),
+                "<o4@example.com>",
+                &[ORGANISATEUR]
+            )
+            .await,
+        IssueInvitation::MiseAJour
+    );
+    let apres_maj = ligne_o().await;
+    assert_eq!(
+        (apres_maj.0, apres_maj.2.as_str()),
+        (4, "Audience deplacee")
+    );
+    assert_eq!(apres_maj.3, ORGANISATEUR);
+    assert!(apres_maj.4, "mise à jour de l'organisateur : vérifiée");
+    assert_eq!(
+        cadre
+            .recevoir_de(
+                &ics("CANCEL", uid_o, 5, paris, "Audience origine"),
+                "<o5@example.com>",
+                &[ORGANISATEUR]
+            )
+            .await,
+        IssueInvitation::Annulee
+    );
+    assert_eq!(ligne_o().await.1, "annulation");
 }

@@ -1,5 +1,6 @@
 pub mod agenda;
 pub mod auth;
+pub mod boites;
 pub mod brouillons;
 pub mod cabinets;
 pub mod collaborateurs;
@@ -137,8 +138,17 @@ pub fn router(state: Arc<AppState>) -> Router {
         )
         .route(
             "/messagerie/comptes",
-            post(messagerie::creer_compte_nominatif),
+            get(boites::lister_comptes).post(messagerie::creer_compte_nominatif),
         )
+        .route(
+            "/messagerie/boites-partagees",
+            post(boites::creer_boite_partagee),
+        )
+        .route(
+            "/messagerie/boites-partagees/{compte_id}/membres",
+            get(boites::lister_membres).put(boites::definir_membres),
+        )
+        .route("/messagerie/sante", get(boites::sante_boites))
         .route(
             "/messagerie/invitations",
             get(invitations::lister_invitations),

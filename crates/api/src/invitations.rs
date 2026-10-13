@@ -8,7 +8,8 @@
 //! Aucun objet, aucune adresse ni aucun contenu dans les journaux : identifiants techniques.
 
 use legalos_messagerie::{
-    decider_invitation, DecisionInvitation, EffetInvitation, InvitationConnue, InvitationLue,
+    decider_invitation, juger_origine, DecisionInvitation, EffetInvitation, InvitationConnue,
+    InvitationLue, VerdictOrigine,
 };
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -27,6 +28,9 @@ pub struct InvitationRecue<'a> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IssueInvitation {
     Ignoree,
+    /// Mise à jour ou annulation d'un autre expéditeur que l'organisateur enregistré, ou dont
+    /// l'`ORGANIZER` diffère : aucun effet sur l'agenda.
+    Refusee(VerdictOrigine),
     Creee,
     MiseAJour,
     Annulee,
@@ -51,6 +55,10 @@ pub fn effet_depuis_texte(texte: &str) -> Option<EffetInvitation> {
 
 /// Enregistre, met à jour ou ignore l'invitation, en une transaction. Clé : (titulaire, UID).
 ///
+/// L'origine est jugée avant tout effet (`juger_origine`) : une mise à jour ou une annulation qui
+/// ne vient pas de l'organisateur enregistré est refusée, une création dont l'expéditeur n'est
+/// pas l'organisateur annoncé est enregistrée « non vérifiée ».
+///
 /// Un verrou consultatif sur la clé sérialise deux relèves concurrentes (deux boîtes du même
 /// titulaire qui reçoivent la même invitation) : la SEQUENCE est lue puis écrite sans trou.
 pub async fn enregistrer_invitation(
@@ -63,20 +71,27 @@ pub async fn enregistrer_invitation(
         .bind(format!("invitation:{}:{}", recue.titulaire_id, lue.uid))
         .execute(&mut *tx)
         .await?;
-    let connue = sqlx::query_as::<_, (i32, String)>(
-        "SELECT sequence, effet FROM invitations_agenda WHERE titulaire_id = $1 AND uid_ical = $2",
+    let enregistree = sqlx::query_as::<_, (i32, String, String)>(
+        "SELECT sequence, effet, organisateur FROM invitations_agenda WHERE titulaire_id = $1 AND uid_ical = $2",
     )
     .bind(recue.titulaire_id)
     .bind(&lue.uid)
     .fetch_optional(&mut *tx)
-    .await?
-    .and_then(|(sequence, effet)| {
+    .await?;
+    let organisateur_connu = enregistree.as_ref().map(|(_, _, o)| o.clone());
+    let connue = enregistree.and_then(|(sequence, effet, _)| {
         Some(InvitationConnue {
             sequence: u32::try_from(sequence).unwrap_or(0),
             effet: effet_depuis_texte(&effet)?,
         })
     });
     let decision = decider_invitation(connue, lue);
+    let origine = juger_origine(decision, organisateur_connu.as_deref(), lue);
+    if origine.refuse() {
+        tx.commit().await?;
+        return Ok(IssueInvitation::Refusee(origine));
+    }
+    let verifiee = origine == VerdictOrigine::Verifiee;
     let instants = lue.instants();
     let sequence = i32::try_from(lue.sequence).unwrap_or(i32::MAX);
     let issue = match decision {
@@ -86,8 +101,8 @@ pub async fn enregistrer_invitation(
                 r#"
                 INSERT INTO invitations_agenda (
                     id, cabinet_id, titulaire_id, uid_ical, sequence, effet, fuseau, debut, fin,
-                    objet, organisateur, debut_utc, fin_utc, message_id, compte_id
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                    objet, organisateur, debut_utc, fin_utc, message_id, compte_id, verifiee
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
                 "#,
             )
             .bind(Uuid::now_v7())
@@ -105,6 +120,7 @@ pub async fn enregistrer_invitation(
             .bind(&instants.fin_utc)
             .bind(recue.message_id)
             .bind(recue.compte_id)
+            .bind(verifiee)
             .execute(&mut *tx)
             .await?;
             IssueInvitation::Creee
@@ -116,7 +132,7 @@ pub async fn enregistrer_invitation(
                 UPDATE invitations_agenda
                 SET sequence = $3, effet = 'mise_a_jour', fuseau = $4, debut = $5, fin = $6,
                     objet = $7, organisateur = $8, debut_utc = $9, fin_utc = $10,
-                    message_id = $11, compte_id = $12,
+                    message_id = $11, compte_id = $12, verifiee = TRUE,
                     reponse = NULL, repondu_le = NULL, reponse_envoi_id = NULL,
                     revision = revision + 1
                 WHERE titulaire_id = $1 AND uid_ical = $2

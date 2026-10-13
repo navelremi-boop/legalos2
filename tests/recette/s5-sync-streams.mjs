@@ -63,7 +63,9 @@ const fluxAttendus = [
   "messages_restreints",
   "messages_a_classer",
   "messages_nominatifs",
+  "messages_boites_partagees",
   "comptes_nominatifs",
+  "comptes_partages",
   "invitations_titulaire",
   "brouillons_titulaire",
 ];
@@ -251,7 +253,7 @@ if (!/titulaire_id::text\s*=\s*auth\.user_id\(\)/.test(comptes)) {
 }
 if (/secret_ref/.test(comptes)) fail("comptes_nominatifs : secret_ref interdit");
 
-for (const nom of ["messages_publics", "messages_restreints", "messages_a_classer", "messages_nominatifs"]) {
+for (const nom of ["messages_publics", "messages_restreints", "messages_a_classer", "messages_nominatifs", "messages_boites_partagees"]) {
   if (!/texte_brut/.test(blocFlux(nom))) fail(`${nom} : texte_brut requis`);
 }
 const messagesPublics = blocFlux("messages_publics");
@@ -262,6 +264,29 @@ const aClasser = blocFlux("messages_a_classer");
 if (/JOIN/i.test(aClasser)) fail("messages_a_classer : jointure interdite");
 if (!/dossier_id IS NULL/.test(aClasser) || !/titulaire_id IS NULL/.test(aClasser)) {
   fail("messages_a_classer : boîte de classement sans titulaire");
+}
+if (!/boite_partagee\s*=\s*false/.test(aClasser)) {
+  fail("messages_a_classer : une boîte partagée ne passe pas par « À classer » du cabinet");
+}
+const partages = blocFlux("messages_boites_partagees");
+if (!/JOIN membres_boite_partagee ON messages\.compte_id = membres_boite_partagee\.compte_id/.test(partages)) {
+  fail("messages_boites_partagees : jointure sur les membres de la boîte requise");
+}
+if (!/membres_boite_partagee\.utilisateur_texte\s*=\s*auth\.user_id\(\)/.test(partages)) {
+  fail("messages_boites_partagees : membre = auth.user_id() requis");
+}
+if (!/messages\.visibilite\s*=\s*'public'/.test(partages)) {
+  fail("messages_boites_partagees : un mail classé en dossier restreint suit les droits du dossier");
+}
+const comptesPartages = blocFlux("comptes_partages");
+if (!/membres_boite_partagee\.utilisateur_texte\s*=\s*auth\.user_id\(\)/.test(comptesPartages)) {
+  fail("comptes_partages : membre = auth.user_id() requis");
+}
+if (/secret|hote|empreinte_refus/.test(comptesPartages)) fail("comptes_partages : identifiant de serveur interdit");
+for (const nom of ["messages_publics", "messages_restreints", "messages_a_classer", "messages_nominatifs", "messages_boites_partagees"]) {
+  if (!/messages\.arrivee_seq, messages\.arrivee_notifiable/.test(blocFlux(nom))) {
+    fail(`${nom} : colonnes d'arrivée (notification de bureau) requises`);
+  }
 }
 const nominatifs = blocFlux("messages_nominatifs");
 if (/JOIN/i.test(nominatifs)) fail("messages_nominatifs : jointure interdite (un seau par titulaire)");

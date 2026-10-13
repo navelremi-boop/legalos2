@@ -43,7 +43,7 @@ const TYPE_REPONSE_ITIP: &str = "text/calendar; method=REPLY; charset=utf-8";
 macro_rules! colonnes {
     () => {
         "i.id, i.uid_ical, i.sequence, i.effet, i.fuseau, i.debut, i.fin, i.debut_utc, \
-         i.fin_utc, i.objet, i.organisateur, i.message_id, i.compte_id, i.reponse, \
+         i.fin_utc, i.objet, i.organisateur, i.verifiee, i.message_id, i.compte_id, i.reponse, \
          to_char(i.repondu_le AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') \
              AS repondu_le, \
          i.reponse_envoi_id, i.revision, \
@@ -64,6 +64,7 @@ struct LigneInvitation {
     fin_utc: Option<String>,
     objet: String,
     organisateur: String,
+    verifiee: bool,
     message_id: Option<String>,
     compte_id: Option<Uuid>,
     reponse: Option<String>,
@@ -92,6 +93,9 @@ pub struct InvitationResponse {
     pub fin_utc: Option<String>,
     pub objet: String,
     pub organisateur: String,
+    /// Le mail qui la porte vient de l'organisateur annoncé. `false` : origine non confirmée, à
+    /// afficher comme telle.
+    pub verifiee: bool,
     /// `Message-ID` du message qui porte (la dernière version de) l'invitation.
     pub message_id: Option<String>,
     /// `accepte`, `refuse` ou `peut_etre` ; absent tant que le titulaire n'a pas répondu à cette
@@ -118,6 +122,7 @@ impl From<LigneInvitation> for InvitationResponse {
             fin_utc: ligne.fin_utc,
             objet: ligne.objet,
             organisateur: ligne.organisateur,
+            verifiee: ligne.verifiee,
             message_id: ligne.message_id,
             reponse: ligne.reponse,
             repondu_le: ligne.repondu_le,

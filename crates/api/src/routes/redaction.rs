@@ -237,25 +237,27 @@ pub(crate) fn est_doublon(err: &sqlx::Error) -> bool {
 // ---------------------------------------------------------------------------------------------
 
 /// Compte du cabinet que l'utilisateur a le droit d'utiliser : la boîte nominative d'un autre
-/// collaborateur est introuvable (404), pas interdite, pour ne rien révéler.
+/// collaborateur, ou une boîte partagée dont il n'est pas membre, est introuvable (404), pas
+/// interdite, pour ne rien révéler.
 pub(crate) async fn compte_accessible(
     state: &AppState,
     claims: &AccessClaims,
     compte_id: Uuid,
 ) -> Result<(String, String), ApiError> {
-    let ligne = sqlx::query_as::<_, (String, Option<Uuid>, String)>(
-        "SELECT type_compte, titulaire_id, adresse FROM comptes_mail WHERE id = $1 AND cabinet_id = $2",
+    let ligne = sqlx::query_as::<_, (String, String)>(
+        r#"
+        SELECT type_compte, adresse FROM comptes_mail
+        WHERE id = $1 AND cabinet_id = $2 AND compte_mail_lisible_par(id, $3)
+        "#,
     )
     .bind(compte_id)
     .bind(claims.cabinet_id)
+    .bind(claims.sub)
     .fetch_optional(&state.pool)
     .await
     .map_err(|_| ApiError::internal("Lecture compte"))?
     .ok_or_else(|| ApiError::not_found("Compte introuvable"))?;
-    if ligne.1.is_some_and(|titulaire| titulaire != claims.sub) {
-        return Err(ApiError::not_found("Compte introuvable"));
-    }
-    Ok((ligne.0, ligne.2))
+    Ok((ligne.0, ligne.1))
 }
 
 /// Paramètres IMAP d'un compte : ses propres identifiants (compte nominatif) ou la boîte de
@@ -335,7 +337,8 @@ pub(crate) struct LigneMessage {
 }
 
 /// Charge la ligne du message si l'utilisateur peut le lire : boîte nominative du seul
-/// titulaire, dossier restreint réservé à ses accès. Sinon 404.
+/// titulaire, boîte partagée de ses seuls membres, dossier restreint réservé à ses accès. Sinon
+/// 404.
 pub(crate) async fn charger_message(
     state: &AppState,
     claims: &AccessClaims,
@@ -345,7 +348,7 @@ pub(crate) async fn charger_message(
         _,
         (
             Uuid,
-            Option<Uuid>,
+            Option<bool>,
             Option<Uuid>,
             i64,
             String,
@@ -354,8 +357,8 @@ pub(crate) async fn charger_message(
         ),
     >(
         r#"
-        SELECT m.compte_id, m.titulaire_id, m.dossier_id, m.uid, m.dossier_imap, m.message_id,
-               c.type_compte
+        SELECT m.compte_id, compte_mail_lisible_par(m.compte_id, $3), m.dossier_id, m.uid,
+               m.dossier_imap, m.message_id, c.type_compte
         FROM messages m
         INNER JOIN comptes_mail c ON c.id = m.compte_id
         WHERE m.id = $1 AND m.cabinet_id = $2
@@ -363,11 +366,12 @@ pub(crate) async fn charger_message(
     )
     .bind(message_uuid)
     .bind(claims.cabinet_id)
+    .bind(claims.sub)
     .fetch_optional(&state.pool)
     .await
     .map_err(|_| ApiError::internal("Lecture message"))?
     .ok_or_else(|| ApiError::not_found("Message introuvable"))?;
-    if ligne.1.is_some_and(|titulaire| titulaire != claims.sub) {
+    if ligne.1 != Some(true) {
         return Err(ApiError::not_found("Message introuvable"));
     }
     if let Some(dossier_id) = ligne.2 {

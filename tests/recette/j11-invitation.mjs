@@ -182,7 +182,7 @@ function imap({ boite, action, dossier = "INBOX", cible = "", brut = "" }) {
 const CRLF = "\r\n";
 
 /** Corps iCalendar. `debut` : la ligne DTSTART complète ; `fin` : la ligne DTEND ou rien. */
-function calendrier({ methode = "REQUEST", uid, sequence = 0, debut, fin = "", objet, participant }) {
+function calendrier({ methode = "REQUEST", uid, sequence = 0, debut, fin = "", objet, participant, organisateurIcal = organisateur }) {
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -195,7 +195,7 @@ function calendrier({ methode = "REQUEST", uid, sequence = 0, debut, fin = "", o
     debut,
     ...(fin ? [fin] : []),
     `SUMMARY:${objet}`,
-    `ORGANIZER;CN=Organisateur Fictif:mailto:${organisateur}`,
+    `ORGANIZER;CN=Organisateur Fictif:mailto:${organisateurIcal}`,
     `ATTENDEE;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${participant}`,
     ...(methode === "CANCEL" ? ["STATUS:CANCELLED"] : []),
     "END:VEVENT",
@@ -204,9 +204,10 @@ function calendrier({ methode = "REQUEST", uid, sequence = 0, debut, fin = "", o
   ].join(CRLF);
 }
 
-function messageInvitation({ messageId, destinataire, objet, ical, methode = "REQUEST" }) {
+function messageInvitation({ messageId, destinataire, objet, ical, methode = "REQUEST", de = organisateur, sender = "" }) {
   return [
-    `From: Organisateur Fictif <${organisateur}>`,
+    `From: Organisateur Fictif <${de}>`,
+    ...(sender ? [`Sender: ${sender}`] : []),
     `To: ${destinataire}`,
     `Subject: Invitation : ${objet}`,
     `Message-ID: ${messageId}`,
@@ -228,7 +229,7 @@ function messageInvitation({ messageId, destinataire, objet, ical, methode = "RE
 
 const identifiantMessage = (etiquette) => `<inv-${etiquette}-${marque}@example.com>`;
 
-function deposer({ etiquette, uid, sequence, debut, fin, objet, methode = "REQUEST", participant }) {
+function deposer({ etiquette, uid, sequence, debut, fin, objet, methode = "REQUEST", participant, de, sender, organisateurIcal }) {
   const messageId = identifiantMessage(etiquette);
   imap({
     boite: capa,
@@ -238,7 +239,9 @@ function deposer({ etiquette, uid, sequence, debut, fin, objet, methode = "REQUE
       destinataire: participant,
       objet,
       methode,
-      ical: calendrier({ methode, uid, sequence, debut, fin, objet, participant }),
+      de,
+      sender,
+      ical: calendrier({ methode, uid, sequence, debut, fin, objet, participant, organisateurIcal }),
     }),
   });
   return messageId;
@@ -684,6 +687,61 @@ async function main() {
     verifier("Europe/Paris : UTC+2 en été, UTC+1 en hiver", decalageHeures(ete) === 2 && decalageHeures(hiver) === 1);
     essaiNegatif("UTC+2 en été", "la ligne d'hiver", () => decalageHeures(hiver) === 2);
     ok("fuseaux : Europe/Paris été (UTC+2) et hiver (UTC+1), 25 octobre 02:30 = première occurrence, New York, Tokyo, UTC, flottant, journée entière, nom Windows, fuseau inconnu sans instant inventé");
+
+    // ==========================================================================================
+    // Origine : seul l'organisateur enregistré met à jour ou annule ; l'ORGANIZER ne change pas
+    // ==========================================================================================
+    const uidOrigine = `origine-${marque}@example.com`;
+    const intrus = "intrus@example.com";
+    const secretariat = "secretariat@cabinet.example";
+    const verifiee = async (u) => (await sqlServeur(`SELECT verifiee::text FROM invitations_agenda WHERE uid_ical = '${u}'`)) === "true";
+    const apresMessage = async (etiquette, parametres) => {
+      const id = deposer({ etiquette, participant: adresseCompteA, debut: "DTSTART;TZID=Europe/Paris:20261008T090000", ...parametres });
+      await attendreMessageRecu(compteA.id, id);
+      return id;
+    };
+
+    // Création par un expéditeur qui n'est pas l'ORGANIZER annoncé : enregistrée, « non vérifiée ».
+    await apresMessage("o0", { uid: uidOrigine, sequence: 0, objet: `Audience origine ${marque}`, de: secretariat });
+    const creeeParTiers = await attendreLigne(uidOrigine);
+    verifier("création par un tiers : enregistrée", creeeParTiers.sequence === 0 && creeeParTiers.effet === "demande");
+    verifier("création par un tiers : marquée non vérifiée", !(await verifiee(uidOrigine)));
+    verifier("création par un tiers : l'API expose verifiee=false", (await listeApi(jetonA)).find((i) => i.uid_ical === uidOrigine)?.verifiee === false);
+    // Essai négatif : la même création par l'organisateur est vérifiée.
+    const uidDirecte = `origine-directe-${marque}@example.com`;
+    await apresMessage("o0b", { uid: uidDirecte, sequence: 0, objet: `Audience directe ${marque}` });
+    const directeVerifiee = await verifiee(uidDirecte);
+    verifier("création par l'organisateur : vérifiée", directeVerifiee);
+    essaiNegatif("création non vérifiée", "la même création envoyée par l'organisateur", () => !directeVerifiee);
+
+    // Mise à jour et annulation (SEQUENCE supérieure) par un tiers : aucun effet.
+    await apresMessage("o1", { uid: uidOrigine, sequence: 1, objet: `Audience deplacee par un intrus ${marque}`, de: intrus, organisateurIcal: organisateur });
+    await apresMessage("o2", { uid: uidOrigine, sequence: 2, methode: "CANCEL", objet: `Audience origine ${marque}`, de: intrus });
+    const apresTiers = await ligneInvitation(uidOrigine);
+    const miseAJourAppliquee = (l) => l.sequence >= 1 || l.objet.includes("intrus");
+    const annulationAppliquee = (l) => l.effet === "annulation";
+    verifier("mise à jour par un tiers : sans effet", !miseAJourAppliquee(apresTiers));
+    verifier("annulation par un tiers : sans effet", !annulationAppliquee(apresTiers));
+    verifier("tiers : la ligne est strictement inchangée", inchangee(creeeParTiers, apresTiers));
+
+    // ORGANIZER modifié dans une mise à jour envoyée par l'organisateur enregistré : refusé.
+    await apresMessage("o3", { uid: uidOrigine, sequence: 3, objet: `Audience reprise ${marque}`, organisateurIcal: intrus });
+    const apresChangement = await ligneInvitation(uidOrigine);
+    const organisateurEnBase = () => sqlServeur(`SELECT organisateur FROM invitations_agenda WHERE uid_ical = '${uidOrigine}'`);
+    verifier("ORGANIZER modifié : mise à jour refusée", inchangee(creeeParTiers, apresChangement));
+    verifier("ORGANIZER modifié : l'organisateur enregistré ne change pas", (await organisateurEnBase()) === organisateur);
+
+    // Essais négatifs : les mêmes mises à jour et annulation, envoyées par l'organisateur enregistré
+    // (ici via l'en-tête Sender, l'expéditeur réel étant un secrétariat), s'appliquent.
+    await apresMessage("o4", { uid: uidOrigine, sequence: 4, objet: `Audience deplacee ${marque}`, de: secretariat, sender: organisateur });
+    const apresOrganisateur = await attendreLigne(uidOrigine, (l) => l.sequence === 4);
+    verifier("organisateur (en-tête Sender) : mise à jour appliquée", apresOrganisateur.effet === "mise_a_jour" && apresOrganisateur.objet === `Audience deplacee ${marque}`);
+    verifier("organisateur : la ligne devient vérifiée", await verifiee(uidOrigine));
+    essaiNegatif("mise à jour sans effet", "la mise à jour envoyée par l'organisateur", () => !miseAJourAppliquee(apresOrganisateur));
+    await apresMessage("o5", { uid: uidOrigine, sequence: 5, methode: "CANCEL", objet: `Audience origine ${marque}` });
+    const annuleeParOrganisateur = await attendreLigne(uidOrigine, (l) => l.effet === "annulation");
+    essaiNegatif("annulation sans effet", "l'annulation envoyée par l'organisateur", () => !annulationAppliquee(annuleeParOrganisateur));
+    ok("origine : création par un tiers non vérifiée ; mise à jour, annulation et ORGANIZER modifié par un tiers sans effet (essais négatifs : l'organisateur, lui, est appliqué)");
 
     // ==========================================================================================
     // Un autre collaborateur ne voit rien (bilan)

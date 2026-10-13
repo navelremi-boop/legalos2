@@ -55,6 +55,9 @@ pub struct InvitationLue {
     pub objet: String,
     pub organisateur: String,
     pub participants: Vec<String>,
+    /// Adresses des en-têtes `From` et `Sender` du message porteur, en minuscules. Vide quand
+    /// l'invitation ne vient pas d'un message (calendrier seul, reconstitution depuis la base).
+    pub expediteurs: Vec<String>,
 }
 
 /// Début et fin sous forme de texte : heure civile du fuseau annoncé, et instant UTC quand il se
@@ -126,6 +129,7 @@ pub fn lire_invitation(ical: &str) -> Result<InvitationLue, ErreurMail> {
             .map(|participant| adresse_cal(&participant.cal_address))
             .filter(|adresse| !adresse.is_empty())
             .collect(),
+        expediteurs: Vec::new(),
     })
 }
 
@@ -173,7 +177,16 @@ pub fn invitation_du_message(octets: &[u8]) -> Result<Option<InvitationLue>, Err
             || String::from_utf8_lossy(partie.contents()).into_owned(),
             str::to_owned,
         );
-        return lire_invitation(&texte).map(Some);
+        let mut lue = lire_invitation(&texte)?;
+        lue.expediteurs = [message.from(), message.sender()]
+            .into_iter()
+            .flatten()
+            .flat_map(mail_parser::Address::iter)
+            .filter_map(|boite| boite.address())
+            .map(|adresse| adresse.trim().to_ascii_lowercase())
+            .filter(|adresse| !adresse.is_empty())
+            .collect();
+        return Ok(Some(lue));
     }
     Ok(None)
 }
@@ -211,6 +224,7 @@ pub fn invitation_depuis_stockage(
         objet: stockee.objet.to_owned(),
         organisateur: stockee.organisateur.to_owned(),
         participants: Vec::new(),
+        expediteurs: Vec::new(),
     })
 }
 
@@ -263,6 +277,83 @@ pub fn decider_invitation(
                 DecisionInvitation::MettreAJour
             } else {
                 DecisionInvitation::Ignorer
+            }
+        }
+    }
+}
+
+/// L'origine d'une invitation est-elle celle de son organisateur ?
+///
+/// Une mise à jour ou une annulation n'est crédible que si le mail vient de l'organisateur
+/// enregistré pour ce UID (`From` ou `Sender`) et si l'`ORGANIZER` annoncé est le même : sans cela
+/// n'importe quel expéditeur qui connaît le UID déplacerait ou supprimerait l'audience d'autrui.
+/// À la création, un expéditeur qui n'est pas l'organisateur annoncé ne bloque rien (un
+/// secrétariat peut envoyer pour un confrère) mais la ligne est marquée « non vérifiée ».
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VerdictOrigine {
+    /// Expéditeur et organisateur concordent (ou rien à appliquer).
+    Verifiee,
+    /// Création dont l'expéditeur n'est pas l'`ORGANIZER` annoncé.
+    NonVerifiee,
+    /// Mise à jour ou annulation envoyée par quelqu'un d'autre que l'organisateur enregistré.
+    ExpediteurTiers,
+    /// Mise à jour ou annulation dont l'`ORGANIZER` diffère de celui enregistré.
+    OrganisateurModifie,
+}
+
+impl VerdictOrigine {
+    /// Le verdict interdit-il d'appliquer la décision ?
+    #[must_use]
+    pub fn refuse(self) -> bool {
+        matches!(self, Self::ExpediteurTiers | Self::OrganisateurModifie)
+    }
+
+    /// Motif sans donnée personnelle, pour le journal de relève.
+    #[must_use]
+    pub fn motif(self) -> &'static str {
+        match self {
+            Self::Verifiee => "verifiee",
+            Self::NonVerifiee => "non_verifiee",
+            Self::ExpediteurTiers => "expediteur_tiers",
+            Self::OrganisateurModifie => "organisateur_modifie",
+        }
+    }
+}
+
+fn meme_adresse(a: &str, b: &str) -> bool {
+    !a.trim().is_empty() && a.trim().eq_ignore_ascii_case(b.trim())
+}
+
+/// Juge l'origine d'une invitation à appliquer. `organisateur_connu` est l'`ORGANIZER`
+/// enregistré pour ce UID (absent à la création).
+#[must_use]
+pub fn juger_origine(
+    decision: DecisionInvitation,
+    organisateur_connu: Option<&str>,
+    lue: &InvitationLue,
+) -> VerdictOrigine {
+    let envoye_par = |organisateur: &str| {
+        lue.expediteurs
+            .iter()
+            .any(|expediteur| meme_adresse(expediteur, organisateur))
+    };
+    match decision {
+        DecisionInvitation::Ignorer => VerdictOrigine::Verifiee,
+        DecisionInvitation::Creer => {
+            if envoye_par(&lue.organisateur) {
+                VerdictOrigine::Verifiee
+            } else {
+                VerdictOrigine::NonVerifiee
+            }
+        }
+        DecisionInvitation::MettreAJour | DecisionInvitation::Annuler => {
+            let connu = organisateur_connu.unwrap_or("");
+            if !envoye_par(connu) {
+                VerdictOrigine::ExpediteurTiers
+            } else if !meme_adresse(connu, &lue.organisateur) {
+                VerdictOrigine::OrganisateurModifie
+            } else {
+                VerdictOrigine::Verifiee
             }
         }
     }
@@ -403,9 +494,9 @@ fn adresse_cal(valeur: &str) -> String {
 #[allow(clippy::expect_used, clippy::panic)]
 mod tests {
     use super::{
-        decider_invitation, invitation_depuis_stockage, invitation_du_message, lire_invitation,
-        reponse_invitation, DecisionInvitation, EffetInvitation, InvitationConnue,
-        InvitationStockee, ReponseInvitation,
+        decider_invitation, invitation_depuis_stockage, invitation_du_message, juger_origine,
+        lire_invitation, reponse_invitation, DecisionInvitation, EffetInvitation, InvitationConnue,
+        InvitationStockee, ReponseInvitation, VerdictOrigine,
     };
     use icalendar::{Calendar, CalendarComponent, Component, PartStat};
     use std::str::FromStr;
@@ -862,6 +953,98 @@ Pas d'invitation.\r\n";
         assert_eq!(
             decider_invitation(None, &lue("REQUEST", 0)),
             DecisionInvitation::Creer
+        );
+    }
+    fn lue_de(expediteurs: &[&str], organisateur: &str) -> super::InvitationLue {
+        let mut lue = lue("REQUEST", 3);
+        lue.organisateur = organisateur.to_owned();
+        lue.expediteurs = expediteurs.iter().map(|e| (*e).to_owned()).collect();
+        lue
+    }
+
+    #[test]
+    fn expediteurs_lus_dans_from_et_sender() {
+        let brut = "From: Organisateur <Organisateur@Example.com>
+Sender: secretariat@example.com
+To: avocat@cabinet.example
+Subject: Audience fictive
+MIME-Version: 1.0
+Content-Type: text/calendar; method=REQUEST
+
+BEGIN:VCALENDAR
+METHOD:REQUEST
+BEGIN:VEVENT
+UID:fictif-exp@example.com
+SEQUENCE:0
+DTSTART;TZID=Europe/Paris:20261006T090000
+SUMMARY:Audience fictive
+ORGANIZER:mailto:organisateur@example.com
+END:VEVENT
+END:VCALENDAR
+";
+        let lue = invitation_du_message(brut.as_bytes())
+            .expect("lecture")
+            .expect("invitation");
+        assert_eq!(
+            lue.expediteurs,
+            ["organisateur@example.com", "secretariat@example.com"]
+        );
+    }
+
+    #[test]
+    fn mise_a_jour_ou_annulation_par_un_tiers_est_refusee() {
+        let tiers = lue_de(&["intrus@example.com"], "organisateur@example.com");
+        for decision in [DecisionInvitation::MettreAJour, DecisionInvitation::Annuler] {
+            let verdict = juger_origine(decision, Some("organisateur@example.com"), &tiers);
+            assert_eq!(verdict, VerdictOrigine::ExpediteurTiers);
+            assert!(verdict.refuse());
+        }
+        // Essai négatif : le même mail envoyé par l'organisateur est appliqué.
+        let organisateur = lue_de(&["Organisateur@example.com"], "organisateur@example.com");
+        for decision in [DecisionInvitation::MettreAJour, DecisionInvitation::Annuler] {
+            let verdict = juger_origine(decision, Some("organisateur@example.com"), &organisateur);
+            assert_eq!(verdict, VerdictOrigine::Verifiee);
+            assert!(!verdict.refuse());
+        }
+    }
+
+    #[test]
+    fn l_organisateur_ne_change_jamais_par_une_mise_a_jour() {
+        let change = lue_de(&["organisateur@example.com"], "autre@example.com");
+        let verdict = juger_origine(
+            DecisionInvitation::MettreAJour,
+            Some("organisateur@example.com"),
+            &change,
+        );
+        assert_eq!(verdict, VerdictOrigine::OrganisateurModifie);
+        assert!(verdict.refuse());
+        // Un mail sans expéditeur lisible ne peut pas prouver l'origine.
+        let anonyme = lue_de(&[], "organisateur@example.com");
+        assert_eq!(
+            juger_origine(
+                DecisionInvitation::Annuler,
+                Some("organisateur@example.com"),
+                &anonyme
+            ),
+            VerdictOrigine::ExpediteurTiers
+        );
+    }
+
+    #[test]
+    fn creation_par_un_autre_que_l_organisateur_est_non_verifiee() {
+        let secretariat = lue_de(&["secretariat@example.com"], "organisateur@example.com");
+        let verdict = juger_origine(DecisionInvitation::Creer, None, &secretariat);
+        assert_eq!(verdict, VerdictOrigine::NonVerifiee);
+        assert!(!verdict.refuse(), "la création n'est pas bloquée");
+        let direct = lue_de(&["organisateur@example.com"], "organisateur@example.com");
+        assert_eq!(
+            juger_origine(DecisionInvitation::Creer, None, &direct),
+            VerdictOrigine::Verifiee
+        );
+        // Un rejeu ou une SEQUENCE ancienne n'a rien à appliquer, donc rien à refuser.
+        assert_eq!(
+            juger_origine(DecisionInvitation::Ignorer, None, &secretariat),
+            VerdictOrigine::Verifiee
         );
     }
 }
