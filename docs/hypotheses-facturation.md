@@ -46,3 +46,7 @@ Typst n'est pas une bibliothèque liée dans le binaire Rust de l'API : à la va
 ## F9 — SIREN et n° TVA FR
 
 Le SIREN saisi est refusé s'il n'a pas 9 chiffres dont la clé de Luhn. Un n° de TVA commençant par FR est `FR` + clé sur deux chiffres + SIREN, avec clé = `(12 + 3 × (SIREN mod 97)) mod 97` (critère de PLAN.md). Cas fictif : `100000009` / `FR88100000009`. Un n° qui ne commence pas par FR n'est pas contrôlé par cette clé. **À valider par l'avocat.**
+
+## F10 — Barème des minutes proposées depuis un mail
+
+Un mail classé dans un dossier, lu ou traité, propose des minutes à saisir sur ce dossier (J11, `apps/poste/src/messagerie/tempsMail.ts`, constante `BAREME_MINUTES`) : lecture 6 minutes, réponse 12 minutes, transfert 6 minutes. Chaque traitement compte une fois, sans y ajouter la lecture ; une réponse suivie d'un transfert propose 18 minutes ; plafond de 480 minutes par saisie. La proposition n'est jamais enregistrée sans validation de l'utilisateur, qui peut corriger les minutes ; la saisie passe par le chemin des temps de J8 (taux figé à l'enregistrement, dernier taux horaire du cabinet hors dossier, sinon 60 € de l'heure). Ces valeurs sont une **hypothèse produit de l'état-major, pas une règle de droit**. **À valider par l'avocat.**
