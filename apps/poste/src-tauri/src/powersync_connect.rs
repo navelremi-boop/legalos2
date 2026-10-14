@@ -152,6 +152,11 @@ async fn traiter_entree(
         UpdateType::Put | UpdateType::Patch => {}
     }
 
+    // Brouillons de message : écriture partielle rejouable (PUT API), sans révision de base.
+    if entry.table == TABLE_BROUILLONS_MESSAGE {
+        return envoyer_brouillon(session, db, entry).await;
+    }
+
     let Some(ressource) = ressource_connue(&entry.table) else {
         consign_refus(
             db,
@@ -334,10 +339,15 @@ fn ressource_suppression(table: &str) -> Option<&'static Suppression> {
         table: "agenda_elements",
         chemin: |id| format!("/api/agenda/{id}"),
     };
+    static BROUILLONS_MESSAGE: Suppression = Suppression {
+        table: TABLE_BROUILLONS_MESSAGE,
+        chemin: |id| format!("/api/messagerie/brouillons/{id}"),
+    };
     match table {
         "intercalaires_personnalises" => Some(&INTERCALAIRES),
         "intercalaire_elements" => Some(&ELEMENTS),
         "agenda_elements" => Some(&AGENDA),
+        "brouillons_message" => Some(&BROUILLONS_MESSAGE),
         _ => None,
     }
 }
@@ -365,6 +375,94 @@ async fn envoyer_delete(
         "DELETE",
         &chemin,
         &body,
+    )
+    .await
+}
+
+/// Table des brouillons de message (J11) : propre à son auteur, écrite par le poste (hors ligne comprise).
+const TABLE_BROUILLONS_MESSAGE: &str = "brouillons_message";
+
+/// Opération interne : écriture partielle d'un brouillon, envoyée en HTTP PUT sur son identifiant.
+const OPERATION_PUT_API: &str = "PUT_API";
+
+/// Valeur texte non vide d'une colonne, sinon rien.
+fn texte_non_vide<'a>(data: &'a Map<String, Value>, colonne: &str) -> Option<&'a str> {
+    data.get(colonne)
+        .and_then(Value::as_str)
+        .filter(|texte| !texte.is_empty())
+}
+
+/// Lignes d'une colonne texte « une valeur par ligne » : vides retirées, espaces autour retirés.
+fn lignes_de_colonne(valeur: &Value) -> Vec<Value> {
+    valeur
+        .as_str()
+        .unwrap_or_default()
+        .split('\n')
+        .map(str::trim)
+        .filter(|ligne| !ligne.is_empty())
+        .map(|ligne| json!(ligne))
+        .collect()
+}
+
+/// Corps de l'écriture partielle d'un brouillon (`PUT /messagerie/brouillons/{id}`) depuis les colonnes
+/// locales que l'entrée de la file porte. Seules les colonnes présentes partent (une mise à jour locale d'un
+/// champ reste une écriture d'un champ). Les colonnes que le serveur pose (cabinet, auteur, pièces,
+/// révision, dates) ne partent jamais. `dossier_id` vide détache le brouillon, `en_reponse_a` vide efface le fil.
+fn corps_brouillon(data: &Map<String, Value>) -> Map<String, Value> {
+    let mut corps = Map::new();
+    for colonne in ["compte_id", "genre", "origine_message_id"] {
+        if let Some(valeur) = texte_non_vide(data, colonne) {
+            corps.insert(colonne.to_string(), json!(valeur));
+        }
+    }
+    for colonne in ["objet", "corps_html", "corps"] {
+        if let Some(valeur) = data.get(colonne).and_then(Value::as_str) {
+            corps.insert(colonne.to_string(), json!(valeur));
+        }
+    }
+    if data.contains_key("dossier_id") {
+        let valeur = match texte_non_vide(data, "dossier_id") {
+            Some(id) => json!(id),
+            None => Value::Null,
+        };
+        corps.insert("dossier_id".to_string(), valeur);
+    }
+    if data.contains_key("en_reponse_a") {
+        let valeur = data
+            .get("en_reponse_a")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        corps.insert("en_reponse_a".to_string(), json!(valeur));
+    }
+    for (colonne, champ) in [
+        ("a", "a"),
+        ("cc", "cc"),
+        ("cci", "cci"),
+        ("references_texte", "references"),
+    ] {
+        if let Some(valeur) = data.get(colonne) {
+            corps.insert(champ.to_string(), Value::Array(lignes_de_colonne(valeur)));
+        }
+    }
+    corps
+}
+
+async fn envoyer_brouillon(
+    session: &Arc<Mutex<SessionSync>>,
+    db: &PowerSyncDatabase,
+    entry: &CrudEntry,
+) -> Result<(), PowerSyncError> {
+    let data = entry.data.as_ref().cloned().unwrap_or_default();
+    let corps = corps_brouillon(&data);
+    let chemin = format!("/api/messagerie/brouillons/{}", entry.id);
+    envoyer_http(
+        session,
+        db,
+        TABLE_BROUILLONS_MESSAGE,
+        &entry.id,
+        OPERATION_PUT_API,
+        &chemin,
+        &corps,
     )
     .await
 }
@@ -504,6 +602,8 @@ async fn envoyer_http(
         "PUT" => client.post(&url),
         // DELETE local → DELETE API (corps idempotence_cle) pour intercalaires / rattachements.
         "DELETE" => client.delete(&url),
+        // Brouillon de message : écriture partielle rejouable, dernière écriture gagnante.
+        OPERATION_PUT_API => client.put(&url),
         other => {
             consign_refus(
                 db,
@@ -530,9 +630,19 @@ async fn envoyer_http(
         }
         return Ok(());
     }
+    // Un brouillon supprimé ici avant d'avoir atteint le serveur n'y existe pas : rien à retirer, rien à signaler.
+    if operation == "DELETE" && table == TABLE_BROUILLONS_MESSAGE && status == StatusCode::NOT_FOUND
+    {
+        return Ok(());
+    }
     if est_refus_definitif(status) {
         let message = message_refus(&corps, status);
-        consign_refus(db, table, id, operation, Some(status.as_u16()), &message).await?;
+        let etiquette = if operation == OPERATION_PUT_API {
+            "PUT"
+        } else {
+            operation
+        };
+        consign_refus(db, table, id, etiquette, Some(status.as_u16()), &message).await?;
         return Ok(());
     }
     Err(upload_err(format!(
@@ -745,6 +855,35 @@ mod tests {
         b.insert("slug".into(), json!("s"));
         b.insert("nom".into(), json!("A"));
         assert_eq!(cle_idempotence("id", 3, &a), cle_idempotence("id", 3, &b));
+    }
+
+    #[test]
+    fn brouillon_message_est_ecrit_et_supprime_par_l_api() {
+        assert!(ressource_suppression("brouillons_message").is_some());
+        assert!(ressource_connue("brouillons_message").is_none());
+        let chemin = (ressource_suppression("brouillons_message").unwrap().chemin)("id-x");
+        assert_eq!(chemin, "/api/messagerie/brouillons/id-x");
+    }
+
+    /// Même fixture que le miroir TypeScript (`apps/poste/src/sync/uploadBrouillon.ts`) : les deux côtés
+    /// construisent le même corps pour les mêmes colonnes.
+    #[test]
+    fn corps_brouillon_suit_le_contrat_partage() {
+        let cas: Vec<Value> = serde_json::from_str(include_str!(
+            "../../../../tests/recette/fixtures/brouillon-upload.json"
+        ))
+        .unwrap();
+        assert!(cas.len() >= 5);
+        for cas in cas {
+            let colonnes = cas["colonnes"].as_object().unwrap();
+            let attendu = cas["corps"].clone();
+            assert_eq!(
+                Value::Object(corps_brouillon(colonnes)),
+                attendu,
+                "{}",
+                cas["nom"]
+            );
+        }
     }
 
     #[test]

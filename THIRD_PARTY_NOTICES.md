@@ -21,3 +21,4 @@ Une copie ou un portage de code sous MIT, Apache-2.0 ou BSD ajoute ici l'en-têt
 | zip | 8.6.0 | MIT | https://crates.io/crates/zip/8.6.0 |
 | pdf-extract | 0.12.1 | MIT | https://crates.io/crates/pdf-extract/0.12.1 |
 | @sqlite.org/sqlite-wasm | 3.53.4-build1 | Apache-2.0 | https://www.npmjs.com/package/@sqlite.org/sqlite-wasm |
+| @tiptap/react, @tiptap/core, @tiptap/pm, @tiptap/starter-kit | 3.31.4 | MIT | https://www.npmjs.com/package/@tiptap/react (transitives MIT : `prosemirror-*`, `linkifyjs`, `fast-equals`, `orderedmap`, `rope-sequence`, `w3c-keyname`) |

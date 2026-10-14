@@ -66,6 +66,9 @@ async function attendre(url, delai) {
 const ETATS = [
   { nom: "aclasser", appMail: "mail-2", maquetteMail: "2" },
   { nom: "invitation", appMail: "mail-4", maquetteMail: "4" },
+  // Rédaction à la place du volet de lecture (étape 4, partie B1) : réponse, puis transfert avec historique ouvert.
+  { nom: "redaction-reponse", appMail: "mail-1", maquetteMail: "1", appAction: "lecture-repondre", maquetteAction: "repondre" },
+  { nom: "redaction-transfert", appMail: "mail-1", maquetteMail: "1", appAction: "lecture-transferer", maquetteAction: "transferer" },
 ];
 
 let browser;
@@ -84,6 +87,10 @@ try {
     await page.waitForSelector("[data-testid=ecran-mails]");
     for (const etat of ETATS) {
       await page.locator(`[data-testid=mail-ligne][data-id=${etat.appMail}]`).click();
+      if (etat.appAction !== undefined) {
+        await page.locator(`[data-testid=${etat.appAction}]`).click();
+        await page.waitForSelector("[data-testid=mails-redaction]");
+      }
       await page.waitForTimeout(450);
       await page.locator("[data-testid=galerie-scene]").screenshot({ path: join(sortie, `app-${theme}-${etat.nom}.png`) });
     }
@@ -101,6 +108,7 @@ try {
     if (theme === "nuit") await pm.click(".choix[data-g=theme] button[data-t=nuit]");
     for (const etat of ETATS) {
       await pm.click(`.mail[data-id="${etat.maquetteMail}"]`);
+      if (etat.maquetteAction !== undefined) await pm.click(`[data-a="${etat.maquetteAction}"]`);
       await pm.waitForTimeout(450);
       await pm.locator("#win").screenshot({ path: join(sortie, `maquette-${theme}-${etat.nom}.png`) });
     }

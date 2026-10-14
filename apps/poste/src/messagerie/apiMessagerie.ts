@@ -10,7 +10,7 @@ import type { LigneEnvoi } from "@/messagerie/typesMails";
 
 export type ResultatAction = { ok: true } | { ok: false; message: string };
 
-function jetonAcces(): string | null {
+export function jetonAcces(): string | null {
   const jeton = loadSessionTokens().accessToken;
   return jeton === null || jeton === "" ? null : jeton;
 }
@@ -22,7 +22,7 @@ function entetes(jeton: string, avecCorps: boolean): Record<string, string> {
   };
 }
 
-async function lireJsonSansEchec(reponse: Response): Promise<unknown> {
+export async function lireJsonSansEchec(reponse: Response): Promise<unknown> {
   try {
     return (await reponse.json()) as unknown;
   } catch {

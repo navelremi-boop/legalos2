@@ -1,3 +1,5 @@
+import type { LigneBrouillon } from "@/messagerie/etatRedaction";
+
 /** Formes des données de l'écran Mails : lignes de la base locale (PowerSync) et file d'envoi (API). */
 
 export type CompteLocal = {
@@ -32,6 +34,8 @@ export type MailLocal = {
   lu?: number | boolean | null;
   dossier_imap?: string | null;
   cree_le?: string | null;
+  /** Brouillon de la base locale présenté dans la liste ; la sélection rouvre la rédaction. */
+  brouillon?: boolean;
 };
 
 export type InvitationLocale = {
@@ -68,4 +72,6 @@ export type DemonstrationMails = {
   maintenant?: string;
   /** Message sélectionné au départ. */
   selectionInitiale?: string;
+  /** Brouillons de la base locale (rédaction reprise, galerie seulement). */
+  brouillons?: LigneBrouillon[];
 };

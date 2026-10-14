@@ -338,6 +338,37 @@ const messages = new Table(
   { indexes: { dossier: ["dossier_id"], etat: ["etat_classement"], titulaire: ["titulaire_id"] } },
 );
 
+/**
+ * Brouillon de message (J11), propre à son auteur : flux `brouillons_titulaire`. Écrit sur le poste, envoyé à
+ * l'API par la file d'upload (dernière écriture gagnante, docs/conflits.md). Les listes d'adresses sont une
+ * adresse par ligne. `pieces_texte` est un JSON de résumés (jamais le contenu) : il ne s'écrit que côté serveur.
+ * Ni `imap_etat` ni `expediteur` ne descendent sur le poste.
+ */
+const brouillonsMessage = new Table(
+  {
+    cabinet_id: column.text,
+    auteur_id: column.text,
+    compte_id: column.text,
+    genre: column.text,
+    origine_message_id: column.text,
+    dossier_id: column.text,
+    a: column.text,
+    cc: column.text,
+    cci: column.text,
+    objet: column.text,
+    corps_html: column.text,
+    corps: column.text,
+    message_id: column.text,
+    en_reponse_a: column.text,
+    references_texte: column.text,
+    pieces_texte: column.text,
+    revision: column.integer,
+    cree_le: column.text,
+    modifie_le: column.text,
+  },
+  { indexes: { auteur: ["auteur_id"] } },
+);
+
 export const AppSchema = new Schema({
   cabinets,
   journal_modifications: journalModifications,
@@ -360,6 +391,7 @@ export const AppSchema = new Schema({
   invitations_agenda: invitationsAgenda,
   messages,
   comptes_mail: comptesMail,
+  brouillons_message: brouillonsMessage,
 });
 
 export type Database = (typeof AppSchema)["types"];

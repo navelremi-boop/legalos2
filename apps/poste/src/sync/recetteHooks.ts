@@ -1,4 +1,6 @@
+import { invoke } from "@tauri-apps/api/core";
 import { lireNotificationsEmises, type NotificationEmise } from "@/agenda/rappels";
+import { loadInstanceUrl, loadSessionTokens } from "@/lib/session/storage";
 import {
   cheminCacheDocument,
   ouvrirDocument,
@@ -88,6 +90,8 @@ export type RecetteHooks = {
   decalerOrigineSansRecalcul: (id: string, origine: string) => Promise<void>;
   /** Coupe le flux PowerSync sans fermer la base (écritures locales → ps_crud). */
   disconnectSync: () => Promise<void>;
+  /** Rétablit la synchronisation coupée par `disconnectSync` (même appel que le démarrage de l'app) : la file d'envoi part. */
+  reconnectSync: () => Promise<void>;
   cheminCacheDocument: (documentId: string) => Promise<string | null>;
   ouvrirDocument: (documentId: string) => Promise<string>;
   renvoyerVersionDocument: (
@@ -193,6 +197,15 @@ export function createRecetteHooks(): RecetteHooks {
     async disconnectSync() {
       const database = await getPowerSyncDatabase();
       await database.disconnect();
+    },
+    async reconnectSync() {
+      const database = await getPowerSyncDatabase();
+      const accessToken = loadSessionTokens().accessToken;
+      const instanceUrl = loadInstanceUrl();
+      if (accessToken === null || accessToken === "" || instanceUrl === null) {
+        throw new Error("session absente");
+      }
+      await invoke("connect_powersync", { handle: database.rustHandle, instanceUrl, accessToken });
     },
     async cheminCacheDocument(documentId: string) {
       return cheminCacheDocument(documentId);

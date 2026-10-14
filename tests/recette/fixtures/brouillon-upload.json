@@ -1,0 +1,63 @@
+[
+  {
+    "nom": "création complète : les listes deviennent des tableaux, les colonnes du serveur ne partent pas",
+    "colonnes": {
+      "cabinet_id": "c0000000-0000-4000-8000-000000000001",
+      "auteur_id": "a0000000-0000-4000-8000-000000000001",
+      "compte_id": null,
+      "genre": "reponse_a_tous",
+      "origine_message_id": "e0000000-0000-4000-8000-000000000001",
+      "dossier_id": null,
+      "a": "Me Anne Perrin <a.perrin@perrin-avocats.example>\nclient@exemple.example",
+      "cc": "",
+      "cci": "greffe@justice.example",
+      "objet": "Re : Conclusions en réplique",
+      "corps_html": "<p>Bonjour</p>",
+      "corps": "Bonjour",
+      "en_reponse_a": "<m1@exemple.example>",
+      "references_texte": "<m0@exemple.example>\n<m1@exemple.example>",
+      "pieces_texte": "[]",
+      "revision": 1,
+      "cree_le": "2026-10-13T09:00:00.000Z",
+      "modifie_le": "2026-10-13T09:00:00.000Z"
+    },
+    "corps": {
+      "genre": "reponse_a_tous",
+      "origine_message_id": "e0000000-0000-4000-8000-000000000001",
+      "objet": "Re : Conclusions en réplique",
+      "corps_html": "<p>Bonjour</p>",
+      "corps": "Bonjour",
+      "dossier_id": null,
+      "en_reponse_a": "<m1@exemple.example>",
+      "a": ["Me Anne Perrin <a.perrin@perrin-avocats.example>", "client@exemple.example"],
+      "cc": [],
+      "cci": ["greffe@justice.example"],
+      "references": ["<m0@exemple.example>", "<m1@exemple.example>"]
+    }
+  },
+  {
+    "nom": "mise à jour d'un seul champ : un seul champ part",
+    "colonnes": { "objet": "Nouvel objet" },
+    "corps": { "objet": "Nouvel objet" }
+  },
+  {
+    "nom": "détachement du dossier et fil effacé : null et chaîne vide explicites",
+    "colonnes": { "dossier_id": null, "en_reponse_a": null },
+    "corps": { "dossier_id": null, "en_reponse_a": "" }
+  },
+  {
+    "nom": "rattachement à un dossier",
+    "colonnes": { "dossier_id": "d0000000-0000-4000-8000-000000000001" },
+    "corps": { "dossier_id": "d0000000-0000-4000-8000-000000000001" }
+  },
+  {
+    "nom": "liste vidée : un tableau vide, pas une absence",
+    "colonnes": { "cc": "\n", "a": "x@exemple.example" },
+    "corps": { "cc": [], "a": ["x@exemple.example"] }
+  },
+  {
+    "nom": "colonnes du serveur seules : rien ne part",
+    "colonnes": { "pieces_texte": "[{\"id\":\"p\"}]", "revision": 4, "modifie_le": "2026-10-13T09:01:00.000Z" },
+    "corps": {}
+  }
+]

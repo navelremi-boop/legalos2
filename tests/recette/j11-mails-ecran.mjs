@@ -13,7 +13,7 @@
  *  6. file d'envoi dans le rail et pas dans le volet de lecture, états, annulation, nouvelle tentative ;
  *  7. carte d'invitation (présente pour le message qui la porte, absente sinon), réponse en échec propre ;
  *  8. sous-titre, badge de la navigation, absence de témoin de relève sans donnée ;
- *  9. boutons de rédaction visibles et inertes sans parent, dock, ouverture du dossier ;
+ *  9. boutons de rédaction : ils ouvrent la rédaction à la place de la lecture, dock, ouverture du dossier ;
  * 10. recherche hors ligne en tête de liste.
  * Captures du poste réel : design/captures/j11-mails/poste-reel-*.png.
  */
@@ -586,12 +586,20 @@ async function main() {
     ok("carte d'invitation : présente pour son message, absente ailleurs, échec propre de la réponse");
 
     // 9. Sous-titre, badge, témoin de relève
-    const nonLusAttendus = Number(
-      (await sqliteLocal(`SELECT COUNT(*) AS n FROM messages WHERE lu = 0 AND dossier_imap = 'INBOX' AND (titulaire_id = '${demoId}' OR titulaire_id IS NULL)`))?.[0]?.n,
-    );
     const restant = attendusAvant - 2;
-    const attenduSousTitre = restant > 0 ? `${restant} mail${restant > 1 ? "s" : ""} à classer, ${nonLusAttendus} non lu${nonLusAttendus > 1 ? "s" : ""}` : "Tout est classé";
-    const sousTitre = (await texteDe("[data-testid=mails-sous-titre]")).replace(/\s+/gu, " ").trim();
+    // D'autres boîtes reçoivent des mails pendant la recette : on compare le sous-titre à la base locale lue au même instant,
+    // jusqu'à ce que l'écran ait rattrapé (il relit la base toutes les 1,5 s). Une vraie divergence ne se résorbe pas.
+    let sousTitre = "";
+    let attenduSousTitre = "";
+    for (let essai = 0; essai < 30; essai += 1) {
+      const nonLusAttendus = Number(
+        (await sqliteLocal(`SELECT COUNT(*) AS n FROM messages WHERE lu = 0 AND dossier_imap = 'INBOX' AND (titulaire_id = '${demoId}' OR titulaire_id IS NULL)`))?.[0]?.n,
+      );
+      attenduSousTitre = restant > 0 ? `${restant} mail${restant > 1 ? "s" : ""} à classer, ${nonLusAttendus} non lu${nonLusAttendus > 1 ? "s" : ""}` : "Tout est classé";
+      sousTitre = (await texteDe("[data-testid=mails-sous-titre]")).replace(/\s+/gu, " ").trim();
+      if (sousTitre === attenduSousTitre) break;
+      await sleep(500);
+    }
     verifier("sous-titre", sousTitre === attenduSousTitre, `${sousTitre} contre ${attenduSousTitre}`);
     essaiNegatif("« Tout est classé » alors que des mails sont à classer", sousTitre === "Tout est classé");
     const badgeApres = Number(await texteDe("[data-testid=nav-mails] .barre-haut__compteur"));
@@ -600,22 +608,31 @@ async function main() {
     essaiNegatif("un témoin de relève inventé", await present("[data-testid=mails-releve]"));
     ok(`sous-titre « ${sousTitre} », badge ${badgeApres}, pas de témoin de relève sans donnée`);
 
-    // 10. Boutons de rédaction inertes sans parent, dock
+    // 10. Boutons de rédaction : ils ouvrent la rédaction à la place de la lecture (détail : j11-redaction.mjs), dock
     await cliquer(ligne("classeB"));
     await attendre("lecture du mail classé", () => texteDe("[data-testid=lecture-objet]"), (t) => t.includes(objets.classeB));
     for (const bouton of ["lecture-repondre", "lecture-repondre-a-tous", "lecture-transferer"]) {
       verifier(`bouton ${bouton} visible`, await present(`[data-testid=${bouton}]`));
     }
-    const avant = await texteDe("[data-testid=ecran-mails]");
-    for (const bouton of ["lecture-repondre", "lecture-repondre-a-tous", "lecture-transferer"]) await cliquer(`[data-testid=${bouton}]`);
     const dock = await texteDe("[data-testid=barre-actions]");
     verifier("dock : Nouveau mail et Saisir du temps", dock.includes("Nouveau mail") && dock.includes("Saisir du temps"), dock);
+    verifier("aucune rédaction ouverte avant le clic", !(await present("[data-testid=mails-redaction]")));
+    const genres = { "lecture-repondre": "reponse", "lecture-repondre-a-tous": "reponse_a_tous", "lecture-transferer": "transfert" };
+    for (const [bouton, genre] of Object.entries(genres)) {
+      await cliquer(`[data-testid=${bouton}]`);
+      await attendre(`rédaction « ${genre} »`, () => evaluate(send, `document.querySelector("[data-testid=mails-redaction]")?.getAttribute("data-genre") ?? null`), (g) => g === genre, 20_000);
+      verifier(`${genre} : la rédaction remplace la lecture`, !(await present("[data-testid=mails-lecture]")));
+      await cliquer(ligne("classeB"));
+      await attendre("retour à la lecture", () => present("[data-testid=mails-lecture]"), Boolean);
+      essaiNegatif("la rédaction reste ouverte après le choix d'un mail", await present("[data-testid=mails-redaction]"));
+    }
     await evaluate(send, `[...document.querySelectorAll("[data-testid=barre-actions] button")].find((b) => b.innerText.includes("Nouveau mail"))?.click()`);
-    await sleep(500);
-    verifier("Répondre, Répondre à tous, Transférer et Nouveau mail n'ouvrent rien sans parent", (await texteDe("[data-testid=ecran-mails]")) === avant);
+    await attendre("rédaction d'un message neuf", () => evaluate(send, `document.querySelector("[data-testid=mails-redaction]")?.getAttribute("data-genre") ?? null`), (g) => g === "nouveau", 20_000);
+    essaiNegatif("le dock reste affiché pendant la rédaction", await present("[data-testid=barre-actions]"));
+    await cliquer(ligne("classeB"));
+    await attendre("retour à la lecture (2)", () => present("[data-testid=mails-lecture]"), Boolean);
     await cliquer("[data-testid=filtre-mails][data-filtre=nonlus]");
     await sleep(300);
-    essaiNegatif("un clic qui change l'écran passe pour inerte", (await texteDe("[data-testid=ecran-mails]")) === avant);
     await cliquer("[data-testid=filtre-mails][data-filtre=tous]");
     verifier("« Ouvrir le dossier » pour un mail classé", dock.includes("Ouvrir le dossier"));
     await cliquer(ligne("autreSujet"));

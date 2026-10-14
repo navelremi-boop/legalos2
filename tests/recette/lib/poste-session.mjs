@@ -142,7 +142,8 @@ export function creerSession(etiquette) {
   }
 
   function cheminBinairePoste() {
-    const target = process.env.CARGO_TARGET_DIR ?? join(poste, "src-tauri", "target");
+    // `.cargo/config.toml` fixe `target-dir = "target"` à la racine du dépôt.
+    const target = process.env.CARGO_TARGET_DIR ?? join(root, "target");
     return join(target, "debug", "legal-os-poste.exe");
   }
 

@@ -23,11 +23,17 @@ import {
   sousTitreEcran,
   type DossierClassement,
 } from "@/messagerie/classement";
+import { composerDepartServeur, type DepartServeur } from "@/messagerie/apiBrouillons";
+import { appliquerDepartServeur, champsEcrits, etatDeDepart, etatDepuisLigne, type ChampsEcrits, type EtatRedaction } from "@/messagerie/etatRedaction";
+import { brouillonsVersMails } from "@/messagerie/listeBrouillons";
+import { lirePiecesBrouillon, type PieceBrouillon } from "@/messagerie/piecesRedaction";
+import type { GenreRedaction, MessageCite } from "@/messagerie/citation";
+import { VoletRedaction } from "@/messagerie/VoletRedaction";
 import { lireDonneesMails, lireTexteStocke, type DonneesMails } from "@/messagerie/donneesMails";
 import { invitationDuMessage } from "@/messagerie/invitations";
-import { LectureMail, type DemandeComposition } from "@/messagerie/LectureMail";
+import { LectureMail, type DemandeComposition, type GenreComposition } from "@/messagerie/LectureMail";
 import { PanneauListe } from "@/messagerie/PanneauListe";
-import { filtrerMails, groupesParJour, trierParDate, type FiltreListe } from "@/messagerie/listeMails";
+import { filtrerMails, groupesParJour, listePieces, trierParDate, type FiltreListe } from "@/messagerie/listeMails";
 import { RailMails, type VueMails } from "@/messagerie/RailMails";
 import { libelleReleve } from "@/messagerie/releve";
 import { rechercherMailsHorsLigne, type ResultatRechercheMail } from "@/messagerie/rechercheMails";
@@ -44,10 +50,7 @@ export type { DemandeComposition, GenreComposition } from "@/messagerie/LectureM
 
 type EcranMailsProps = {
   instanceUrl: string;
-  /**
-   * Demande de rédaction (nouveau mail, réponse, réponse à tous, transfert). Branchée par la partie B de
-   * l'étape 4 ; sans elle, les boutons sont visibles mais n'ouvrent rien.
-   */
+  /** Prévenu quand une rédaction s'ouvre (nouveau mail, réponse, réponse à tous, transfert) ; l'écran ouvre la rédaction lui-même. */
   onComposer?: (demande: DemandeComposition) => void;
   onSaisirTemps?: () => void;
   /** Ouvre le dossier où le mail est classé. Sans lui, le bouton « Ouvrir le dossier » n'est pas proposé. */
@@ -56,7 +59,25 @@ type EcranMailsProps = {
   demonstration?: DemonstrationMails;
 };
 
-const DONNEES_VIDES: DonneesMails = { comptes: [], mails: [], dossiers: [], invitations: [] };
+const DONNEES_VIDES: DonneesMails = { comptes: [], mails: [], dossiers: [], invitations: [], brouillons: [] };
+
+/** Rédaction ouverte à la place du volet de lecture. */
+type Composition = {
+  cle: string;
+  etat: EtatRedaction;
+  /** Colonnes déjà en base (brouillon repris) ; `null` : rien d'enregistré. */
+  precedent: ChampsEcrits | null;
+  modifieLe: string | null;
+  piecesDuMessage: string[];
+  piecesInitiales: PieceBrouillon[];
+};
+
+const GENRES_API: Record<GenreComposition, GenreRedaction> = {
+  nouveau: "nouveau",
+  repondre: "reponse",
+  "repondre-a-tous": "reponse_a_tous",
+  transferer: "transfert",
+};
 
 function memeDonnees(a: DonneesMails, b: DonneesMails): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
@@ -94,6 +115,7 @@ export function EcranMails({
   const [reponsesInvitation, setReponsesInvitation] = useState<Record<string, ReponseInvitation>>({});
   const [erreurInvitation, setErreurInvitation] = useState<{ id: string; message: string } | null>(null);
   const [reponseEnCours, setReponseEnCours] = useState(false);
+  const [composition, setComposition] = useState<Composition | null>(null);
   const corpsDemandes = useRef(new Set<string>());
 
   const enDemo = demonstration !== undefined;
@@ -103,6 +125,7 @@ export function EcranMails({
         mails: demonstration.mails,
         dossiers: demonstration.dossiers,
         invitations: demonstration.invitations ?? [],
+        brouillons: demonstration.brouillons ?? [],
       }
     : donneesSync;
   const file = demonstration ? (demonstration.file ?? []) : fileSync;
@@ -156,6 +179,11 @@ export function EcranMails({
   }, [terme, enDemo]);
 
   const monId = identifiantUtilisateur(donnees.comptes);
+  // Les brouillons de la base locale sont des lignes du dossier Brouillons de l'utilisateur.
+  const mailsTous = useMemo(
+    () => [...donnees.mails, ...brouillonsVersMails(donnees.brouillons, monId)],
+    [donnees.mails, donnees.brouillons, monId],
+  );
   const classesDeja = useMemo(() => new Set(Object.keys(classesLocal)), [classesLocal]);
   const dossiersParId = useMemo(() => {
     const table = new Map<string, DossierClassement>();
@@ -163,8 +191,8 @@ export function EcranMails({
     return table;
   }, [donnees.dossiers]);
   const rail = useMemo(
-    () => construireRail(donnees.comptes, donnees.mails, monId),
-    [donnees.comptes, donnees.mails, monId],
+    () => construireRail(donnees.comptes, mailsTous, monId),
+    [donnees.comptes, mailsTous, monId],
   );
   const aClasser = compterAClasser(donnees.mails, classesDeja);
   const nonLus = compterNonLusReception(donnees.mails, monId);
@@ -194,8 +222,8 @@ export function EcranMails({
     if (vue.genre === "a-classer") {
       return donnees.mails.filter((mail) => estAClasser(mail.etat_classement) && !classesDeja.has(mail.id));
     }
-    return mailsDuDossier(donnees.mails, vue.boite, vue.dossier, monId);
-  }, [enRecherche, enDemo, terme, hits, donnees.mails, vue, monId, classesDeja]);
+    return mailsDuDossier(mailsTous, vue.boite, vue.dossier, monId);
+  }, [enRecherche, enDemo, terme, hits, donnees.mails, mailsTous, vue, monId, classesDeja]);
 
   const mailsFiltres = useMemo(() => filtrerMails(mailsDeLaVue, filtre), [mailsDeLaVue, filtre]);
   const groupes = useMemo(() => groupesParJour(mailsFiltres, maintenant), [mailsFiltres, maintenant]);
@@ -209,13 +237,14 @@ export function EcranMails({
         : "Aucun message dans cette boîte.";
 
   const choisi =
-    donnees.mails.find((mail) => mail.id === selection) ?? trierParDate(mailsFiltres)[0] ?? null;
+    mailsTous.find((mail) => mail.id === selection) ?? trierParDate(mailsFiltres)[0] ?? null;
   const choisiId = choisi?.id ?? null;
+  const choisiEstBrouillon = choisi?.brouillon === true;
   const classeLocal = choisi === null ? undefined : classesLocal[choisi.id];
 
   // Corps du message choisi : base locale, sinon l'API le récupère à la demande.
   useEffect(() => {
-    if (choisiId === null || enDemo) return;
+    if (choisiId === null || enDemo || choisiEstBrouillon) return;
     if (corpsDemandes.current.has(choisiId)) return;
     corpsDemandes.current.add(choisiId);
     void getPowerSyncDatabase()
@@ -225,7 +254,7 @@ export function EcranMails({
       .then((texte) => {
         setCorpsLus((actuel) => ({ ...actuel, [choisiId]: texte }));
       });
-  }, [choisiId, enDemo, instanceUrl]);
+  }, [choisiId, choisiEstBrouillon, enDemo, instanceUrl]);
 
   const corps = choisi === null ? undefined : enDemo ? (demonstration.corps?.[choisi.id] ?? "") : corpsLus[choisi.id];
 
@@ -233,6 +262,8 @@ export function EcranMails({
     () => donnees.comptes.filter((compte) => compte.type_compte === "nominatif").map((compte) => compte.adresse),
     [donnees.comptes],
   );
+  // Toutes les adresses du cabinet : une réponse à tous ne s'écrit jamais à soi-même ni à la boîte partagée.
+  const adressesDuCabinet = useMemo(() => donnees.comptes.map((compte) => compte.adresse), [donnees.comptes]);
   const invitation = choisi === null ? null : invitationDuMessage(choisi, donnees.invitations);
 
   const classer = useCallback(
@@ -285,6 +316,112 @@ export function EcranMails({
     [instanceUrl],
   );
 
+  /** Texte d'un message pour la citation : celui déjà lu, sinon la base locale, sinon le serveur. */
+  const texteDuMessage = useCallback(
+    async (mail: MailLocal): Promise<string> => {
+      if (enDemo) return demonstration.corps?.[mail.id] ?? mail.debut_texte ?? "";
+      const dejaLu = corpsLus[mail.id];
+      if (dejaLu !== undefined && dejaLu.trim() !== "") return dejaLu;
+      try {
+        const base = await getPowerSyncDatabase();
+        const stocke = await lireTexteStocke(base, mail.id);
+        if (stocke.trim() !== "") return stocke;
+      } catch {
+        /* base locale indisponible : le serveur peut encore répondre */
+      }
+      const distant = await lireCorpsMessage(instanceUrl, mail.id);
+      return distant.trim() !== "" ? distant : (mail.debut_texte ?? "");
+    },
+    [corpsLus, demonstration, enDemo, instanceUrl],
+  );
+
+  const demarrerComposition = useCallback(
+    async (demande: DemandeComposition) => {
+      const genre = GENRES_API[demande.genre];
+      const mail = demande.messageId === undefined ? undefined : mailsTous.find((m) => m.id === demande.messageId);
+      if (genre !== "nouveau" && mail === undefined) return;
+      let message: MessageCite | null = null;
+      if (mail !== undefined && genre !== "nouveau") {
+        message = {
+          id: mail.id,
+          message_id: mail.message_id ?? null,
+          objet: mail.objet,
+          expediteur: mail.expediteur,
+          destinataires_texte: mail.destinataires_texte ?? null,
+          cree_le: mail.cree_le ?? null,
+          texte: await texteDuMessage(mail),
+          pieces: listePieces(mail),
+        };
+      }
+      // En ligne, le serveur complète le départ : adresses du cabinet exclues, chaîne `References` du fil, et le texte
+      // du message quand le poste ne l'a pas (boîte du cabinet, lue par le serveur).
+      let serveur: DepartServeur | null = null;
+      if (!enDemo && mail !== undefined && genre !== "nouveau") {
+        const reponse = await composerDepartServeur(instanceUrl, genre, mail.id);
+        if (reponse.ok) serveur = reponse.valeur;
+      }
+      if (message !== null && message.texte.trim() === "" && serveur !== null && serveur.texteCite !== "") {
+        message = { ...message, texte: serveur.texteCite };
+      }
+      const dossierClasse =
+        mail === undefined ? null : (classesLocal[mail.id] ?? (mail.etat_classement === "classe" ? mail.dossier_id : null));
+      let etat = etatDeDepart({
+        id: crypto.randomUUID(),
+        genre,
+        message,
+        adressesPropres: adressesDuCabinet,
+        dossierId: dossierClasse,
+      });
+      if (serveur !== null && (genre === "reponse" || genre === "reponse_a_tous")) {
+        etat = appliquerDepartServeur(etat, serveur);
+      }
+      setComposition({
+        cle: crypto.randomUUID(),
+        etat,
+        precedent: null,
+        modifieLe: null,
+        piecesDuMessage: message?.pieces.slice() ?? [],
+        piecesInitiales: [],
+      });
+    },
+    [adressesDuCabinet, classesLocal, enDemo, instanceUrl, mailsTous, texteDuMessage],
+  );
+
+  const ouvrirBrouillon = useCallback(
+    (id: string) => {
+      const ligne = donnees.brouillons.find((candidat) => candidat.id === id);
+      if (ligne === undefined) return;
+      const etat = etatDepuisLigne(ligne);
+      const origine = etat.origineMessageId === null ? undefined : donnees.mails.find((m) => m.id === etat.origineMessageId);
+      setComposition({
+        cle: crypto.randomUUID(),
+        etat,
+        precedent: champsEcrits(etat),
+        modifieLe: ligne.modifie_le,
+        piecesDuMessage: origine === undefined ? [] : listePieces(origine),
+        piecesInitiales: lirePiecesBrouillon(ligne.pieces_texte),
+      });
+    },
+    [donnees.brouillons, donnees.mails],
+  );
+
+  const composer = useCallback(
+    (demande: DemandeComposition) => {
+      void demarrerComposition(demande);
+      onComposer?.(demande);
+    },
+    [demarrerComposition, onComposer],
+  );
+
+  const choisirMail = useCallback(
+    (id: string) => {
+      setSelection(id);
+      if (donnees.brouillons.some((brouillon) => brouillon.id === id)) ouvrirBrouillon(id);
+      else setComposition(null);
+    },
+    [donnees.brouillons, ouvrirBrouillon],
+  );
+
   const dossierDuChoisi: DossierClassement | undefined =
     choisi === null
       ? undefined
@@ -296,7 +433,7 @@ export function EcranMails({
       label: "Nouveau mail",
       primaire: true,
       onClick: () => {
-        onComposer?.({ genre: "nouveau" });
+        composer({ genre: "nouveau" });
       },
     },
     {
@@ -346,6 +483,7 @@ export function EcranMails({
             onVue={(nouvelle) => {
               setVueChoisie(nouvelle);
               setTerme("");
+              setComposition(null);
             }}
             boites={rail}
             file={file}
@@ -367,12 +505,35 @@ export function EcranMails({
             enRecherche={enRecherche}
             messageVide={messageVide}
             selection={choisiId}
-            onSelection={setSelection}
+            onSelection={choisirMail}
             dossiers={dossiersParId}
             classesLocal={classesLocal}
             maintenant={maintenant}
           />
-          {choisi === null ? (
+          {composition !== null ? (
+            <section className="mails-lecture mails-lecture--redaction" data-testid="mails-redaction-volet">
+              <VoletRedaction
+                key={composition.cle}
+                depart={composition.etat}
+                precedent={composition.precedent}
+                modifieLe={composition.modifieLe}
+                instanceUrl={instanceUrl}
+                piecesDuMessage={composition.piecesDuMessage}
+                piecesInitiales={composition.piecesInitiales}
+                mails={donnees.mails}
+                adressesPropres={adressesDuCabinet}
+                dossiers={dossiersParId}
+                demonstration={enDemo}
+                onEnvoye={() => {
+                  setComposition(null);
+                  void lireFileEnvoi(instanceUrl).then(setFileSync);
+                }}
+                onSupprime={() => {
+                  setComposition(null);
+                }}
+              />
+            </section>
+          ) : choisi === null ? (
             <section className="mails-lecture" data-testid="mails-lecture">
               <p className="mails-vide">{fr("Aucun message à lire.")}</p>
             </section>
@@ -396,12 +557,12 @@ export function EcranMails({
               }
               reponseEnCours={reponseEnCours}
               onRepondreInvitation={repondreInvitation}
-              onComposer={onComposer}
+              onComposer={composer}
             />
           )}
         </div>
       </Feuille>
-      <BarreActions actions={actions} />
+      {composition === null ? <BarreActions actions={actions} /> : null}
     </div>
   );
 }

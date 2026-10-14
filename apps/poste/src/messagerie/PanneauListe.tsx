@@ -1,4 +1,4 @@
-import { IconPaperclip, IconSearch } from "@tabler/icons-react";
+import { IconPaperclip, IconPencil, IconSearch } from "@tabler/icons-react";
 import { fr } from "@/lib/fr";
 import { estAClasser, estLu, etiquetteDossier } from "@/messagerie/classement";
 import type { DossierClassement } from "@/messagerie/classement";
@@ -10,6 +10,7 @@ import {
   type FiltreListe,
   type GroupeJour,
 } from "@/messagerie/listeMails";
+import { nomLigneBrouillon } from "@/messagerie/listeBrouillons";
 import type { MailLocal } from "@/messagerie/typesMails";
 
 const FILTRES: readonly { id: FiltreListe; libelle: string }[] = [
@@ -131,7 +132,7 @@ type LigneMailProps = {
 
 function LigneMail({ mail, choisie, onSelection, dossiers, classeLocal, maintenant }: LigneMailProps) {
   const expediteur = analyserCorrespondant(mail.expediteur);
-  const nom = nomAffiche(expediteur);
+  const nom = mail.brouillon === true ? nomLigneBrouillon(mail.destinataires_texte ?? "") : nomAffiche(expediteur);
   const apercu = apercuMail(mail);
   const pieces = listePieces(mail).length > 0;
   const lu = estLu(mail);
@@ -152,7 +153,7 @@ function LigneMail({ mail, choisie, onSelection, dossiers, classeLocal, maintena
       }}
     >
       <span className="mails-mono" aria-hidden>
-        {monogramme(expediteur)}
+        {mail.brouillon === true ? <IconPencil stroke={1.6} size={15} /> : monogramme(expediteur)}
       </span>
       <span className="mails-ligne__texte">
         <span className="mails-ligne__exp">{fr(nom === "" ? "—" : nom)}</span>

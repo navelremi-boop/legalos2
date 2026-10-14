@@ -1,4 +1,6 @@
 import type { CommonPowerSyncDatabase } from "@powersync/common";
+import { listerBrouillons } from "@/messagerie/brouillons";
+import type { LigneBrouillon } from "@/messagerie/etatRedaction";
 import type { CompteLocal, DossierLocal, InvitationLocale, MailLocal } from "@/messagerie/typesMails";
 
 /**
@@ -11,10 +13,12 @@ export type DonneesMails = {
   mails: MailLocal[];
   dossiers: DossierLocal[];
   invitations: InvitationLocale[];
+  /** Brouillons de l'utilisateur (table `brouillons_message`). */
+  brouillons: LigneBrouillon[];
 };
 
 export async function lireDonneesMails(database: CommonPowerSyncDatabase): Promise<DonneesMails> {
-  const [comptes, mails, dossiers, invitations] = await Promise.all([
+  const [comptes, mails, dossiers, invitations, brouillons] = await Promise.all([
     database.getAll<CompteLocal>(
       "SELECT id, adresse, type_compte, titulaire_id, etat_connexion FROM comptes_mail ORDER BY adresse",
     ),
@@ -29,8 +33,9 @@ export async function lireDonneesMails(database: CommonPowerSyncDatabase): Promi
       `SELECT id, uid_ical, sequence, effet, fuseau, debut, fin, objet, organisateur
        FROM invitations_agenda ORDER BY debut`,
     ),
+    listerBrouillons(database),
   ]);
-  return { comptes, mails, dossiers, invitations };
+  return { comptes, mails, dossiers, invitations, brouillons };
 }
 
 /** Corps nettoyé d'un message stocké sur le poste ; chaîne vide s'il n'y est pas. */
