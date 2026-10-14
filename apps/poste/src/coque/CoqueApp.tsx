@@ -18,6 +18,7 @@ import { MenuCompte } from "@/coque/MenuCompte";
 import { FormulaireDelai } from "@/delais/FormulaireDelai";
 import { EcranAgenda } from "@/agenda/EcranAgenda";
 import { emettreRappelsEchus } from "@/agenda/rappels";
+import { emettreNotificationsArrivee } from "@/messagerie/notificationsArrivee";
 import { EcranFacturation } from "@/facturation/EcranFacturation";
 import { FormulaireTemps } from "@/facturation/FormulaireTemps";
 import { FormulaireDossier } from "@/dossiers/FormulaireDossier";
@@ -76,6 +77,8 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
   const [panneau, setPanneau] = useState<Panneau>("aucun");
   const [enAttente, setEnAttente] = useState(0);
   const [mailsAClasser, setMailsAClasser] = useState(0);
+  /** Message-ID du mail à ouvrir dans l'écran Mails (lien « Ouvrir le mail » d'une invitation de l'Agenda). */
+  const [mailAOuvrir, setMailAOuvrir] = useState<string | null>(null);
   const [navigateurHorsLigne, setNavigateurHorsLigne] = useState(!navigator.onLine);
   const [instanceHorsLigne, setInstanceHorsLigne] = useState(false);
   const [initiales] = useState<string | null>(initialesDuCompte);
@@ -304,6 +307,22 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
     };
   }, []);
 
+  useEffect(() => {
+    let stop = false;
+    const tick = () => {
+      if (stop) return;
+      void emettreNotificationsArrivee().catch(() => {
+        /* base ou permission pas encore prêtes */
+      });
+    };
+    tick();
+    const timer = window.setInterval(tick, 2_000);
+    return () => {
+      stop = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
   const horsLigne = navigateurHorsLigne || instanceHorsLigne;
 
   const sync: SyncEtat = useMemo(() => {
@@ -335,6 +354,10 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
     },
     [],
   );
+
+  const mailOuvert = useCallback(() => {
+    setMailAOuvrir(null);
+  }, []);
 
   const naviguer = useCallback((id: NavId) => {
     setNav(id);
@@ -422,11 +445,17 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
           setPanneau("temps");
         }}
         onOuvrirDossier={ouvrirDossier}
+        ouvrirMessageId={mailAOuvrir}
+        onMessageOuvert={mailOuvert}
       />
     );
   } else if (nav === "agenda") {
     contenu = (
       <EcranAgenda
+        onOuvrirMail={(messageId) => {
+          setMailAOuvrir(messageId);
+          setNav("mails");
+        }}
         onNouveauDossier={() => {
           setPanneau("dossier-form");
         }}

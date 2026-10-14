@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { cheminReponseInvitation, invitationDuMessage, normaliserObjet, presenterInvitation, quandInvitation } from "./invitations.ts";
+import {
+  cheminReponseInvitation,
+  invitationDuMessage,
+  normaliserObjet,
+  presenterInvitation,
+  quandInvitation,
+  reponseEnvoyee,
+} from "./invitations.ts";
 import type { InvitationLocale } from "./typesMails.ts";
 
 function invitation(extra: Partial<InvitationLocale> = {}): InvitationLocale {
@@ -116,5 +123,38 @@ describe("route de réponse à une invitation", () => {
   });
   it("essai négatif : l'ancien chemin /repondre n'est plus utilisé", () => {
     assert.notEqual(cheminReponseInvitation("3f2a"), "/messagerie/invitations/3f2a/repondre");
+  });
+});
+
+describe("réponse déjà envoyée (colonne synchronisée)", () => {
+  it("retrouve la réponse après la réouverture du message", () => {
+    assert.equal(reponseEnvoyee("accepte"), "accepter");
+    assert.equal(reponseEnvoyee("refuse"), "refuser");
+    assert.equal(reponseEnvoyee("peut_etre"), "peut_etre");
+  });
+  it("essai négatif : pas de réponse, ou valeur inconnue, aucune confirmation", () => {
+    assert.equal(reponseEnvoyee(null), undefined);
+    assert.equal(reponseEnvoyee(undefined), undefined);
+    assert.equal(reponseEnvoyee(""), undefined);
+    assert.equal(reponseEnvoyee("accepter"), undefined);
+  });
+});
+
+describe("invitationDuMessage par le Message-ID", () => {
+  it("le lien exact l'emporte sur le rapprochement par l'objet", () => {
+    const lie = invitation({ id: "lie", uid_ical: "u-lie", objet: "Tout autre objet", message_id: "<m-lie@example.com>" });
+    const proche = invitation({ id: "proche", uid_ical: "u-proche" });
+    const retenue = invitationDuMessage({ ...MAIL, message_id: "<m-lie@example.com>" }, [proche, lie]);
+    assert.equal(retenue?.id, "lie");
+  });
+  it("sans Message-ID connu de l'invitation, on retombe sur l'objet et l'organisateur", () => {
+    assert.equal(invitationDuMessage({ ...MAIL, message_id: "<autre@example.com>" }, [invitation()])?.id, "i1");
+  });
+  it("essai négatif : un autre message, d'un autre objet, ne reçoit pas la carte", () => {
+    const lie = invitation({ message_id: "<m-lie@example.com>" });
+    assert.equal(
+      invitationDuMessage({ objet: "Facture", expediteur: "x@example.com", message_id: "<x@example.com>" }, [lie]),
+      null,
+    );
   });
 });

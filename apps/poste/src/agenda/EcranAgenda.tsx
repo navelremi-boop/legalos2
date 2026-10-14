@@ -1,12 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { SubmitEvent } from "react";
 import { ecrireElementAgenda, recalculerEcheance, retirerEcheance, type TypeAgenda } from "@/agenda/ecrireAgenda";
 import { BarreActions } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
+import { lireInvitations } from "@/agenda/donneesInvitations";
 import { composantesAffichees } from "@/agenda/fuseauParis";
+import {
+  elementsInvitations,
+  invitationsDuJour,
+  presenterInvitationAgenda,
+} from "@/agenda/invitationsAgenda";
+import { decalerJour, jourCivil, semaineDe } from "@/agenda/navigationAgenda";
 import { calculerDelaiComplet } from "@/delais/moteur";
 import { formatDateCourte, formatDateLongue, formatHeureMur } from "@/lib/format";
 import { fr } from "@/lib/fr";
+import type { InvitationLocale } from "@/messagerie/typesMails";
 import { getPowerSyncDatabase } from "@/sync/database";
 
 type Ligne = {
@@ -60,45 +68,59 @@ const DELAIS_RAPPEL = [
   { id: "10080", libelle: "1 semaine avant" },
 ];
 
-function jourCivil(date: Date): string {
-  const mois = String(date.getMonth() + 1).padStart(2, "0");
-  const jour = String(date.getDate()).padStart(2, "0");
-  return `${String(date.getFullYear())}-${mois}-${jour}`;
-}
-
-function semaineCourante(): string[] {
-  const maintenant = new Date();
-  const decalage = (maintenant.getDay() + 6) % 7;
-  const lundi = new Date(maintenant);
-  lundi.setDate(maintenant.getDate() - decalage);
-  return Array.from({ length: 7 }, (_, index) => {
-    const jour = new Date(lundi);
-    jour.setDate(lundi.getDate() + index);
-    return jourCivil(jour);
-  });
-}
-
 type EcranAgendaProps = {
   onNouveauDossier?: () => void;
   onNouveauMail?: () => void;
   onSaisirTemps?: () => void;
+  /** Ouvre l'écran Mails sur le message dont l'en-tête Message-ID est donné (lien « Ouvrir le mail » d'une invitation). */
+  onOuvrirMail?: (messageId: string) => void;
   /** Galerie : pas de PowerSync. */
   lignesFixes?: Ligne[];
+  invitationsFixes?: InvitationLocale[];
 };
 
 export function EcranAgenda({
   onNouveauDossier,
   onNouveauMail,
   onSaisirTemps,
+  onOuvrirMail,
   lignesFixes,
+  invitationsFixes,
 }: EcranAgendaProps) {
   const [lignesSync, setLignesSync] = useState<Ligne[]>([]);
   const lignes = lignesFixes ?? lignesSync;
+  const [invitationsSync, setInvitationsSync] = useState<InvitationLocale[]>([]);
+  const invitations = invitationsFixes ?? invitationsSync;
+  const elementsInvit = useMemo(() => elementsInvitations(invitations), [invitations]);
+  /** Jour de repère de la vue ; `null` : aujourd'hui, qui suit l'horloge. */
+  const [ancre, setAncre] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [conflit, setConflit] = useState("");
   const [creation, setCreation] = useState(false);
   const [vue, setVue] = useState<"jour" | "semaine">("jour");
+
+  useEffect(() => {
+    if (invitationsFixes) return;
+    const etat = { stop: false };
+    const charger = () => {
+      void getPowerSyncDatabase()
+        .then((database) => lireInvitations(database))
+        .then((lues) => {
+          if (etat.stop) return;
+          setInvitationsSync((actuelles) => (JSON.stringify(actuelles) === JSON.stringify(lues) ? actuelles : lues));
+        })
+        .catch(() => {
+          if (!etat.stop) setInvitationsSync([]);
+        });
+    };
+    charger();
+    const timer = window.setInterval(charger, 1_500);
+    return () => {
+      etat.stop = true;
+      window.clearInterval(timer);
+    };
+  }, [invitationsFixes]);
 
   useEffect(() => {
     if (lignesFixes) return;
@@ -194,6 +216,36 @@ export function EcranAgenda({
           }}
         >
           {fr("Semaine")}
+        </button>
+        <button
+          type="button"
+          className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
+          data-testid="agenda-precedent"
+          onClick={() => {
+            setAncre(decalerJour(ancre ?? jourCivil(new Date()), vue === "jour" ? -1 : -7));
+          }}
+        >
+          {fr(vue === "jour" ? "Jour précédent" : "Semaine précédente")}
+        </button>
+        <button
+          type="button"
+          className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
+          data-testid="agenda-aujourdhui"
+          onClick={() => {
+            setAncre(null);
+          }}
+        >
+          {fr("Aujourd'hui")}
+        </button>
+        <button
+          type="button"
+          className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
+          data-testid="agenda-suivant"
+          onClick={() => {
+            setAncre(decalerJour(ancre ?? jourCivil(new Date()), vue === "jour" ? 1 : 7));
+          }}
+        >
+          {fr(vue === "jour" ? "Jour suivant" : "Semaine suivante")}
         </button>
         <button
           type="button"
@@ -306,14 +358,76 @@ export function EcranAgenda({
         </p>
       ) : null}
       <div data-testid={vue === "jour" ? "agenda-vue-jour-contenu" : "agenda-vue-semaine-contenu"}>
-        {(vue === "jour" ? [jourCivil(new Date())] : semaineCourante()).map((jour) => {
+        {(vue === "jour" ? [ancre ?? jourCivil(new Date())] : semaineDe(ancre ?? jourCivil(new Date()))).map((jour) => {
           const duJour = lignes.filter((ligne) => composantesAffichees(ligne.debut)?.jour === jour);
+          const invitationsDuJourAffichees = invitationsDuJour(elementsInvit, jour);
           return (
             <section key={jour} className="mb-3" data-testid="agenda-jour" data-jour={jour}>
               <h2 className="text-[length:var(--font-size-dense)] font-extrabold">{formatDateLongue(jour)}</h2>
-              {duJour.length === 0 ? (
+              {duJour.length === 0 && invitationsDuJourAffichees.length === 0 ? (
                 <p className="text-graphite">{fr("Rien ce jour-là.")}</p>
-              ) : (
+              ) : null}
+              {invitationsDuJourAffichees.length > 0 ? (
+                <ul data-testid="agenda-invitations">
+                  {invitationsDuJourAffichees.map((element) => {
+                    const presentation = presenterInvitationAgenda(element);
+                    return (
+                      <li
+                        key={element.id}
+                        className="mb-1"
+                        data-testid="agenda-invitation"
+                        data-invitation-id={element.id}
+                        data-uid={element.uid}
+                        data-effet={element.effet}
+                        data-reponse={element.reponse}
+                        data-jour={element.jour}
+                      >
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span
+                            className={element.annulee ? "text-graphite line-through" : undefined}
+                            data-testid="agenda-invitation-titre"
+                          >
+                            {fr(presentation.libelle)}
+                          </span>
+                          {presentation.heure !== "" ? (
+                            <span data-testid="agenda-invitation-heure">{presentation.heure}</span>
+                          ) : null}
+                        </div>
+                        <div className="flex flex-wrap items-baseline gap-x-3 text-[length:var(--font-size-meta)] text-graphite">
+                          {presentation.etat !== null ? (
+                            <span data-testid="agenda-invitation-etat">{fr(presentation.etat)}</span>
+                          ) : null}
+                          {presentation.reponse !== null ? (
+                            <span data-testid="agenda-invitation-reponse">{fr(presentation.reponse)}</span>
+                          ) : null}
+                          {presentation.fuseau !== null ? (
+                            <span data-testid="agenda-invitation-fuseau">{fr(presentation.fuseau)}</span>
+                          ) : null}
+                          {presentation.organisateur !== "" ? (
+                            <span data-testid="agenda-invitation-organisateur">{fr(presentation.organisateur)}</span>
+                          ) : null}
+                          {presentation.avertissement !== null ? (
+                            <span data-testid="agenda-invitation-avertissement">{fr(presentation.avertissement)}</span>
+                          ) : null}
+                          {element.messageId !== null && onOuvrirMail !== undefined ? (
+                            <button
+                              type="button"
+                              className="font-bold text-encre underline underline-offset-[3px]"
+                              data-testid="agenda-invitation-ouvrir"
+                              onClick={() => {
+                                if (element.messageId !== null) onOuvrirMail(element.messageId);
+                              }}
+                            >
+                              {fr("Ouvrir le mail")}
+                            </button>
+                          ) : null}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+              {duJour.length === 0 ? null : (
                 <ul>
                   {duJour.map((ligne) => {
                     const quand = composantesAffichees(ligne.debut);

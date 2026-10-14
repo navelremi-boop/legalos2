@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { lireNotificationsEmises, type NotificationEmise } from "@/agenda/rappels";
+import { lireNotificationsEmises, type NotificationEmise } from "@/lib/notificationBureau";
 import { loadInstanceUrl, loadSessionTokens } from "@/lib/session/storage";
 import {
   cheminCacheDocument,

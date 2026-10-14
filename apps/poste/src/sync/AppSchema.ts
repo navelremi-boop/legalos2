@@ -300,10 +300,21 @@ const invitationsAgenda = new Table(
     sequence: column.integer,
     effet: column.text,
     fuseau: column.text,
+    /** Heure civile du fuseau annoncé (`2026-10-06T09:00:00`, ou `2026-10-06` pour une journée entière). */
     debut: column.text,
     fin: column.text,
+    /** Instant UTC déduit à la relève ; vide pour une heure flottante, une journée entière ou un fuseau inconnu. */
+    debut_utc: column.text,
+    fin_utc: column.text,
     objet: column.text,
     organisateur: column.text,
+    /** Vrai quand le mail qui porte l'invitation vient de l'organisateur annoncé. */
+    verifiee: column.integer,
+    /** En-tête Message-ID du dernier message qui a créé ou mis à jour la ligne (`messages.message_id`). */
+    message_id: column.text,
+    /** `accepte`, `refuse`, `peut_etre`, ou vide tant que le titulaire n'a pas répondu à cette version. */
+    reponse: column.text,
+    repondu_le: column.text,
     revision: column.integer,
     cree_le: column.text,
   },
@@ -333,6 +344,10 @@ const messages = new Table(
     lu: column.integer,
     dossier_imap: column.text,
     drapeaux_texte: column.text,
+    /** Rang d'arrivée, croissant et jamais modifié : le poste garde le plus grand déjà traité (notification de bureau). */
+    arrivee_seq: column.integer,
+    /** Vrai seulement pour un message arrivé après la première relève de sa boîte et encore non lu à l'arrivée. */
+    arrivee_notifiable: column.integer,
     cree_le: column.text,
   },
   { indexes: { dossier: ["dossier_id"], etat: ["etat_classement"], titulaire: ["titulaire_id"] } },

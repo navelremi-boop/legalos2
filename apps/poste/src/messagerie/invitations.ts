@@ -2,6 +2,7 @@ import { composantesAffichees } from "@/agenda/fuseauParis";
 import { normaliserHorodatage } from "@/messagerie/listeMails";
 import { analyserCorrespondant } from "@/messagerie/expediteurs";
 import { formatDateLongue, formatHeureMur } from "@/lib/format";
+import type { ReponseInvitation } from "@/messagerie/reponseInvitation";
 import type { InvitationLocale, MailLocal } from "@/messagerie/typesMails";
 
 const MOIS_COURTS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."] as const;
@@ -27,6 +28,24 @@ export function cheminReponseInvitation(invitationId: string): string {
   return `/messagerie/invitations/${encodeURIComponent(invitationId)}/reponse`;
 }
 
+/**
+ * Réponse déjà envoyée pour la version courante de l'invitation, d'après la colonne `reponse` synchronisée
+ * (`accepte`, `refuse`, `peut_etre`). Le serveur la remet à vide quand une SEQUENCE plus récente arrive : il faut
+ * alors répondre à la nouvelle version. `undefined` : pas de réponse (ou valeur inconnue, jamais devinée).
+ */
+export function reponseEnvoyee(reponse: string | null | undefined): ReponseInvitation | undefined {
+  switch ((reponse ?? "").trim()) {
+    case "accepte":
+      return "accepter";
+    case "refuse":
+      return "refuser";
+    case "peut_etre":
+      return "peut_etre";
+    default:
+      return undefined;
+  }
+}
+
 function adresseOrganisateur(organisateur: string): string {
   const sans = organisateur.trim().replace(/^mailto:/iu, "");
   return analyserCorrespondant(sans).adresse.toLowerCase();
@@ -35,16 +54,21 @@ function adresseOrganisateur(organisateur: string): string {
 /**
  * Invitation portée par un message.
  *
- * La base locale ne relie pas encore une invitation à son message : `invitations_agenda` n'a ni identifiant de
- * message ni UID dans `messages`. En attendant ce lien (étape 2 du jalon), un message porte l'invitation de même
- * objet (préfixes « Invitation : », « Re : », « Mise à jour : » ignorés) dont l'organisateur est son expéditeur.
- * Quand l'invitation a eu plusieurs versions (SEQUENCE), la plus récente est retenue.
- * Seule cette fonction change quand le lien existe.
+ * La ligne d'invitation garde le Message-ID du dernier message qui l'a créée ou mise à jour (`message_id`) : c'est
+ * le lien exact avec le message. Les lignes qui n'ont pas ce lien (créées avant la migration 040) et les versions
+ * antérieures d'une invitation se rapprochent à l'ancienne : un message porte l'invitation de même objet (préfixes
+ * « Invitation : », « Re : », « Mise à jour : » ignorés) dont l'organisateur est son expéditeur, la plus récente
+ * (SEQUENCE) l'emportant.
  */
 export function invitationDuMessage(
-  mail: Pick<MailLocal, "objet" | "expediteur">,
+  mail: Pick<MailLocal, "objet" | "expediteur"> & { message_id?: string | null },
   invitations: readonly InvitationLocale[],
 ): InvitationLocale | null {
+  const identifiant = (mail.message_id ?? "").trim();
+  if (identifiant !== "") {
+    const exacte = invitations.find((invitation) => (invitation.message_id ?? "").trim() === identifiant);
+    if (exacte !== undefined) return exacte;
+  }
   const objetMail = normaliserObjet(mail.objet);
   const expediteur = analyserCorrespondant(mail.expediteur).adresse.toLowerCase();
   if (objetMail === "" || expediteur === "") return null;

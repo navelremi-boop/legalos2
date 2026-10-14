@@ -1,4 +1,5 @@
 import type { CommonPowerSyncDatabase } from "@powersync/common";
+import { lireInvitations } from "@/agenda/donneesInvitations";
 import { listerBrouillons } from "@/messagerie/brouillons";
 import type { LigneBrouillon } from "@/messagerie/etatRedaction";
 import type { CompteLocal, DossierLocal, InvitationLocale, MailLocal } from "@/messagerie/typesMails";
@@ -29,10 +30,7 @@ export async function lireDonneesMails(database: CommonPowerSyncDatabase): Promi
        FROM messages ORDER BY cree_le DESC`,
     ),
     database.getAll<DossierLocal>("SELECT id, nom, chemise, reference FROM dossiers"),
-    database.getAll<InvitationLocale>(
-      `SELECT id, uid_ical, sequence, effet, fuseau, debut, fin, objet, organisateur
-       FROM invitations_agenda ORDER BY debut`,
-    ),
+    lireInvitations(database),
     listerBrouillons(database),
   ]);
   return { comptes, mails, dossiers, invitations, brouillons };

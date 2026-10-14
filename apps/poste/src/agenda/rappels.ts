@@ -1,17 +1,5 @@
-import {
-  isPermissionGranted,
-  requestPermission,
-  sendNotification,
-} from "@tauri-apps/plugin-notification";
+import { emettreNotificationBureau } from "@/lib/notificationBureau";
 import { getPowerSyncDatabase } from "@/sync/database";
-
-export type NotificationEmise = { titre: string; corps: string };
-
-const emises: NotificationEmise[] = [];
-
-export function lireNotificationsEmises(): NotificationEmise[] {
-  return emises.slice();
-}
 
 /** Émet une notification Tauri pour chaque rappel échu encore non signalé sur ce poste. */
 export async function emettreRappelsEchus(): Promise<void> {
@@ -28,16 +16,8 @@ export async function emettreRappelsEchus(): Promise<void> {
     [maintenant],
   );
   const dus = candidats.filter((ligne) => !connus.has(ligne.id));
-  if (dus.length === 0) return;
-  let accorde = await isPermissionGranted();
-  if (!accorde) {
-    accorde = (await requestPermission()) === "granted";
-  }
-  if (!accorde) return;
   for (const ligne of dus) {
-    const corps = ligne.type_element;
-    sendNotification({ title: ligne.titre, body: corps });
-    emises.push({ titre: ligne.titre, corps });
+    if (!(await emettreNotificationBureau(ligne.titre, ligne.type_element))) return;
     await database.execute("INSERT INTO rappels_emis (id, emis_le) VALUES (?, ?)", [
       ligne.id,
       maintenant,

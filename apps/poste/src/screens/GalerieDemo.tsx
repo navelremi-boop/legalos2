@@ -4,9 +4,12 @@ import { MenuCompte } from "@/coque/MenuCompte";
 import { CHRONO_DEMO } from "@/coque/chrono/donneesDemo";
 import { DossierOuvert, DOSSIERS_DEMO } from "@/screens/DossierOuvert";
 import { EcranAgenda } from "@/agenda/EcranAgenda";
+import { instantPourHeureParis } from "@/agenda/fuseauParis";
+import { jourCivil } from "@/agenda/navigationAgenda";
 import { EcranFacturation } from "@/facturation/EcranFacturation";
 import { estAClasser } from "@/messagerie/classement";
 import { EcranMails, type DemonstrationMails } from "@/messagerie/EcranMails";
+import type { InvitationLocale } from "@/messagerie/typesMails";
 import type { DemonstrationMessagerie } from "@/messagerie/ReglagesMessagerie";
 import { Dossiers } from "@/screens/Dossiers";
 import { Journee } from "@/screens/Journee";
@@ -304,6 +307,40 @@ export function GalerieDemo() {
       },
     ];
   }, []);
+  /** Invitations reçues, aujourd'hui : acceptée, mise à jour à laquelle il reste à répondre, annulée. */
+  const invitationsAgendaDemo = useMemo<InvitationLocale[]>(() => {
+    const jour = jourCivil(new Date());
+    const invitation = (
+      id: string,
+      heure: number,
+      minute: number,
+      extra: Partial<InvitationLocale>,
+    ): InvitationLocale => {
+      const mur = (h: number, m: number) => `${jour}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
+      return {
+        id,
+        uid_ical: `demo-${id}`,
+        sequence: 0,
+        effet: "demande",
+        fuseau: "Europe/Paris",
+        debut: mur(heure, minute),
+        fin: mur(heure + 1, minute),
+        debut_utc: instantPourHeureParis(jour, heure, minute),
+        fin_utc: instantPourHeureParis(jour, heure + 1, minute),
+        objet: "",
+        organisateur: "Me Lucas Garnier <l.garnier@etude-garnier.example>",
+        verifiee: 1,
+        message_id: `<demo-${id}@etude-garnier.example>`,
+        reponse: null,
+        ...extra,
+      };
+    };
+    return [
+      invitation("inv-1", 11, 0, { objet: "Signature de l'acte de partage", reponse: "accepte" }),
+      invitation("inv-2", 12, 30, { objet: "Point sur la cession", sequence: 1, effet: "mise_a_jour" }),
+      invitation("inv-3", 17, 0, { objet: "Réunion de synthèse", sequence: 1, effet: "annulation" }),
+    ];
+  }, []);
   const facturesDemo = useMemo(
     () => [
       { id: "f-brouillon", libelle: "Ferrand Métal — temps de septembre", statut: "Brouillon", montant: "1 200,00 €" },
@@ -514,6 +551,8 @@ export function GalerieDemo() {
           {vue === "agenda" ? (
             <EcranAgenda
               lignesFixes={agendaDemo}
+              invitationsFixes={invitationsAgendaDemo}
+              onOuvrirMail={() => undefined}
               onNouveauDossier={() => undefined}
               onNouveauMail={() => undefined}
               onSaisirTemps={() => undefined}

@@ -341,7 +341,12 @@ export function creerSession(etiquette) {
     );
   }
 
-  async function login(send, email, password, secret, nomAppareil) {
+  /**
+   * Connexion. Sur un poste qui a déjà ses données locales et aucune écriture en attente, l'app s'ouvre hors ligne et
+   * la connexion est considérée faite (reprise de travail hors ligne). `forcer` : se reconnecter vraiment (jeton,
+   * synchronisation), pour une recette qui attend des données arrivées pendant que le poste était fermé.
+   */
+  async function login(send, email, password, secret, nomAppareil, { forcer = false } = {}) {
     const pret = Date.now();
     let ecran = "";
     while (Date.now() - pret < 90_000) {
@@ -367,13 +372,13 @@ export function creerSession(etiquette) {
             return Number(rows?.[0]?.n ?? 0);
           })()`,
         );
-        if (Number(nFile) === 0) return;
+        if (Number(nFile) === 0 && !forcer) return;
         await evaluate(
           send,
           `(() => {
-            const compte = [...document.querySelectorAll("button")].find((b) =>
-              /^Compte$/i.test((b.textContent || "").trim()),
-            );
+            const compte =
+              document.querySelector("[data-testid=menu-compte]") ??
+              [...document.querySelectorAll("button")].find((b) => /^Compte$/i.test((b.textContent || "").trim()));
             compte?.click();
             return Boolean(compte);
           })()`,
@@ -382,9 +387,9 @@ export function creerSession(etiquette) {
         await evaluate(
           send,
           `(() => {
-            const reglages = [...document.querySelectorAll("button")].find((b) =>
-              /réglages|reglages/i.test(b.textContent || ""),
-            );
+            const reglages =
+              document.querySelector("[data-testid=menu-reglages]") ??
+              [...document.querySelectorAll("button")].find((b) => /réglages|reglages/i.test(b.textContent || ""));
             reglages?.click();
             return Boolean(reglages);
           })()`,
@@ -470,14 +475,14 @@ export function creerSession(etiquette) {
    * Lance le poste, attend la webview, connecte CDP et authentifie. Retourne { child, page } ;
    * l'appelant arrête l'app (stopApp) et ferme la page. Une application d'un essai raté est arrêtée.
    */
-  function ouvrirPoste(id, port, { email, password, secret, nomAppareil, mode } = {}) {
+  function ouvrirPoste(id, port, { email, password, secret, nomAppareil, mode, forcer = false } = {}) {
     return relance.lancer(`poste ${id}`, async () => {
       const child = startApp(id, port, mode);
       let page;
       try {
         await waitCdp(child);
         page = await connectCdp(child.port, { diagnostic: true });
-        await login(page.send, email, password, secret, nomAppareil);
+        await login(page.send, email, password, secret, nomAppareil, { forcer });
         return { child, page };
       } catch (err) {
         let echec = err;

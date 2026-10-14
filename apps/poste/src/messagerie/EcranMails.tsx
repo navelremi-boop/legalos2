@@ -12,6 +12,7 @@ import {
   relancerEnvoi,
 } from "@/messagerie/apiMessagerie";
 import {
+  boiteDuMessage,
   compteNominatifDuMessage,
   compterNonLusReception,
   construireRail,
@@ -33,7 +34,8 @@ import { lirePiecesBrouillon, type PieceBrouillon } from "@/messagerie/piecesRed
 import type { GenreRedaction, MessageCite } from "@/messagerie/citation";
 import { VoletRedaction } from "@/messagerie/VoletRedaction";
 import { lireDonneesMails, lireTexteStocke, type DonneesMails } from "@/messagerie/donneesMails";
-import { invitationDuMessage } from "@/messagerie/invitations";
+import { invitationDuMessage, reponseEnvoyee } from "@/messagerie/invitations";
+import { dossierImap } from "@/messagerie/dossiersImap";
 import { suiteDuMail } from "@/messagerie/journalMails";
 import {
   LectureMail,
@@ -68,6 +70,12 @@ type EcranMailsProps = {
   onSaisirTemps?: () => void;
   /** Ouvre le dossier où le mail est classé. Sans lui, le bouton « Ouvrir le dossier » n'est pas proposé. */
   onOuvrirDossier?: (id: string, nom: string, chemise: string, reference?: string | null) => void;
+  /**
+   * En-tête Message-ID d'un mail à ouvrir (lien « Ouvrir le mail » de l'Agenda) : l'écran choisit la boîte et le dossier
+   * de ce mail, le sélectionne, puis prévient par `onMessageOuvert`.
+   */
+  ouvrirMessageId?: string | null;
+  onMessageOuvert?: () => void;
   /** Galerie seulement : pas d'appel PowerSync. */
   demonstration?: DemonstrationMails;
 };
@@ -95,6 +103,14 @@ const GENRES_API: Record<GenreComposition, GenreRedaction> = {
   transferer: "transfert",
 };
 
+/**
+ * Clé d'une réponse envoyée depuis cet écran, avant que la base locale la porte : l'identifiant ET la SEQUENCE,
+ * car une version plus récente de l'invitation attend une nouvelle réponse.
+ */
+function cleReponse(invitationId: string, sequence: number | null | undefined): string {
+  return `${invitationId}#${String(sequence ?? 0)}`;
+}
+
 function memeDonnees(a: DonneesMails, b: DonneesMails): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
@@ -114,6 +130,8 @@ export function EcranMails({
   onComposer,
   onSaisirTemps,
   onOuvrirDossier,
+  ouvrirMessageId = null,
+  onMessageOuvert,
   demonstration,
 }: EcranMailsProps) {
   const [donneesSync, setDonneesSync] = useState<DonneesMails>(DONNEES_VIDES);
@@ -199,6 +217,26 @@ export function EcranMails({
   }, [terme, enDemo]);
 
   const monId = identifiantUtilisateur(donnees.comptes);
+
+  // Ouverture demandée depuis l'Agenda : le mail se trouve par son Message-ID dans la base locale. L'état local
+  // s'ajuste pendant le rendu (une seule fois par demande) ; l'écran parent est prévenu ensuite.
+  const [ouvertPour, setOuvertPour] = useState<string | null>(null);
+  const cibleOuverture =
+    ouvrirMessageId === null || ouvrirMessageId === "" || enDemo
+      ? undefined
+      : donnees.mails.find((mail) => mail.message_id === ouvrirMessageId);
+  if (cibleOuverture !== undefined && ouvrirMessageId !== ouvertPour) {
+    const boite = boiteDuMessage(cibleOuverture, monId);
+    setOuvertPour(ouvrirMessageId);
+    if (boite !== null) {
+      setVueChoisie({ genre: "dossier", boite, dossier: dossierImap(cibleOuverture.dossier_imap).cle });
+    }
+    setSelection(cibleOuverture.id);
+  }
+  useEffect(() => {
+    if (ouvrirMessageId !== null && ouvrirMessageId === ouvertPour) onMessageOuvert?.();
+  }, [ouvrirMessageId, ouvertPour, onMessageOuvert]);
+
   // Les brouillons de la base locale sont des lignes du dossier Brouillons de l'utilisateur.
   const mailsTous = useMemo(
     () => [...donnees.mails, ...brouillonsVersMails(donnees.brouillons, monId)],
@@ -305,9 +343,10 @@ export function EcranMails({
     (invitationId: string, reponse: ReponseInvitation) => {
       setErreurInvitation(null);
       setReponseEnCours(true);
+      const cle = cleReponse(invitationId, donnees.invitations.find((candidate) => candidate.id === invitationId)?.sequence);
       void reponseInvitation(instanceUrl, invitationId, reponse)
         .then(() => {
-          setReponsesInvitation((actuel) => ({ ...actuel, [invitationId]: reponse }));
+          setReponsesInvitation((actuel) => ({ ...actuel, [cle]: reponse }));
         })
         .catch((err: unknown) => {
           const message =
@@ -318,7 +357,7 @@ export function EcranMails({
           setReponseEnCours(false);
         });
     },
-    [instanceUrl],
+    [instanceUrl, donnees.invitations],
   );
 
   const actionFile = useCallback(
@@ -639,7 +678,11 @@ export function EcranMails({
                 classer(choisi.id, dossierId);
               }}
               invitation={invitation}
-              reponseConfirmee={invitation === null ? undefined : reponsesInvitation[invitation.id]}
+              reponseConfirmee={
+                invitation === null
+                  ? undefined
+                  : (reponsesInvitation[cleReponse(invitation.id, invitation.sequence)] ?? reponseEnvoyee(invitation.reponse))
+              }
               erreurInvitation={
                 invitation !== null && erreurInvitation?.id === invitation.id ? erreurInvitation.message : null
               }

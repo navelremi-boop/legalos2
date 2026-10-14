@@ -48,6 +48,15 @@ export type InvitationLocale = {
   fin: string | null;
   objet: string | null;
   organisateur: string;
+  /** Instants UTC (ISO) quand le serveur a pu les déduire du fuseau annoncé. */
+  debut_utc?: string | null;
+  fin_utc?: string | null;
+  /** Vrai (1) quand le mail qui porte l'invitation vient de l'organisateur annoncé. */
+  verifiee?: number | boolean | null;
+  /** En-tête Message-ID du message qui porte la dernière version. */
+  message_id?: string | null;
+  /** `accepte`, `refuse`, `peut_etre` ou vide : réponse déjà envoyée à cette version. */
+  reponse?: string | null;
 };
 
 export type LigneEnvoi = {
