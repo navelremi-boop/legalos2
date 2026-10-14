@@ -1,13 +1,14 @@
 import { apiUrl } from "@/lib/auth/client";
 import { loadSessionTokens } from "@/lib/session/storage";
 import { messageEchecReponse } from "@/messagerie/erreursHttp";
+import { cheminReponseInvitation } from "@/messagerie/invitations";
 
 /**
  * Réponse à une invitation reçue (accepter, peut-être, refuser) : l'API la transmet à l'organisateur.
  *
- * Cette route n'existe pas encore (étape 2 du jalon). Le module l'appelle quand même : tant qu'elle manque,
- * l'appel échoue avec un message en français, et rien n'est simulé. Chemin et corps attendus, à confirmer
- * avec l'étape 2 : POST /messagerie/invitations/{id}/repondre, `{ "reponse": "accepter" | "peut_etre" | "refuser" }`.
+ * Route de l'API (étape 2 du jalon) : POST /messagerie/invitations/{id}/reponse,
+ * `{ "reponse": "accepter" | "peut_etre" | "refuser" }` (`cheminReponseInvitation`). Un échec porte un message en
+ * français, et rien n'est simulé.
  */
 
 export type ReponseInvitation = "accepter" | "peut_etre" | "refuser";
@@ -40,7 +41,7 @@ export async function reponseInvitation(
   }
   let resultat: Response;
   try {
-    resultat = await fetch(apiUrl(instanceUrl, `/messagerie/invitations/${invitationId}/repondre`), {
+    resultat = await fetch(apiUrl(instanceUrl, cheminReponseInvitation(invitationId)), {
       method: "POST",
       headers: { authorization: `Bearer ${jeton}`, "content-type": "application/json" },
       body: JSON.stringify({ reponse }),

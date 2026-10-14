@@ -22,6 +22,11 @@ export function normaliserObjet(objet: string | null | undefined): string {
     .trim();
 }
 
+/** Chemin de la route de réponse à une invitation (`POST /messagerie/invitations/{id}/reponse`). */
+export function cheminReponseInvitation(invitationId: string): string {
+  return `/messagerie/invitations/${encodeURIComponent(invitationId)}/reponse`;
+}
+
 function adresseOrganisateur(organisateur: string): string {
   const sans = organisateur.trim().replace(/^mailto:/iu, "");
   return analyserCorrespondant(sans).adresse.toLowerCase();

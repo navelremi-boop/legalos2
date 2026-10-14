@@ -11,7 +11,7 @@
  *  4. liste groupée par jour, filtres, étiquette de dossier à la couleur de chemise, pastille « À classer » ;
  *  5. classement depuis le message (suggestion acceptée, autre dossier), le compteur baisse ;
  *  6. file d'envoi dans le rail et pas dans le volet de lecture, états, annulation, nouvelle tentative ;
- *  7. carte d'invitation (présente pour le message qui la porte, absente sinon), réponse en échec propre ;
+ *  7. carte d'invitation (présente pour le message qui la porte, absente sinon), réponse refusée par l'API, message en français ;
  *  8. sous-titre, badge de la navigation, absence de témoin de relève sans donnée ;
  *  9. boutons de rédaction : ils ouvrent la rédaction à la place de la lecture, dock, ouverture du dossier ;
  * 10. recherche hors ligne en tête de liste.
@@ -564,25 +564,19 @@ async function main() {
     await cliquer(ligne("classeB"));
     await attendre("mail classé sans invitation", () => texteDe("[data-testid=lecture-objet]"), (t) => t.includes(objets.classeB));
     essaiNegatif("une carte d'invitation sur un mail sans invitation", (await predicat("carte")) !== null);
-    // Réponse : la route n'existe pas encore (étape 2) ; l'échec est propre, rien n'est simulé.
-    const sonde = await fetch(`${api}/messagerie/invitations/${randomUUID()}/repondre`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${jeton}`, "content-type": "application/json" },
-      body: JSON.stringify({ reponse: "accepter" }),
-    });
-    const routeAbsente = sonde.status === 404 || sonde.status === 405;
+    // Réponse : la route de l'API (POST /messagerie/invitations/{id}/reponse) refuse l'invitation de cette recette, insérée
+    // sans boîte de réception (409, message en français). L'écran reprend ce message, rien n'est simulé. Le chemin
+    // heureux (réponse reçue par l'organisateur) est prouvé par j11-journee-sans-outlook.mjs.
     await cliquer(ligne("invitation"));
     await attendre("carte d'invitation (2)", () => predicat("carte"), (c) => c !== null);
+    essaiNegatif("une confirmation de réponse avant tout clic", await present("[data-testid=invitation-confirmee]"));
     await cliquer("[data-testid=invitation-repondre][data-reponse=accepter]");
-    if (routeAbsente) {
-      const erreur = await attendre("message d'erreur de la réponse", () => texteDe("[data-testid=invitation-erreur]"), (t) => t !== "");
-      verifier("échec propre, en français", /pas encore disponible/u.test(erreur), erreur);
-      verifier("aucune réponse simulée", !(await present("[data-testid=invitation-confirmee]")));
-      verifier("aucun bouton marqué comme choisi", (await evaluate(send, `[...document.querySelectorAll("[data-testid=invitation-repondre]")].every((b) => b.getAttribute("aria-pressed") === "false")`)) === true);
-      essaiNegatif("une confirmation de réponse sans route", await present("[data-testid=invitation-confirmee]"));
-    } else {
-      ok(`route de réponse présente (${sonde.status}) : le contrôle de l'échec propre est ignoré`);
-    }
+    const erreur = await attendre("message d'erreur de la réponse", () => texteDe("[data-testid=invitation-erreur]"), (t) => t !== "");
+    verifier("échec propre, message de l'API en français", /n'existe plus : réponse impossible/u.test(norm(erreur).replace(/’/gu, "'")), erreur);
+    essaiNegatif("le message d'une route absente", /pas encore disponible/u.test(erreur));
+    verifier("aucune réponse simulée", !(await present("[data-testid=invitation-confirmee]")));
+    verifier("aucun bouton marqué comme choisi", (await evaluate(send, `[...document.querySelectorAll("[data-testid=invitation-repondre]")].every((b) => b.getAttribute("aria-pressed") === "false")`)) === true);
+    essaiNegatif("une confirmation de réponse après un refus de l'API", await present("[data-testid=invitation-confirmee]"));
     ok("carte d'invitation : présente pour son message, absente ailleurs, échec propre de la réponse");
 
     // 9. Sous-titre, badge, témoin de relève

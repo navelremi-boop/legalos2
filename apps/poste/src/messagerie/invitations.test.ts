@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { invitationDuMessage, normaliserObjet, presenterInvitation, quandInvitation } from "./invitations.ts";
+import { cheminReponseInvitation, invitationDuMessage, normaliserObjet, presenterInvitation, quandInvitation } from "./invitations.ts";
 import type { InvitationLocale } from "./typesMails.ts";
 
 function invitation(extra: Partial<InvitationLocale> = {}): InvitationLocale {
@@ -107,5 +107,14 @@ describe("presenterInvitation", () => {
   });
   it("sans date lisible, pas de carte", () => {
     assert.equal(presenterInvitation(invitation({ debut: "?" })), null);
+  });
+});
+
+describe("route de réponse à une invitation", () => {
+  it("vise /messagerie/invitations/{id}/reponse, la route que l'API expose", () => {
+    assert.equal(cheminReponseInvitation("3f2a"), "/messagerie/invitations/3f2a/reponse");
+  });
+  it("essai négatif : l'ancien chemin /repondre n'est plus utilisé", () => {
+    assert.notEqual(cheminReponseInvitation("3f2a"), "/messagerie/invitations/3f2a/repondre");
   });
 });
