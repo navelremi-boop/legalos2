@@ -92,3 +92,9 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 | actions/setup-node | v4.4.0 |
 | dtolnay/rust-toolchain | stable (via fichier repo) |
 | pnpm/action-setup | v4.1.0 |
+
+## Alertes de dépendances consignées
+
+| Alerte | Dépendance | Constat | Décision |
+|--------|------------|---------|----------|
+| Dependabot #1, GHSA-wrw7-89jp-8q8g (moyenne) : `glib::VariantStrIter`, comportement indéfini dans `Iterator` / `DoubleEndedIterator` | `glib` 0.18.5 (`apps/poste/src-tauri/Cargo.lock`), corrigé en 0.20.0 | Absent de l'arbre Windows (`cargo tree -i glib@0.18.5 --target x86_64-pc-windows-msvc` : rien à afficher) ; présent sous Linux seulement, via `tauri` > `muda` > `gtk` (GTK3, `glib` 0.18 imposé). Le poste n'est distribué que sur Windows et macOS. Vérifié le 2026-10-14. | Aucune correction possible sans changer la version de Tauri ; alerte non exploitable sur les cibles livrées. À rouvrir à la prochaine montée de Tauri ou si une cible Linux est ajoutée. |
