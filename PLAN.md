@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-10-12 (jalon en cours : **J11**, étape 1a faite, étape 1b engagée).
+Dernière mise à jour : 2026-10-14 (jalon en cours : **J11**, refusé par le contrôleur sur `617a45e` ; critères (i) à (v) ajoutés par l'architecte).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -156,6 +156,8 @@ Ordre architecte (révisé 2026-10-04) : **Migration Sync Streams** → **J8** �
 - [ ] **Ne bloque plus J11** (décision de l'architecte du 10/10/2026) : `conflits-poste-tauri` : instabilité au lancement, `#root` vide, environ une passe sur dix, présente avant la montée — signature : page chargée, `#root` sans enfant, aucune erreur JavaScript, Vite répond ; mesures et diagnostic dans `docs/journal/ab-powersync.md` et `docs/journal/prechauffe-vite.md`. **Soldée si** (a) la cause est identifiée à partir du diagnostic d'un échec naturel de la recette, ou (b) `node tests/recette/conflits-poste-tauri.mjs --build` passe 30 fois consécutives en mode build, sans serveur Vite (option `--build`, jamais le mode par défaut). **Contournement pour J11** : les recettes qui lancent l'application relancent le lancement une seule fois, uniquement quand l'échec porte la signature ci-dessus ; la relance est journalisée et comptée, la recette échoue à partir de deux relances par exécution ; aucun autre échec n'est relancé.
 - [x] **Dans la Coque claire** (consigne de l'architecte du 10/10/2026 : le grain visible des maquettes est la cible, l'opacité de 0,04 du cahier § 7.3 est abandonnée) : grain du fond lin aligné sur les maquettes (`design/grain.svg` sans l'opacité, cahier corrigé) — critère : l'écart-type de luminosité du fond sur la capture du poste est compris entre 5 et 8 en jour (maquette : 6,84) et entre 1,0 et 2,5 en nuit (maquette : 1,45) ; mesuré : jour 6,62, nuit 2,08 ; `node tests/recette/grain-fond.mjs` (essai négatif : un grain nul échoue dans les deux modes) ; à solder par la revalidation du contrôleur sur ce seul point.
 - [ ] **Avant la fin de la phase 3** (rattachée à Finition des écrans ; consigne de l'architecte du 10/10/2026 : les autres détails de la coque sont soldés dans la Coque claire) : pastille de fond de l'onglet actif ; pilule du chronomètre sur La journée (rattachée au jalon Temps).
+- [ ] **Avant J12** (décision de l'architecte du 14/10/2026) : gestion des membres des boîtes partagées, rôle administrateur minimal, contrôle de rôle sur `/messagerie/modeles` (aujourd'hui aucun système de rôles dans l'API).
+- [ ] **Avant la fin de la Finition des écrans** (décision de l'architecte du 14/10/2026) : la liste des dossiers du poste est limitée à 50 sur 3 522 (`Dossiers.tsx`, `ORDER BY nom LIMIT 50`) ; retirer le préfixe « 000 » des dossiers de `tests/recette/agenda-tauri.mjs` une fois la liste corrigée.
 - [ ] **Mensuel** : avis de sécurité PowerSync (GHSA, édition 3) relus et consignés dans `docs/versions.md`.
 - [x] **Avant le premier compte réel (B8)** : échecs de connexion IMAP — temporisation croissante ; après un refus d'authentification, arrêt des tentatives et état « identifiants refusés » visible par le titulaire ; aucune boucle sans délai. Essai négatif compris — `node tests/recette/s7-connexions.mjs`.
 - [x] **Avant le premier compte réel (B8)** : veille IDLE renouvelée avant 29 minutes (RFC 2177) ; une session de relève réutilisée pour tous les dossiers ; relève au réveil et au plus toutes les 10 minutes sans réveil — `node tests/recette/s7-connexions.mjs`.
@@ -232,6 +234,13 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
       - (f) In-Reply-To et References posés ; « répondre à tous » exclut l'adresse de l'expéditeur — `node tests/recette/j11-redaction-api.mjs` ;
       - (g) brouillons repris sur un second poste et disponibles hors ligne — `node tests/recette/j11-redaction.mjs` ;
       - (h) droits : un collaborateur ne lit pas la boîte nominative d'un autre, ni par l'API ni par la synchronisation ; essai négatif sur les deux — `node tests/recette/j11-boites.mjs`.
+    - Critères ajoutés (décision de l'architecte du 14/10/2026, après le refus du contrôleur sur `617a45e`), chacun couvert par une recette avec essai négatif :
+      - (i) identité d'envoi : From = adresse du compte choisi à la rédaction (nominatif ou partagé) ; Reply-To seulement si le compte le définit ; la réponse iTIP part de l'adresse invitée (ATTENDEE) ; envoi depuis un autre compte refusé (essai négatif) — `node tests/recette/j11-redaction-api.mjs` et `node tests/recette/j11-invitation.mjs` ;
+      - (ii) date d'en-tête conservée (migration additive), affichée et utilisée pour le tri du chrono ; la date d'arrivée reste distincte — `node tests/recette/j11-mails-ecran.mjs` ;
+      - (iii) marquer lu/non lu, archiver, supprimer (vers la Corbeille, jamais d'EXPUNGE immédiat) et déplacer, pour une boîte nominative ou partagée, via une file idempotente reprise après coupure, répercutée sur IMAP ; essai négatif de droits — `node tests/recette/j11-boites-actions.mjs` ;
+      - (iv) recherche serveur sur objet, expéditeur, destinataires et corps, dans les limites des droits ; essai négatif sur la boîte d'un autre et sur un dossier restreint — `node tests/recette/j11-boites-actions.mjs` ;
+      - (v) écrans de connexion d'une boîte (IMAP/SMTP et OAuth) et de santé — `node tests/recette/j11-connexion-boites.mjs` ; la gestion des membres est la dette « Avant J12 » (§ Dettes transverses).
+    - Avant toute coche : la cause des échecs intermittents de relève (`s7-classement`, `j11-redaction`, `j11-invitation`) est établie et consignée dans `JOURNAL.md` ; relancer jusqu'au vert n'est pas une preuve.
     - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
 - [ ] **Finition des écrans** — après J11 — critères validés par l'architecte le 07/10/2026
