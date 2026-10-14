@@ -1578,6 +1578,44 @@
     cursor: default;
   }
 
+  .mails-encart__minutes {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12.5px;
+  }
+
+  .mails-encart__minutes input {
+    width: 52px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 700;
+    text-align: right;
+    background: var(--feuille);
+    color: var(--encre);
+    box-shadow: inset 0 0 0 1px var(--filet);
+  }
+
+  .mails-encart__minutes input[aria-invalid="true"] {
+    box-shadow: inset 0 0 0 2px var(--echeance);
+  }
+
+  .mails-encart__corps .mails-erreur {
+    display: block;
+    margin: 4px 0 0;
+  }
+
+  .mails-temps-saisi {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 14px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--graphite);
+  }
+
   .mails-erreur {
     margin: 0 0 14px;
     font-size: 12.5px;
@@ -2205,5 +2243,263 @@
 
   .mails-redac__supprimer:hover {
     color: var(--encre);
+  }
+
+  .mails-redac__modeles {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--filet);
+    font-size: 12.5px;
+  }
+
+  .mails-redac__modeles ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .mails-redac__modeles button,
+  .mails-redac__confirmation button {
+    padding: 5px 11px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 700;
+    background: var(--feuille-2);
+    box-shadow: inset 0 0 0 1px var(--filet);
+  }
+
+  .mails-redac__modeles button:hover,
+  .mails-redac__confirmation button:hover {
+    background: var(--survol);
+  }
+
+  .mails-redac__confirmation button[data-fort="true"] {
+    background: var(--encre);
+    color: var(--feuille);
+    box-shadow: none;
+  }
+
+  .mails-redac__modeles p {
+    margin: 0;
+    color: var(--graphite);
+  }
+
+  .mails-redac__modeles ul + p {
+    margin-top: 6px;
+  }
+
+  .mails-redac__confirmation {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .mails-redac__note {
+    margin: 0;
+    padding: 6px 0 0;
+    font-size: 12.5px;
+    color: var(--graphite);
+  }
+
+  /* Réglages, rubrique Messagerie : signature par boîte et modèles de message (maquette prototype-reglages). */
+  .rg-mess {
+    max-width: 640px;
+    color: var(--encre);
+  }
+
+  .rg-mess h2 {
+    margin: 0;
+    font-size: var(--font-size-section);
+    font-weight: 800;
+  }
+
+  .rg-mess h3 {
+    margin: 22px 0 8px;
+    font-size: 12.5px;
+    font-weight: 700;
+  }
+
+  .rg-mess__desc,
+  .rg-mess__note {
+    margin: 4px 0 12px;
+    font-size: var(--font-size-dense);
+    color: var(--graphite);
+    max-width: 68ch;
+  }
+
+  .rg-mess__signature {
+    margin: 0 0 14px;
+  }
+
+  .rg-mess__compte {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    margin: 0 0 6px;
+    font-size: var(--font-size-dense);
+  }
+
+  .rg-mess__compte small {
+    font-size: var(--font-size-meta);
+    color: var(--graphite);
+  }
+
+  .rg-mess__editeur {
+    padding: 4px 14px 2px;
+    border-radius: 12px;
+    background: var(--feuille);
+    box-shadow: inset 0 0 0 1px var(--filet);
+  }
+
+  .rg-mess__editeur:focus-within {
+    box-shadow: inset 0 0 0 2px var(--neutre-accent);
+  }
+
+  .rg-mess__editeur .mails-redac__corps {
+    min-height: 72px;
+    max-width: none;
+    font-size: 13.5px;
+    line-height: 1.55;
+  }
+
+  .rg-mess__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0 0;
+  }
+
+  .rg-mess__bouton {
+    display: inline-flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 13px;
+    border-radius: 9px;
+    font-size: 12.5px;
+    font-weight: 700;
+    white-space: nowrap;
+    background: var(--feuille);
+    color: var(--encre);
+    box-shadow: inset 0 0 0 1px var(--filet);
+    transition: background-color var(--duration-hover) ease;
+  }
+
+  .rg-mess__bouton:hover:not(:disabled) {
+    background: var(--survol);
+  }
+
+  .rg-mess__bouton[data-fort="true"] {
+    background: var(--encre);
+    color: var(--feuille);
+    box-shadow: none;
+  }
+
+  .rg-mess__bouton:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  .rg-mess__bouton:focus-visible,
+  .rg-mess__champ input:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 1px;
+  }
+
+  .rg-mess__confirme,
+  .rg-mess__erreur {
+    font-size: var(--font-size-dense);
+    font-weight: 700;
+  }
+
+  .rg-mess__confirme {
+    color: var(--ok);
+  }
+
+  .rg-mess__erreur {
+    margin: 8px 0 0;
+    color: var(--echeance);
+  }
+
+  .rg-mess__actions .rg-mess__erreur {
+    margin: 0;
+  }
+
+  .rg-mess__liste {
+    display: flex;
+    flex-direction: column;
+    padding: 2px 16px;
+    border-radius: 14px;
+    background: var(--feuille-2);
+    box-shadow: inset 0 0 0 1px var(--filet);
+  }
+
+  .rg-mess__ligne {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-top: 1px solid var(--filet);
+    font-size: var(--font-size-dense);
+  }
+
+  .rg-mess__ligne:first-child {
+    border-top: 0;
+  }
+
+  .rg-mess__nom {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .rg-mess__nom small {
+    font-size: var(--font-size-meta);
+    color: var(--graphite);
+  }
+
+  .rg-mess__boutons {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+  }
+
+  .rg-mess__formulaire {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: var(--feuille-2);
+    box-shadow: inset 0 0 0 1px var(--filet);
+  }
+
+  .rg-mess__champ {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .rg-mess__champ label,
+  .rg-mess__etiquette {
+    font-size: var(--font-size-meta);
+    color: var(--graphite);
+  }
+
+  .rg-mess__champ input {
+    height: 36px;
+    padding: 0 11px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    background: var(--feuille);
+    color: var(--encre);
+    box-shadow: inset 0 0 0 1px var(--filet);
   }
 }

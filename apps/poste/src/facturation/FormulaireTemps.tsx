@@ -3,16 +3,12 @@ import type { SubmitEvent } from "react";
 import { apiUrl } from "@/lib/auth/client";
 import { fr } from "@/lib/fr";
 import { loadSessionTokens } from "@/lib/session/storage";
+import { enregistrerTemps, htTempsCentimes, tauxHoraireParDefaut } from "@/facturation/ecrireTemps";
 import { getPowerSyncDatabase } from "@/sync/database";
 
 function champ(form: FormData, nom: string): string {
   const valeur = form.get(nom);
   return typeof valeur === "string" ? valeur.trim() : "";
-}
-
-/** HT = (minutes × taux_centimes_heure) / 60. Hypothèse F0. */
-export function htTempsCentimes(minutes: number, tauxCentimesHeure: number): number {
-  return Math.trunc((minutes * tauxCentimesHeure) / 60);
 }
 
 type DossierOption = { id: string; nom: string };
@@ -54,15 +50,8 @@ export function FormulaireTemps({
         "SELECT id, nom FROM dossiers ORDER BY nom COLLATE NOCASE",
       );
       if (!annule) setDossiers(lignes);
-      const taux = await database.getAll<{ centimes_par_heure: number }>(
-        `SELECT centimes_par_heure FROM taux_horaires
-         WHERE dossier_id IS NULL OR dossier_id = ''
-         ORDER BY cree_le DESC LIMIT 1`,
-      );
-      const premier = taux[0]?.centimes_par_heure;
-      if (!annule && typeof premier === "number" && premier > 0) {
-        setTauxSuggere(premier);
-      }
+      const taux = await tauxHoraireParDefaut(database);
+      if (!annule) setTauxSuggere(taux);
     }
     void charger();
     const timer = window.setInterval(() => {
@@ -108,67 +97,18 @@ export function FormulaireTemps({
       setMessage(fr("Dossier introuvable dans la base locale."));
       return;
     }
-    const factureId = crypto.randomUUID();
-    const tempsId = crypto.randomUUID();
     const ht = htTempsCentimes(minutes, taux);
     if (ht <= 0) {
       setMessage(fr("Montant calculé nul."));
       return;
     }
     const database = await getPowerSyncDatabase();
-    const cabinets = await database.getAll<{ id: string }>("SELECT id FROM cabinets LIMIT 1");
-    const cabinetId = cabinets[0]?.id;
-    if (!cabinetId) {
-      setMessage(fr("Aucun cabinet synchronisé."));
+    const ecrit = await enregistrerTemps(database, { dossierId, minutes, libelle, tauxCentimesHeure: taux });
+    if (!ecrit.ok) {
+      setMessage(fr(ecrit.message));
       return;
     }
-    const users = await database.getAll<{ id: string }>("SELECT id FROM users LIMIT 1");
-    const intervenantId = users[0]?.id ?? cabinetId;
-    const creeLe = new Date().toISOString();
-    const dossierRows = await database.getAll<{ restreint: number }>(
-      "SELECT restreint FROM dossiers WHERE id = ?",
-      [dossierId],
-    );
-    const dossier = dossierRows[0];
-    const visibilite = dossier?.restreint ? "restreint" : "public";
-    await database.writeTransaction(async (tx) => {
-      await tx.execute(
-        `INSERT INTO temps_saisis (
-          id, cabinet_id, dossier_id, intervenant_id, minutes, libelle,
-          taux_centimes_heure, ht_centimes, visibilite, cree_le
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          tempsId,
-          cabinetId,
-          dossierId,
-          intervenantId,
-          minutes,
-          libelle,
-          taux,
-          ht,
-          visibilite,
-          creeLe,
-        ],
-      );
-      await tx.execute(
-        `INSERT INTO brouillons_facture (
-          id, cabinet_id, dossier_id, temps_id, numero, ht_centimes, libelle,
-          intervenant_id, taux_centimes_heure, visibilite, cree_le
-        ) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
-        [
-          factureId,
-          cabinetId,
-          dossierId,
-          tempsId,
-          ht,
-          libelle,
-          intervenantId,
-          taux,
-          visibilite,
-          creeLe,
-        ],
-      );
-    });
+    const { factureId, tempsId } = ecrit;
     setBrouillon({ factureId, tempsId, dossierId, minutes, libelle, ht, taux });
     setCii("");
     setMessage("sans numéro");

@@ -16,6 +16,7 @@ import {
   type ApercuReference,
 } from "@/lib/referenceCabinet";
 import { clearSession } from "@/lib/session/storage";
+import { ReglagesMessagerie, type DemonstrationMessagerie } from "@/messagerie/ReglagesMessagerie";
 import { ConstructeurReference } from "@/screens/ConstructeurReference";
 import { DEMO_CABINET_ID } from "@/sync/demoCabinet";
 import { getPowerSyncDatabase } from "@/sync/database";
@@ -32,6 +33,8 @@ type ReglagesProps = {
   onNouveauDossier?: () => void;
   onNouveauMail?: () => void;
   onSaisirTemps?: () => void;
+  /** Galerie seulement : la rubrique Messagerie s'affiche avec ces données, sans appeler l'API. */
+  messagerieDemo?: DemonstrationMessagerie;
 };
 
 function estRemise(valeur: string): valeur is RemiseAZero {
@@ -48,6 +51,7 @@ export function Reglages({
   onNouveauDossier,
   onNouveauMail,
   onSaisirTemps,
+  messagerieDemo,
 }: ReglagesProps) {
   const [nom, setNom] = useState("");
   const [slug, setSlug] = useState("");
@@ -412,6 +416,8 @@ export function Reglages({
               </p>
             ) : null}
           </section>
+
+          <ReglagesMessagerie instanceUrl={instanceUrl} horsLigne={horsLigne} demonstration={messagerieDemo} />
 
           {refusMessage !== null ? (
             <p

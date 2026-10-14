@@ -1,8 +1,6 @@
-import { apiUrl } from "@/lib/auth/client";
-import { jetonAcces, lireJsonSansEchec } from "@/messagerie/apiMessagerie";
 import { lireSaisie, type Destinataire } from "@/messagerie/adressesRedaction";
+import { appeler, type ResultatApi } from "@/messagerie/appelApi";
 import { texteDeLaCitationServeur } from "@/messagerie/citation";
-import { messageErreurHttp } from "@/messagerie/erreursHttp";
 import type { ChampsEcrits } from "@/messagerie/etatRedaction";
 import { piecesDepuisValeur, type PieceBrouillon } from "@/messagerie/piecesRedaction";
 import { corpsBrouillon } from "@/sync/uploadBrouillon";
@@ -13,38 +11,10 @@ import { corpsBrouillon } from "@/sync/uploadBrouillon";
  * dans la base locale et le connecteur d'envoi du poste le porte à l'API.
  */
 
-export type ResultatApi<T> = { ok: true; valeur: T } | { ok: false; message: string; statut: number };
+export type { ResultatApi };
 
 const DELAI_COURT_MS = 15_000;
 const DELAI_PIECE_MS = 120_000;
-
-async function appeler<T>(
-  instanceUrl: string,
-  methode: "GET" | "POST" | "PUT" | "DELETE",
-  chemin: string,
-  options: { corps?: BodyInit; typeContenu?: string; delaiMs: number; lire: (json: unknown) => T },
-): Promise<ResultatApi<T>> {
-  const jeton = jetonAcces();
-  if (jeton === null) return { ok: false, statut: 401, message: "La session a expiré. Reconnectez-vous." };
-  try {
-    const reponse = await fetch(apiUrl(instanceUrl, chemin), {
-      method: methode,
-      headers: {
-        authorization: `Bearer ${jeton}`,
-        ...(options.typeContenu === undefined ? {} : { "content-type": options.typeContenu }),
-      },
-      body: options.corps,
-      signal: AbortSignal.timeout(options.delaiMs),
-    });
-    const json = await lireJsonSansEchec(reponse);
-    if (!reponse.ok) {
-      return { ok: false, statut: reponse.status, message: messageErreurHttp(reponse.status, json) };
-    }
-    return { ok: true, valeur: options.lire(json) };
-  } catch {
-    return { ok: false, statut: 0, message: "L'instance est injoignable." };
-  }
-}
 
 export type Suggestion = Destinataire & { source: string };
 
@@ -167,6 +137,8 @@ export type DepartServeur = {
   references: string[];
   /** Texte du message d'origine tel que le serveur l'a lu (vide s'il n'a pas pu). */
   texteCite: string;
+  /** Compte d'envoi du message : celui du message d'origine. Sa signature est insérée à la rédaction. */
+  compteId: string | null;
 };
 
 function textes(valeur: unknown): string[] {
@@ -195,6 +167,7 @@ export function composerDepartServeur(
         enReponseA,
         references: textes(ligne.references),
         texteCite: typeof ligne.html === "string" ? texteDeLaCitationServeur(ligne.html) : "",
+        compteId: typeof ligne.compte_id === "string" && ligne.compte_id !== "" ? ligne.compte_id : null,
       };
     },
   });

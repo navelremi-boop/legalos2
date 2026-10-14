@@ -53,6 +53,21 @@ export function boiteDuMessage(
   return monId !== null && titulaire === monId ? "perso" : null;
 }
 
+/**
+ * Compte d'envoi d'une réponse ou d'un transfert quand le poste le sait avec certitude, sans le serveur : le message est
+ * dans la boîte nominative de l'utilisateur. Pour une boîte partagée ou celle du cabinet, le poste ne sait pas de quel
+ * compte vient le message (`null`) : le serveur le désigne.
+ */
+export function compteNominatifDuMessage(
+  mail: Pick<MailLocal, "titulaire_id">,
+  comptes: readonly CompteLocal[],
+  monId: string | null,
+): string | null {
+  if (monId === null || boiteDuMessage(mail, monId) !== "perso") return null;
+  const compte = comptes.find((candidat) => candidat.type_compte === "nominatif" && candidat.titulaire_id === monId);
+  return compte?.id ?? null;
+}
+
 export function mailsDeLaBoite(
   mails: readonly MailLocal[],
   boite: IdBoite,

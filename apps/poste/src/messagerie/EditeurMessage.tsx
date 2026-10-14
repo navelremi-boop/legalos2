@@ -1,17 +1,35 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { IconLink, IconList, IconListNumbers, IconPaperclip } from "@tabler/icons-react";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { fr } from "@/lib/fr";
 import { lienAdmis, nettoyerCollage } from "@/messagerie/nettoyageHtml";
 
+/** Contenu imposé à l'éditeur de l'extérieur (signature, modèle) : chaque nouvelle `cle` remplace le document. */
+export type RemplacementEditeur = {
+  cle: number;
+  html: string;
+  /** `debut` : le curseur revient au début du message (signature insérée sous le texte à venir). */
+  curseur?: "debut";
+};
+
 type EditeurMessageProps = {
   /** HTML de départ ; l'éditeur ne le relit plus ensuite (c'est lui qui fait foi pendant la rédaction). */
   contenuInitial: string;
   onChange: (html: string) => void;
   /** Masque la citation d'origine (dernier bloc), sans la retirer du message. */
-  historiqueMasque: boolean;
-  onJoindre: () => void;
+  historiqueMasque?: boolean;
+  /** Absent : pas de bouton « Joindre » (signature, modèle). */
+  onJoindre?: () => void;
+  /** Remplace le document sans signaler de modification de l'utilisateur ; l'appelant tient l'état à jour. */
+  remplacement?: RemplacementEditeur | null;
+  /** Nom accessible de la zone de saisie. */
+  libelle?: string;
+  testId?: string;
+  /** Boutons de la barre d'outils après « Joindre » (choix d'un modèle). */
+  outilsSupplementaires?: ReactNode;
+  /** Sous la barre d'outils : panneaux ouverts par ces boutons. */
+  panneaux?: ReactNode;
 };
 
 /**
@@ -19,7 +37,17 @@ type EditeurMessageProps = {
  * ne connaît ni image, ni tableau, ni style, et le texte collé passe d'abord par `nettoyerCollage` (Word,
  * Outlook, pages web : aucun script, aucun contenu distant, mise en forme parasite retirée).
  */
-export function EditeurMessage({ contenuInitial, onChange, historiqueMasque, onJoindre }: EditeurMessageProps) {
+export function EditeurMessage({
+  contenuInitial,
+  onChange,
+  historiqueMasque = false,
+  onJoindre,
+  remplacement = null,
+  libelle = "Message",
+  testId = "redac-corps",
+  outilsSupplementaires,
+  panneaux,
+}: EditeurMessageProps) {
   const editeur = useEditor({
     extensions: [
       StarterKit.configure({
@@ -47,8 +75,8 @@ export function EditeurMessage({ contenuInitial, onChange, historiqueMasque, onJ
         class: "mails-redac__corps",
         role: "textbox",
         "aria-multiline": "true",
-        "aria-label": fr("Message"),
-        "data-testid": "redac-corps",
+        "aria-label": fr(libelle),
+        "data-testid": testId,
       },
       transformPastedHTML: (html) => nettoyerCollage(html),
     },
@@ -67,6 +95,12 @@ export function EditeurMessage({ contenuInitial, onChange, historiqueMasque, onJ
       lien: courant.isActive("link"),
     }),
   });
+
+  useEffect(() => {
+    if (remplacement === null) return;
+    editeur.commands.setContent(remplacement.html, { emitUpdate: false });
+    if (remplacement.curseur === "debut") editeur.commands.setTextSelection(1);
+  }, [remplacement, editeur]);
 
   const [lienOuvert, setLienOuvert] = useState(false);
   const [adresse, setAdresse] = useState("");
@@ -161,17 +195,23 @@ export function EditeurMessage({ contenuInitial, onChange, historiqueMasque, onJ
         >
           <IconLink stroke={1.7} aria-hidden />
         </button>
-        <span className="mails-redac__sep" aria-hidden />
-        <button
-          type="button"
-          className="mails-redac__outil mails-redac__outil--texte"
-          data-testid="outil-joindre"
-          onClick={onJoindre}
-        >
-          <IconPaperclip stroke={1.7} aria-hidden />
-          {fr("Joindre")}
-        </button>
+        {onJoindre === undefined && outilsSupplementaires === undefined ? null : (
+          <span className="mails-redac__sep" aria-hidden />
+        )}
+        {onJoindre === undefined ? null : (
+          <button
+            type="button"
+            className="mails-redac__outil mails-redac__outil--texte"
+            data-testid="outil-joindre"
+            onClick={onJoindre}
+          >
+            <IconPaperclip stroke={1.7} aria-hidden />
+            {fr("Joindre")}
+          </button>
+        )}
+        {outilsSupplementaires}
       </div>
+      {panneaux}
       {lienOuvert ? (
         <div className="mails-redac__lien" role="group" aria-label={fr("Lien")}>
           <label htmlFor="redac-lien-adresse">{fr("Adresse du lien")}</label>

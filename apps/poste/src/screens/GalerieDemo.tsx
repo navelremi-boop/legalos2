@@ -7,11 +7,35 @@ import { EcranAgenda } from "@/agenda/EcranAgenda";
 import { EcranFacturation } from "@/facturation/EcranFacturation";
 import { estAClasser } from "@/messagerie/classement";
 import { EcranMails, type DemonstrationMails } from "@/messagerie/EcranMails";
+import type { DemonstrationMessagerie } from "@/messagerie/ReglagesMessagerie";
 import { Dossiers } from "@/screens/Dossiers";
 import { Journee } from "@/screens/Journee";
 import { Reglages } from "@/screens/Reglages";
 import type { ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
+
+/** Données fictives de la rubrique Messagerie des réglages (signature et modèles, sans appel à l'API). */
+const messagerieDemo: DemonstrationMessagerie = {
+  comptes: [
+    { id: "demo-compte-perso", adresse: "j.marchal@cabinet-marchal.example", typeCompte: "nominatif" },
+    { id: "demo-compte-cabinet", adresse: "contact@cabinet-marchal.example", typeCompte: "classement" },
+  ],
+  signatures: {
+    "demo-compte-perso":
+      "<p><strong>Julien Marchal</strong><br>Avocat au Barreau de Lyon<br>Cabinet Marchal, 14 quai de la Pêcherie, 69001 Lyon<br>04 00 00 00 00</p>",
+    "demo-compte-cabinet": "<p>Cabinet Marchal<br>14 quai de la Pêcherie, 69001 Lyon</p>",
+  },
+  modeles: [
+    {
+      id: "demo-modele-1",
+      nom: "Accusé de réception de pièces",
+      objet: "Accusé de réception de vos pièces",
+      corpsHtml: "<p>Maître,</p><p>Nous accusons réception de vos pièces.</p>",
+    },
+    { id: "demo-modele-2", nom: "Demande de pièces au client", objet: "", corpsHtml: "<p>Madame, Monsieur,</p>" },
+    { id: "demo-modele-3", nom: "Relance de provision", objet: "Provision sur honoraires", corpsHtml: "<p>Bonjour,</p>" },
+  ],
+};
 
 /**
  * Galerie de démonstration — réservée au développement (`import.meta.env.DEV`).
@@ -511,6 +535,7 @@ export function GalerieDemo() {
               }}
               instanceUrl="http://127.0.0.1:8088"
               horsLigne
+              messagerieDemo={messagerieDemo}
               onNouveauDossier={() => undefined}
               onNouveauMail={() => undefined}
               onSaisirTemps={() => undefined}

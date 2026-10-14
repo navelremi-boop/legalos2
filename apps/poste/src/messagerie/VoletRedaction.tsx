@@ -1,9 +1,16 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { IconSend } from "@tabler/icons-react";
 import { fr } from "@/lib/fr";
 import type { Destinataire } from "@/messagerie/adressesRedaction";
 import { suggererDestinataires } from "@/messagerie/apiBrouillons";
 import { aUnHistorique } from "@/messagerie/citation";
+import {
+  avecSignature,
+  phraseConfirmationModele,
+  planModele,
+  type ModeleMessage,
+  type PlanModele,
+} from "@/messagerie/corpsRedaction";
 import { ChampDestinataires } from "@/messagerie/ChampDestinataires";
 import {
   fusionnerSuggestions,
@@ -15,6 +22,9 @@ import { libelleStatut, titreRedaction } from "@/messagerie/etatRedaction";
 import { etiquetteDossier, type DossierClassement } from "@/messagerie/classement";
 import type { MailLocal } from "@/messagerie/typesMails";
 import { useBrouillon, type EntreeBrouillon } from "@/messagerie/useBrouillon";
+import { PanneauModeles } from "@/messagerie/PanneauModeles";
+import { useModeles } from "@/messagerie/useModeles";
+import { useSignatureRedaction } from "@/messagerie/useSignatureRedaction";
 import { ZonePieces } from "@/messagerie/ZonePieces";
 
 type VoletRedactionProps = Omit<EntreeBrouillon, "hors"> & {
@@ -23,6 +33,10 @@ type VoletRedactionProps = Omit<EntreeBrouillon, "hors"> & {
   adressesPropres: readonly string[];
   dossiers: ReadonlyMap<string, DossierClassement>;
   demonstration: boolean;
+  /** Vrai pour un message qui s'ouvre (neuf, réponse, transfert) : sa signature est insérée. Faux pour un brouillon repris. */
+  signatureActive: boolean;
+  /** Compte d'envoi que le poste connaît avec certitude (le serveur le désigne, sinon). */
+  compteConnu: string | null;
 };
 
 function libelleDossier(dossier: DossierClassement): string {
@@ -35,9 +49,28 @@ function libelleDossier(dossier: DossierClassement): string {
  * dossier de rangement ; éditeur ; pièces par glisser-déposer ; historique cité ; envoi par la file d'envoi.
  * Le brouillon s'enregistre tout seul sur l'appareil, donc hors ligne, et rejoint le serveur dès que possible.
  */
-export function VoletRedaction({ mails, adressesPropres, dossiers, demonstration, ...entree }: VoletRedactionProps) {
+export function VoletRedaction({
+  mails,
+  adressesPropres,
+  dossiers,
+  demonstration,
+  signatureActive,
+  compteConnu,
+  ...entree
+}: VoletRedactionProps) {
   const brouillon = useBrouillon({ ...entree, hors: demonstration });
-  const { etat, modifier } = brouillon;
+  const { etat, modifier, remplacerDepart } = brouillon;
+  const signature = useSignatureRedaction({
+    instanceUrl: entree.instanceUrl,
+    actif: signatureActive && !demonstration,
+    genre: entree.depart.genre,
+    messageId: entree.depart.origineMessageId,
+    compteConnu,
+  });
+  const signatureAppliquee = useRef<string | null>(null);
+  const { modeles, enLigne: modelesEnLigne } = useModeles(entree.instanceUrl, !demonstration);
+  const [modelesOuverts, setModelesOuverts] = useState(false);
+  const [aConfirmer, setAConfirmer] = useState<{ modele: ModeleMessage; plan: PlanModele } | null>(null);
   const [ccOuvert, setCcOuvert] = useState(etat.cc.length > 0);
   const [cciOuvert, setCciOuvert] = useState(etat.cci.length > 0);
   const [historiqueMasque, setHistoriqueMasque] = useState(etat.genre === "reponse" || etat.genre === "reponse_a_tous");
@@ -57,6 +90,35 @@ export function VoletRedaction({ mails, adressesPropres, dossiers, demonstration
     },
     [adressesPropres, demonstration, instanceUrl, mails],
   );
+
+  // La signature du compte d'envoi entre une seule fois, sous la saisie et avant l'historique ; si le compte ou le texte
+  // de la signature changent avant que l'utilisateur ait écrit dans le corps, la nouvelle remplace l'ancienne.
+  const signatureResolue = signature.signature;
+  useEffect(() => {
+    if (signatureResolue === null) return;
+    const cle = `${signatureResolue.compteId}|${signatureResolue.html}`;
+    if (signatureAppliquee.current === cle) return;
+    signatureAppliquee.current = cle;
+    remplacerDepart((courant) => {
+      const suivant = avecSignature(courant.corpsHtml, signatureResolue.html);
+      return suivant === courant.corpsHtml ? {} : { corpsHtml: suivant };
+    });
+  }, [signatureResolue, remplacerDepart]);
+
+  const appliquerPlan = (plan: PlanModele) => {
+    brouillon.remplacerSaisie({ corpsHtml: plan.corpsHtml, objet: plan.objet });
+    setAConfirmer(null);
+    setModelesOuverts(false);
+  };
+
+  const choisirModele = (modele: ModeleMessage) => {
+    const plan = planModele({ genre: etat.genre, objet: etat.objet, corpsHtml: etat.corpsHtml }, modele);
+    if (plan.confirmation) {
+      setAConfirmer({ modele, plan });
+      return;
+    }
+    appliquerPlan(plan);
+  };
 
   const changerAdresses = (champ: "a" | "cc" | "cci") => (valeur: Destinataire[]) => {
     modifier({ [champ]: valeur });
@@ -223,15 +285,63 @@ export function VoletRedaction({ mails, adressesPropres, dossiers, demonstration
         </button>
       </div>
 
+      {signature.etat === "indisponible" ? (
+        <p className="mails-redac__note" role="status" data-testid="signature-indisponible">
+          {fr("Votre signature n'a pas pu être chargée : le serveur est injoignable.")}
+        </p>
+      ) : null}
+
       <EditeurMessage
         contenuInitial={contenuInitial}
         historiqueMasque={historiqueMasque}
+        remplacement={brouillon.remplacement}
         onJoindre={() => {
           choixFichier.current?.click();
         }}
         onChange={(html) => {
           modifier({ corpsHtml: html });
         }}
+        outilsSupplementaires={
+          demonstration ? null : (
+            <button
+              type="button"
+              className="mails-redac__outil mails-redac__outil--texte"
+              data-testid="outil-modele"
+              aria-expanded={modelesOuverts}
+              onClick={() => {
+                setModelesOuverts((courant) => !courant);
+                setAConfirmer(null);
+              }}
+            >
+              {fr("Modèle")}
+            </button>
+          )
+        }
+        panneaux={
+          modelesOuverts ? (
+            <PanneauModeles
+              modeles={modeles}
+              enLigne={modelesEnLigne}
+              onChoisir={choisirModele}
+              confirmation={
+                aConfirmer === null
+                  ? null
+                  : { modele: aConfirmer.modele, phrase: phraseConfirmationModele(aConfirmer.modele.nom, aConfirmer.plan.remplace) }
+              }
+              onConfirmer={() => {
+                // Le plan est refait au moment de confirmer : ce que l'utilisateur a écrit depuis le choix est vu.
+                if (aConfirmer !== null) {
+                  appliquerPlan(
+                    planModele({ genre: etat.genre, objet: etat.objet, corpsHtml: etat.corpsHtml }, aConfirmer.modele),
+                  );
+                }
+              }}
+              onAnnuler={() => {
+                setAConfirmer(null);
+              }}
+            />
+          ) : null
+        }
       />
       <input
         ref={choixFichier}

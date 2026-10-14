@@ -28,7 +28,9 @@ import {
   listePieces,
   paragraphes,
 } from "@/messagerie/listeMails";
+import { PropositionTemps, TempsSaisi } from "@/messagerie/PropositionTemps";
 import { REPONSES_INVITATION, type ReponseInvitation } from "@/messagerie/reponseInvitation";
+import type { PropositionTemps as Proposition } from "@/messagerie/tempsMail";
 import type { InvitationLocale, MailLocal } from "@/messagerie/typesMails";
 
 /** Ce que l'utilisateur demande à la rédaction (branchée par la partie B de l'étape 4). */
@@ -52,6 +54,20 @@ type LectureMailProps = {
   reponseEnCours: boolean;
   onRepondreInvitation: (invitationId: string, reponse: ReponseInvitation) => void;
   onComposer?: (demande: DemandeComposition) => void;
+  /** Temps proposé pour ce mail classé (lu, répondu, transféré) ; absent : rien à proposer. */
+  temps?: SuggestionTempsMail;
+};
+
+/** Suggestion de temps affichée sous l'encart de classement : proposition à valider, ou confirmation après saisie. */
+export type SuggestionTempsMail = {
+  dossier: { nom: string; chemise: string };
+  proposition: Proposition | null;
+  /** Minutes saisies pour ce mail pendant cette session : la confirmation remplace la proposition. */
+  minutesSaisies: number | null;
+  enCours: boolean;
+  erreur: string | null;
+  onSaisir: (minutes: number) => void;
+  onEcarter: () => void;
 };
 
 function libelleDossier(dossier: DossierClassement): string {
@@ -75,6 +91,7 @@ export function LectureMail({
   reponseEnCours,
   onRepondreInvitation,
   onComposer,
+  temps,
 }: LectureMailProps) {
   const [choixOuvert, setChoixOuvert] = useState(false);
   const [cible, setCible] = useState("");
@@ -163,6 +180,20 @@ export function LectureMail({
           {fr(erreurClassement)}
         </p>
       ) : null}
+
+      {temps === undefined ? null : temps.minutesSaisies !== null ? (
+        <TempsSaisi minutes={temps.minutesSaisies} dossierNom={temps.dossier.nom} />
+      ) : temps.proposition === null ? null : (
+        <PropositionTemps
+          key={temps.proposition.minutes}
+          proposition={temps.proposition}
+          dossier={temps.dossier}
+          enCours={temps.enCours}
+          erreur={temps.erreur}
+          onSaisir={temps.onSaisir}
+          onEcarter={temps.onEcarter}
+        />
+      )}
 
       {invitationPresentee !== null && invitation !== null ? (
         <div

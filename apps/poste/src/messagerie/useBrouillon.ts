@@ -18,6 +18,7 @@ import {
 } from "@/messagerie/brouillons";
 import {
   champsEcrits,
+  corpsNonTouche,
   estIntact,
   verifierEnvoi,
   type ChampsEcrits,
@@ -31,6 +32,7 @@ import {
   type PieceAffichee,
   type PieceBrouillon,
 } from "@/messagerie/piecesRedaction";
+import type { RemplacementEditeur } from "@/messagerie/EditeurMessage";
 import { getPowerSyncDatabase } from "@/sync/database";
 
 /**
@@ -61,6 +63,16 @@ export type EntreeBrouillon = {
 export type RetourBrouillon = {
   etat: EtatRedaction;
   modifier: (changements: Partial<EtatRedaction>) => void;
+  /**
+   * Change le départ du message (signature) tant que l'utilisateur n'a pas touché au corps : le nouveau départ devient
+   * la référence et n'est pas enregistré à lui seul. Faux (rien changé) dès que l'utilisateur a écrit dans le corps.
+   * Le HTML produit est montré dans l'éditeur.
+   */
+  remplacerDepart: (fabriquer: (courant: EtatRedaction) => Partial<EtatRedaction>) => boolean;
+  /** Change le corps et l'objet à la demande de l'utilisateur (modèle) : enregistré comme une saisie. */
+  remplacerSaisie: (changements: Pick<EtatRedaction, "corpsHtml" | "objet">) => void;
+  /** Dernier contenu imposé à l'éditeur ; `null` : l'éditeur a la main depuis l'ouverture. */
+  remplacement: RemplacementEditeur | null;
   statut: StatutEnregistrement;
   pieces: PieceAffichee[];
   ajouterFichiers: (fichiers: readonly File[]) => void;
@@ -89,6 +101,7 @@ export function useBrouillon(entree: EntreeBrouillon): RetourBrouillon {
   const [piecesEnCours, setPiecesEnCours] = useState<PieceAffichee[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
+  const [remplacement, setRemplacement] = useState<RemplacementEditeur | null>(null);
 
   const etatRef = useRef(etat);
   const departRef = useRef(depart);
@@ -161,6 +174,34 @@ export function useBrouillon(entree: EntreeBrouillon): RetourBrouillon {
       planifier();
     },
     [planifier],
+  );
+
+  const montrer = useCallback((html: string, curseur?: "debut") => {
+    setRemplacement((actuel) => ({ cle: (actuel?.cle ?? 0) + 1, html, curseur }));
+  }, []);
+
+  const remplacerDepart = useCallback(
+    (fabriquer: (courant: EtatRedaction) => Partial<EtatRedaction>): boolean => {
+      if (hors || ferme.current || !corpsNonTouche(etatRef.current, departRef.current)) return false;
+      const changements = fabriquer(etatRef.current);
+      departRef.current = { ...departRef.current, ...changements };
+      const suivant = { ...etatRef.current, ...changements };
+      etatRef.current = suivant;
+      setEtat(suivant);
+      if (changements.corpsHtml !== undefined) montrer(changements.corpsHtml, "debut");
+      // Un départ qui change sans que rien d'autre ne soit écrit n'est pas enregistré à lui seul.
+      if (precedentRef.current !== null || !estIntact(suivant, departRef.current)) planifier();
+      return true;
+    },
+    [hors, montrer, planifier],
+  );
+
+  const remplacerSaisie = useCallback(
+    (changements: Pick<EtatRedaction, "corpsHtml" | "objet">) => {
+      modifier(changements);
+      montrer(changements.corpsHtml);
+    },
+    [modifier, montrer],
   );
 
   // À la fermeture du volet (autre mail, autre écran), ce qui est en attente est écrit tout de suite.
@@ -407,6 +448,9 @@ export function useBrouillon(entree: EntreeBrouillon): RetourBrouillon {
   return {
     etat,
     modifier,
+    remplacerDepart,
+    remplacerSaisie,
+    remplacement,
     statut,
     pieces,
     ajouterFichiers,

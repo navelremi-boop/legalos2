@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarreActions, type ActionBarre } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
 import { fr } from "@/lib/fr";
+import { loadSessionTokens } from "@/lib/session/storage";
+import { utilisateurIdDepuisJeton } from "@/lib/session/utilisateurCourant";
 import {
   annulerEnvoi,
   classerMessage,
@@ -10,6 +12,7 @@ import {
   relancerEnvoi,
 } from "@/messagerie/apiMessagerie";
 import {
+  compteNominatifDuMessage,
   compterNonLusReception,
   construireRail,
   identifiantUtilisateur,
@@ -31,10 +34,17 @@ import type { GenreRedaction, MessageCite } from "@/messagerie/citation";
 import { VoletRedaction } from "@/messagerie/VoletRedaction";
 import { lireDonneesMails, lireTexteStocke, type DonneesMails } from "@/messagerie/donneesMails";
 import { invitationDuMessage } from "@/messagerie/invitations";
-import { LectureMail, type DemandeComposition, type GenreComposition } from "@/messagerie/LectureMail";
+import { suiteDuMail } from "@/messagerie/journalMails";
+import {
+  LectureMail,
+  type DemandeComposition,
+  type GenreComposition,
+  type SuggestionTempsMail,
+} from "@/messagerie/LectureMail";
 import { PanneauListe } from "@/messagerie/PanneauListe";
 import { filtrerMails, groupesParJour, listePieces, trierParDate, type FiltreListe } from "@/messagerie/listeMails";
 import { RailMails, type VueMails } from "@/messagerie/RailMails";
+import { analyserCorrespondant } from "@/messagerie/expediteurs";
 import { libelleReleve } from "@/messagerie/releve";
 import { rechercherMailsHorsLigne, type ResultatRechercheMail } from "@/messagerie/rechercheMails";
 import {
@@ -42,7 +52,10 @@ import {
   reponseInvitation,
   type ReponseInvitation,
 } from "@/messagerie/reponseInvitation";
+import { saisirTempsDuMail } from "@/messagerie/saisieTempsMail";
+import { propositionTemps, proposer, type ActeMail } from "@/messagerie/tempsMail";
 import type { DemonstrationMails, LigneEnvoi, MailLocal } from "@/messagerie/typesMails";
+import { useJournalMails } from "@/messagerie/useJournalMails";
 import { getPowerSyncDatabase } from "@/sync/database";
 
 export type { DemonstrationMails, MailLocal } from "@/messagerie/typesMails";
@@ -70,6 +83,9 @@ type Composition = {
   modifieLe: string | null;
   piecesDuMessage: string[];
   piecesInitiales: PieceBrouillon[];
+  /** Vrai pour un message qui s'ouvre, faux pour un brouillon repris : la signature n'entre qu'à l'ouverture. */
+  signatureActive: boolean;
+  compteConnu: string | null;
 };
 
 const GENRES_API: Record<GenreComposition, GenreRedaction> = {
@@ -117,6 +133,10 @@ export function EcranMails({
   const [reponseEnCours, setReponseEnCours] = useState(false);
   const [composition, setComposition] = useState<Composition | null>(null);
   const corpsDemandes = useRef(new Set<string>());
+  const { journal, noterActeMail, noterReglement } = useJournalMails();
+  const [tempsSaisis, setTempsSaisis] = useState<Record<string, number>>({});
+  const [tempsEnCours, setTempsEnCours] = useState(false);
+  const [erreurTemps, setErreurTemps] = useState<{ id: string; message: string } | null>(null);
 
   const enDemo = demonstration !== undefined;
   const donnees: DonneesMails = demonstration
@@ -382,9 +402,11 @@ export function EcranMails({
         modifieLe: null,
         piecesDuMessage: message?.pieces.slice() ?? [],
         piecesInitiales: [],
+        signatureActive: true,
+        compteConnu: serveur?.compteId ?? (mail === undefined ? null : compteNominatifDuMessage(mail, donnees.comptes, monId)),
       });
     },
-    [adressesDuCabinet, classesLocal, enDemo, instanceUrl, mailsTous, texteDuMessage],
+    [adressesDuCabinet, classesLocal, donnees.comptes, enDemo, instanceUrl, mailsTous, monId, texteDuMessage],
   );
 
   const ouvrirBrouillon = useCallback(
@@ -400,6 +422,8 @@ export function EcranMails({
         modifieLe: ligne.modifie_le,
         piecesDuMessage: origine === undefined ? [] : listePieces(origine),
         piecesInitiales: lirePiecesBrouillon(ligne.pieces_texte),
+        signatureActive: false,
+        compteConnu: null,
       });
     },
     [donnees.brouillons, donnees.mails],
@@ -426,6 +450,63 @@ export function EcranMails({
     choisi === null
       ? undefined
       : dossiersParId.get(classeLocal ?? (choisi.etat_classement === "classe" ? (choisi.dossier_id ?? "") : ""));
+
+  /** Le temps d'un mail n'est écrit qu'à la demande de l'utilisateur, avec les minutes qu'il a validées. */
+  const saisirTempsMail = useCallback(
+    async (mailId: string, dossierId: string, minutes: number, actes: readonly ActeMail[]) => {
+      setErreurTemps(null);
+      setTempsEnCours(true);
+      try {
+        const base = await getPowerSyncDatabase();
+        const resultat = await saisirTempsDuMail(base, {
+          dossierId,
+          minutes,
+          actes,
+          intervenantId: utilisateurIdDepuisJeton(loadSessionTokens().accessToken),
+        });
+        if (resultat.ok) {
+          setTempsSaisis((actuel) => ({ ...actuel, [mailId]: minutes }));
+          noterReglement(mailId);
+        } else {
+          setErreurTemps({ id: mailId, message: resultat.message });
+        }
+      } catch {
+        setErreurTemps({ id: mailId, message: "Le temps n'a pas pu être enregistré sur cet appareil." });
+      } finally {
+        setTempsEnCours(false);
+      }
+    },
+    [noterReglement],
+  );
+
+  let suggestionTemps: SuggestionTempsMail | undefined;
+  if (!enDemo && choisi !== null && dossierDuChoisi !== undefined && journal !== null) {
+    const suite = suiteDuMail(journal, choisi.id);
+    const saisi = tempsSaisis[choisi.id] ?? null;
+    const expediteur = analyserCorrespondant(choisi.expediteur).adresse.toLowerCase();
+    const proposable = proposer({
+      classeDansUnDossier: true,
+      regle: suite.regle,
+      ecritParLeCabinet: choisiEstBrouillon || adressesDuCabinet.some((adresse) => adresse.toLowerCase() === expediteur),
+    });
+    if (saisi !== null || proposable) {
+      const mailId = choisi.id;
+      const dossierId = dossierDuChoisi.id;
+      suggestionTemps = {
+        dossier: { nom: dossierDuChoisi.nom, chemise: dossierDuChoisi.chemise },
+        proposition: proposable ? propositionTemps(suite.actes) : null,
+        minutesSaisies: saisi,
+        enCours: tempsEnCours,
+        erreur: erreurTemps?.id === mailId ? erreurTemps.message : null,
+        onSaisir: (minutes) => {
+          void saisirTempsMail(mailId, dossierId, minutes, suite.actes);
+        },
+        onEcarter: () => {
+          noterReglement(mailId);
+        },
+      };
+    }
+  }
 
   const actions: ActionBarre[] = [
     {
@@ -520,11 +601,18 @@ export function EcranMails({
                 instanceUrl={instanceUrl}
                 piecesDuMessage={composition.piecesDuMessage}
                 piecesInitiales={composition.piecesInitiales}
+                signatureActive={composition.signatureActive}
+                compteConnu={composition.compteConnu}
                 mails={donnees.mails}
                 adressesPropres={adressesDuCabinet}
                 dossiers={dossiersParId}
                 demonstration={enDemo}
                 onEnvoye={() => {
+                  // Le mail auquel on a répondu ou qu'on a transféré est traité : la suggestion de temps en tient compte.
+                  const { genre, origineMessageId } = composition.etat;
+                  if (origineMessageId !== null && genre !== "nouveau") {
+                    noterActeMail(origineMessageId, genre === "transfert" ? "transfert" : "reponse");
+                  }
                   setComposition(null);
                   void lireFileEnvoi(instanceUrl).then(setFileSync);
                 }}
@@ -558,6 +646,7 @@ export function EcranMails({
               reponseEnCours={reponseEnCours}
               onRepondreInvitation={repondreInvitation}
               onComposer={composer}
+              temps={suggestionTemps}
             />
           )}
         </div>

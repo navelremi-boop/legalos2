@@ -199,6 +199,11 @@ export function estIntact(etat: EtatRedaction, depart: EtatRedaction): boolean {
   return (Object.keys(a) as (keyof ChampsEcrits)[]).every((cle) => a[cle] === b[cle]);
 }
 
+/** Vrai si le corps n'a pas été touché par l'utilisateur depuis le départ (même si l'objet ou les adresses ont changé). */
+export function corpsNonTouche(etat: EtatRedaction, depart: EtatRedaction): boolean {
+  return nettoyerSortie(etat.corpsHtml) === nettoyerSortie(depart.corpsHtml);
+}
+
 export function champDestinataires(etat: EtatRedaction, champ: ChampAdresses): Destinataire[] {
   return etat[champ];
 }
