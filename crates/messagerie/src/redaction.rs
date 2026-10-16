@@ -16,6 +16,9 @@ use crate::ErreurMail;
 /// Dossier IMAP des brouillons quand le serveur n'impose pas un autre nom.
 pub const DOSSIER_BROUILLONS: &str = "Brouillons";
 
+/// Dossier IMAP des messages envoyés quand le serveur n'annonce pas d'attribut `\Sent`.
+pub const DOSSIER_ENVOYES: &str = "Sent";
+
 /// Pièce jointe déjà décodée. Le contenu n'est pas journalisé.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PieceJointe {
@@ -58,6 +61,9 @@ pub struct DemandeRedaction {
     /// Signature en HTML (nettoyée avant insertion). Vide : le texte de `signature` est repris
     /// en HTML échappé. Non vide avec `signature` vide : le texte en est tiré.
     pub signature_html: String,
+    /// Adresse `Reply-To` du compte d'envoi. Vide : aucun en-tête `Reply-To` n'est écrit (un
+    /// `Reply-To` n'existe que si le compte en définit un).
+    pub repondre_a: String,
     /// Identifiant figé par l'appelant. Jamais régénéré ici.
     pub identifiant: String,
     pub origine: Option<MessageOrigine>,
@@ -404,6 +410,9 @@ fn assembler(
     if garder_bcc {
         builder = builder.keep_bcc();
     }
+    if !demande.repondre_a.trim().is_empty() {
+        builder = builder.reply_to(analyse_boite(&demande.repondre_a)?);
+    }
     for boite in &dest.a {
         builder = builder.to(analyse_boite(boite)?);
     }
@@ -478,6 +487,9 @@ fn assembler_sans_destinataire(
         .subject(objet_redaction(GenreRedaction::Nouveau, &demande.objet))
         .date(date)
         .envelope(enveloppe);
+    if !demande.repondre_a.trim().is_empty() {
+        builder = builder.reply_to(analyse_boite(&demande.repondre_a)?);
+    }
     if let Some(fil) = fil {
         builder = builder
             .in_reply_to(identifiant_chevron(&fil.en_reponse_a)?)
@@ -710,6 +722,7 @@ fn verifier_en_tetes(
         &demande.objet,
         &demande.de,
         &demande.adresse_compte,
+        &demande.repondre_a,
         &demande.identifiant,
     ];
     for liste in [&demande.a, &demande.cc, &demande.cci] {
@@ -846,6 +859,7 @@ mod tests {
             html: String::new(),
             signature: "SignatureFictiveJ11".to_owned(),
             signature_html: String::new(),
+            repondre_a: String::new(),
             identifiant: "<reponse-j11@cabinet.example>".to_owned(),
             origine: Some(origine()),
             pieces: Vec::new(),

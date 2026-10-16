@@ -17,16 +17,15 @@ use uuid::Uuid;
 use crate::auth::access::AuthAccess;
 use crate::auth::jwt::AccessClaims;
 use crate::error::ApiError;
+use crate::identite_envoi::{identite_pour_utilisateur, IdentiteEnvoi};
 use crate::routes::dossiers::dossier_visible;
 use crate::routes::messagerie::assurer_compte_classement;
 use crate::routes::redaction::{
     charger_message, genre_depuis_texte, genre_vers_texte, lire_origine, liste_depuis_texte,
-    sortant_depuis_contenu, texte_depuis_liste, verifier_champs_en_tete, ContenuEnvoi,
-    TAILLE_MAX_PIECES,
+    nouvel_identifiant, sortant_depuis_contenu, texte_depuis_liste, verifier_champs_en_tete,
+    ContenuEnvoi, TAILLE_MAX_PIECES,
 };
 use crate::state::AppState;
-
-const DOSSIER_ENVOYES: &str = "Sent";
 
 #[derive(Debug, Deserialize)]
 pub struct CreerEnvoiBody {
@@ -34,6 +33,11 @@ pub struct CreerEnvoiBody {
     pub idempotence_cle: String,
     #[serde(default)]
     pub dossier_id: Option<Uuid>,
+    /// Compte d'envoi (boîte nominative ou partagée) : le `From`, l'enveloppe, le relais SMTP et
+    /// le dossier « Envoyés » sont les siens. Absent : la boîte de classement du cabinet. Refusé
+    /// (403) si l'utilisateur n'a pas le droit d'écrire depuis ce compte.
+    #[serde(default)]
+    pub compte_id: Option<Uuid>,
     /// Champ « à » historique (une adresse) ; repris avec `a`.
     #[serde(default)]
     pub destinataire: String,
@@ -159,15 +163,22 @@ pub async fn creer_envoi(
             return Err(ApiError::not_found("Dossier introuvable"));
         }
     }
-    let parametres = state
-        .messagerie
-        .as_ref()
-        .ok_or_else(|| ApiError::bad_request("Messagerie non configurée"))?;
-    let compte_id = assurer_compte_classement(&state.pool, claims.cabinet_id, parametres).await?;
+    let compte_id = match body.compte_id {
+        Some(compte_id) => compte_id,
+        None => {
+            let parametres = state
+                .messagerie
+                .as_ref()
+                .ok_or_else(|| ApiError::bad_request("Messagerie non configurée"))?;
+            assurer_compte_classement(&state.pool, claims.cabinet_id, parametres).await?
+        }
+    };
+    // Droit d'écrire depuis ce compte : vérifié avant tout effet (403 sinon).
+    let identite = identite_pour_utilisateur(&state, &claims, compte_id).await?;
     let message_id = body
         .message_id
         .clone()
-        .unwrap_or_else(|| format!("<envoi-{}@cabinet.example>", Uuid::now_v7()));
+        .unwrap_or_else(|| nouvel_identifiant(&identite.de));
     let message_id = if message_id.starts_with('<') {
         message_id
     } else {
@@ -229,13 +240,12 @@ pub async fn creer_envoi(
         en_reponse_a: en_reponse_a.clone(),
         references: body.references.clone(),
         pieces,
+        repondre_a: identite.repondre_a.clone(),
     };
     // Construction à blanc : adresses, en-têtes et fil validés à la création, jamais à l'envoi.
-    if let Some(smtp) = state.messagerie_smtp.as_ref() {
-        sortant_depuis_contenu(&smtp.adresse_from, &contenu).map_err(|_| {
-            ApiError::bad_request("Message invalide : destinataires, adresses ou en-têtes")
-        })?;
-    }
+    sortant_depuis_contenu(&identite.de, &contenu).map_err(|_| {
+        ApiError::bad_request("Message invalide : destinataires, adresses ou en-têtes")
+    })?;
 
     let mut tx = state
         .pool
@@ -358,6 +368,11 @@ pub async fn traiter_envoi(
 
 /// Fait avancer un envoi de la file jusqu'à « copie dans Envoyés confirmée » (ou jusqu'au premier
 /// échec). Reprenable à tout moment : « Envoyés » est consulté avant chaque nouvelle tentative.
+///
+/// L'envoi part du compte de la ligne (`file_envoi.compte_id`) : son `From`, son relais SMTP, son
+/// `Reply-To` éventuel et son dossier « Envoyés ». Le droit d'écrire depuis ce compte est revérifié
+/// à chaque passage : un collaborateur retiré d'une boîte partagée ne peut plus reprendre un envoi
+/// (la ligne reste dans la file).
 pub(crate) async fn traiter(
     state: &AppState,
     claims: &AccessClaims,
@@ -365,23 +380,30 @@ pub(crate) async fn traiter(
     couper_smtp: bool,
     forcer_echec: bool,
 ) -> Result<Json<FileEnvoiResponse>, ApiError> {
-    let smtp = state
-        .messagerie_smtp
-        .as_ref()
-        .ok_or_else(|| ApiError::bad_request("SMTP de messagerie non configuré"))?;
-    let imap = state
-        .messagerie
-        .as_ref()
-        .ok_or_else(|| ApiError::bad_request("IMAP de messagerie non configuré"))?;
+    let compte_id = sqlx::query_scalar::<_, Uuid>(
+        r#"
+        SELECT compte_id FROM file_envoi
+        WHERE id = $1 AND cabinet_id = $2 AND (auteur_id IS NULL OR auteur_id = $3)
+        "#,
+    )
+    .bind(id)
+    .bind(claims.cabinet_id)
+    .bind(claims.sub)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("Lecture envoi"))?
+    .ok_or_else(|| ApiError::not_found("Envoi introuvable"))?;
+    let identite = identite_pour_utilisateur(state, claims, compte_id).await?;
 
     loop {
         let mut entree = charger_entree(state, claims, id).await?;
         if entree.etat == EtatFileEnvoi::CopieEnvoyesConfirmee {
             break;
         }
-        let mut session = SessionActions::connecter(imap).map_err(map_err_mail)?;
+        let mut session = SessionActions::connecter(&identite.imap).map_err(map_err_mail)?;
+        let dossier_envoyes = session.dossier_envoyes().map_err(map_err_mail)?;
         let deja = session
-            .message_id_present(DOSSIER_ENVOYES, &entree.message_id)
+            .message_id_present(&dossier_envoyes, &entree.message_id)
             .map_err(map_err_mail)?;
         let action = decider_action(&entree, deja);
         match action {
@@ -389,7 +411,7 @@ pub(crate) async fn traiter(
             ActionEnvoi::ConfirmerCopie => {
                 appliquer(&mut entree, action, true);
                 sauver_entree(state, id, &entree).await?;
-                classer_copie(state, claims.cabinet_id, id, &entree).await?;
+                classer_copie(state, claims.cabinet_id, id, &entree, &identite.de).await?;
                 break;
             }
             ActionEnvoi::MettreEnAttente => {
@@ -401,9 +423,9 @@ pub(crate) async fn traiter(
                 let ok = if forcer_echec {
                     false
                 } else {
-                    match preparer_sortant(state, claims, id, &smtp.adresse_from).await? {
+                    match preparer_sortant(state, claims, id, &identite).await? {
                         Some(sortant) => {
-                            let smtp = smtp.clone();
+                            let smtp = identite.smtp.clone();
                             tokio::task::spawn_blocking(move || {
                                 envoyer_octets(
                                     &smtp,
@@ -426,15 +448,15 @@ pub(crate) async fn traiter(
                 }
             }
             ActionEnvoi::CopierDansEnvoyes => {
-                // La copie « Envoyés » garde le Bcc.
-                let ok = match preparer_sortant(state, claims, id, &smtp.adresse_from).await? {
-                    Some(sortant) => session.appender(DOSSIER_ENVOYES, &sortant.copie).is_ok(),
+                // La copie « Envoyés » garde le Bcc ; elle va dans les envoyés du compte d'envoi.
+                let ok = match preparer_sortant(state, claims, id, &identite).await? {
+                    Some(sortant) => session.appender(&dossier_envoyes, &sortant.copie).is_ok(),
                     None => false,
                 };
                 appliquer(&mut entree, action, ok);
                 sauver_entree(state, id, &entree).await?;
                 if ok {
-                    classer_copie(state, claims.cabinet_id, id, &entree).await?;
+                    classer_copie(state, claims.cabinet_id, id, &entree, &identite.de).await?;
                 }
                 break;
             }
@@ -608,19 +630,22 @@ async fn charger_contenu(
         en_reponse_a: row.7,
         references: liste_depuis_texte(&row.8),
         pieces,
+        repondre_a: None,
     })
 }
 
 /// Message prêt à partir (copie avec Bcc, transport sans Bcc, enveloppe). `None` si le contenu
-/// stocké ne se construit plus : l'envoi passe alors en échec, sans rien partir.
+/// stocké ne se construit plus : l'envoi passe alors en échec, sans rien partir. Le `From` et le
+/// `Reply-To` sont ceux du compte d'envoi, relus à chaque passage.
 async fn preparer_sortant(
     state: &AppState,
     claims: &AccessClaims,
     id: Uuid,
-    expediteur: &str,
+    identite: &IdentiteEnvoi,
 ) -> Result<Option<legalos_messagerie::MessageSortant>, ApiError> {
-    let contenu = charger_contenu(state, claims, id).await?;
-    match sortant_depuis_contenu(expediteur, &contenu) {
+    let mut contenu = charger_contenu(state, claims, id).await?;
+    contenu.repondre_a = identite.repondre_a.clone();
+    match sortant_depuis_contenu(&identite.de, &contenu) {
         Ok(sortant) => Ok(Some(sortant)),
         Err(_) => {
             tracing::warn!(envoi = %id, "construction du message impossible");
@@ -655,6 +680,7 @@ async fn classer_copie(
     cabinet_id: Uuid,
     envoi_id: Uuid,
     entree: &EntreeFileEnvoi,
+    expediteur: &str,
 ) -> Result<(), ApiError> {
     let row = sqlx::query_as::<_, (Uuid, Option<Uuid>, String, Uuid)>(
         r#"
@@ -670,14 +696,6 @@ async fn classer_copie(
     let Some(dossier_id) = row.1 else {
         return Ok(());
     };
-    let parametres = state
-        .messagerie
-        .as_ref()
-        .ok_or_else(|| ApiError::bad_request("IMAP non configuré"))?;
-    let smtp = state.messagerie_smtp.as_ref();
-    let expediteur = smtp
-        .map(|s| s.adresse_from.clone())
-        .unwrap_or_else(|| parametres.utilisateur.clone());
     let uid_synthetique = {
         let mut h: u64 = 0xcbf29ce484222325;
         for b in entree.message_id.as_bytes() {
@@ -704,7 +722,7 @@ async fn classer_copie(
     .bind(&entree.message_id)
     .bind(i64::from(uid_synthetique))
     .bind(&row.2)
-    .bind(&expediteur)
+    .bind(expediteur)
     .execute(&state.pool)
     .await
     .map_err(|_| ApiError::internal("Insertion copie classée"))?;

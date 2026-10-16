@@ -29,14 +29,14 @@ use crate::auth::access::AuthAccess;
 use crate::auth::jwt::AccessClaims;
 use crate::depot_brouillons::DepotBrouillons;
 use crate::error::ApiError;
+use crate::identite_envoi::{expediteur_pour_utilisateur, identite_pour_utilisateur};
 use crate::routes::dossiers::dossier_visible;
 use crate::routes::file_envoi::{charger_reponse, FileEnvoiResponse};
 use crate::routes::messagerie::assurer_compte_classement;
 use crate::routes::redaction::{
-    charger_message, compte_accessible, expediteur_de, genre_depuis_texte, genre_vers_texte,
-    lire_origine, liste_depuis_texte, nouvel_identifiant, sortant_depuis_contenu,
-    texte_depuis_liste, verifier_champs_en_tete, ContenuEnvoi, HTML_MAX, OBJET_MAX,
-    TAILLE_MAX_PIECES,
+    charger_message, genre_depuis_texte, genre_vers_texte, lire_origine, liste_depuis_texte,
+    nouvel_identifiant, sortant_depuis_contenu, texte_depuis_liste, verifier_champs_en_tete,
+    ContenuEnvoi, HTML_MAX, OBJET_MAX, TAILLE_MAX_PIECES,
 };
 use crate::state::AppState;
 
@@ -558,8 +558,8 @@ async fn creer(
             assurer_compte_classement(&state.pool, claims.cabinet_id, parametres).await?
         }
     };
-    let (_, adresse_compte) = compte_accessible(state, claims, compte_id).await?;
-    let expediteur = expediteur_de(state, &adresse_compte);
+    // Le brouillon est écrit depuis ce compte : droit d'écrire vérifié ici (403 sinon).
+    let expediteur = expediteur_pour_utilisateur(state, claims, compte_id).await?;
     let message_id = match &champs.message_id {
         Some(identifiant) => identifiant.clone(),
         None => nouvel_identifiant(&expediteur),
@@ -1069,31 +1069,27 @@ pub async fn envoyer_brouillon(
                 return Err(ApiError::not_found("Dossier introuvable"));
             }
         }
+        // Le message part du compte choisi à la rédaction : le droit d'écrire depuis ce compte
+        // est revérifié ici (403 sinon), le `From` et le `Reply-To` sont ceux du compte.
+        let compte_id = ligne.compte_id;
+        let identite = identite_pour_utilisateur(&state, &claims, compte_id).await?;
         // Construction à blanc : adresses, en-têtes et fil validés avant tout effet.
-        if let Some(smtp) = state.messagerie_smtp.as_ref() {
-            let essai = ContenuEnvoi {
-                message_id: ligne.message_id.clone(),
-                a: a.clone(),
-                cc: cc.clone(),
-                cci: cci.clone(),
-                objet: ligne.objet.clone(),
-                corps: ligne.corps.clone(),
-                corps_html: ligne.corps_html.clone(),
-                en_reponse_a: en_reponse_a.clone(),
-                references: liste_depuis_texte(&ligne.references_texte),
-                pieces: Vec::new(),
-            };
-            sortant_depuis_contenu(&smtp.adresse_from, &essai).map_err(|_| {
-                ApiError::bad_request("Message invalide : destinataires, adresses ou en-têtes")
-            })?;
-        }
-        // La file d'envoi traite la boîte de classement de l'instance.
-        let parametres = state
-            .messagerie
-            .as_ref()
-            .ok_or_else(|| ApiError::bad_request("Messagerie non configurée"))?;
-        let compte_id =
-            assurer_compte_classement(&state.pool, claims.cabinet_id, parametres).await?;
+        let essai = ContenuEnvoi {
+            message_id: ligne.message_id.clone(),
+            a: a.clone(),
+            cc: cc.clone(),
+            cci: cci.clone(),
+            objet: ligne.objet.clone(),
+            corps: ligne.corps.clone(),
+            corps_html: ligne.corps_html.clone(),
+            en_reponse_a: en_reponse_a.clone(),
+            references: liste_depuis_texte(&ligne.references_texte),
+            pieces: Vec::new(),
+            repondre_a: identite.repondre_a.clone(),
+        };
+        sortant_depuis_contenu(&identite.de, &essai).map_err(|_| {
+            ApiError::bad_request("Message invalide : destinataires, adresses ou en-têtes")
+        })?;
 
         let mut tx = state
             .pool

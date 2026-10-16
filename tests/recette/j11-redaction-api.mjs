@@ -9,6 +9,10 @@
  *     la copie « Envoyés » la garde ; l'enveloppe la porte (le destinataire caché reçoit).
  * (f) In-Reply-To et References posés ; « répondre à tous » exclut l'adresse de l'expéditeur ;
  *     le transfert garde les pièces et ne pose pas de fil.
+ * (i) identité d'envoi : le From est l'adresse du compte choisi (nominatif ou partagé), le Reply-To
+ *     n'existe que si le compte en définit un, le relais SMTP est celui du compte (repli sur celui du
+ *     cabinet sinon), la copie va dans les envoyés du compte ; envoi depuis le compte d'un autre refusé
+ *     (403, message en français) ; file idempotente après coupure ; en-têtes toujours non injectables.
  * Droits : un collaborateur ne lit ni ne modifie le brouillon ni la signature d'un autre, et ne
  * compose pas depuis un message d'une boîte nominative qui n'est pas la sienne.
  *
@@ -22,6 +26,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { accessToken, demoAccessToken } from "./lib/demo-auth.mjs";
 import { racineInstance, sleep, sqlServeur } from "./lib/poste-session.mjs";
+import { conteneur, connecterAuReseauApi, MOT_IMAP_TEST } from "./lib/moteur-mail.mjs";
 
 const instance = process.env.LEGALOS_INSTANCE_URL ?? "http://127.0.0.1:8088";
 const api = `${instance}/api`;
@@ -135,10 +140,10 @@ const SCRIPT_IMAP = [
   "boite.logout()",
 ].join("\n");
 
-function imap({ login, secret, action, dossier = "INBOX", cible = "", brut = "" }) {
+function imap({ login, secret, action, dossier = "INBOX", cible = "", brut = "", hote = imapHote, port = imapPort }) {
   const run = spawnSync(
     "python",
-    ["-c", SCRIPT_IMAP, imapHote, imapPort, login, action, dossier, cible],
+    ["-c", SCRIPT_IMAP, hote, String(port), login, action, dossier, cible],
     {
       encoding: "utf8",
       env: { ...process.env, IMAP_SECRET: secret, IMAP_BRUT: brut },
@@ -746,6 +751,240 @@ async function etape1b({
   ok("brouillons de réponse (In-Reply-To déduit) et de transfert (pièce d'origine reprise) : copie IMAP puis envoi");
 }
 
+
+// ===========================================================================================
+// (i) Identité d'envoi : From, Reply-To, SMTP et « Envoyés » du compte choisi
+// ===========================================================================================
+
+async function etapeIdentiteEnvoi({ secret, jetonA, jetonB }) {
+  const m = randomUUID().slice(0, 8);
+  const dovecot = conteneur("legalos-imap-test-dovecot")[0];
+  const greenmailTest = conteneur("legalos-imap-test-greenmail")[0];
+  if (!dovecot || !greenmailTest) {
+    fail("Dovecot et GreenMail d'imap-test requis : docker compose -f instance/imap-test/docker-compose.yml up -d --wait");
+  }
+  connecterAuReseauApi(dovecot);
+  connecterAuReseauApi(greenmailTest);
+  // Dovecot accepte tout identifiant avec le mot de passe de test : une boîte distincte par compte.
+  const boiteDovecot = (nom) => ({ login: `envoi-${nom}-${m}`, secret: MOT_IMAP_TEST, hote: "127.0.0.1", port: "1143" });
+  const chercherEnvoyes = (nom, messageId) =>
+    imap({ ...boiteDovecot(nom), action: "chercher", dossier: "Sent", cible: messageId });
+  const ids = { nominatif: randomUUID(), partage: randomUUID(), propre: randomUUID(), mauvais: randomUUID() };
+  const adresse = {
+    nominatif: `me.envoi.${m}@cabinet.example`,
+    partage: `equipe.envoi.${m}@cabinet.example`,
+    propre: `propre.envoi.${m}@cabinet.example`,
+    mauvais: `mauvais.envoi.${m}@cabinet.example`,
+  };
+  const repondreA = `reponses.envoi.${m}@cabinet.example`;
+  const comptes = Object.values(ids);
+
+  try {
+    // --- Création des comptes : Reply-To et SMTP facultatifs, jamais de secret renvoyé ------------
+    // Boîtes Dovecot : « a » (nominatif), « p » (partagé), « c » (SMTP propre).
+    const base = (nom) => ({ hote: dovecot, port: 143, utilisateur: `envoi-${nom}-${m}`, mot_de_passe: MOT_IMAP_TEST, tls: false });
+    const creerNominatif = await requete("/messagerie/comptes", jetonA, "POST", {
+      id: ids.nominatif, adresse: adresse.nominatif, ...base("a"), repondre_a: repondreA,
+    });
+    attendreStatut(creerNominatif, 200, "compte nominatif avec Reply-To");
+    const creerPartage = await requete("/messagerie/boites-partagees", jetonA, "POST", {
+      id: ids.partage, adresse: adresse.partage, ...base("p"), membres: [],
+    });
+    attendreStatut(creerPartage, 200, "boîte partagée sans Reply-To");
+    const creerPropre = await requete("/messagerie/comptes", jetonA, "POST", {
+      id: ids.propre, adresse: adresse.propre, ...base("c"),
+      smtp_hote: greenmailTest, smtp_port: 3025, smtp_utilisateur: "capa", smtp_mot_de_passe: MOT_IMAP_TEST,
+    });
+    attendreStatut(creerPropre, 200, "compte avec SMTP propre");
+    // Même relais, mauvais mot de passe SMTP : l'envoi doit échouer (le relais du cabinet ne prend pas le relais).
+    const creerMauvais = await requete("/messagerie/comptes", jetonA, "POST", {
+      id: ids.mauvais, adresse: adresse.mauvais, ...base("d"),
+      smtp_hote: greenmailTest, smtp_port: 3025, smtp_utilisateur: "capa", smtp_mot_de_passe: `SentinelleMauvais${m}`,
+    });
+    attendreStatut(creerMauvais, 200, "compte avec SMTP propre et mauvais mot de passe");
+    for (const r of [creerNominatif, creerPartage, creerPropre, creerMauvais]) {
+      if (r.texte.includes(MOT_IMAP_TEST) || r.texte.includes(`SentinelleMauvais${m}`)) fail("un secret figure dans la réponse");
+    }
+    const secretSmtp = await sqlServeur(`SELECT CASE WHEN smtp_secret_chiffre IS NULL THEN 'absent' WHEN position('${MOT_IMAP_TEST}' in smtp_secret_chiffre) > 0 THEN 'clair' ELSE 'chiffre' END FROM comptes_mail WHERE id = '${ids.propre}'`);
+    if (secretSmtp !== "chiffre") fail(`secret SMTP du compte : ${secretSmtp}`);
+    const replyNominatif = await sqlServeur(`SELECT COALESCE(repondre_a, '-') FROM comptes_mail WHERE id = '${ids.nominatif}'`);
+    const replyPartage = await sqlServeur(`SELECT COALESCE(repondre_a, '-') FROM comptes_mail WHERE id = '${ids.partage}'`);
+    if (replyNominatif !== repondreA || replyPartage !== "-") fail(`Reply-To enregistrés : ${replyNominatif} / ${replyPartage}`);
+    // Essais négatifs de validation : injection d'en-tête, SMTP incomplet.
+    attendreStatut(
+      await requete("/messagerie/comptes", jetonA, "POST", { id: randomUUID(), adresse: `x.${m}@cabinet.example`, ...base("x"), repondre_a: `a@example.com\r\nBcc: b@example.com` }),
+      400,
+      "Reply-To avec retour à la ligne",
+    );
+    attendreStatut(
+      await requete("/messagerie/comptes", jetonA, "POST", { id: randomUUID(), adresse: `x.${m}@cabinet.example`, ...base("x"), smtp_port: 25 }),
+      400,
+      "port SMTP sans serveur",
+    );
+    attendreStatut(
+      await requete("/messagerie/comptes", jetonA, "POST", { id: randomUUID(), adresse: `x.${m}@cabinet.example`, ...base("x"), smtp_hote: "relais exemple\r\nX: y" }),
+      400,
+      "serveur SMTP avec retour à la ligne",
+    );
+    ok("comptes : Reply-To et SMTP facultatifs, secret SMTP chiffré et jamais renvoyé, injections refusées (400)");
+
+    const corpsEnvoi = (compte, objet, extra = {}) => ({
+      id: randomUUID(),
+      idempotence_cle: `identite-${randomUUID()}`,
+      compte_id: compte,
+      a: [boite],
+      objet,
+      corps: "Corps fictif de l'identité d'envoi.",
+      ...extra,
+    });
+    const envoyerEtTraiter = async (compte, objet, extra = {}, jeton = jetonA) => {
+      const corps = corpsEnvoi(compte, objet, extra);
+      const cree = await exiger("/messagerie/file-envoi", jeton, "POST", corps, `envoi depuis ${compte}`);
+      await exiger(`/messagerie/file-envoi/${corps.id}/mettre-en-attente`, jeton, "POST");
+      const traite = await exiger(`/messagerie/file-envoi/${corps.id}/traiter`, jeton, "POST");
+      if (traite.etat !== "copie_envoyes_confirmee") fail(`envoi depuis ${compte} : ${traite.etat}`);
+      return { id: corps.id, messageId: cree.message_id };
+    };
+
+    // --- Refus : un autre collaborateur ne peut écrire depuis ces comptes (essai négatif) ----------
+    for (const [nom, compte] of [["nominatif de A", ids.nominatif], ["partagé dont B n'est pas membre", ids.partage]]) {
+      const intrus = corpsEnvoi(compte, `Intrus ${m}`);
+      const refus = await requete("/messagerie/file-envoi", jetonB, "POST", intrus);
+      attendreStatut(refus, 403, `B envoie depuis le compte ${nom}`);
+      if (!/droit/i.test(refus.json?.message ?? "")) fail(`message du refus (${nom}) : ${refus.texte.slice(0, 200)}`);
+      if ((await sqlServeur(`SELECT COUNT(*) FROM file_envoi WHERE id = '${intrus.id}'`)) !== "0") fail(`une ligne de file a été créée pour B (${nom})`);
+      attendreStatut(
+        await requete(`/messagerie/brouillons/${randomUUID()}`, jetonB, "PUT", { compte_id: compte, a: [boite], objet: "Intrus" }),
+        403,
+        `B écrit un brouillon depuis le compte ${nom}`,
+      );
+      attendreStatut(await requete("/messagerie/composition", jetonB, "POST", { genre: "nouveau", compte_id: compte }), 403, `B compose depuis le compte ${nom}`);
+    }
+    // Même requête, depuis la boîte de classement du cabinet : acceptée (le refus vient bien du droit).
+    attendreStatut(
+      await requete("/messagerie/file-envoi", jetonB, "POST", corpsEnvoi(undefined, `Propre à B ${m}`)),
+      200,
+      "B envoie depuis la boîte de classement du cabinet",
+    );
+    ok("droits : B refusé (403, message en français) pour l'envoi, le brouillon et la composition depuis le compte nominatif de A et depuis la boîte partagée dont il n'est pas membre");
+
+    // --- Compte nominatif : From, Reply-To, enveloppe, copie dans les envoyés du compte -----------
+    const cachee = `cachee.envoi.${m}@example.com`;
+    const nominatif = await envoyerEtTraiter(ids.nominatif, `Depuis le compte nominatif ${m}`, { cci: [cachee] });
+    const recuN = await attendreMessage({ login: "demo", secret, dossier: "INBOX", messageId: nominatif.messageId });
+    if (!valeurEnTete(recuN, "From").includes(adresse.nominatif)) fail(`From reçu : ${valeurEnTete(recuN, "From")}`);
+    if (valeurEnTete(recuN, "From").includes(boite)) fail("le From est l'adresse du cabinet, non celle du compte");
+    if (!valeurEnTete(recuN, "Reply-To").includes(repondreA)) fail(`Reply-To reçu : « ${valeurEnTete(recuN, "Reply-To")} »`);
+    if (aEnTete(recuN, "Bcc")) fail("le message reçu porte un Bcc");
+    if (aEnTete(recuN, "Return-Path") && !valeurEnTete(recuN, "Return-Path").includes(adresse.nominatif)) {
+      fail(`enveloppe : ${valeurEnTete(recuN, "Return-Path")}`);
+    }
+    const copieN = chercherEnvoyes("a", nominatif.messageId);
+    if (copieN.length !== 1) fail(`copie dans les envoyés du compte nominatif : ${copieN.length}`);
+    if (!valeurEnTete(copieN[0], "Bcc").includes(cachee)) fail("la copie des envoyés doit garder le Bcc");
+    if (imap({ login: "demo", secret, action: "chercher", dossier: "Sent", cible: nominatif.messageId }).length !== 0) {
+      fail("la copie est dans les envoyés de la boîte de classement du cabinet");
+    }
+    const compteDeLaLigne = await sqlServeur(`SELECT compte_id FROM file_envoi WHERE id = '${nominatif.id}'`);
+    if (compteDeLaLigne !== ids.nominatif) fail(`compte de la ligne de file : ${compteDeLaLigne}`);
+    ok("compte nominatif : From = adresse du compte, Reply-To du compte, Bcc absent du reçu et gardé dans la copie, copie dans les envoyés du compte (pas dans ceux du cabinet)");
+
+    // --- Boîte partagée : From du compte, aucun Reply-To puisque le compte n'en définit pas -------
+    const partage = await envoyerEtTraiter(ids.partage, `Depuis la boîte partagée ${m}`);
+    const recuP = await attendreMessage({ login: "demo", secret, dossier: "INBOX", messageId: partage.messageId });
+    if (!valeurEnTete(recuP, "From").includes(adresse.partage)) fail(`From (partagée) : ${valeurEnTete(recuP, "From")}`);
+    if (aEnTete(recuP, "Reply-To")) fail(`Reply-To présent sans que le compte en définisse un : ${valeurEnTete(recuP, "Reply-To")}`);
+    if (chercherEnvoyes("p", partage.messageId).length !== 1) fail("copie dans les envoyés de la boîte partagée");
+    // Essai négatif : le même contrôle voit bien un Reply-To quand le compte en définit un.
+    if (!aEnTete(recuN, "Reply-To")) fail("essai négatif : le contrôle ne voit pas le Reply-To du compte nominatif");
+    ok("boîte partagée : From = adresse de la boîte, aucun Reply-To, copie dans ses envoyés ; le Reply-To n'existe que si le compte le définit");
+
+    // --- Brouillon : le compte choisi à la rédaction est celui de l'envoi -----------------------
+    const idBrouillon = randomUUID();
+    const brouillon = await exiger(`/messagerie/brouillons/${idBrouillon}`, jetonA, "PUT", {
+      compte_id: ids.partage, a: [boite], objet: `Brouillon depuis la boîte partagée ${m}`, corps_html: "<p>Texte du brouillon.</p>",
+    }, "brouillon depuis la boîte partagée");
+    if (brouillon.compte_id !== ids.partage) fail("le brouillon ne porte pas le compte choisi");
+    await exiger(`/messagerie/brouillons/${idBrouillon}/envoyer`, jetonA, "POST", undefined, "envoi du brouillon");
+    await exiger(`/messagerie/file-envoi/${idBrouillon}/mettre-en-attente`, jetonA, "POST");
+    const traiteB = await exiger(`/messagerie/file-envoi/${idBrouillon}/traiter`, jetonA, "POST");
+    if (traiteB.etat !== "copie_envoyes_confirmee") fail(`envoi du brouillon : ${traiteB.etat}`);
+    const recuB = await attendreMessage({ login: "demo", secret, dossier: "INBOX", messageId: brouillon.message_id });
+    if (!valeurEnTete(recuB, "From").includes(adresse.partage)) fail(`From du brouillon envoyé : ${valeurEnTete(recuB, "From")}`);
+    if (chercherEnvoyes("p", brouillon.message_id).length !== 1) fail("copie du brouillon dans les envoyés de la boîte partagée");
+    ok("brouillon : le compte choisi à la rédaction est celui de l'envoi (From, copie dans ses envoyés)");
+
+    // --- Coupure après l'acceptation SMTP, reprise : un seul exemplaire reçu, une seule copie ------
+    const coupure = corpsEnvoi(ids.nominatif, `Coupure ${m}`);
+    const creeC = await exiger("/messagerie/file-envoi", jetonA, "POST", coupure, "envoi à couper");
+    await exiger(`/messagerie/file-envoi/${coupure.id}/mettre-en-attente`, jetonA, "POST");
+    const coupe = await exiger(`/messagerie/file-envoi/${coupure.id}/traiter?couper_apres=smtp`, jetonA, "POST");
+    if (coupe.etat !== "envoye") fail(`après la coupure : ${coupe.etat}`);
+    await attendreMessage({ login: "demo", secret, dossier: "INBOX", messageId: creeC.message_id });
+    if (chercherEnvoyes("a", creeC.message_id).length !== 0) fail("la copie existe avant la reprise");
+    const reprise = await exiger(`/messagerie/file-envoi/${coupure.id}/traiter`, jetonA, "POST");
+    if (reprise.etat !== "copie_envoyes_confirmee") fail(`reprise : ${reprise.etat}`);
+    await exiger(`/messagerie/file-envoi/${coupure.id}/traiter`, jetonA, "POST");
+    await sleep(800);
+    const exemplairesC = imap({ login: "demo", secret, action: "chercher", dossier: "INBOX", cible: creeC.message_id });
+    if (exemplairesC.length !== 1) fail(`${exemplairesC.length} exemplaires reçus après reprise`);
+    if (chercherEnvoyes("a", creeC.message_id).length !== 1) fail("une seule copie dans les envoyés après reprise");
+    if (!valeurEnTete(exemplairesC[0], "From").includes(adresse.nominatif)) fail("le From change à la reprise");
+    ok("coupure après SMTP : reprise depuis le compte, un seul exemplaire reçu, une seule copie dans ses envoyés, même From");
+
+    // --- Relais : SMTP propre du compte, sinon (repli) SMTP du cabinet ------------------------
+    const destinataire = `dest.envoi.${m}@example.com`;
+    const relaisPropre = await envoyerEtTraiter(ids.propre, `Relais propre ${m}`, { a: [destinataire] });
+    const boiteDest = { login: destinataire, secret: destinataire };
+    const surRelaisPropre = imap({ ...boiteDest, hote: "127.0.0.1", port: "3143", action: "chercher", dossier: "INBOX", cible: relaisPropre.messageId });
+    if (surRelaisPropre.length !== 1) fail("le message n'est pas passé par le SMTP propre du compte");
+    if (!valeurEnTete(surRelaisPropre[0], "From").includes(adresse.propre)) fail("From du message passé par le SMTP du compte");
+    let surRelaisCabinet = [];
+    try {
+      surRelaisCabinet = imap({ ...boiteDest, action: "chercher", dossier: "INBOX", cible: relaisPropre.messageId });
+    } catch {
+      surRelaisCabinet = []; // boîte inconnue du relais du cabinet : rien n'y est arrivé
+    }
+    if (surRelaisCabinet.length !== 0) fail("le message est passé par le SMTP du cabinet malgré le SMTP du compte");
+    // Essai négatif : avec un mauvais mot de passe SMTP, le compte n'envoie pas (pas de repli silencieux).
+    const corpsMauvais = corpsEnvoi(ids.mauvais, `Relais refusé ${m}`, { a: [`dest2.envoi.${m}@example.com`] });
+    const creeMauvais = await exiger("/messagerie/file-envoi", jetonA, "POST", corpsMauvais, "envoi du compte au mauvais mot de passe");
+    await exiger(`/messagerie/file-envoi/${corpsMauvais.id}/mettre-en-attente`, jetonA, "POST");
+    const refuse = await exiger(`/messagerie/file-envoi/${corpsMauvais.id}/traiter`, jetonA, "POST");
+    if (refuse.etat !== "echec") fail(`SMTP propre refusé : état ${refuse.etat} (attendu echec)`);
+    for (const port of ["3143", "13143"]) {
+      let trouves = [];
+      try {
+        trouves = imap({ login: `dest2.envoi.${m}@example.com`, secret: `dest2.envoi.${m}@example.com`, hote: "127.0.0.1", port, action: "chercher", dossier: "INBOX", cible: creeMauvais.message_id });
+      } catch {
+        trouves = [];
+      }
+      if (trouves.length !== 0) fail(`le message du compte refusé est arrivé par le relais du port ${port}`);
+    }
+    if (chercherEnvoyes("d", creeMauvais.message_id).length !== 0) fail("copie dans les envoyés d'un message jamais parti");
+    // Repli : le compte nominatif n'a pas de SMTP, le relais du cabinet a livré (vu plus haut dans « demo »).
+    if ((await sqlServeur(`SELECT COALESCE(smtp_hote, 'aucun') FROM comptes_mail WHERE id = '${ids.nominatif}'`)) !== "aucun") fail("le compte nominatif définit un SMTP");
+    ok("relais : le SMTP propre du compte sert quand il existe (rien chez le cabinet) ; sans SMTP propre, repli sur le SMTP du cabinet avec le From du compte");
+  } finally {
+    for (let essai = 0; essai < 3; essai += 1) {
+      try {
+        const liste = comptes.map((id) => `'${id}'`).join(",");
+        await sqlServeur(
+          `DELETE FROM file_envoi_pieces WHERE envoi_id IN (SELECT id FROM file_envoi WHERE compte_id IN (${liste}));` +
+            `DELETE FROM file_envoi WHERE compte_id IN (${liste});` +
+            `DELETE FROM brouillons_message_pieces WHERE brouillon_id IN (SELECT id FROM brouillons_message WHERE compte_id IN (${liste}));` +
+            `DELETE FROM brouillons_message WHERE compte_id IN (${liste});` +
+            `DELETE FROM messages WHERE compte_id IN (${liste});` +
+            `DELETE FROM comptes_mail WHERE id IN (${liste})`,
+        );
+        break;
+      } catch {
+        await sleep(1000); // le moteur de boîtes peut insérer entre deux suppressions
+      }
+    }
+  }
+}
+
 async function main() {
   const sante = await fetch(`${instance}/health`).catch(() => null);
   if (!sante?.ok) fail("instance injoignable");
@@ -1344,6 +1583,8 @@ async function main() {
     idOrigine,
     objetOrigine,
   });
+
+  await etapeIdentiteEnvoi({ secret, jetonA, jetonB });
 
   console.log("j11-redaction-api: OK");
 }

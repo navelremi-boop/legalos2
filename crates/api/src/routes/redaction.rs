@@ -24,6 +24,7 @@ use uuid::Uuid;
 use crate::auth::access::AuthAccess;
 use crate::auth::jwt::AccessClaims;
 use crate::error::ApiError;
+use crate::identite_envoi::expediteur_pour_utilisateur;
 use crate::routes::dossiers::dossier_visible;
 use crate::routes::messagerie::assurer_compte_classement;
 use crate::state::AppState;
@@ -153,6 +154,8 @@ pub struct ContenuEnvoi {
     pub en_reponse_a: Option<String>,
     pub references: Vec<String>,
     pub pieces: Vec<PieceJointe>,
+    /// `Reply-To` du compte d'envoi, s'il en définit un ; `None` sinon (aucun en-tête).
+    pub repondre_a: Option<String>,
 }
 
 /// Construit le message d'un envoi : copie avec `Bcc` (dossier « Envoyés »), transport sans
@@ -191,6 +194,7 @@ fn demande_depuis_contenu(
         html: contenu.corps_html.clone(),
         signature: String::new(),
         signature_html: String::new(),
+        repondre_a: contenu.repondre_a.clone().unwrap_or_default(),
         identifiant: contenu.message_id.clone(),
         origine: None,
         pieces: contenu.pieces.clone(),
@@ -426,15 +430,6 @@ pub(crate) async fn lire_origine(
     Ok(origine)
 }
 
-/// Adresse d'expéditeur de l'instance (celle de l'enveloppe) ou, à défaut, celle du compte.
-pub(crate) fn expediteur_de(state: &AppState, adresse_compte: &str) -> String {
-    state
-        .messagerie_smtp
-        .as_ref()
-        .map(|s| s.adresse_from.clone())
-        .unwrap_or_else(|| adresse_compte.to_owned())
-}
-
 // ---------------------------------------------------------------------------------------------
 // Composition
 // ---------------------------------------------------------------------------------------------
@@ -535,8 +530,8 @@ pub async fn composer(
             assurer_compte_classement(&state.pool, claims.cabinet_id, parametres).await?
         }
     };
-    let (_, adresse_compte) = compte_accessible(&state, &claims, compte_id).await?;
-    let de = expediteur_de(&state, &adresse_compte);
+    // « De » : l'adresse du compte (droit d'écrire vérifié : 403 sinon).
+    let de = expediteur_pour_utilisateur(&state, &claims, compte_id).await?;
 
     let modele = match body.modele_id {
         Some(modele_id) => Some(
@@ -581,6 +576,7 @@ pub async fn composer(
         html: modele.map(|m| m.1).unwrap_or_default(),
         signature: signature.0,
         signature_html: signature.1,
+        repondre_a: String::new(),
         identifiant: nouvel_identifiant(&de),
         origine,
         pieces: Vec::new(),
@@ -1049,6 +1045,7 @@ mod tests {
                 type_mime: "text/plain".to_owned(),
                 contenu: b"contenu fictif".to_vec(),
             }],
+            repondre_a: None,
         }
     }
 
@@ -1222,6 +1219,7 @@ mod tests {
             html: String::new(),
             signature: "Me Test Fictif".to_owned(),
             signature_html: String::new(),
+            repondre_a: String::new(),
             identifiant: nouvel_identifiant("demo@cabinet.example"),
             origine,
             pieces: Vec::new(),

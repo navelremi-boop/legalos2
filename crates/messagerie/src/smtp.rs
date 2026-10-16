@@ -12,10 +12,25 @@ use crate::ErreurMail;
 pub struct ParametresSmtp {
     pub hote: String,
     pub port: u16,
+    /// Vide : le serveur ne demande pas d'authentification (relais de confiance du réseau du
+    /// cabinet) ; aucun identifiant n'est alors présenté.
     pub utilisateur: String,
     pub mot_de_passe: String,
     /// Adresse d'enveloppe / From (ex. demo@cabinet.example).
     pub adresse_from: String,
+}
+
+/// Transport SMTP en clair (le chiffrement du transport SMTP n'est pas encore pris en charge :
+/// voir `docs/versions.md`, entrée `lettre`).
+fn transport(parametres: &ParametresSmtp) -> SmtpTransport {
+    let mut constructeur = SmtpTransport::builder_dangerous(&parametres.hote).port(parametres.port);
+    if !parametres.utilisateur.is_empty() {
+        constructeur = constructeur.credentials(Credentials::new(
+            parametres.utilisateur.clone(),
+            parametres.mot_de_passe.clone(),
+        ));
+    }
+    constructeur.build()
 }
 
 /// Envoie un message dont le Message-ID est déjà fixé. Ne crée jamais d'autre
@@ -60,14 +75,7 @@ pub fn envoyer_octets(
         a.push(destinataire.parse().map_err(|_| ErreurMail::Protocole)?);
     }
     let enveloppe = Envelope::new(Some(de), a).map_err(|_| ErreurMail::Protocole)?;
-    let creds = Credentials::new(
-        parametres.utilisateur.clone(),
-        parametres.mot_de_passe.clone(),
-    );
-    let mailer = SmtpTransport::builder_dangerous(&parametres.hote)
-        .port(parametres.port)
-        .credentials(creds)
-        .build();
+    let mailer = transport(parametres);
     mailer
         .send_raw(&enveloppe, octets)
         .map_err(|err| classer_erreur_smtp(&err.to_string()))?;
@@ -86,14 +94,7 @@ fn classer_erreur_smtp(texte: &str) -> ErreurMail {
 }
 
 fn envoyer_brut(parametres: &ParametresSmtp, message: &Message) -> Result<(), ErreurMail> {
-    let creds = Credentials::new(
-        parametres.utilisateur.clone(),
-        parametres.mot_de_passe.clone(),
-    );
-    let mailer = SmtpTransport::builder_dangerous(&parametres.hote)
-        .port(parametres.port)
-        .credentials(creds)
-        .build();
+    let mailer = transport(parametres);
     mailer.send(message).map_err(|err| {
         let texte = err.to_string().to_ascii_lowercase();
         if texte.contains("authenticat") || texte.contains("535") {

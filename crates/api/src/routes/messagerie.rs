@@ -7,8 +7,9 @@ use axum::{
     Json,
 };
 use legalos_messagerie::{
-    decider, integrer_releve, DecisionClassement, DossierPourClassement, EntreeClassement,
-    FournisseurMail, MessageReleve, ParametresCompte, ReleveConnue, SessionActions,
+    borner_date_entete, decider, integrer_releve, CurseurReleve, DecisionClassement,
+    DossierPourClassement, EntreeClassement, FournisseurMail, MessageReleve, ParametresCompte,
+    ReleveConnue, SessionActions,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -16,6 +17,7 @@ use uuid::Uuid;
 
 use crate::auth::access::AuthAccess;
 use crate::error::ApiError;
+use crate::identite_envoi::ReglagesEnvoi;
 use crate::routes::dossiers::dossier_visible;
 use crate::state::AppState;
 
@@ -82,11 +84,12 @@ pub async fn relever_classement(
             });
         }
     };
-    let apres = if connue.dernier_uid == 0 {
-        None
-    } else {
-        Some(connue.dernier_uid)
-    };
+    // Le curseur ne vaut que pour la UIDVALIDITY où il a été lu : la comparaison se fait dans la
+    // relève, avant la requête (un serveur réinitialisé repart du début de la boîte).
+    let apres = (connue.dernier_uid > 0).then_some(CurseurReleve {
+        uid_validity: connue.uid_validity,
+        dernier_uid: connue.dernier_uid,
+    });
     let (uid_validity, entetes) = session
         .relever_entetes("INBOX", apres, query.limite)
         .map_err(|_| ApiError::internal("Relève IMAP refusée"))?;
@@ -100,6 +103,7 @@ pub async fn relever_classement(
         })
         .collect();
     let neufs = integrer_releve(&mut connue, uid_validity, &lots);
+    let maintenant = time::OffsetDateTime::now_utc().unix_timestamp();
     let mut traites = 0usize;
 
     for neuf in &neufs {
@@ -126,6 +130,7 @@ pub async fn relever_classement(
             &entete.expediteur,
             &entete.destinataires.join(", "),
             &entete.pieces.join("\n"),
+            borner_date_entete(entete.date, maintenant),
             &decision,
         )
         .await?;
@@ -631,6 +636,7 @@ async fn inserer_message(
     expediteur: &str,
     destinataires: &str,
     pieces: &str,
+    date_entete: Option<i64>,
     decision: &DecisionClassement,
 ) -> Result<(), ApiError> {
     let id = Uuid::now_v7();
@@ -652,9 +658,10 @@ async fn inserer_message(
         r#"
         INSERT INTO messages (
             id, cabinet_id, compte_id, dossier_id, message_id, uid_validity, uid,
-            objet, expediteur, destinataires_texte, pieces_texte, etat_classement, suggestion_dossier_id
+            objet, expediteur, destinataires_texte, pieces_texte, etat_classement, suggestion_dossier_id,
+            date_entete
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, to_timestamp($14::bigint)
         )
         ON CONFLICT (compte_id, message_id) DO NOTHING
         "#,
@@ -672,6 +679,7 @@ async fn inserer_message(
     .bind(pieces)
     .bind(etat)
     .bind(suggestion)
+    .bind(date_entete)
     .execute(pool)
     .await
     .map_err(|_| ApiError::internal("Insertion message"))?;
@@ -687,6 +695,9 @@ pub struct CreerCompte {
     pub utilisateur: String,
     pub mot_de_passe: String,
     pub tls: Option<bool>,
+    /// SMTP et `Reply-To` du compte (facultatifs, voir `identite_envoi`).
+    #[serde(flatten)]
+    pub envoi: ReglagesEnvoi,
 }
 
 #[derive(Debug, Serialize)]
@@ -709,12 +720,14 @@ pub async fn creer_compte_nominatif(
     let secret =
         crate::moteur_mail::chiffrer_mot_de_passe(&body.mot_de_passe, &state.totp_cipher_key)
             .map_err(|_| ApiError::internal("Chiffrement"))?;
+    let envoi = body.envoi.preparer(&state.totp_cipher_key)?;
     sqlx::query(
         r#"
         INSERT INTO comptes_mail (
             id, cabinet_id, type_compte, titulaire_id, adresse, secret_ref,
-            hote, port, utilisateur, tls, secret_chiffre
-        ) VALUES ($1, $2, 'nominatif', $3, $4, 'chiffre', $5, $6, $7, $8, $9)
+            hote, port, utilisateur, tls, secret_chiffre,
+            smtp_hote, smtp_port, smtp_utilisateur, smtp_secret_chiffre, repondre_a
+        ) VALUES ($1, $2, 'nominatif', $3, $4, 'chiffre', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         "#,
     )
     .bind(body.id)
@@ -726,6 +739,11 @@ pub async fn creer_compte_nominatif(
     .bind(&body.utilisateur)
     .bind(body.tls.unwrap_or(false))
     .bind(&secret)
+    .bind(&envoi.smtp_hote)
+    .bind(envoi.smtp_port)
+    .bind(&envoi.smtp_utilisateur)
+    .bind(&envoi.smtp_secret_chiffre)
+    .bind(&envoi.repondre_a)
     .execute(&state.pool)
     .await
     .map_err(|_| ApiError::internal("Création compte nominatif"))?;

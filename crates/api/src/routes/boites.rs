@@ -18,6 +18,7 @@ use uuid::Uuid;
 
 use crate::auth::access::AuthAccess;
 use crate::error::ApiError;
+use crate::identite_envoi::ReglagesEnvoi;
 use crate::routes::redaction::est_doublon;
 use crate::state::AppState;
 
@@ -77,6 +78,9 @@ pub struct CreerBoitePartagee {
     /// Membres (identifiants d'utilisateurs du cabinet). Le créateur en fait toujours partie.
     #[serde(default)]
     pub membres: Vec<Uuid>,
+    /// SMTP et `Reply-To` de la boîte (facultatifs, voir `identite_envoi`).
+    #[serde(flatten)]
+    pub envoi: ReglagesEnvoi,
 }
 
 #[derive(Debug, Serialize)]
@@ -137,6 +141,7 @@ pub async fn creer_boite_partagee(
     let secret =
         crate::moteur_mail::chiffrer_mot_de_passe(&body.mot_de_passe, &state.totp_cipher_key)
             .map_err(|_| ApiError::internal("Chiffrement"))?;
+    let envoi = body.envoi.preparer(&state.totp_cipher_key)?;
     let mut tx = state
         .pool
         .begin()
@@ -146,8 +151,9 @@ pub async fn creer_boite_partagee(
         r#"
         INSERT INTO comptes_mail (
             id, cabinet_id, type_compte, titulaire_id, adresse, secret_ref,
-            hote, port, utilisateur, tls, secret_chiffre
-        ) VALUES ($1, $2, 'partage', NULL, $3, 'chiffre', $4, $5, $6, $7, $8)
+            hote, port, utilisateur, tls, secret_chiffre,
+            smtp_hote, smtp_port, smtp_utilisateur, smtp_secret_chiffre, repondre_a
+        ) VALUES ($1, $2, 'partage', NULL, $3, 'chiffre', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         "#,
     )
     .bind(body.id)
@@ -158,6 +164,11 @@ pub async fn creer_boite_partagee(
     .bind(&body.utilisateur)
     .bind(body.tls.unwrap_or(false))
     .bind(&secret)
+    .bind(&envoi.smtp_hote)
+    .bind(envoi.smtp_port)
+    .bind(&envoi.smtp_utilisateur)
+    .bind(&envoi.smtp_secret_chiffre)
+    .bind(&envoi.repondre_a)
     .execute(&mut *tx)
     .await;
     if let Err(err) = insertion {

@@ -30,8 +30,8 @@ use uuid::Uuid;
 use crate::auth::access::AuthAccess;
 use crate::auth::jwt::AccessClaims;
 use crate::error::ApiError;
+use crate::identite_envoi::identite_pour_utilisateur;
 use crate::routes::file_envoi::traiter;
-use crate::routes::messagerie::assurer_compte_classement;
 use crate::routes::redaction::{
     nouvel_identifiant, sortant_depuis_contenu, texte_depuis_liste, ContenuEnvoi, OBJET_MAX,
 };
@@ -279,16 +279,6 @@ pub async fn repondre_invitation(
     let choix = Choix::depuis_texte(&corps.reponse).ok_or_else(|| {
         ApiError::bad_request("Réponse inconnue : accepter, refuser ou peut_etre")
     })?;
-    let smtp = state
-        .messagerie_smtp
-        .as_ref()
-        .ok_or_else(|| ApiError::bad_request("SMTP de messagerie non configuré"))?;
-    let imap = state
-        .messagerie
-        .as_ref()
-        .ok_or_else(|| ApiError::bad_request("Messagerie non configurée"))?;
-    let compte_file = assurer_compte_classement(&state.pool, claims.cabinet_id, imap).await?;
-
     let mut tx = state
         .pool
         .begin()
@@ -329,9 +319,9 @@ pub async fn repondre_invitation(
         return Ok(Json(charger(&state, &claims, id).await?.into()));
     }
 
-    let adresse_compte = match ligne.compte_id {
-        Some(compte_id) => sqlx::query_scalar::<_, String>(
-            "SELECT adresse FROM comptes_mail WHERE id = $1 AND titulaire_id = $2",
+    let compte_file = match ligne.compte_id {
+        Some(compte_id) => sqlx::query_scalar::<_, Uuid>(
+            "SELECT id FROM comptes_mail WHERE id = $1 AND titulaire_id = $2",
         )
         .bind(compte_id)
         .bind(claims.sub)
@@ -345,6 +335,11 @@ pub async fn repondre_invitation(
             "La boîte qui a reçu cette invitation n'existe plus : réponse impossible.",
         )
     })?;
+    // La réponse part de la boîte qui a reçu l'invitation, donc de l'adresse invitée (ATTENDEE),
+    // avec le relais SMTP de cette boîte, et sa copie va dans les envoyés de cette boîte : jamais
+    // de l'adresse du cabinet (un organisateur Exchange ignorerait une réponse venue d'ailleurs).
+    let identite = identite_pour_utilisateur(&state, &claims, compte_file).await?;
+    let adresse_compte = identite.de.clone();
     if !champ_en_tete_valide(&ligne.organisateur) || ligne.organisateur.trim().is_empty() {
         return Err(ApiError::conflict(
             "L'adresse de l'organisateur est illisible : réponse impossible.",
@@ -365,7 +360,7 @@ pub async fn repondre_invitation(
         .map_err(|_| ApiError::internal("Construction de la réponse"))?;
 
     let envoi_id = Uuid::now_v7();
-    let message_id = nouvel_identifiant(&smtp.adresse_from);
+    let message_id = nouvel_identifiant(&identite.de);
     let fil = ligne.message_id.clone().filter(|m| !m.trim().is_empty());
     let contenu = ContenuEnvoi {
         message_id: message_id.clone(),
@@ -377,6 +372,7 @@ pub async fn repondre_invitation(
         corps_html: String::new(),
         en_reponse_a: fil.clone(),
         references: fil.iter().cloned().collect(),
+        repondre_a: identite.repondre_a.clone(),
         pieces: vec![PieceJointe {
             nom: "reponse.ics".to_owned(),
             type_mime: TYPE_REPONSE_ITIP.to_owned(),
@@ -384,7 +380,7 @@ pub async fn repondre_invitation(
         }],
     };
     // Construction à blanc : adresse et en-têtes validés avant tout effet.
-    sortant_depuis_contenu(&smtp.adresse_from, &contenu).map_err(|_| {
+    sortant_depuis_contenu(&identite.de, &contenu).map_err(|_| {
         ApiError::conflict("L'adresse de l'organisateur est illisible : réponse impossible.")
     })?;
 

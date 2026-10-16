@@ -159,6 +159,7 @@ elif action == 'lister':
                             'disposition': p.get_content_disposition(), 'texte': texte})
         sortie.append({'sujet': str(msg['Subject']), 'message_id': str(msg['Message-ID']),
                        'en_reponse_a': str(msg['In-Reply-To']), 'a': str(msg['To']),
+                       'de': str(msg['From']), 'reply_to': str(msg['Reply-To']) if msg['Reply-To'] is not None else None,
                        'bcc': msg['Bcc'] is not None, 'parties': parties})
     print(json.dumps(sortie))
 boite.logout()
@@ -315,6 +316,13 @@ async function main() {
   );
   await sqlServeur(
     `DELETE FROM messages WHERE compte_id IN (SELECT id FROM comptes_mail WHERE hote LIKE 'legalos-imap-test-dovecot%' OR adresse LIKE 'inv-j11.%')`,
+  );
+  // Les réponses d'invitation partent de la boîte invitée : leurs lignes de file la référencent.
+  await sqlServeur(
+    `DELETE FROM file_envoi_pieces WHERE envoi_id IN (SELECT id FROM file_envoi WHERE compte_id IN (SELECT id FROM comptes_mail WHERE hote LIKE 'legalos-imap-test-dovecot%' OR adresse LIKE 'inv-j11.%'))`,
+  );
+  await sqlServeur(
+    `DELETE FROM file_envoi WHERE compte_id IN (SELECT id FROM comptes_mail WHERE hote LIKE 'legalos-imap-test-dovecot%' OR adresse LIKE 'inv-j11.%')`,
   );
   await sqlServeur(
     `DELETE FROM comptes_mail WHERE hote LIKE 'legalos-imap-test-dovecot%' OR adresse LIKE 'inv-j11.%'`,
@@ -585,6 +593,16 @@ async function main() {
         30_000,
       );
 
+    const attendreReponsesDans = (boiteLue, attendu, dossier = "INBOX") =>
+      attendre(
+        `${attendu} réponse(s) dans ${dossier} de ${boiteLue.login}`,
+        async () => {
+          const lues = imap({ boite: boiteLue, action: "lister", dossier, cible: `In-Reply-To=${idMessageReponse}` });
+          return lues.length === attendu ? lues : null;
+        },
+        30_000,
+      );
+
     const rAccepter = await requete(uriReponse, jetonA, "POST", { reponse: "accepter" });
     const accepte = rAccepter.json;
     essaiNegatif("réponse refusée sur invitation annulée (409)", "une invitation maintenue", () => rAccepter.statut === 409);
@@ -599,8 +617,16 @@ async function main() {
     verifier("réponse : adressée à l'organisateur, en réponse au message d'invitation", recues[0].a.includes(organisateur) && recues[0].en_reponse_a === idMessageReponse);
     verifier("réponse : sans copie cachée visible", recues[0].bcc === false);
     verifier("réponse : objet en français", /^Accept/.test(recues[0].sujet) && recues[0].sujet.includes(objetReponse));
-    let copies = await attendreReponses(1, "Sent");
-    verifier("copie « Envoyés » de la réponse", partstatDe(copies[0]) === "ACCEPTED");
+    // Identité d'envoi (critère (i)) : la réponse part de l'adresse invitée (ATTENDEE), la boîte qui a
+    // reçu l'invitation ; elle ne part jamais de l'adresse du cabinet, et la copie va dans les
+    // envoyés de cette boîte (et non dans ceux de la boîte de classement du cabinet).
+    verifier("réponse : From = adresse invitée (ATTENDEE)", recues[0].de.includes(adresseCompteA) && partieCal.texte.includes(`mailto:${adresseCompteA}`));
+    essaiNegatif("From = adresse invitée", "le From de l'ancien comportement (adresse du cabinet)", () => "Cabinet <demo@cabinet.example>".includes(adresseCompteA));
+    verifier("réponse : aucun Reply-To (le compte n'en définit pas)", recues[0].reply_to === null);
+    const copiesCompte = await attendreReponsesDans(capa, 1, "Sent");
+    verifier("copie « Envoyés » de la réponse, dans les envoyés de la boîte invitée", partstatDe(copiesCompte[0]) === "ACCEPTED");
+    essaiNegatif("copie dans les envoyés de la boîte invitée", "les envoyés de la boîte de classement du cabinet", () => lireReponses("Sent").length === 1);
+    verifier("aucune copie dans les envoyés de la boîte de classement du cabinet", lireReponses("Sent").length === 0);
 
     const refuse = await exiger(uriReponse, jetonA, "POST", { reponse: "refuser" }, "refuser");
     verifier("refuser : la réponse remplace la première", refuse.reponse === "refuse" && refuse.envoi_etat === "copie_envoyes_confirmee");
@@ -811,6 +837,8 @@ async function main() {
     // marque unique) sont retirées avec leurs messages.
     await sqlServeur(`DELETE FROM invitations_agenda WHERE uid_ical LIKE '%${marque}@example.com'`).catch(() => {});
     await sqlServeur(`DELETE FROM messages WHERE compte_id IN (SELECT id FROM comptes_mail WHERE adresse LIKE 'inv-j11.%.${marque}@cabinet.example')`).catch(() => {});
+    await sqlServeur(`DELETE FROM file_envoi_pieces WHERE envoi_id IN (SELECT id FROM file_envoi WHERE compte_id IN (SELECT id FROM comptes_mail WHERE adresse LIKE 'inv-j11.%.${marque}@cabinet.example'))`).catch(() => {});
+    await sqlServeur(`DELETE FROM file_envoi WHERE compte_id IN (SELECT id FROM comptes_mail WHERE adresse LIKE 'inv-j11.%.${marque}@cabinet.example')`).catch(() => {});
     await sqlServeur(`DELETE FROM comptes_mail WHERE adresse LIKE 'inv-j11.%.${marque}@cabinet.example'`).catch(() => {});
     try {
       imap({ boite: capa, action: "purger" });

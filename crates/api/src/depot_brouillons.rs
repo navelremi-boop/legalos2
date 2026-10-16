@@ -329,6 +329,7 @@ impl DepotBrouillons {
                 en_reponse_a: ligne.10,
                 references: liste_depuis_texte(&ligne.11),
                 pieces,
+                repondre_a: None,
             },
         }))
     }

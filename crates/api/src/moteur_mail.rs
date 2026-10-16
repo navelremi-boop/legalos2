@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use legalos_messagerie::{
-    diff_repli, invitation_du_message, Changement, EnteteRecu, ErreurMail, EtatUid,
-    FournisseurMail, InvitationLue, ParametresCompte, ReleveDossier, SessionActions,
+    borner_date_entete, diff_repli, invitation_du_message, Changement, EnteteRecu, ErreurMail,
+    EtatUid, FournisseurMail, InvitationLue, ParametresCompte, ReleveDossier, SessionActions,
     VeilleReception,
 };
 use sqlx::PgPool;
@@ -194,6 +194,46 @@ fn tourner(handle: tokio::runtime::Handle, pool: PgPool, compte: CompteMoteur) {
         if empreinte != compte.empreinte {
             break;
         }
+        // La veille est armée AVANT la relève : un message qui arrive entre les deux est vu par la
+        // relève (il est déjà là), un message qui arrive après est annoncé par la veille. Dans
+        // l'ordre inverse (relève, puis armement), un message arrivé dans l'intervalle n'était
+        // annoncé par personne et attendait la relève périodique (RELEVE_SANS_REVEIL_SECS).
+        let mut veille_neuve = false;
+        let mut veille_en_echec = false;
+        if veille.is_none()
+            || veille_depuis.elapsed() >= Duration::from_secs(RENOUVELLEMENT_IDLE_SECS)
+        {
+            let premiere = derniere_releve.is_none();
+            match VeilleReception::ouvrir(&compte.parametres) {
+                Ok(ouverte) => {
+                    veille = Some(ouverte);
+                    veille_depuis = Instant::now();
+                    veille_neuve = true;
+                    // Une veille réarmée n'a rien vu de ce qui est arrivé pendant qu'elle était
+                    // fermée : une relève s'impose (la première l'est déjà).
+                    if !premiere {
+                        reveil = true;
+                    }
+                }
+                Err(ErreurMail::Authentification) => {
+                    let _ = handle.block_on(noter(&pool, compte.id, "authentification"));
+                    let _ = handle.block_on(marquer_etat(
+                        &pool,
+                        compte.id,
+                        "identifiants_refuses",
+                        Some(&compte.empreinte),
+                    ));
+                    break;
+                }
+                Err(_) => {
+                    // La relève a lieu quand même ; le délai d'échec s'applique ensuite.
+                    veille = None;
+                    veille_en_echec = true;
+                    let _ = handle.block_on(noter(&pool, compte.id, "connexion"));
+                    echecs = echecs.saturating_add(1);
+                }
+            }
+        }
         let modseqs = handle.block_on(lire_modseqs(&pool, compte.id));
         let fenetre_repli = derniere_complete.is_some_and(|instant| {
             instant.elapsed() < Duration::from_secs(RELEVE_SANS_REVEIL_SECS)
@@ -244,33 +284,12 @@ fn tourner(handle: tokio::runtime::Handle, pool: PgPool, compte: CompteMoteur) {
                 }
             }
         }
-        if veille.is_none()
-            || veille_depuis.elapsed() >= Duration::from_secs(RENOUVELLEMENT_IDLE_SECS)
-        {
-            match VeilleReception::ouvrir(&compte.parametres) {
-                Ok(ouverte) => {
-                    veille = Some(ouverte);
-                    veille_depuis = Instant::now();
-                    let _ = handle.block_on(noter_idle(&pool, compte.id));
-                }
-                Err(ErreurMail::Authentification) => {
-                    let _ = handle.block_on(noter(&pool, compte.id, "authentification"));
-                    let _ = handle.block_on(marquer_etat(
-                        &pool,
-                        compte.id,
-                        "identifiants_refuses",
-                        Some(&compte.empreinte),
-                    ));
-                    break;
-                }
-                Err(_) => {
-                    veille = None;
-                    let _ = handle.block_on(noter(&pool, compte.id, "connexion"));
-                    echecs = echecs.saturating_add(1);
-                    std::thread::sleep(delai_echec(echecs));
-                    continue;
-                }
-            }
+        if veille_neuve {
+            let _ = handle.block_on(noter_idle(&pool, compte.id));
+        }
+        if veille_en_echec {
+            std::thread::sleep(delai_echec(echecs));
+            continue;
         }
         let reste_idle = Duration::from_secs(RENOUVELLEMENT_IDLE_SECS)
             .saturating_sub(veille_depuis.elapsed())
@@ -728,6 +747,8 @@ struct Lignes {
     destinataires: Vec<String>,
     pieces: Vec<String>,
     extraits: Vec<String>,
+    /// Date d'en-tête bornée (secondes UTC), `None` si inconnue.
+    dates: Vec<Option<i64>>,
 }
 
 fn texte_destinataires(entete: Option<&EnteteRecu>) -> String {
@@ -748,7 +769,12 @@ fn texte_pieces(entete: Option<&EnteteRecu>) -> String {
         .unwrap_or_default()
 }
 
-fn lignes_ajouts(ajouts: &[EtatUid], entetes: &[EnteteRecu], uid_validity: u32) -> Lignes {
+fn lignes_ajouts(
+    ajouts: &[EtatUid],
+    entetes: &[EnteteRecu],
+    uid_validity: u32,
+    maintenant: i64,
+) -> Lignes {
     let par_uid: HashMap<u32, &EnteteRecu> =
         entetes.iter().map(|entete| (entete.uid, entete)).collect();
     let mut deja = HashSet::new();
@@ -763,6 +789,7 @@ fn lignes_ajouts(ajouts: &[EtatUid], entetes: &[EnteteRecu], uid_validity: u32) 
         destinataires: Vec::with_capacity(ajouts.len()),
         pieces: Vec::with_capacity(ajouts.len()),
         extraits: Vec::with_capacity(ajouts.len()),
+        dates: Vec::with_capacity(ajouts.len()),
     };
     for etat in ajouts {
         let entete = par_uid.get(&etat.uid);
@@ -793,6 +820,9 @@ fn lignes_ajouts(ajouts: &[EtatUid], entetes: &[EnteteRecu], uid_validity: u32) 
             .push(texte_destinataires(entete.copied()));
         lignes.pieces.push(texte_pieces(entete.copied()));
         lignes.extraits.push(texte_extrait(entete.copied()));
+        lignes
+            .dates
+            .push(borner_date_entete(entete.and_then(|e| e.date), maintenant));
     }
     lignes
 }
@@ -809,7 +839,8 @@ async fn inserer_ajouts(
     if ajouts.is_empty() {
         return Ok(());
     }
-    let lignes = lignes_ajouts(ajouts, entetes, uid_validity);
+    let maintenant = time::OffsetDateTime::now_utc().unix_timestamp();
+    let lignes = lignes_ajouts(ajouts, entetes, uid_validity, maintenant);
     let pas = 1000usize;
     let mut debut = 0usize;
     while debut < lignes.ids.len() {
@@ -820,16 +851,17 @@ async fn inserer_ajouts(
             INSERT INTO messages (
                 id, cabinet_id, compte_id, message_id, uid_validity, uid,
                 objet, expediteur, destinataires_texte, pieces_texte, extrait_texte, etat_classement, dossier_imap, lu, drapeaux,
-                arrivee_notifiable
+                arrivee_notifiable, date_entete
             )
             SELECT t.id, t.cabinet_id, t.compte_id, t.message_id, t.uid_validity, t.uid,
                    t.objet, t.expediteur, t.destinataires_texte, t.pieces_texte, t.extrait_texte, t.etat_classement, t.dossier_imap, t.lu,
                    CASE WHEN t.drapeaux = '' THEN '{}'::text[] ELSE string_to_array(t.drapeaux, ' ') END,
-                   $16::boolean AND NOT t.lu
+                   $16::boolean AND NOT t.lu,
+                   to_timestamp(t.date_ts)
             FROM unnest(
                 $1::uuid[], $2::uuid[], $3::uuid[], $4::text[], $5::bigint[], $6::bigint[],
-                $7::text[], $8::text[], $9::text[], $10::text[], $11::text[], $12::text[], $13::text[], $14::boolean[], $15::text[]
-            ) AS t(id, cabinet_id, compte_id, message_id, uid_validity, uid, objet, expediteur, destinataires_texte, pieces_texte, extrait_texte, etat_classement, dossier_imap, lu, drapeaux)
+                $7::text[], $8::text[], $9::text[], $10::text[], $11::text[], $12::text[], $13::text[], $14::boolean[], $15::text[], $17::bigint[]
+            ) AS t(id, cabinet_id, compte_id, message_id, uid_validity, uid, objet, expediteur, destinataires_texte, pieces_texte, extrait_texte, etat_classement, dossier_imap, lu, drapeaux, date_ts)
             ON CONFLICT (compte_id, message_id) DO UPDATE
                 SET lu = EXCLUDED.lu,
                     drapeaux = EXCLUDED.drapeaux,
@@ -846,6 +878,7 @@ async fn inserer_ajouts(
                         WHEN EXCLUDED.extrait_texte <> '' THEN EXCLUDED.extrait_texte
                         ELSE messages.extrait_texte
                     END,
+                    date_entete = COALESCE(EXCLUDED.date_entete, messages.date_entete),
                     uid = EXCLUDED.uid,
                     uid_validity = EXCLUDED.uid_validity,
                     revision = messages.revision + 1
@@ -867,6 +900,7 @@ async fn inserer_ajouts(
         .bind(lignes.lus[debut..fin].to_vec())
         .bind(lignes.drapeaux[debut..fin].to_vec())
         .bind(notifiable)
+        .bind(lignes.dates[debut..fin].to_vec())
         .execute(pool)
         .await?;
         debut = fin;
@@ -1017,6 +1051,7 @@ mod tests {
             pieces: Vec::new(),
             extrait: String::new(),
             calendrier: false,
+            date: None,
         };
         assert_eq!(
             texte_destinataires(Some(&entete)),

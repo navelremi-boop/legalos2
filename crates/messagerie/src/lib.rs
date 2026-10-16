@@ -4,6 +4,7 @@
 mod chemin;
 mod classement;
 mod composition;
+mod date_entete;
 mod file_envoi;
 mod html;
 mod imap;
@@ -13,13 +14,15 @@ mod redaction;
 mod smtp;
 
 pub use chemin::{
-    chemin_veille, suite_uid_validity, Capacites, CheminVeille, CurseurDossier, SuiteDossier,
+    chemin_veille, suite_uid_validity, uid_de_reprise, Capacites, CheminVeille, CurseurDossier,
+    CurseurReleve, SuiteDossier,
 };
 pub use classement::{
     decider, integrer_releve, DecisionClassement, DossierPourClassement, EntreeClassement,
     MessageReleve, ReleveConnue,
 };
 pub use composition::{analyser_composition, origine_depuis_octets, MessageComposition};
+pub use date_entete::{borner_date_entete, BORNE_BASSE_SECS, TOLERANCE_FUTUR_SECS};
 pub use file_envoi::{appliquer, decider_action, ActionEnvoi, EntreeFileEnvoi, EtatFileEnvoi};
 pub use html::{nettoyer_html, texte_depuis_html};
 pub use imap::{CorpsLu, EnteteRecu, EtatUid, ReleveDossier};
@@ -34,7 +37,7 @@ pub use redaction::{
     adresse_et_nom, champ_en_tete_valide, construire_message, construire_message_brouillon,
     construire_message_compose, construire_message_sortant, destinataires_redaction,
     objet_redaction, type_mime_piece, DemandeRedaction, Destinataires, FilMessage, GenreRedaction,
-    MessageOrigine, MessageSortant, PieceJointe, DOSSIER_BROUILLONS,
+    MessageOrigine, MessageSortant, PieceJointe, DOSSIER_BROUILLONS, DOSSIER_ENVOYES,
 };
 pub use smtp::{envoyer_message_fixe, envoyer_octets, octets_rfc822, ParametresSmtp};
 
@@ -80,11 +83,12 @@ pub trait FournisseurMail {
     fn poser_drapeau(&mut self, dossier: &str, uid: u32, drapeau: &str) -> Result<(), ErreurMail>;
     fn deplacer(&mut self, dossier: &str, uid: u32, destination: &str) -> Result<(), ErreurMail>;
     fn supprimer(&mut self, dossier: &str, uid: u32) -> Result<(), ErreurMail>;
-    /// Relève incrémentale des en-têtes (UID > `apres_uid`).
+    /// Relève incrémentale des en-têtes (UID > `apres.dernier_uid`, si la UIDVALIDITY du serveur
+    /// est celle du curseur ; sinon depuis le début du dossier).
     fn relever_entetes(
         &mut self,
         dossier: &str,
-        apres_uid: Option<u32>,
+        apres: Option<CurseurReleve>,
         limite: Option<usize>,
     ) -> Result<(u32, Vec<EnteteRecu>), ErreurMail>;
 }
@@ -132,6 +136,13 @@ impl SessionActions {
     /// [`DOSSIER_BROUILLONS`] (créé au premier dépôt).
     pub fn dossier_brouillons(&mut self) -> Result<String, ErreurMail> {
         self.interne.dossier_brouillons()
+    }
+
+    /// Dossier des messages envoyés du compte : celui que le serveur annonce avec l'attribut
+    /// spécial `\Sent` (LIST), sinon « Sent » ou « Envoyés » s'ils existent, sinon
+    /// [`DOSSIER_ENVOYES`].
+    pub fn dossier_envoyes(&mut self) -> Result<String, ErreurMail> {
+        self.interne.dossier_envoyes()
     }
 
     /// Dépose une version d'un brouillon (APPEND avec `\Draft` et `\Seen`), puis retire les
@@ -242,10 +253,10 @@ impl FournisseurMail for SessionActions {
     fn relever_entetes(
         &mut self,
         dossier: &str,
-        apres_uid: Option<u32>,
+        apres: Option<CurseurReleve>,
         limite: Option<usize>,
     ) -> Result<(u32, Vec<EnteteRecu>), ErreurMail> {
-        self.interne.relever_entetes(dossier, apres_uid, limite)
+        self.interne.relever_entetes(dossier, apres, limite)
     }
 }
 

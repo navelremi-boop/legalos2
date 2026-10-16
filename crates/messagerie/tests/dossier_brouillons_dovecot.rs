@@ -102,6 +102,7 @@ fn brouillon(identifiant: &str, corps: &str) -> Vec<u8> {
         html: String::new(),
         signature: String::new(),
         signature_html: String::new(),
+        repondre_a: String::new(),
         identifiant: identifiant.to_owned(),
         origine: None,
         pieces: Vec::new(),

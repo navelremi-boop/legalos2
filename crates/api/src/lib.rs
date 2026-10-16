@@ -6,6 +6,7 @@ pub mod depot_brouillons;
 pub mod error;
 pub mod facturation;
 pub mod identifiants;
+pub mod identite_envoi;
 pub mod install;
 pub mod invitations;
 pub mod moteur_mail;

@@ -44,6 +44,10 @@ pub struct EnteteRecu {
     /// Le message porte une partie calendrier (`text/calendar` ou `application/ics`), vue dans
     /// BODYSTRUCTURE : seuls ces messages sont relus en entier pour en tirer l'invitation.
     pub calendrier: bool,
+    /// Date d'en-tête (`Date:`) en secondes UTC depuis l'époque Unix, telle que lue, sans borne :
+    /// `None` si l'en-tête est absent ou illisible. Les bornes (`borner_date_entete`) s'appliquent
+    /// à l'enregistrement, avec l'horloge de l'appelant.
+    pub date: Option<i64>,
 }
 
 /// Corps d'un message relevé. `html` est déjà passé par `ammonia`.
@@ -255,18 +259,19 @@ impl Session {
     }
 
     /// Relève les en-têtes (UID FETCH RFC822.HEADER + `mail-parser`) des messages
-    /// d'UID strictement supérieur à `apres_uid`. `limite` coupe la relève pour
+    /// d'UID strictement supérieur à `apres.dernier_uid` quand la UIDVALIDITY du serveur est celle
+    /// du curseur ; sinon depuis le début du dossier. `limite` coupe la relève pour
     /// simuler une interruption. ENVELOPE est évité : GreenMail y casse les sujets
     /// 8-bit, ce qui faisait sauter des UID sans les intégrer.
     pub fn relever_entetes(
         &mut self,
         dossier: &str,
-        apres_uid: Option<u32>,
+        apres: Option<crate::chemin::CurseurReleve>,
         limite: Option<usize>,
     ) -> Result<(u32, Vec<EnteteRecu>), ErreurMail> {
         let etat = self.examiner(dossier)?;
         self.selectionner(dossier)?;
-        let critere = match apres_uid.filter(|uid| *uid > 0) {
+        let critere = match crate::chemin::uid_de_reprise(apres, etat.uid_validity) {
             Some(uid) => {
                 let jeu: SequenceSet = format!("{}:*", uid.saturating_add(1))
                     .parse()
@@ -284,53 +289,15 @@ impl Session {
         if let Some(max) = limite {
             uids.truncate(max);
         }
-        let analyseur = MessageParser::default();
-        let mut messages = Vec::new();
-        for uid in uids {
-            let uid_texte = uid.get().to_string();
-            let carte = self.apercus(&uid_texte);
-            let jeu: SequenceSet = uid_texte.parse().map_err(|_| ErreurMail::Protocole)?;
-            let fetched = self
-                .client
-                .fetch(
-                    jeu,
-                    items_entete(),
-                    ImapMessageFetchOptions {
-                        uid: true,
-                        modifiers: Vec::new(),
-                    },
-                )
-                .map_err(|_| ErreurMail::Protocole)?;
-            for (_cle, items) in fetched {
-                let mut uid_lu = None;
-                let mut en_tetes = None;
-                let mut structure_lue = StructureLue::default();
-                for item in items {
-                    match item {
-                        MessageDataItem::Uid(valeur) => uid_lu = Some(valeur.get()),
-                        MessageDataItem::Rfc822Header(valeur) => {
-                            en_tetes = Some(nstring_octets(&valeur));
-                        }
-                        MessageDataItem::BodyStructure(structure) => {
-                            structure_lue = lire_structure(&structure);
-                        }
-                        _ => {}
-                    }
-                }
-                let (Some(uid_lu), Some(octets)) = (uid_lu, en_tetes) else {
-                    return Err(ErreurMail::Protocole);
-                };
-                messages.push(entete_depuis_rfc822(
-                    etat.uid_validity,
-                    uid_lu,
-                    &octets,
-                    &analyseur,
-                    structure_lue,
-                    extrait_depuis(&octets, carte.get(&uid_lu).map(Vec::as_slice), &analyseur),
-                ));
-            }
+        // Par lots (un aller-retour par 200 messages, pas par message) : une relève qui repart du
+        // début d'une grande boîte (UIDVALIDITY changée) reste praticable. Un message demandé et
+        // absent de la réponse (expunge entre la recherche et la lecture) est une erreur : le
+        // curseur ne doit jamais sauter un UID sans l'avoir intégré.
+        let uids: Vec<u32> = uids.into_iter().map(NonZeroU32::get).collect();
+        let messages = self.entetes_uids(dossier, &uids)?;
+        if messages.len() != uids.len() {
+            return Err(ErreurMail::Protocole);
         }
-        messages.sort_by_key(|m| m.uid);
         Ok((etat.uid_validity, messages))
     }
 
@@ -558,6 +525,13 @@ impl Session {
         Ok(choisir_dossier_brouillons(&dossiers))
     }
 
+    /// Dossier des envoyés : attribut `\Sent` annoncé par le serveur, à défaut « Sent » ou
+    /// « Envoyés » existants, à défaut [`crate::DOSSIER_ENVOYES`].
+    pub fn dossier_envoyes(&mut self) -> Result<String, ErreurMail> {
+        let dossiers = self.lister_dossiers()?;
+        Ok(choisir_dossier_envoyes(&dossiers))
+    }
+
     /// UID des messages dont le `Message-ID` est exactement celui-ci (forme avec chevrons : une
     /// recherche sans chevrons trouverait aussi les identifiants qui le contiennent).
     pub fn uids_message_id(
@@ -739,20 +713,25 @@ fn nom_boite(boite: &Mailbox<'_>) -> String {
     }
 }
 
-/// Choix du dossier des brouillons parmi ceux que le serveur liste. Pur, donc testé sans serveur.
-/// Ordre : attribut `\Drafts` (sélectionnable) ; nom « Drafts » ; nom « Brouillons » ; défaut.
-/// Le dernier composant du nom compte (« INBOX.Drafts », « INBOX/Brouillons »).
-pub(crate) fn choisir_dossier_brouillons(dossiers: &[DossierListe]) -> String {
+/// Dossier spécial d'un compte : attribut d'usage spécial (RFC 6154) annoncé par le serveur ;
+/// à défaut, un dossier existant de l'un des `noms` ; à défaut, `defaut`. Le dernier composant
+/// du nom compte (« INBOX.Drafts », « INBOX/Brouillons »).
+fn choisir_dossier_special(
+    dossiers: &[DossierListe],
+    attribut: &str,
+    noms: &[&str],
+    defaut: &str,
+) -> String {
     let selectionnable = |d: &&DossierListe| {
         !d.attributs
             .iter()
             .any(|a| a.eq_ignore_ascii_case("\\Noselect"))
     };
-    if let Some(d) = dossiers.iter().filter(selectionnable).find(|d| {
-        d.attributs
-            .iter()
-            .any(|a| a.eq_ignore_ascii_case("\\Drafts"))
-    }) {
+    if let Some(d) = dossiers
+        .iter()
+        .filter(selectionnable)
+        .find(|d| d.attributs.iter().any(|a| a.eq_ignore_ascii_case(attribut)))
+    {
         return d.nom.clone();
     }
     let dernier = |d: &DossierListe| -> String {
@@ -762,7 +741,7 @@ pub(crate) fn choisir_dossier_brouillons(dossiers: &[DossierListe]) -> String {
             .unwrap_or_default()
             .to_owned()
     };
-    for nom in ["drafts", "brouillons"] {
+    for nom in noms {
         if let Some(d) = dossiers
             .iter()
             .filter(selectionnable)
@@ -771,7 +750,27 @@ pub(crate) fn choisir_dossier_brouillons(dossiers: &[DossierListe]) -> String {
             return d.nom.clone();
         }
     }
-    crate::DOSSIER_BROUILLONS.to_owned()
+    defaut.to_owned()
+}
+
+/// Ordre : attribut `\Drafts` (sélectionnable) ; nom « Drafts » ; nom « Brouillons » ; défaut.
+pub(crate) fn choisir_dossier_brouillons(dossiers: &[DossierListe]) -> String {
+    choisir_dossier_special(
+        dossiers,
+        "\\Drafts",
+        &["drafts", "brouillons"],
+        crate::DOSSIER_BROUILLONS,
+    )
+}
+
+/// Ordre : attribut `\Sent` (sélectionnable) ; nom « Sent » ; nom « Envoyés » ; défaut « Sent ».
+pub(crate) fn choisir_dossier_envoyes(dossiers: &[DossierListe]) -> String {
+    choisir_dossier_special(
+        dossiers,
+        "\\Sent",
+        &["sent", "envoyés", "envoyes"],
+        crate::DOSSIER_ENVOYES,
+    )
 }
 
 /// Flux de veille. Le type io-imap reste dans ce module.
@@ -1272,6 +1271,9 @@ fn entete_depuis_rfc822(
         pieces: structure.pieces,
         extrait,
         calendrier: structure.calendrier,
+        date: message
+            .as_ref()
+            .and_then(crate::date_entete::instant_entete),
     }
 }
 
@@ -1581,6 +1583,29 @@ mod tests {
         // Aucun dossier connu : le défaut, créé au premier dépôt.
         assert_eq!(choisir(&[dossier("INBOX", &[])]), "Brouillons");
         assert_eq!(choisir(&[]), "Brouillons");
+    }
+
+    #[test]
+    fn dossier_des_envoyes_attribut_special_puis_noms_connus_puis_defaut() {
+        use super::choisir_dossier_envoyes as choisir;
+        // Fournisseur qui nomme le dossier à sa façon : l'attribut annoncé l'emporte.
+        let avec_attribut = vec![
+            dossier("INBOX", &["\\HasNoChildren"]),
+            dossier("Sent", &[]),
+            dossier("Éléments envoyés", &["\\Sent"]),
+        ];
+        assert_eq!(choisir(&avec_attribut), "Éléments envoyés");
+        // Essai négatif : sans l'attribut, c'est le nom connu qui est retenu.
+        assert_eq!(
+            choisir(&[dossier("INBOX", &[]), dossier("INBOX.Envoyés", &[])]),
+            "INBOX.Envoyés"
+        );
+        // Un dossier non sélectionnable n'est pas retenu ; aucun dossier connu : le défaut.
+        assert_eq!(
+            choisir(&[dossier("Sent", &["\\Sent", "\\Noselect"])]),
+            crate::DOSSIER_ENVOYES
+        );
+        assert_eq!(choisir(&[]), "Sent");
     }
 
     #[test]

@@ -288,6 +288,14 @@ for (const nom of ["messages_publics", "messages_restreints", "messages_a_classe
     fail(`${nom} : colonnes d'arrivée (notification de bureau) requises`);
   }
 }
+for (const nom of ["messages_publics", "messages_restreints", "messages_a_classer", "messages_nominatifs", "messages_boites_partagees"]) {
+  if (!/messages\.date_entete::text AS date_entete/.test(blocFlux(nom))) {
+    fail(`${nom} : date d'en-tête (messages.date_entete) requise, distincte de cree_le (arrivée)`);
+  }
+  if (!/messages\.cree_le::text AS cree_le/.test(blocFlux(nom))) {
+    fail(`${nom} : date d'arrivée (cree_le) requise`);
+  }
+}
 const nominatifs = blocFlux("messages_nominatifs");
 if (/JOIN/i.test(nominatifs)) fail("messages_nominatifs : jointure interdite (un seau par titulaire)");
 if (!/titulaire_id::text\s*=\s*auth\.user_id\(\)/.test(nominatifs)) {

@@ -358,6 +358,46 @@ async function main() {
     );
   }
 
+  // Serveur réinitialisé (GreenMail redémarré : UIDVALIDITY nouvelle, UID repartis de 1) : le curseur
+  // d'avant la réinitialisation ne vaut plus rien. Une seule relève doit suffire à retrouver un
+  // message arrivé ensuite (cause des échecs « message attendu absent après relève », voir
+  // JOURNAL.md, « Cause des échecs intermittents de relève »).
+  const compteClassement = await sqlServeur(
+    `SELECT id FROM comptes_mail WHERE type_compte = 'classement' AND cabinet_id = '${cabinet.id}'`,
+  );
+  const curseur = () =>
+    sqlServeur(
+      `SELECT uid_validity || '|' || dernier_uid FROM releve_curseurs WHERE compte_id = '${compteClassement}' AND dossier_imap = 'INBOX'`,
+    );
+  const [validiteServeur] = (await curseur()).split("|").map(Number);
+  await sqlServeur(
+    `UPDATE releve_curseurs SET uid_validity = ${validiteServeur - 1000}, dernier_uid = 1000000 WHERE compte_id = '${compteClassement}' AND dossier_imap = 'INBOX'`,
+  );
+  const midApresReinit = `<s7-reinit-${randomUUID()}@cabinet.example>`;
+  await envoyerSmtp({
+    de: "tiers@example.com",
+    a: boite,
+    objet: "Arrivé après réinitialisation du serveur",
+    messageId: midApresReinit,
+    corps: "Curseur d'une ancienne génération.",
+  });
+  await json("/messagerie/classement/relever", jeton, "POST");
+  const apresReinit = await json("/messagerie/messages", jeton);
+  if (apresReinit.filter((m) => m.message_id === midApresReinit).length !== 1) {
+    fail("UIDVALIDITY changée : le message arrivé ensuite n'est pas relevé dès la première relève");
+  }
+  const [validiteApres, dernierApres] = (await curseur()).split("|").map(Number);
+  if (validiteApres !== validiteServeur || dernierApres <= 0 || dernierApres >= 1000000) {
+    fail(`curseur non réaligné sur la génération du serveur (${validiteApres}|${dernierApres})`);
+  }
+  // Essai négatif : curseur de la bonne génération, aucune réinitialisation → rien n'est relu ni
+  // dupliqué (la vérification voit bien une relève qui n'apporte rien).
+  const rien = await json("/messagerie/classement/relever", jeton, "POST");
+  const encore = await json("/messagerie/messages", jeton);
+  if (rien.traites !== 0 || encore.filter((m) => m.message_id === midApresReinit).length !== 1) {
+    fail("relève sans réinitialisation : message relu ou dupliqué");
+  }
+
   // Chrono du dossier (source poste) : mails classés visibles
   const chrono = await json(`/dossiers/${dossierA}/chrono-mails`, jeton);
   if (!chrono.some((m) => m.message_id === midAdresse)) {
