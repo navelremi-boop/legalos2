@@ -33,6 +33,9 @@ export type MailLocal = {
   titulaire_id?: string | null;
   lu?: number | boolean | null;
   dossier_imap?: string | null;
+  /** Date de l'en-tête du message : celle qu'on affiche et qui sert au tri. */
+  date_entete?: string | null;
+  /** Date d'arrivée sur le serveur : repli quand l'en-tête manque, sans plus. */
   cree_le?: string | null;
   /** Brouillon de la base locale présenté dans la liste ; la sélection rouvre la rédaction. */
   brouillon?: boolean;

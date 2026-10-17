@@ -348,6 +348,9 @@ const messages = new Table(
     arrivee_seq: column.integer,
     /** Vrai seulement pour un message arrivé après la première relève de sa boîte et encore non lu à l'arrivée. */
     arrivee_notifiable: column.integer,
+    /** Date de l'en-tête `Date` du message (bornée côté serveur), nulle quand l'en-tête manque ou est illisible. */
+    date_entete: column.text,
+    /** Date d'arrivée sur le serveur : distincte de la date d'en-tête, jamais affichée à sa place. */
     cree_le: column.text,
   },
   { indexes: { dossier: ["dossier_id"], etat: ["etat_classement"], titulaire: ["titulaire_id"] } },

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   apercuMail,
+  dateDuMail,
   ecartEnJours,
   extensionPiece,
   filtrerMails,
@@ -172,5 +173,33 @@ describe("filtres, pièces et aperçu", () => {
   it("paragraphes séparés par une ligne vide", () => {
     assert.deepEqual(paragraphes("Maître,\r\n\r\nPremier.\n\n\n\nSecond.\nSuite."), ["Maître,", "Premier.", "Second.\nSuite."]);
     assert.deepEqual(paragraphes("   "), []);
+  });
+});
+
+describe("date d'en-tête et date d'arrivée", () => {
+  it("la date d'en-tête prime, la date d'arrivée sert de repli", () => {
+    assert.equal(dateDuMail({ date_entete: "2026-10-01 08:00:00+00", cree_le: "2026-10-09 07:00:00+00" }), "2026-10-01 08:00:00+00");
+    assert.equal(dateDuMail({ date_entete: null, cree_le: "2026-10-09 07:00:00+00" }), "2026-10-09 07:00:00+00");
+    assert.equal(dateDuMail({ date_entete: "  ", cree_le: "2026-10-09 07:00:00+00" }), "2026-10-09 07:00:00+00");
+    assert.equal(dateDuMail({}), null);
+  });
+
+  it("le tri suit la date d'en-tête, pas l'ordre d'arrivée (relève d'un ancien courrier)", () => {
+    // Arrivé aujourd'hui sur le serveur, mais écrit il y a trois semaines.
+    const ancien = mail("ancien", "2026-10-09 07:00:00+00", { date_entete: "2026-09-18 09:00:00+00" });
+    const recent = mail("recent", "2026-10-08 07:00:00+00", { date_entete: "2026-10-08 06:30:00+00" });
+    const sansEntete = mail("sans", "2026-10-02 07:00:00+00");
+    assert.deepEqual(
+      trierParDate([ancien, sansEntete, recent]).map((m) => m.id),
+      ["recent", "sans", "ancien"],
+    );
+  });
+
+  it("les groupes par jour suivent la date d'en-tête ; la date d'arrivée reste intacte", () => {
+    const ancien = mail("ancien", "2026-10-09 07:00:00+00", { date_entete: "2026-08-14 09:00:00+00" });
+    const groupes = groupesParJour([ancien], MAINTENANT);
+    assert.equal(groupes.length, 1);
+    assert.notEqual(groupes[0]?.cle, "aujourdhui");
+    assert.equal(groupes[0]?.mails[0]?.cree_le, "2026-10-09 07:00:00+00");
   });
 });

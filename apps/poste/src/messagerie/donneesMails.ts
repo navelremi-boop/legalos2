@@ -26,8 +26,8 @@ export async function lireDonneesMails(database: CommonPowerSyncDatabase): Promi
     database.getAll<MailLocal>(
       `SELECT id, message_id, objet, expediteur, destinataires_texte, pieces_texte, extrait_texte,
               substr(texte_brut, 1, 240) AS debut_texte, etat_classement, dossier_id,
-              suggestion_dossier_id, titulaire_id, lu, dossier_imap, cree_le
-       FROM messages ORDER BY cree_le DESC`,
+              suggestion_dossier_id, titulaire_id, lu, dossier_imap, date_entete, cree_le
+       FROM messages ORDER BY COALESCE(date_entete, cree_le) DESC`,
     ),
     database.getAll<DossierLocal>("SELECT id, nom, chemise, reference FROM dossiers"),
     lireInvitations(database),

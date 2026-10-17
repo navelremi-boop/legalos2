@@ -213,15 +213,18 @@ async function main() {
       pieces: "",
       texte: `Texte fictif ${cle}.`,
       secondes: 5,
+      /** Âge de la date d'en-tête en secondes ; `null` : en-tête absent (date NULL, la date d'arrivée sert de repli). */
+      enteteSecondes: null,
       ...champs,
     };
     await sqlServeur(
       `INSERT INTO messages (id, cabinet_id, compte_id, dossier_id, suggestion_dossier_id, message_id, uid_validity, uid,
-         objet, expediteur, destinataires_texte, pieces_texte, texte_brut, etat_classement, dossier_imap, lu, cree_le)
+         objet, expediteur, destinataires_texte, pieces_texte, texte_brut, etat_classement, dossier_imap, lu, date_entete, cree_le)
        VALUES ('${id}', '${cabinet}', '${c.compte}', ${c.dossier ? `'${c.dossier}'` : "NULL"},
          ${c.suggestion ? `'${c.suggestion}'` : "NULL"}, ${lit(`<j11m-${cle}-${marque}@cabinet.example>`)}, 1, ${uid},
          ${lit(c.objet)}, ${lit(c.expediteur)}, ${lit(c.destinataires)}, ${lit(c.pieces)}, ${lit(c.texte)},
-         '${c.etat}', ${lit(c.imap)}, ${c.lu ? "TRUE" : "FALSE"}, NOW() - INTERVAL '${c.secondes} seconds')`,
+         '${c.etat}', ${lit(c.imap)}, ${c.lu ? "TRUE" : "FALSE"},
+         ${c.enteteSecondes === null ? "NULL" : `NOW() - INTERVAL '${c.enteteSecondes} seconds'`}, NOW() - INTERVAL '${c.secondes} seconds')`,
     );
   }
   const objets = {
@@ -236,6 +239,7 @@ async function main() {
     corbeille: `Corbeille ${marque}`,
     partage: `Partage ${marque}`,
     ancien: `Ancien ${marque}`,
+    releve: `Releve ${marque}`,
   };
   await message("suggestion", {
     objet: objets.suggestion,
@@ -268,6 +272,8 @@ async function main() {
   await message("corbeille", { objet: objets.corbeille, etat: "classe", dossier: dossierA, imap: "Trash", lu: true, secondes: 10 });
   await message("partage", { objet: objets.partage, compte: compteClassement, secondes: 11 });
   await message("ancien", { objet: objets.ancien, etat: "classe", dossier: dossierA, lu: true, secondes: 10 * 86_400 });
+  // (ii) Un vieux courrier relevé à l'instant : arrivé il y a 12 s sur le serveur, écrit il y a 20 jours (en-tête Date).
+  await message("releve", { objet: objets.releve, etat: "classe", dossier: dossierA, lu: true, secondes: 12, enteteSecondes: 20 * 86_400 });
 
   const idInvitation = randomUUID();
   await sqlServeur(
@@ -414,6 +420,22 @@ async function main() {
     essaiNegatif("un mail de dix jours est dans « Aujourd'hui »", groupeAncien === "aujourdhui");
     const dateAncien = await evaluate(send, `document.querySelector(${JSON.stringify(ligne("ancien"))})?.querySelector('.mails-ligne__quand')?.innerText ?? ''`);
     verifier("date courte d'un ancien mail", /\d{1,2}(?:er)? [a-zéû.]+/u.test(dateAncien) && !/\d{4}-\d{2}/u.test(dateAncien), dateAncien);
+    // (ii) Date d'en-tête : affichée et utilisée pour le tri ; la date d'arrivée reste distincte.
+    const groupeReleve = await groupeDe("releve");
+    verifier("(ii) le courrier relevé à l'instant mais écrit il y a 20 jours n'est pas dans « Aujourd'hui »", groupeReleve !== null && groupeReleve !== "aujourdhui", String(groupeReleve));
+    essaiNegatif("(ii) un courrier daté de 20 jours est classé à sa date d'arrivée", groupeReleve === "aujourdhui");
+    const positions = await evaluate(
+      send,
+      `(() => { const l = [...document.querySelectorAll('[data-testid=mail-ligne]')].map((e) => e.getAttribute('data-id')); return { ancien: l.indexOf(${JSON.stringify(ids.ancien)}), releve: l.indexOf(${JSON.stringify(ids.releve)}), suggestion: l.indexOf(${JSON.stringify(ids.suggestion)}) }; })()`,
+    );
+    verifier("(ii) tri chronologique sur la date d'en-tête : le relevé (20 jours) suit l'ancien (10 jours)", positions.suggestion >= 0 && positions.ancien > positions.suggestion && positions.releve > positions.ancien, JSON.stringify(positions));
+    essaiNegatif("(ii) tri sur la date d'arrivée : le relevé précéderait l'ancien", positions.releve < positions.ancien);
+    const dateReleve = await evaluate(send, `document.querySelector(${JSON.stringify(ligne("releve"))})?.querySelector('.mails-ligne__quand')?.innerText ?? ''`);
+    verifier("(ii) la liste affiche la date d'en-tête (jour et mois), pas une heure d'arrivée", /\d{1,2}(?:er)? [a-zéû.]+/u.test(dateReleve) && !/^\s*\d{1,2}:\d{2}\s*$/u.test(dateReleve), dateReleve);
+    const dates = (await sqliteLocal(`SELECT date_entete, cree_le, (julianday(cree_le) - julianday(date_entete)) AS ecart FROM messages WHERE id = '${ids.releve}'`))?.[0];
+    verifier("(ii) les deux dates descendent sur le poste et restent distinctes (environ 20 jours d'écart)", dates && dates.date_entete && dates.cree_le && Number(dates.ecart) > 19 && Number(dates.ecart) < 21, JSON.stringify(dates));
+    const sansEntete = (await sqliteLocal(`SELECT date_entete FROM messages WHERE id = '${ids.horsDossier}'`))?.[0];
+    verifier("(ii) un message sans en-tête Date garde une date d'en-tête nulle (repli sur l'arrivée)", sansEntete && (sansEntete.date_entete === null || sansEntete.date_entete === ""), JSON.stringify(sansEntete));
     const etiquette = await evaluate(
       send,
       `(() => { const c = document.querySelector(${JSON.stringify(ligne("classeB"))} + ' .mails-dos'); return c ? { chemise: c.getAttribute('data-chemise'), texte: c.innerText.trim(), pastille: Boolean(c.querySelector('[data-testid=pastille-mail]')), fond: getComputedStyle(c).backgroundColor } : null; })()`,

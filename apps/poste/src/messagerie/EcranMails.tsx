@@ -44,7 +44,7 @@ import {
   type SuggestionTempsMail,
 } from "@/messagerie/LectureMail";
 import { PanneauListe } from "@/messagerie/PanneauListe";
-import { filtrerMails, groupesParJour, listePieces, trierParDate, type FiltreListe } from "@/messagerie/listeMails";
+import { dateDuMail, filtrerMails, groupesParJour, listePieces, trierParDate, type FiltreListe } from "@/messagerie/listeMails";
 import { RailMails, type VueMails } from "@/messagerie/RailMails";
 import { analyserCorrespondant } from "@/messagerie/expediteurs";
 import { libelleReleve } from "@/messagerie/releve";
@@ -407,7 +407,7 @@ export function EcranMails({
           objet: mail.objet,
           expediteur: mail.expediteur,
           destinataires_texte: mail.destinataires_texte ?? null,
-          cree_le: mail.cree_le ?? null,
+          cree_le: dateDuMail(mail),
           texte: await texteDuMessage(mail),
           pieces: listePieces(mail),
         };

@@ -23,6 +23,7 @@ import {
 } from "@/messagerie/expediteurs";
 import { presenterInvitation } from "@/messagerie/invitations";
 import {
+  dateDuMail,
   extensionPiece,
   horodatageLecture,
   listePieces,
@@ -121,7 +122,7 @@ export function LectureMail({
           <span data-testid="lecture-destinataires">{fr(destinataires === "" ? "—" : `À ${destinataires}`)}</span>
         </div>
         <span className="mails-lecture__quand" data-testid="lecture-date">
-          {fr(horodatageLecture(mail.cree_le, maintenant) || "—")}
+          {fr(horodatageLecture(dateDuMail(mail), maintenant) || "—")}
         </span>
       </div>
 

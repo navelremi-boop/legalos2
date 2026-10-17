@@ -35,6 +35,12 @@ export function normaliserHorodatage(valeur: string): string {
   return `${date}T${heure}${signe}${hh}:${mm}`;
 }
 
+/** Date d'un mail à l'écran et pour le tri : celle de son en-tête, à défaut sa date d'arrivée. */
+export function dateDuMail(mail: Pick<MailLocal, "date_entete" | "cree_le">): string | null {
+  const entete = mail.date_entete?.trim();
+  return entete !== undefined && entete !== "" ? entete : (mail.cree_le ?? null);
+}
+
 /** Jour et heure murale (Europe/Paris) d'un horodatage de mail ; `null` s'il est illisible. */
 export function muralMail(valeur: string | null | undefined): MurMail | null {
   if (valeur === null || valeur === undefined) return null;
@@ -53,7 +59,7 @@ function rangMail(valeur: string | null | undefined): number {
 /** Du plus récent au plus ancien ; à égalité, l'ordre d'origine est conservé. */
 export function trierParDate(mails: readonly MailLocal[]): MailLocal[] {
   return mails
-    .map((mail, index) => ({ mail, index, rang: rangMail(mail.cree_le) }))
+    .map((mail, index) => ({ mail, index, rang: rangMail(dateDuMail(mail)) }))
     .sort((a, b) => b.rang - a.rang || a.index - b.index)
     .map((entree) => entree.mail);
 }
@@ -107,7 +113,7 @@ export function groupesParJour(mails: readonly MailLocal[], maintenant: Date): G
   const aujourdhui = jourParis(maintenant);
   const groupes: GroupeJour[] = [];
   for (const mail of trierParDate(mails)) {
-    const mur = muralMail(mail.cree_le);
+    const mur = muralMail(dateDuMail(mail));
     const { cle, titre } = mur === null ? { cle: "sans-date", titre: "Sans date" } : groupeDe(mur.jour, aujourdhui);
     const dernier = groupes[groupes.length - 1];
     if (dernier?.cle === cle) {

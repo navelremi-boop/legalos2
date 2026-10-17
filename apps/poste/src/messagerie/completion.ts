@@ -1,5 +1,6 @@
 import { adresseValide, type Destinataire } from "@/messagerie/adressesRedaction";
 import { analyserCorrespondant, separerDestinataires } from "@/messagerie/expediteurs";
+import { dateDuMail } from "@/messagerie/listeMails";
 import type { MailLocal } from "@/messagerie/typesMails";
 
 /**
@@ -25,13 +26,13 @@ function correspond(suggestion: Destinataire, saisie: string): boolean {
 /** Adresses des expéditeurs et destinataires des mails de la base locale qui contiennent la saisie, les plus récentes d'abord. */
 export function suggestionsLocales(
   saisie: string,
-  mails: readonly Pick<MailLocal, "expediteur" | "destinataires_texte" | "cree_le">[],
+  mails: readonly Pick<MailLocal, "expediteur" | "destinataires_texte" | "date_entete" | "cree_le">[],
   adressesPropres: readonly string[],
 ): SuggestionDestinataire[] {
   if (Array.from(saisie.trim()).length < SAISIE_MIN) return [];
   const propres = new Set(adressesPropres.map(cle));
   const vues = new Map<string, SuggestionDestinataire>();
-  const recents = [...mails].sort((a, b) => (b.cree_le ?? "").localeCompare(a.cree_le ?? ""));
+  const recents = [...mails].sort((a, b) => (dateDuMail(b) ?? "").localeCompare(dateDuMail(a) ?? ""));
   for (const mail of recents) {
     const bruts = [mail.expediteur ?? "", ...separerDestinataires(mail.destinataires_texte)];
     for (const brut of bruts) {

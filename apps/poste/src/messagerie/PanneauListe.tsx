@@ -5,6 +5,7 @@ import type { DossierClassement } from "@/messagerie/classement";
 import { analyserCorrespondant, monogramme, nomAffiche } from "@/messagerie/expediteurs";
 import {
   apercuMail,
+  dateDuMail,
   horodatageListe,
   listePieces,
   type FiltreListe,
@@ -163,7 +164,7 @@ function LigneMail({ mail, choisie, onSelection, dossiers, classeLocal, maintena
       <span className="mails-ligne__droite">
         <span className="mails-ligne__quand">
           {pieces ? <IconPaperclip stroke={1.6} aria-label={fr("Pièce jointe")} role="img" /> : null}
-          {horodatageListe(mail.cree_le, maintenant)}
+          {horodatageListe(dateDuMail(mail), maintenant)}
           {lu ? null : <span className="mails-nonlu" role="img" aria-label={fr("Non lu")} />}
         </span>
         {dossier ? (
