@@ -6,13 +6,14 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use legalos_messagerie::{
-    borner_date_entete, diff_repli, invitation_du_message, Changement, EnteteRecu, ErreurMail,
-    EtatUid, FournisseurMail, InvitationLue, ParametresCompte, ReleveDossier, SessionActions,
-    VeilleReception,
+    borner_date_entete, diff_repli, ecarter_supprimes, invitation_du_message, Changement,
+    EnteteRecu, ErreurMail, EtatUid, FournisseurMail, InvitationLue, ParametresCompte,
+    ReleveDossier, SessionActions, VeilleReception,
 };
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::actions_messages::{ActionsMessages, BALAYAGE_ACTIONS_SECS};
 use crate::auth::totp::{chiffrer_secret_totp, dechiffrer_secret_totp};
 use crate::depot_brouillons::DepotBrouillons;
 use crate::invitations::{enregistrer_invitation, InvitationRecue, IssueInvitation};
@@ -56,6 +57,13 @@ pub fn demarrer(pool: PgPool, cle: [u8; 32], classement: Option<ParametresCompte
                 runtime.block_on(async move {
                     // Les copies de brouillons ont leur propre tâche : une connexion lente ne
                     // retarde jamais la relève des boîtes.
+                    // Les actions sur les messages (lu, archiver, supprimer, déplacer) aussi : une
+                    // boîte injoignable ne ralentit ni les autres actions ni la relève.
+                    tokio::spawn(balayage_actions(ActionsMessages::new(
+                        pool.clone(),
+                        cle,
+                        classement.clone(),
+                    )));
                     tokio::spawn(balayage_brouillons(DepotBrouillons::new(
                         pool.clone(),
                         cle,
@@ -74,6 +82,16 @@ async fn balayage_brouillons(depot: DepotBrouillons) {
     loop {
         tokio::time::sleep(Duration::from_secs(BALAYAGE_BROUILLONS_SECS)).await;
         depot.balayer(REPRISE_BROUILLON_SECS).await;
+    }
+}
+
+/// Reprend les actions sur les messages dues : première prise, ou reprise après une coupure du
+/// serveur IMAP ou de l'API. Les baux d'une API coupée sont levés au démarrage.
+async fn balayage_actions(actions: ActionsMessages) {
+    actions.lever_les_baux().await;
+    loop {
+        actions.balayer().await;
+        tokio::time::sleep(Duration::from_secs(BALAYAGE_ACTIONS_SECS)).await;
     }
 }
 
@@ -513,6 +531,8 @@ async fn appliquer_dossier(
         } else {
             diff_repli(&connus, &vus).changements
         };
+    // Un message marqué \Deleted est déjà supprimé pour les autres clients (copie sans UID EXPUNGE).
+    let changements = ecarter_supprimes(changements);
     let ajouts: Vec<EtatUid> = changements
         .iter()
         .filter_map(|changement| match changement {
@@ -539,8 +559,18 @@ async fn appliquer_dossier(
     // avancé, et la relève suivante revoit les mêmes messages (l'enregistrement est rejouable).
     traiter_invitations(pool, compte, dossier, &ajouts, &entetes).await?;
     if !retires.is_empty() {
+        // Un message dont une action est en cours ne disparaît pas ici : la relève peut voir son
+        // ancien UID disparaître parce que l'action vient de le déplacer, avant qu'elle ne
+        // l'ait inscrit à sa nouvelle place.
         sqlx::query(
-            "DELETE FROM messages WHERE compte_id = $1 AND dossier_imap = $2 AND uid = ANY($3)",
+            r#"
+            DELETE FROM messages
+            WHERE compte_id = $1 AND dossier_imap = $2 AND uid = ANY($3)
+              AND NOT EXISTS (
+                SELECT 1 FROM actions_messages a
+                WHERE a.message_ref = messages.id AND a.etat = 'en_attente'
+              )
+            "#,
         )
         .bind(compte.id)
         .bind(dossier)
@@ -882,6 +912,20 @@ async fn inserer_ajouts(
                     uid = EXCLUDED.uid,
                     uid_validity = EXCLUDED.uid_validity,
                     revision = messages.revision + 1
+                -- Photographie du serveur antérieure à une action : le message qu'elle vient de
+                -- déplacer n'est pas ramené à la place qu'il a quittée. Un message revenu dans ce
+                -- dossier sous un autre UID (déplacé par un autre client) n'est pas concerné.
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM actions_messages a
+                    WHERE a.message_ref = messages.id
+                      AND a.genre IN ('archiver', 'supprimer', 'deplacer')
+                      AND a.etat IN ('en_attente', 'appliquee')
+                      AND a.dossier_source = EXCLUDED.dossier_imap
+                      AND a.uid_source = EXCLUDED.uid
+                      AND a.uid_validity_source = EXCLUDED.uid_validity
+                      AND (messages.dossier_imap, messages.uid, messages.uid_validity)
+                          IS DISTINCT FROM (EXCLUDED.dossier_imap, EXCLUDED.uid, EXCLUDED.uid_validity)
+                )
             "#,
         )
         .bind(lignes.ids[debut..fin].to_vec())

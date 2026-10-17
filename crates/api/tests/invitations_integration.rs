@@ -172,14 +172,20 @@ async fn creer_compte(
     adresse: &str,
 ) -> Uuid {
     let id = Uuid::now_v7();
+    // Depuis l'identité d'envoi (J11 i), un envoi part du compte choisi : sa copie « Envoyés » passe
+    // par les identifiants IMAP du compte, qu'un compte réel porte toujours. Port fermé : le serveur
+    // est injoignable, l'envoi reste dans la file.
+    let secret =
+        legalos_api::auth::totp::chiffrer_secret_totp(b"MotDePasseFictif", CLE).expect("secret");
     sqlx::query(
-        "INSERT INTO comptes_mail (id, cabinet_id, type_compte, titulaire_id, adresse, secret_ref) VALUES ($1, $2, $3, $4, $5, 'test')",
+        "INSERT INTO comptes_mail (id, cabinet_id, type_compte, titulaire_id, adresse, secret_ref, hote, port, utilisateur, tls, secret_chiffre) VALUES ($1, $2, $3, $4, $5, 'test', '127.0.0.1', 1, 'test', FALSE, $6)",
     )
     .bind(id)
     .bind(cabinet)
     .bind(type_compte)
     .bind(titulaire)
     .bind(adresse)
+    .bind(secret)
     .execute(pool)
     .await
     .expect("compte");

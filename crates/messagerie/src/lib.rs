@@ -25,14 +25,17 @@ pub use composition::{analyser_composition, origine_depuis_octets, MessageCompos
 pub use date_entete::{borner_date_entete, BORNE_BASSE_SECS, TOLERANCE_FUTUR_SECS};
 pub use file_envoi::{appliquer, decider_action, ActionEnvoi, EntreeFileEnvoi, EtatFileEnvoi};
 pub use html::{nettoyer_html, texte_depuis_html};
-pub use imap::{CorpsLu, EnteteRecu, EtatUid, ReleveDossier};
+pub use imap::{
+    CorpsLu, Emplacement, EnteteRecu, EtatUid, IssueDeplacement, ReleveDossier, DOSSIER_ARCHIVES,
+    DOSSIER_CORBEILLE,
+};
 pub use invitation::{
     decider_invitation, invitation_depuis_stockage, invitation_du_message, juger_origine,
     lire_invitation, reponse_invitation, DecisionInvitation, EffetInvitation, InstantsInvitation,
     InvitationConnue, InvitationLue, InvitationStockee, ReponseInvitation, VerdictOrigine,
     FUSEAU_FLOTTANT,
 };
-pub use moteur::{diff_repli, Changement, RapportMoteur};
+pub use moteur::{diff_repli, ecarter_supprimes, Changement, RapportMoteur};
 pub use redaction::{
     adresse_et_nom, champ_en_tete_valide, construire_message, construire_message_brouillon,
     construire_message_compose, construire_message_sortant, destinataires_redaction,
@@ -82,6 +85,8 @@ pub trait FournisseurMail {
     fn marquer_lu(&mut self, dossier: &str, uid: u32, lu: bool) -> Result<(), ErreurMail>;
     fn poser_drapeau(&mut self, dossier: &str, uid: u32, drapeau: &str) -> Result<(), ErreurMail>;
     fn deplacer(&mut self, dossier: &str, uid: u32, destination: &str) -> Result<(), ErreurMail>;
+    /// Déplace vers la Corbeille du compte. Jamais d'EXPUNGE : un message supprimé reste
+    /// récupérable.
     fn supprimer(&mut self, dossier: &str, uid: u32) -> Result<(), ErreurMail>;
     /// Relève incrémentale des en-têtes (UID > `apres.dernier_uid`, si la UIDVALIDITY du serveur
     /// est celle du curseur ; sinon depuis le début du dossier).
@@ -183,6 +188,49 @@ impl SessionActions {
     /// Octets RFC822 d'un message (origine d'une réponse ou d'un transfert).
     pub fn lire_rfc822(&mut self, dossier: &str, uid: u32) -> Result<Vec<u8>, ErreurMail> {
         self.interne.lire_rfc822(dossier, uid)
+    }
+
+    /// Dossier de la Corbeille du compte : celui que le serveur annonce avec l'attribut spécial
+    /// `\Trash` (LIST), sinon un nom courant (Trash, Corbeille, Deleted Items…), sinon
+    /// [`DOSSIER_CORBEILLE`] (créé au premier déplacement).
+    pub fn dossier_corbeille(&mut self) -> Result<String, ErreurMail> {
+        self.interne.dossier_corbeille()
+    }
+
+    /// Dossier des archives du compte : attribut `\Archive`, sinon un nom courant (Archive,
+    /// Archives…), sinon [`DOSSIER_ARCHIVES`] (créé au premier déplacement).
+    pub fn dossier_archives(&mut self) -> Result<String, ErreurMail> {
+        self.interne.dossier_archives()
+    }
+
+    /// Pose (`lu`) ou retire `\Seen` sur un message retrouvé dans le dossier, et relit l'état.
+    /// Rejouable. `false` : le message n'est plus dans ce dossier. L'UID et la UIDVALIDITY connus
+    /// ne sont qu'un indice : le message est reconnu à son `Message-ID`.
+    pub fn marquer_lu_message(
+        &mut self,
+        dossier: &str,
+        uid_validity: u32,
+        uid: u32,
+        message_id: &str,
+        lu: bool,
+    ) -> Result<bool, ErreurMail> {
+        self.interne
+            .marquer_lu_message(dossier, uid_validity, uid, message_id, lu)
+    }
+
+    /// Déplace un message vers un dossier (créé au besoin), sans doublon au rejeu : MOVE si le
+    /// serveur l'annonce, sinon COPY puis `\Deleted` sur l'original une fois la copie confirmée.
+    /// Jamais d'EXPUNGE général ni dans la destination ; voir `imap::Session::deplacer_message`.
+    pub fn deplacer_message(
+        &mut self,
+        origine: &str,
+        uid_validity: u32,
+        uid: u32,
+        message_id: &str,
+        destination: &str,
+    ) -> Result<IssueDeplacement, ErreurMail> {
+        self.interne
+            .deplacer_message(origine, uid_validity, uid, message_id, destination)
     }
 
     pub fn lire_corps(&mut self, dossier: &str, uid: u32) -> Result<imap::CorpsLu, ErreurMail> {

@@ -1,3 +1,4 @@
+pub mod actions_messages;
 pub mod agenda;
 pub mod auth;
 pub mod boites;
@@ -14,6 +15,7 @@ pub mod health;
 pub mod intercalaires;
 pub mod invitations;
 pub mod messagerie;
+pub mod recherche_messages;
 pub mod redaction;
 pub mod synchro;
 pub mod temps;
@@ -123,6 +125,19 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route(
             "/messagerie/messages/{message_id}/corps",
             post(messagerie::lire_corps_message),
+        )
+        .route(
+            "/messagerie/messages/{message_id}/actions",
+            post(actions_messages::creer_action),
+        )
+        .route("/messagerie/actions", get(actions_messages::lister_actions))
+        .route(
+            "/messagerie/actions/{action_id}",
+            get(actions_messages::lire_action),
+        )
+        .route(
+            "/messagerie/recherche",
+            get(recherche_messages::rechercher_messages),
         )
         .route(
             "/messagerie/messages/{message_id}/accepter-suggestion",

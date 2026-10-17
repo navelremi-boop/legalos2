@@ -5,6 +5,7 @@ use std::num::NonZeroU32;
 use io_imap::client::{ImapClient, ImapClientStd};
 use io_imap::has_imap_capability;
 use io_imap::rfc3501::append::ImapMessageAppendOptions;
+use io_imap::rfc3501::copy::ImapMessageCopyOptions;
 use io_imap::rfc3501::fetch::ImapMessageFetchOptions;
 use io_imap::rfc3501::search::ImapMessageSearchOptions;
 use io_imap::rfc3501::store::ImapMessageStoreOptions;
@@ -194,13 +195,14 @@ impl Session {
         Ok(())
     }
 
+    /// Supprimer un message, c'est le déplacer vers la Corbeille du compte : aucun EXPUNGE. Un
+    /// message déjà dans la Corbeille y reste.
     pub fn supprimer(&mut self, dossier: &str, uid: u32) -> Result<(), ErreurMail> {
-        self.store_drapeau(dossier, uid, "\\Deleted", true)?;
-        let jeu = sequence_un(uid)?;
-        self.client
-            .uid_expunge(jeu)
-            .map_err(|_| ErreurMail::Protocole)?;
-        Ok(())
+        let corbeille = self.dossier_corbeille()?;
+        if corbeille == dossier {
+            return Ok(());
+        }
+        self.deplacer(dossier, uid, &corbeille)
     }
 
     /// Compte les en-têtes par paquets. `qresync` active QRESYNC et `CHANGEDSINCE 1`.
@@ -1152,6 +1154,395 @@ impl Session {
     }
 }
 
+/// Dossier par défaut de la Corbeille, créé au premier besoin quand le serveur n'en annonce aucun
+/// (nom français, comme [`crate::DOSSIER_BROUILLONS`]).
+pub const DOSSIER_CORBEILLE: &str = "Corbeille";
+/// Dossier par défaut des archives, créé au premier besoin.
+pub const DOSSIER_ARCHIVES: &str = "Archives";
+
+/// Où est un message sur le serveur : génération du dossier (UIDVALIDITY) et UID. `uid` est vide
+/// quand le serveur n'a pas dit le nouvel UID après une copie (pas de COPYUID) et que le message
+/// n'a pas d'identifiant exploitable pour le retrouver.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Emplacement {
+    pub uid_validity: u32,
+    pub uid: Option<u32>,
+}
+
+/// Issue d'un déplacement. Un rejeu sur un message déjà déplacé n'est pas une erreur : le message
+/// est retrouvé à sa destination (`deja_fait`) et rien n'est recopié.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IssueDeplacement {
+    Place {
+        emplacement: Emplacement,
+        deja_fait: bool,
+    },
+    /// Ni dans le dossier d'origine ni à la destination : retiré du serveur par un autre client.
+    Introuvable,
+}
+
+/// Capacités qui décident de la façon de déplacer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct CapacitesDeplacement {
+    /// RFC 6851 : MOVE atomique.
+    deplacer: bool,
+    /// RFC 4315 : UID EXPUNGE ne retire que l'UID demandé.
+    uid_plus: bool,
+}
+
+/// L'identifiant a été fabriqué par la relève faute d'en-tête `Message-ID` : il ne se cherche pas
+/// sur le serveur.
+pub(crate) fn message_id_synthetique(message_id: &str) -> bool {
+    message_id.starts_with("<uid-") && message_id.ends_with("@legalos.local>")
+}
+
+/// Ordre : attribut `\Trash` (sélectionnable) ; noms courants (Trash, Corbeille, Deleted Items…) ;
+/// défaut [`DOSSIER_CORBEILLE`].
+pub(crate) fn choisir_dossier_corbeille(dossiers: &[DossierListe]) -> String {
+    choisir_dossier_special(
+        dossiers,
+        "\\Trash",
+        &[
+            "trash",
+            "corbeille",
+            "deleted items",
+            "deleted messages",
+            "éléments supprimés",
+            "elements supprimes",
+        ],
+        DOSSIER_CORBEILLE,
+    )
+}
+
+/// Ordre : attribut `\Archive` (sélectionnable) ; noms courants (Archive, Archives, Archivés) ;
+/// défaut [`DOSSIER_ARCHIVES`].
+pub(crate) fn choisir_dossier_archives(dossiers: &[DossierListe]) -> String {
+    choisir_dossier_special(
+        dossiers,
+        "\\Archive",
+        &["archive", "archives", "archivés", "archives"],
+        DOSSIER_ARCHIVES,
+    )
+}
+
+impl Session {
+    /// Dossier de la Corbeille du compte (voir [`choisir_dossier_corbeille`]).
+    pub fn dossier_corbeille(&mut self) -> Result<String, ErreurMail> {
+        let dossiers = self.lister_dossiers()?;
+        Ok(choisir_dossier_corbeille(&dossiers))
+    }
+
+    /// Dossier des archives du compte (voir [`choisir_dossier_archives`]).
+    pub fn dossier_archives(&mut self) -> Result<String, ErreurMail> {
+        let dossiers = self.lister_dossiers()?;
+        Ok(choisir_dossier_archives(&dossiers))
+    }
+
+    fn capacites_deplacement(&mut self) -> Result<CapacitesDeplacement, ErreurMail> {
+        let brutes = self
+            .client
+            .capability()
+            .map_err(|_| ErreurMail::Protocole)?;
+        Ok(CapacitesDeplacement {
+            deplacer: has_imap_capability!(brutes, Move),
+            uid_plus: has_imap_capability!(brutes, UidPlus),
+        })
+    }
+
+    /// Sélectionne le dossier ; `None` s'il n'existe pas (absent de LIST). Toute autre cause de
+    /// refus reste une erreur : un serveur qui bégaie n'est pas un dossier absent.
+    fn selectionner_si_existe(&mut self, dossier: &str) -> Result<Option<u32>, ErreurMail> {
+        let selection = match self.client.select(boite(dossier)?, Default::default()) {
+            Ok(selection) => selection,
+            Err(_) => {
+                let existe = self
+                    .lister_dossiers()?
+                    .iter()
+                    .any(|presente| presente.nom == dossier);
+                return if existe {
+                    Err(ErreurMail::Protocole)
+                } else {
+                    Ok(None)
+                };
+            }
+        };
+        selection
+            .uid_validity
+            .map(|valeur| Some(valeur.get()))
+            .ok_or(ErreurMail::Protocole)
+    }
+
+    /// `Message-ID` d'un UID du dossier sélectionné, forme normalisée (vide si l'en-tête manque),
+    /// `None` si l'UID n'existe pas.
+    fn message_id_de_uid(&mut self, uid: u32) -> Result<Option<String>, ErreurMail> {
+        let fetched = self
+            .client
+            .fetch(
+                sequence_un(uid)?,
+                MacroOrMessageDataItemNames::MessageDataItemNames(vec![
+                    MessageDataItemName::Uid,
+                    MessageDataItemName::Rfc822Header,
+                ]),
+                ImapMessageFetchOptions {
+                    uid: true,
+                    modifiers: Vec::new(),
+                },
+            )
+            .map_err(|_| ErreurMail::Protocole)?;
+        for (_cle, morceaux) in fetched {
+            for item in morceaux {
+                if let MessageDataItem::Rfc822Header(valeur) = item {
+                    let octets = nstring_octets(&valeur);
+                    let identifiant = MessageParser::default()
+                        .parse(&octets)
+                        .as_ref()
+                        .and_then(|message| message.message_id())
+                        .map(normaliser_message_id)
+                        .unwrap_or_default();
+                    return Ok(Some(identifiant));
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// UID du dossier sélectionné portant ce `Message-ID`, du plus ancien au plus récent.
+    fn uids_du_message_id(&mut self, message_id: &str) -> Result<Vec<u32>, ErreurMail> {
+        let nu = message_id
+            .trim()
+            .trim_start_matches('<')
+            .trim_end_matches('>');
+        if nu.is_empty() || nu.contains(['\r', '\n', '<', '>']) {
+            return Err(ErreurMail::Protocole);
+        }
+        let champ =
+            AString::try_from("Message-ID".to_owned()).map_err(|_| ErreurMail::Protocole)?;
+        let valeur = AString::try_from(format!("<{nu}>")).map_err(|_| ErreurMail::Protocole)?;
+        let criteres = Vec1::try_from(vec![SearchKey::Header(champ, valeur)])
+            .map_err(|_| ErreurMail::Protocole)?;
+        let mut uids: Vec<u32> = self
+            .client
+            .search(criteres, ImapMessageSearchOptions { uid: true })
+            .map_err(|_| ErreurMail::Protocole)?
+            .into_iter()
+            .map(NonZeroU32::get)
+            .collect();
+        uids.sort_unstable();
+        uids.dedup();
+        Ok(uids)
+    }
+
+    /// Retrouve un message dans un dossier. L'UID connu ne vaut que si la UIDVALIDITY est restée
+    /// la même **et** si le `Message-ID` de cet UID est bien celui du message (un UID peut être
+    /// réattribué). Sinon, recherche par `Message-ID` ; un message sans identifiant exploitable
+    /// n'a que son UID. Le dossier reste sélectionné. `None` : le message n'y est plus.
+    pub fn localiser_message(
+        &mut self,
+        dossier: &str,
+        uid_validity: u32,
+        uid: u32,
+        message_id: &str,
+    ) -> Result<Option<Emplacement>, ErreurMail> {
+        let Some(validite) = self.selectionner_si_existe(dossier)? else {
+            return Ok(None);
+        };
+        let synthetique = message_id_synthetique(message_id);
+        if validite == uid_validity && uid > 0 {
+            match self.message_id_de_uid(uid)? {
+                Some(trouve) if synthetique && trouve.is_empty() => {
+                    return Ok(Some(Emplacement {
+                        uid_validity: validite,
+                        uid: Some(uid),
+                    }));
+                }
+                Some(trouve) if !synthetique && trouve == normaliser_message_id(message_id) => {
+                    return Ok(Some(Emplacement {
+                        uid_validity: validite,
+                        uid: Some(uid),
+                    }));
+                }
+                _ => {}
+            }
+        }
+        if synthetique {
+            return Ok(None);
+        }
+        Ok(self
+            .uids_du_message_id(message_id)?
+            .last()
+            .map(|trouve| Emplacement {
+                uid_validity: validite,
+                uid: Some(*trouve),
+            }))
+    }
+
+    /// Emplacement du message dans un dossier, cherché par `Message-ID` seulement.
+    fn emplacement_par_message_id(
+        &mut self,
+        dossier: &str,
+        message_id: &str,
+    ) -> Result<Option<Emplacement>, ErreurMail> {
+        if message_id_synthetique(message_id) {
+            return Ok(None);
+        }
+        let Some(validite) = self.selectionner_si_existe(dossier)? else {
+            return Ok(None);
+        };
+        Ok(self
+            .uids_du_message_id(message_id)?
+            .last()
+            .map(|uid| Emplacement {
+                uid_validity: validite,
+                uid: Some(*uid),
+            }))
+    }
+
+    /// Emplacement à la destination après un MOVE ou un COPY : le COPYUID du serveur s'il l'a
+    /// donné, sinon recherche par `Message-ID`, sinon la génération du dossier sans UID.
+    fn emplacement_apres_copie(
+        &mut self,
+        copie: Option<(u32, Vec<u32>, Vec<u32>)>,
+        destination: &str,
+        message_id: &str,
+    ) -> Result<Emplacement, ErreurMail> {
+        if let Some((validite, _, destinations)) = copie {
+            if let Some(uid) = destinations.first() {
+                return Ok(Emplacement {
+                    uid_validity: validite,
+                    uid: Some(*uid),
+                });
+            }
+        }
+        if let Some(trouve) = self.emplacement_par_message_id(destination, message_id)? {
+            return Ok(trouve);
+        }
+        let validite = self
+            .selectionner_si_existe(destination)?
+            .ok_or(ErreurMail::Protocole)?;
+        Ok(Emplacement {
+            uid_validity: validite,
+            uid: None,
+        })
+    }
+
+    /// Pose ou retire `\Seen` sur un message retrouvé, et relit l'état. Rejouable. `false` : le
+    /// message n'est plus dans ce dossier.
+    pub fn marquer_lu_message(
+        &mut self,
+        dossier: &str,
+        uid_validity: u32,
+        uid: u32,
+        message_id: &str,
+        lu: bool,
+    ) -> Result<bool, ErreurMail> {
+        let Some(place) = self.localiser_message(dossier, uid_validity, uid, message_id)? else {
+            return Ok(false);
+        };
+        let uid = place.uid.ok_or(ErreurMail::Protocole)?;
+        self.store_drapeau(dossier, uid, "\\Seen", lu)?;
+        if self.lire_lu(dossier, uid)? != lu {
+            return Err(ErreurMail::Protocole);
+        }
+        Ok(true)
+    }
+
+    /// Déplace un message vers un dossier (créé au besoin). Rejouable sans doublon :
+    ///
+    /// * le message est d'abord retrouvé (UID vérifié par son `Message-ID`, sinon recherche) ;
+    /// * absent de l'origine mais présent à la destination : déjà déplacé, rien n'est refait ;
+    /// * avec MOVE, une seule commande atomique ; sans MOVE, COPY (sauf si la destination porte
+    ///   déjà ce message), puis seulement une fois la copie confirmée, `\Deleted` sur l'original
+    ///   et, si le serveur sait retirer un seul UID (UIDPLUS), `UID EXPUNGE` de cet UID.
+    ///
+    /// Jamais d'EXPUNGE général, jamais dans le dossier de destination, et jamais d'EXPUNGE d'un
+    /// message dont la copie n'est pas confirmée ailleurs.
+    pub fn deplacer_message(
+        &mut self,
+        origine: &str,
+        uid_validity: u32,
+        uid: u32,
+        message_id: &str,
+        destination: &str,
+    ) -> Result<IssueDeplacement, ErreurMail> {
+        self.assurer_dossier(destination)?;
+        let present = self.localiser_message(origine, uid_validity, uid, message_id)?;
+        if origine == destination {
+            return Ok(match present {
+                Some(emplacement) => IssueDeplacement::Place {
+                    emplacement,
+                    deja_fait: true,
+                },
+                None => IssueDeplacement::Introuvable,
+            });
+        }
+        let Some(present) = present else {
+            return Ok(
+                match self.emplacement_par_message_id(destination, message_id)? {
+                    Some(emplacement) => IssueDeplacement::Place {
+                        emplacement,
+                        deja_fait: true,
+                    },
+                    None => IssueDeplacement::Introuvable,
+                },
+            );
+        };
+        let uid_origine = present.uid.ok_or(ErreurMail::Protocole)?;
+        let capacites = self.capacites_deplacement()?;
+        if capacites.deplacer {
+            self.selectionner(origine)?;
+            let copie = self
+                .client
+                .r#move(
+                    sequence_un(uid_origine)?,
+                    boite(destination)?,
+                    ImapMessageMoveOptions { uid: true },
+                )
+                .map_err(|_| ErreurMail::Protocole)?;
+            let emplacement = self.emplacement_apres_copie(copie, destination, message_id)?;
+            return Ok(IssueDeplacement::Place {
+                emplacement,
+                deja_fait: false,
+            });
+        }
+        // Sans MOVE : une copie déjà présente (tentative précédente interrompue) n'est pas refaite.
+        let (emplacement, copie_confirmee) = match self
+            .emplacement_par_message_id(destination, message_id)?
+        {
+            Some(emplacement) => (emplacement, true),
+            None => {
+                self.selectionner(origine)?;
+                let copie = self
+                    .client
+                    .copy(
+                        sequence_un(uid_origine)?,
+                        boite(destination)?,
+                        ImapMessageCopyOptions { uid: true },
+                    )
+                    .map_err(|_| ErreurMail::Protocole)?;
+                let confirmee_par_le_serveur = copie.is_some();
+                let emplacement = self.emplacement_apres_copie(copie, destination, message_id)?;
+                // Une copie sans COPYUID se confirme par sa présence à la destination.
+                (
+                    emplacement,
+                    confirmee_par_le_serveur || emplacement.uid.is_some(),
+                )
+            }
+        };
+        if copie_confirmee {
+            self.store_drapeau(origine, uid_origine, "\\Deleted", true)?;
+            if capacites.uid_plus {
+                self.client
+                    .uid_expunge(sequence_un(uid_origine)?)
+                    .map_err(|_| ErreurMail::Protocole)?;
+            }
+        }
+        Ok(IssueDeplacement::Place {
+            emplacement,
+            deja_fait: false,
+        })
+    }
+}
+
 /// UID et drapeaux d'une réponse FETCH, quel que soit l'ordre des champs.
 fn etat_dun_fetch(items: impl IntoIterator<Item = MessageDataItem<'static>>) -> Option<EtatUid> {
     let mut uid = None;
@@ -1606,6 +1997,61 @@ mod tests {
             crate::DOSSIER_ENVOYES
         );
         assert_eq!(choisir(&[]), "Sent");
+    }
+
+    #[test]
+    fn dossier_de_la_corbeille_attribut_special_puis_noms_connus_puis_defaut() {
+        use super::choisir_dossier_corbeille as choisir;
+        // L'attribut annoncé l'emporte sur un dossier qui porte seulement le nom.
+        let avec_attribut = vec![
+            dossier("INBOX", &[]),
+            dossier("Trash", &[]),
+            dossier("[Gmail]/Bin", &["\\Trash"]),
+        ];
+        assert_eq!(choisir(&avec_attribut), "[Gmail]/Bin");
+        // Essai négatif : sans attribut, le nom connu (dernier composant) est retenu.
+        assert_eq!(
+            choisir(&[dossier("INBOX", &[]), dossier("Deleted Items", &[])]),
+            "Deleted Items"
+        );
+        assert_eq!(
+            choisir(&[dossier("INBOX.Corbeille", &[])]),
+            "INBOX.Corbeille"
+        );
+        // Un dossier non sélectionnable n'est pas retenu ; aucun dossier connu : le défaut,
+        // créé au premier déplacement. La Corbeille n'est jamais confondue avec les archives.
+        assert_eq!(
+            choisir(&[dossier("Trash", &["\\Trash", "\\Noselect"])]),
+            crate::DOSSIER_CORBEILLE
+        );
+        assert_eq!(choisir(&[dossier("Archive", &["\\Archive"])]), "Corbeille");
+        assert_eq!(choisir(&[]), "Corbeille");
+    }
+
+    #[test]
+    fn dossier_des_archives_attribut_special_puis_noms_connus_puis_defaut() {
+        use super::choisir_dossier_archives as choisir;
+        let avec_attribut = vec![
+            dossier("Archives", &[]),
+            dossier("Conservation", &["\\Archive"]),
+        ];
+        assert_eq!(choisir(&avec_attribut), "Conservation");
+        assert_eq!(
+            choisir(&[dossier("INBOX", &[]), dossier("Archives", &[])]),
+            "Archives"
+        );
+        assert_eq!(choisir(&[dossier("Trash", &["\\Trash"])]), "Archives");
+        assert_eq!(choisir(&[]), crate::DOSSIER_ARCHIVES);
+    }
+
+    #[test]
+    fn identifiant_fabrique_par_la_releve_ne_se_cherche_pas_sur_le_serveur() {
+        use super::message_id_synthetique as synthetique;
+        assert!(synthetique("<uid-77-12@legalos.local>"));
+        // Essais négatifs : un vrai identifiant, même d'un domaine voisin.
+        assert!(!synthetique("<abc@example.com>"));
+        assert!(!synthetique("<uid-77-12@legalos.example>"));
+        assert!(!synthetique("<x-uid-77-12@legalos.local>"));
     }
 
     #[test]

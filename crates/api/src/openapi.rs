@@ -1,6 +1,7 @@
 use utoipa::OpenApi;
 
 use crate::error::ApiErrorBody;
+use crate::routes::actions_messages::{ActionMessageResponse, CreerActionRequest};
 use crate::routes::auth::{
     ConnexionRequest, ConnexionResponse, TotpVerifyRequest, TotpVerifyResponse,
 };
@@ -26,6 +27,7 @@ use crate::routes::intercalaires::{
     RetirerIntercalaireRequest, RetirerIntercalaireResponse,
 };
 use crate::routes::invitations::{InvitationResponse, ReponseInvitationRequest};
+use crate::routes::recherche_messages::{MessageTrouve, RechercheResponse};
 use crate::routes::redaction::{
     CompositionRequest, CompositionResponse, CreerModeleRequest, EcrireSignatureRequest,
     ModeleResponse, PatchModeleRequest, PieceResume, SignatureResponse,
@@ -79,6 +81,10 @@ use crate::routes::redaction::{
         crate::routes::destinataires::completer_destinataires,
         crate::routes::invitations::lister_invitations,
         crate::routes::invitations::repondre_invitation,
+        crate::routes::actions_messages::creer_action,
+        crate::routes::actions_messages::lire_action,
+        crate::routes::actions_messages::lister_actions,
+        crate::routes::recherche_messages::rechercher_messages,
     ),
     components(schemas(
         HealthResponse,
@@ -130,6 +136,10 @@ use crate::routes::redaction::{
         DestinataireSuggere,
         InvitationResponse,
         ReponseInvitationRequest,
+        CreerActionRequest,
+        ActionMessageResponse,
+        MessageTrouve,
+        RechercheResponse,
         ApiErrorBody,
     )),
     modifiers(&SecurityAddon),
@@ -137,7 +147,7 @@ use crate::routes::redaction::{
         (name = "systeme", description = "Santé et métadonnées"),
         (name = "auth", description = "Connexion, TOTP, jetons PowerSync"),
         (name = "cabinets", description = "Cabinet courant (sync PowerSync)"),
-        (name = "messagerie", description = "Rédaction, signatures et modèles de message")
+        (name = "messagerie", description = "Rédaction, signatures, modèles, actions sur les messages et recherche")
     )
 )]
 pub struct ApiDoc;

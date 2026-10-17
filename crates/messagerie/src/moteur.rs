@@ -51,9 +51,26 @@ pub fn diff_repli(connus: &[EtatUid], vus: &[EtatUid]) -> RapportMoteur {
     RapportMoteur { changements }
 }
 
+/// Un message marqué `\Deleted` est un message supprimé pour tous les clients (ils le masquent
+/// avant l'EXPUNGE) : la relève le traite comme retiré, sans quoi il reviendrait dans la liste.
+/// Les drapeaux sont ceux de la relève (`Seen Deleted`, séparés par une espace).
+pub fn ecarter_supprimes(changements: Vec<Changement>) -> Vec<Changement> {
+    let supprime = |etat: &EtatUid| etat.drapeaux.split(' ').any(|drapeau| drapeau == "Deleted");
+    changements
+        .into_iter()
+        .filter_map(|changement| match changement {
+            Changement::Ajoute(etat) if supprime(&etat) => None,
+            Changement::Drapeaux(etat) if supprime(&etat) => {
+                Some(Changement::Retire { uid: etat.uid })
+            }
+            autre => Some(autre),
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{diff_repli, Changement};
+    use super::{diff_repli, ecarter_supprimes, Changement};
     use crate::imap::EtatUid;
 
     fn etat(uid: u32, lu: bool) -> EtatUid {
@@ -88,5 +105,44 @@ mod tests {
         let connus = vec![etat(4, true)];
         let rapport = diff_repli(&connus, &connus);
         assert!(rapport.changements.is_empty());
+    }
+
+    fn etat_avec(uid: u32, drapeaux: &str) -> EtatUid {
+        EtatUid {
+            uid,
+            lu: drapeaux.contains("Seen"),
+            drapeaux: drapeaux.into(),
+        }
+    }
+
+    #[test]
+    fn un_message_marque_supprime_est_retire_de_la_releve() {
+        let changements = vec![
+            Changement::Ajoute(etat_avec(1, "Deleted Seen")),
+            Changement::Ajoute(etat_avec(2, "Seen")),
+            Changement::Drapeaux(etat_avec(3, "Deleted")),
+            Changement::Drapeaux(etat_avec(4, "Flagged Seen")),
+            Changement::Retire { uid: 5 },
+        ];
+        let sortie = ecarter_supprimes(changements);
+        assert_eq!(
+            sortie,
+            vec![
+                Changement::Ajoute(etat_avec(2, "Seen")),
+                Changement::Retire { uid: 3 },
+                Changement::Drapeaux(etat_avec(4, "Flagged Seen")),
+                Changement::Retire { uid: 5 },
+            ]
+        );
+    }
+
+    #[test]
+    fn un_drapeau_dont_le_nom_contient_deleted_nest_pas_une_suppression() {
+        // Mot-clé libre (`NotDeleted`) : seul le drapeau système compte.
+        let sortie = ecarter_supprimes(vec![Changement::Drapeaux(etat_avec(7, "NotDeleted"))]);
+        assert_eq!(
+            sortie,
+            vec![Changement::Drapeaux(etat_avec(7, "NotDeleted"))]
+        );
     }
 }
