@@ -20,6 +20,9 @@ const FILTRES: readonly { id: FiltreListe; libelle: string }[] = [
   { id: "pj", libelle: "Pièces jointes" },
 ];
 
+/** Où en est la recherche sur le serveur : `indisponible` quand l'instance ne répond pas (le poste cherche seul). */
+export type EtatRechercheServeur = "inactive" | "en-cours" | "ok" | "indisponible";
+
 type PanneauListeProps = {
   titre: string;
   terme: string;
@@ -35,6 +38,7 @@ type PanneauListeProps = {
   dossiers: ReadonlyMap<string, DossierClassement>;
   classesLocal: Readonly<Record<string, string>>;
   maintenant: Date;
+  rechercheServeur: EtatRechercheServeur;
 };
 
 /** Volet du milieu : recherche en tête, filtres, mails groupés par jour. */
@@ -52,10 +56,16 @@ export function PanneauListe({
   dossiers,
   classesLocal,
   maintenant,
+  rechercheServeur,
 }: PanneauListeProps) {
   const vide = groupes.length === 0;
   return (
-    <section className="mails-liste" data-testid="mails-liste" aria-label={fr("Liste des mails")}>
+    <section
+      className="mails-liste"
+      data-testid="mails-liste"
+      data-recherche-serveur={rechercheServeur}
+      aria-label={fr("Liste des mails")}
+    >
       <div className="mails-liste__tete">
         <label className="mails-rech" htmlFor="recherche-mails">
           <IconSearch stroke={1.7} aria-hidden />
@@ -71,6 +81,11 @@ export function PanneauListe({
             }}
           />
         </label>
+        {rechercheServeur === "indisponible" ? (
+          <p className="mails-vide" role="status" data-testid="recherche-serveur-indisponible">
+            {fr("Recherche du serveur indisponible : résultats de ce poste seulement.")}
+          </p>
+        ) : null}
         <div className="mails-filtres" role="group" aria-label={fr("Filtrer la liste")}>
           <h2 data-testid="liste-titre">{fr(titre)}</h2>
           {FILTRES.map((option) => (

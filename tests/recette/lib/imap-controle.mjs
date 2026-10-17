@@ -52,6 +52,17 @@ elif action == 'chercher':
             })
         sortie.append({'drapeaux': drapeaux, 'brut': brut[0][1].decode('utf-8', 'replace'), 'parties': parties})
     print(json.dumps(sortie))
+elif action == 'drapeaux':
+    typ, _ = boite.select(dossier, readonly=True)
+    sortie = []
+    if typ == 'OK':
+        typ, data = boite.search(None, 'HEADER', entete, '"' + valeur + '"')
+        for num in (data[0].split() if data and data[0] else []):
+            typ, brut = boite.fetch(num, '(FLAGS)')
+            tete = brut[0].decode('utf-8', 'replace') if isinstance(brut[0], bytes) else str(brut[0])
+            m = re.search(r'FLAGS \(([^)]*)\)', tete)
+            sortie.append(sorted(m.group(1).split()) if m else [])
+    print(json.dumps(sortie))
 elif action == 'dossiers':
     typ, data = boite.list()
     print(json.dumps([l.decode('utf-8', 'replace').rsplit(' ', 1)[-1].strip('"') for l in data if l]))
@@ -80,6 +91,8 @@ export function creerClientImap(boite) {
     purger: (dossier = "INBOX") => appeler({ action: "purger", dossier }),
     /** Messages dont l'en-tête vaut `valeur` (recherche IMAP HEADER) : drapeaux, brut, parties décodées. */
     chercher: (dossier, entete, valeur) => appeler({ action: "chercher", dossier, entete, valeur }),
+    /** Drapeaux de chaque message dont l'en-tête vaut `valeur`, sans le lire (ne pose jamais \Seen) : une liste par message. */
+    drapeaux: (dossier, entete, valeur) => appeler({ action: "drapeaux", dossier, entete, valeur }),
     dossiers: () => appeler({ action: "dossiers" }),
   };
 }

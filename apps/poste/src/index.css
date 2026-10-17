@@ -1507,6 +1507,37 @@
     height: 14px;
   }
 
+  .mails-act:disabled {
+    opacity: 0.55;
+  }
+
+  /* Traitement du message (lu, archiver, supprimer, déplacer) : même rangée de boutons, séparée de celle des réponses. */
+  .mails-actions--traitement {
+    margin-top: -6px;
+    align-items: center;
+  }
+
+  .mails-actions--traitement select {
+    height: 32px;
+    max-width: 200px;
+    padding: 0 10px;
+    border-radius: 9px;
+    font-size: 12.5px;
+    background: var(--feuille-2);
+    color: var(--encre);
+    box-shadow: inset 0 0 0 1px var(--filet);
+  }
+
+  .mails-action-etat {
+    font-size: 12.5px;
+    color: var(--graphite);
+  }
+
+  .mails-action-etat[data-ok="false"] {
+    color: var(--encre);
+    font-weight: 700;
+  }
+
   .mails-encart {
     display: flex;
     gap: 12px;

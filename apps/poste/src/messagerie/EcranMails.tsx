@@ -25,6 +25,7 @@ import {
 import {
   compterAClasser,
   estAClasser,
+  estLu,
   sousTitreEcran,
   type DossierClassement,
 } from "@/messagerie/classement";
@@ -44,7 +45,16 @@ import {
   type GenreComposition,
   type SuggestionTempsMail,
 } from "@/messagerie/LectureMail";
-import { PanneauListe } from "@/messagerie/PanneauListe";
+import { appliquerAction, rechercherSurServeur } from "@/messagerie/apiActionsMessages";
+import {
+  destinationsDeplacement,
+  fusionnerResultats,
+  messageResultat,
+  saisieRecherchable,
+  type GenreAction,
+  type ResultatServeur,
+} from "@/messagerie/formesActionsMessages";
+import { PanneauListe, type EtatRechercheServeur } from "@/messagerie/PanneauListe";
 import { dateDuMail, filtrerMails, groupesParJour, listePieces, trierParDate, type FiltreListe } from "@/messagerie/listeMails";
 import { RailMails, type VueMails } from "@/messagerie/RailMails";
 import { analyserCorrespondant } from "@/messagerie/expediteurs";
@@ -142,6 +152,9 @@ export function EcranMails({
   const [filtre, setFiltre] = useState<FiltreListe>("tous");
   const [terme, setTerme] = useState("");
   const [hits, setHits] = useState<ResultatRechercheMail[]>([]);
+  const [reponseServeur, setReponseServeur] = useState<{ terme: string; ok: boolean; resultats: ResultatServeur[] } | null>(null);
+  const [traitementEnCours, setTraitementEnCours] = useState<string | null>(null);
+  const [resultatsTraitement, setResultatsTraitement] = useState<Record<string, { ok: boolean; texte: string }>>({});
   const [selection, setSelection] = useState<string | null>(demonstration?.selectionInitiale ?? null);
   const [corpsLus, setCorpsLus] = useState<Record<string, string>>({});
   const [classesLocal, setClassesLocal] = useState<Record<string, string>>({});
@@ -217,6 +230,37 @@ export function EcranMails({
     };
   }, [terme, enDemo]);
 
+  // Recherche sur le serveur (objet, expéditeur, destinataires et corps, dans les limites des droits) : elle complète la
+  // recherche hors ligne du poste, qui reste seule quand l'instance ne répond pas. Une réponse n'est valable que pour
+  // la saisie qui l'a demandée.
+  const recherchableServeur = !enDemo && saisieRecherchable(terme);
+  const hitsServeur = useMemo<ResultatServeur[]>(
+    () => (recherchableServeur && reponseServeur?.terme === terme && reponseServeur.ok ? reponseServeur.resultats : []),
+    [recherchableServeur, reponseServeur, terme],
+  );
+  const rechercheServeur: EtatRechercheServeur = !recherchableServeur
+    ? "inactive"
+    : reponseServeur?.terme !== terme
+      ? "en-cours"
+      : reponseServeur.ok
+        ? "ok"
+        : "indisponible";
+  useEffect(() => {
+    if (!recherchableServeur) return;
+    let stop = false;
+    const minuterie = window.setTimeout(() => {
+      void rechercherSurServeur(instanceUrl, terme).then((resultat) => {
+        if (!stop) {
+          setReponseServeur({ terme, ok: resultat.ok, resultats: resultat.ok ? resultat.valeur.resultats : [] });
+        }
+      });
+    }, 350);
+    return () => {
+      stop = true;
+      window.clearTimeout(minuterie);
+    };
+  }, [terme, recherchableServeur, instanceUrl]);
+
   const monId = identifiantUtilisateur(donnees.comptes);
 
   // Ouverture demandée depuis l'Agenda : le mail se trouve par son Message-ID dans la base locale. L'état local
@@ -273,7 +317,7 @@ export function EcranMails({
         );
       }
       const parId = new Map(donnees.mails.map((mail) => [mail.id, mail]));
-      return hits.flatMap((hit) => {
+      return fusionnerResultats(hits, hitsServeur).flatMap((hit) => {
         const mail = parId.get(hit.id);
         return mail === undefined ? [] : [mail];
       });
@@ -282,7 +326,7 @@ export function EcranMails({
       return donnees.mails.filter((mail) => estAClasser(mail.etat_classement) && !classesDeja.has(mail.id));
     }
     return mailsDuDossier(mailsTous, vue.boite, vue.dossier, monId);
-  }, [enRecherche, enDemo, terme, hits, donnees.mails, mailsTous, vue, monId, classesDeja]);
+  }, [enRecherche, enDemo, terme, hits, hitsServeur, donnees.mails, mailsTous, vue, monId, classesDeja]);
 
   const mailsFiltres = useMemo(() => filtrerMails(mailsDeLaVue, filtre), [mailsDeLaVue, filtre]);
   const groupes = useMemo(() => groupesParJour(mailsFiltres, maintenant), [mailsFiltres, maintenant]);
@@ -336,6 +380,24 @@ export function EcranMails({
         } else {
           setErreurClassement({ id: mailId, message: `Classement impossible. ${resultat.message}` });
         }
+      });
+    },
+    [enDemo, instanceUrl],
+  );
+
+  const traiter = useCallback(
+    (mailId: string, genre: GenreAction, destination?: string) => {
+      if (enDemo) return;
+      setTraitementEnCours(mailId);
+      setResultatsTraitement((actuel) => Object.fromEntries(Object.entries(actuel).filter(([id]) => id !== mailId)));
+      void appliquerAction(instanceUrl, mailId, genre, crypto.randomUUID(), destination).then((resultat) => {
+        setTraitementEnCours((actuel) => (actuel === mailId ? null : actuel));
+        setResultatsTraitement((actuel) => ({
+          ...actuel,
+          [mailId]: resultat.ok
+            ? messageResultat(genre, resultat.valeur)
+            : { ok: false, texte: `Action impossible. ${resultat.message}` },
+        }));
       });
     },
     [enDemo, instanceUrl],
@@ -631,6 +693,7 @@ export function EcranMails({
             dossiers={dossiersParId}
             classesLocal={classesLocal}
             maintenant={maintenant}
+            rechercheServeur={rechercheServeur}
           />
           {composition !== null ? (
             <section className="mails-lecture mails-lecture--redaction" data-testid="mails-redaction-volet">
@@ -693,6 +756,19 @@ export function EcranMails({
               onRepondreInvitation={repondreInvitation}
               onComposer={composer}
               temps={suggestionTemps}
+              traitement={
+                enDemo || choisi.brouillon === true
+                  ? undefined
+                  : {
+                      lu: estLu(choisi),
+                      enCours: traitementEnCours === choisi.id,
+                      resultat: resultatsTraitement[choisi.id] ?? null,
+                      destinations: destinationsDeplacement(choisi, donnees.mails, monId),
+                      onAction: (genre, destination) => {
+                        traiter(choisi.id, genre, destination);
+                      },
+                    }
+              }
             />
           )}
         </div>

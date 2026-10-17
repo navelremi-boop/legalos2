@@ -2,13 +2,19 @@ import { useState } from "react";
 import {
   IconArrowBackUp,
   IconArrowBackUpDouble,
+  IconArchive,
   IconArrowForwardUp,
   IconCheck,
   IconFolder,
   IconFolderPlus,
   IconInbox,
+  IconMail,
+  IconMailOpened,
+  IconTrash,
 } from "@tabler/icons-react";
 import { fr } from "@/lib/fr";
+import type { GenreAction } from "@/messagerie/formesActionsMessages";
+import { dossierImap } from "@/messagerie/dossiersImap";
 import {
   encartClassement,
   etiquetteDossier,
@@ -57,6 +63,18 @@ type LectureMailProps = {
   onComposer?: (demande: DemandeComposition) => void;
   /** Temps proposé pour ce mail classé (lu, répondu, transféré) ; absent : rien à proposer. */
   temps?: SuggestionTempsMail;
+  /** Traitement du message (lu, archiver, supprimer, déplacer) ; absent pour un brouillon et en démonstration. */
+  traitement?: TraitementMail;
+};
+
+export type TraitementMail = {
+  lu: boolean;
+  enCours: boolean;
+  /** Dernier résultat à montrer sous les boutons. */
+  resultat: { ok: boolean; texte: string } | null;
+  /** Noms IMAP des dossiers proposés pour « Déplacer ». */
+  destinations: readonly string[];
+  onAction: (genre: GenreAction, destination?: string) => void;
 };
 
 /** Suggestion de temps affichée sous l'encart de classement : proposition à valider, ou confirmation après saisie. */
@@ -93,6 +111,7 @@ export function LectureMail({
   onRepondreInvitation,
   onComposer,
   temps,
+  traitement,
 }: LectureMailProps) {
   const [choixOuvert, setChoixOuvert] = useState(false);
   const [cible, setCible] = useState("");
@@ -165,6 +184,71 @@ export function LectureMail({
           {fr("Transférer")}
         </button>
       </div>
+
+      {traitement === undefined ? null : (
+        <div className="mails-actions mails-actions--traitement" data-testid="lecture-traitement">
+          <button
+            type="button"
+            className="mails-act"
+            data-testid="action-lu"
+            disabled={traitement.enCours}
+            onClick={() => {
+              traitement.onAction(traitement.lu ? "non_lu" : "lu");
+            }}
+          >
+            {traitement.lu ? <IconMail stroke={1.7} aria-hidden /> : <IconMailOpened stroke={1.7} aria-hidden />}
+            {fr(traitement.lu ? "Marquer non lu" : "Marquer lu")}
+          </button>
+          <button
+            type="button"
+            className="mails-act"
+            data-testid="action-archiver"
+            disabled={traitement.enCours}
+            onClick={() => {
+              traitement.onAction("archiver");
+            }}
+          >
+            <IconArchive stroke={1.7} aria-hidden />
+            {fr("Archiver")}
+          </button>
+          <button
+            type="button"
+            className="mails-act"
+            data-testid="action-supprimer"
+            disabled={traitement.enCours}
+            onClick={() => {
+              traitement.onAction("supprimer");
+            }}
+          >
+            <IconTrash stroke={1.7} aria-hidden />
+            {fr("Supprimer")}
+          </button>
+          <select
+            data-testid="action-deplacer"
+            aria-label={fr("Déplacer vers un dossier")}
+            disabled={traitement.enCours || traitement.destinations.length === 0}
+            value=""
+            onChange={(event) => {
+              if (event.target.value !== "") traitement.onAction("deplacer", event.target.value);
+            }}
+          >
+            <option value="">{fr("Déplacer vers…")}</option>
+            {traitement.destinations.map((nom) => (
+              <option key={nom} value={nom}>
+                {fr(dossierImap(nom).libelle)}
+              </option>
+            ))}
+          </select>
+          <span
+            className="mails-action-etat"
+            role="status"
+            data-testid="action-resultat"
+            data-ok={traitement.resultat === null ? undefined : String(traitement.resultat.ok)}
+          >
+            {traitement.enCours ? fr("En cours…") : traitement.resultat === null ? "" : fr(traitement.resultat.texte)}
+          </span>
+        </div>
+      )}
 
       <EncartDeClassement
         encart={encart}

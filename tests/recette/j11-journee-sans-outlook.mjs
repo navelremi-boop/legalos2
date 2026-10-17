@@ -231,6 +231,10 @@ const WHERE_COMPTES = `(hote LIKE 'legalos-imap-test-dovecot%' OR adresse LIKE '
 async function retirerComptes() {
   const ids = `SELECT id FROM comptes_mail WHERE ${WHERE_COMPTES}`;
   for (const requete of [
+    `DELETE FROM actions_messages WHERE compte_id IN (${ids})`,
+    `DELETE FROM file_envoi WHERE compte_id IN (${ids})`,
+    `DELETE FROM releve_curseurs WHERE compte_id IN (${ids})`,
+    `DELETE FROM membres_boite_partagee WHERE compte_id IN (${ids})`,
     `DELETE FROM signatures_messagerie WHERE compte_id IN (${ids})`,
     `DELETE FROM brouillons_message WHERE compte_id IN (${ids})`,
     `DELETE FROM invitations_agenda WHERE compte_id IN (${ids})`,
@@ -1147,6 +1151,91 @@ async function main() {
     essaiNegatif("les vieux mails répondent à un mot qu'ils ne contiennent pas", parMotRecent.includes(idServeurAncienClasse) || parMotRecent.includes(idServeurAncienLibre));
     await setField(send, "recherche-mails", "");
     ok("recherche : deux vieux mails (février et mars), classé et hors dossier, retrouvés par l'objet puis par le texte ; un mot absent ne trouve rien");
+
+    // ===== 10b. Traiter un mail depuis l'app (lu, non lu, déplacer, supprimer) et chercher sur le serveur =====
+    // Le vieux mail « libre » est dans la réception IMAP de la boîte nominative (Dovecot). Chaque action passe par l'API et
+    // sa file ; l'effet se lit sur le serveur IMAP par un client de contrôle qui ne pose jamais \Seen.
+    const drapeauxLibre = (dossier) => capa.drapeaux(dossier, "Message-ID", idAncienLibre);
+    const dossierCorbeille = () => capa.dossiers().find((nom) => /(^|[/.])(trash|corbeille)$/iu.test(nom)) ?? null;
+    const resultatAction = (texte) => attendre(`résultat de l'action « ${texte} »`, () => texteDe("[data-testid=action-resultat]"), (t) => t.includes(texte), 60_000);
+    await cliquer("[data-testid=vue-a-classer]");
+    await attendre("le vieux mail libre dans « À classer »", () => present(ligneAncienLibre), Boolean, 30_000);
+    await cliquer(ligneAncienLibre);
+    await attendre("lecture du vieux mail libre", () => texteDe("[data-testid=lecture-objet]"), (t) => t.includes(objetAncienLibre));
+    await attendre("barre de traitement du message", () => present("[data-testid=lecture-traitement]"), Boolean, 20_000);
+    verifier("avant toute action : une seule copie, dans la réception IMAP", (await drapeauxLibre("INBOX")).length === 1 && (await drapeauxLibre("Archives")).length === 0);
+    // Départ non lu, quel que soit l'état laissé par les étapes précédentes.
+    if ((await texteDe("[data-testid=action-lu]")).includes("non lu")) {
+      await cliquer("[data-testid=action-lu]");
+      await resultatAction("Marqué comme non lu.");
+    }
+    await attendre("bouton « Marquer lu »", () => texteDe("[data-testid=action-lu]"), (t) => t.trim() === "Marquer lu", 30_000);
+    verifier("départ : non lu sur le serveur IMAP", !(await drapeauxLibre("INBOX"))[0].includes("\\Seen"), JSON.stringify(await drapeauxLibre("INBOX")));
+    await cliquer("[data-testid=action-lu]");
+    await resultatAction("Marqué comme lu.");
+    const apresLu = await drapeauxLibre("INBOX");
+    verifier("« Marquer lu » : le serveur IMAP porte \\Seen", apresLu.length === 1 && apresLu[0].includes("\\Seen"), JSON.stringify(apresLu));
+    essaiNegatif("le mail est resté non lu sur le serveur IMAP après « Marquer lu »", !apresLu[0].includes("\\Seen"));
+    await attendre("le poste voit le mail lu (flux de synchronisation)", () => sqliteLocal(`SELECT lu FROM messages WHERE id = '${idServeurAncienLibre}'`), (r) => Number(r?.[0]?.lu) === 1, 60_000);
+    await attendre("bouton « Marquer non lu »", () => texteDe("[data-testid=action-lu]"), (t) => t.trim() === "Marquer non lu", 30_000);
+    await cliquer("[data-testid=action-lu]");
+    await resultatAction("Marqué comme non lu.");
+    const apresNonLu = await drapeauxLibre("INBOX");
+    verifier("« Marquer non lu » : \\Seen retiré sur le serveur IMAP", apresNonLu.length === 1 && !apresNonLu[0].includes("\\Seen"), JSON.stringify(apresNonLu));
+    essaiNegatif("le serveur IMAP porte encore \\Seen après « Marquer non lu »", apresNonLu[0].includes("\\Seen"));
+    await attendre("le poste voit le mail non lu", () => sqliteLocal(`SELECT lu FROM messages WHERE id = '${idServeurAncienLibre}'`), (r) => Number(r?.[0]?.lu) === 0, 60_000);
+
+    // Déplacer vers les archives (dossier créé au besoin).
+    verifier("« Déplacer » propose les archives", await js(`[...document.querySelectorAll("[data-testid=action-deplacer] option")].some((o) => o.value === "Archives")`));
+    essaiNegatif("« Déplacer » propose le dossier où se trouve déjà le mail", await js(`[...document.querySelectorAll("[data-testid=action-deplacer] option")].some((o) => o.value === "INBOX")`));
+    // Menu d'action : il revient à « Déplacer vers… » après le choix, la valeur affichée ne prouve donc rien ; le résultat
+    // et les copies IMAP ci-dessous le prouvent.
+    verifier("destination choisie", await js(`(() => {
+      const el = document.querySelector("[data-testid=action-deplacer]");
+      if (!el || ![...el.options].some((o) => o.value === "Archives")) return false;
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(el, "Archives");
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    })()`));
+    await resultatAction("Message déplacé.");
+    verifier("déplacé : une copie dans Archives, aucune dans la réception", (await drapeauxLibre("Archives")).length === 1 && (await drapeauxLibre("INBOX")).length === 0);
+    essaiNegatif("le mail est encore dans la réception IMAP après « Déplacer »", (await drapeauxLibre("INBOX")).length > 0);
+    await attendre("le poste voit le dossier Archives", () => sqliteLocal(`SELECT dossier_imap FROM messages WHERE id = '${idServeurAncienLibre}'`), (r) => r?.[0]?.dossier_imap === "Archives", 60_000);
+
+    // Supprimer : vers la Corbeille, jamais d'EXPUNGE.
+    await cliquer("[data-testid=action-supprimer]");
+    await resultatAction("Déplacé dans la corbeille.");
+    const corbeille = dossierCorbeille();
+    verifier("une Corbeille existe sur le serveur IMAP", corbeille !== null, JSON.stringify(capa.dossiers()));
+    verifier("supprimé : une copie dans la Corbeille, aucune dans Archives", (await drapeauxLibre(corbeille)).length === 1 && (await drapeauxLibre("Archives")).length === 0);
+    essaiNegatif("le message a disparu du serveur IMAP après « Supprimer » (expurgé)", (await drapeauxLibre(corbeille)).length === 0);
+    ok("traiter un mail depuis l'app : lu et non lu, déplacer, supprimer vers la Corbeille, chacun lu sur le serveur IMAP et vu par le poste");
+
+    // Recherche sur le serveur : l'expéditeur n'est pas dans l'index du poste (objet et texte seulement).
+    const termeExpediteur = "ancien example";
+    const locauxAvant = await sqliteLocal(`SELECT COUNT(*) AS n FROM messages WHERE id IN ('${idServeurAncienLibre}', '${idServeurAncienClasse}') AND (' ' || lower(coalesce(objet, '')) || ' ' || lower(coalesce(texte_brut, '')) || ' ') LIKE '%ancien%example%'`);
+    verifier("le terme ne figure ni dans l'objet ni dans le texte des deux vieux mails (le poste seul ne les trouverait pas)", Number(locauxAvant?.[0]?.n) === 0, JSON.stringify(locauxAvant));
+    const objetConfidentiel = `Confidentiel ${marque} C`;
+    const messageConfidentiel = randomUUID();
+    await sqlServeur(
+      `INSERT INTO messages (id, cabinet_id, compte_id, message_id, uid_validity, uid, objet, expediteur, etat_classement)
+       VALUES ('${messageConfidentiel}', '${cabinetId}', '${compteCId}', '<jso-confidentiel-${marque}@example.com>', 1, 2, ${lit(objetConfidentiel)}, 'tiers.confidentiel@example.com', 'a_classer')`,
+    );
+    const cote = await json(`/messagerie/recherche?q=${encodeURIComponent(`confidentiel ${marque}`)}`, jetonC, "GET");
+    verifier("le mail non classé de C est trouvé par C lui-même (l'essai négatif a un sens)", cote.resultats.some((r) => r.id === messageConfidentiel), JSON.stringify(cote.resultats.map((r) => r.id)));
+    await setField(send, "recherche-mails", termeExpediteur);
+    await attendre("la recherche du serveur a répondu", () => js(`document.querySelector("[data-testid=mails-liste]")?.getAttribute("data-recherche-serveur")`), (v) => v === "ok", 60_000);
+    const parExpediteur = await attendre("les deux vieux mails trouvés par l'expéditeur", hits, (h) => h.includes(idServeurAncienLibre) && h.includes(idServeurAncienClasse), 60_000);
+    verifier("la recherche serveur retrouve par l'expéditeur, y compris le mail à la Corbeille", parExpediteur.includes(idServeurAncienLibre) && parExpediteur.includes(idServeurAncienClasse), JSON.stringify(parExpediteur));
+    essaiNegatif("la recherche par l'expéditeur trouve un mail récent", parExpediteur.includes(m1) || parExpediteur.includes(m2));
+    verifier("recherche du serveur disponible : aucun message d'indisponibilité", !(await present("[data-testid=recherche-serveur-indisponible]")));
+    await setField(send, "recherche-mails", `confidentiel ${marque}`);
+    await attendre("la recherche du serveur a répondu (mot confidentiel)", () => js(`document.querySelector("[data-testid=mails-liste]")?.getAttribute("data-recherche-serveur")`), (v) => v === "ok", 60_000);
+    await sleep(1500);
+    essaiNegatif("le mail non classé de la boîte d'un confrère est trouvé par l'avocat", (await hits()).includes(messageConfidentiel));
+    verifier("le mail de C n'apparaît pas chez l'avocat", !(await hits()).includes(messageConfidentiel));
+    await setField(send, "recherche-mails", "");
+    ok("recherche serveur : l'expéditeur (absent de l'index du poste) retrouve les vieux mails, y compris à la Corbeille ; le mail non classé d'un confrère n'est jamais rendu");
 
     // ===== 11. Notification de bureau : bilan du poste A, puis relance du second poste =====
     send = sendA;
