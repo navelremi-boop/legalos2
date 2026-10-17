@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   boiteDuMessage,
+  comptesEnvoi,
   compterNonLusReception,
   construireRail,
   identifiantUtilisateur,
+  libelleCompteEnvoi,
   mailsDuDossier,
   vueParDefaut,
 } from "./boitesMail.ts";
@@ -143,5 +145,23 @@ describe("contenu des vues", () => {
       dossier: "reception",
     });
     assert.deepEqual(vueParDefaut([], MOI), { boite: "perso", dossier: "reception" });
+  });
+});
+
+describe("comptes d'envoi", () => {
+  const autre: CompteLocal = { id: "c3", adresse: "autre@cabinet.example", type_compte: "nominatif", titulaire_id: "u-autre" };
+  const classement: CompteLocal = { id: "c4", adresse: "classement@cabinet.example", type_compte: "classement" };
+
+  it("ma boîte d'abord, puis les boîtes partagées ; jamais le compte d'un confrère ni la boîte de classement", () => {
+    assert.deepEqual(comptesEnvoi([autre, comptes[1] as CompteLocal, classement, comptes[0] as CompteLocal], MOI).map((c) => c.id), ["c1", "c2"]);
+  });
+
+  it("sans identifiant d'utilisateur, aucun compte nominatif n'est proposé", () => {
+    assert.deepEqual(comptesEnvoi(comptes, null).map((c) => c.id), ["c2"]);
+  });
+
+  it("libellé : la boîte partagée se reconnaît", () => {
+    assert.equal(libelleCompteEnvoi(comptes[0] as CompteLocal), "j.marchal@cabinet.example");
+    assert.equal(libelleCompteEnvoi(comptes[1] as CompteLocal), "contact@cabinet.example (boîte partagée)");
   });
 });

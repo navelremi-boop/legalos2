@@ -1964,6 +1964,7 @@
     min-width: 0;
   }
 
+  .mails-redac__de select,
   .mails-redac__dossier select {
     max-width: 280px;
     padding: 4px 8px;

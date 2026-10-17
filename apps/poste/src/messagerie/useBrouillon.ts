@@ -69,6 +69,14 @@ export type RetourBrouillon = {
    * Le HTML produit est montré dans l'éditeur.
    */
   remplacerDepart: (fabriquer: (courant: EtatRedaction) => Partial<EtatRedaction>) => boolean;
+  /**
+   * Choisit le compte d'envoi d'un message neuf. Le serveur fixe le compte à la création du brouillon : le choix n'est
+   * possible que tant que rien n'a été enregistré (faux ensuite). Le compte choisi devient le départ : il n'est pas
+   * enregistré à lui seul, et il part avec la première saisie.
+   */
+  choisirCompte: (compteId: string | null) => boolean;
+  /** Vrai dès que le brouillon est enregistré : le compte d'envoi ne change plus. */
+  compteFige: boolean;
   /** Change le corps et l'objet à la demande de l'utilisateur (modèle) : enregistré comme une saisie. */
   remplacerSaisie: (changements: Pick<EtatRedaction, "corpsHtml" | "objet">) => void;
   /** Dernier contenu imposé à l'éditeur ; `null` : l'éditeur a la main depuis l'ouverture. */
@@ -101,6 +109,7 @@ export function useBrouillon(entree: EntreeBrouillon): RetourBrouillon {
   const [piecesEnCours, setPiecesEnCours] = useState<PieceAffichee[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
+  const [compteFige, setCompteFige] = useState(precedent !== null);
   const [remplacement, setRemplacement] = useState<RemplacementEditeur | null>(null);
 
   const etatRef = useRef(etat);
@@ -144,6 +153,7 @@ export function useBrouillon(entree: EntreeBrouillon): RetourBrouillon {
             maintenant: new Date(),
           });
           precedentRef.current = champsEcrits(courant);
+          setCompteFige(true);
           if (resultat.creation || resultat.colonnes.length > 0) {
             setStatut({ genre: "local", a: resultat.instant, enLigne: base.currentStatus.connected });
           } else {
@@ -194,6 +204,18 @@ export function useBrouillon(entree: EntreeBrouillon): RetourBrouillon {
       return true;
     },
     [hors, montrer, planifier],
+  );
+
+  const choisirCompte = useCallback(
+    (compteId: string | null): boolean => {
+      if (ferme.current || precedentRef.current !== null) return false;
+      departRef.current = { ...departRef.current, compteId };
+      const suivant = { ...etatRef.current, compteId };
+      etatRef.current = suivant;
+      setEtat(suivant);
+      return true;
+    },
+    [],
   );
 
   const remplacerSaisie = useCallback(
@@ -449,6 +471,8 @@ export function useBrouillon(entree: EntreeBrouillon): RetourBrouillon {
     etat,
     modifier,
     remplacerDepart,
+    choisirCompte,
+    compteFige,
     remplacerSaisie,
     remplacement,
     statut,

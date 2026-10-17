@@ -20,7 +20,8 @@ import {
 import { EditeurMessage } from "@/messagerie/EditeurMessage";
 import { libelleStatut, titreRedaction } from "@/messagerie/etatRedaction";
 import { etiquetteDossier, type DossierClassement } from "@/messagerie/classement";
-import type { MailLocal } from "@/messagerie/typesMails";
+import { libelleCompteEnvoi } from "@/messagerie/boitesMail";
+import type { CompteLocal, MailLocal } from "@/messagerie/typesMails";
 import { useBrouillon, type EntreeBrouillon } from "@/messagerie/useBrouillon";
 import { PanneauModeles } from "@/messagerie/PanneauModeles";
 import { useModeles } from "@/messagerie/useModeles";
@@ -37,6 +38,8 @@ type VoletRedactionProps = Omit<EntreeBrouillon, "hors"> & {
   signatureActive: boolean;
   /** Compte d'envoi que le poste connaît avec certitude (le serveur le désigne, sinon). */
   compteConnu: string | null;
+  /** Comptes depuis lesquels écrire (ma boîte, boîtes partagées) : le choix « De » d'un message neuf. */
+  comptesEnvoi: readonly CompteLocal[];
 };
 
 function libelleDossier(dossier: DossierClassement): string {
@@ -56,16 +59,17 @@ export function VoletRedaction({
   demonstration,
   signatureActive,
   compteConnu,
+  comptesEnvoi,
   ...entree
 }: VoletRedactionProps) {
   const brouillon = useBrouillon({ ...entree, hors: demonstration });
-  const { etat, modifier, remplacerDepart } = brouillon;
+  const { etat, modifier, remplacerDepart, choisirCompte } = brouillon;
   const signature = useSignatureRedaction({
     instanceUrl: entree.instanceUrl,
     actif: signatureActive && !demonstration,
     genre: entree.depart.genre,
     messageId: entree.depart.origineMessageId,
-    compteConnu,
+    compteConnu: etat.compteId ?? compteConnu,
   });
   const signatureAppliquee = useRef<string | null>(null);
   const { modeles, enLigne: modelesEnLigne } = useModeles(entree.instanceUrl, !demonstration);
@@ -80,6 +84,10 @@ export function VoletRedaction({
   const choixFichier = useRef<HTMLInputElement>(null);
   const [contenuInitial] = useState(etat.corpsHtml);
   const instanceUrl = entree.instanceUrl;
+  // Un message neuf choisit son compte tant que rien n'est enregistré ; une réponse ou un transfert part du compte du
+  // message d'origine, un brouillon enregistré garde le sien (le serveur fixe le compte à la création).
+  const compteDeDepart = comptesEnvoi.find((compte) => compte.id === (etat.compteId ?? compteConnu));
+  const deChoisissable = etat.genre === "nouveau" && comptesEnvoi.length > 0 && !brouillon.compteFige;
 
   const suggerer = useCallback(
     async (saisie: string): Promise<SuggestionDestinataire[]> => {
@@ -176,8 +184,32 @@ export function VoletRedaction({
       </div>
 
       <div className="mails-redac__champ">
-        <span className="mails-redac__l">{fr("De")}</span>
-        <span data-testid="redac-de">{fr("Boîte d'envoi du cabinet")}</span>
+        <label className="mails-redac__l" htmlFor="redac-de-choix">
+          {fr("De")}
+        </label>
+        {deChoisissable ? (
+          <span className="mails-redac__de" data-testid="redac-de">
+            <select
+              id="redac-de-choix"
+              data-testid="redac-de-choix"
+              value={etat.compteId ?? ""}
+              onChange={(event) => {
+                choisirCompte(event.target.value === "" ? null : event.target.value);
+              }}
+            >
+              <option value="">{fr("Boîte d'envoi du cabinet")}</option>
+              {comptesEnvoi.map((compte) => (
+                <option key={compte.id} value={compte.id}>
+                  {fr(libelleCompteEnvoi(compte))}
+                </option>
+              ))}
+            </select>
+          </span>
+        ) : (
+          <span data-testid="redac-de" id="redac-de-choix">
+            {fr(compteDeDepart === undefined ? "Boîte d'envoi du cabinet" : libelleCompteEnvoi(compteDeDepart))}
+          </span>
+        )}
         <span />
       </div>
 

@@ -555,6 +555,7 @@ async function main() {
     essaiNegatif("la boîte du cabinet figure en copie", cc.includes(boite));
     verifier("objet « Re : »", (await js(`document.querySelector("[data-testid=redac-objet]").value`)) === `Re : ${objetRecu}`);
     verifier("de : boîte d'envoi du cabinet", norm(await texteDe("[data-testid=redac-de]")).includes("Boîte d'envoi du cabinet"));
+    essaiNegatif("(i) une réponse propose de changer le compte d'envoi (il est celui du message d'origine)", await present("select[data-testid=redac-de-choix]"));
     // Signature du compte d'envoi (la boîte du cabinet, celle du message reçu) : une fois, sous le texte, avant l'historique.
     const corpsDepart = await attendre("signature insérée dans la réponse", () => htmlCorps(), (h) => h.includes(sigCabinet), 15_000);
     verifier("signature : ligne « -- », signature, puis historique cité, dans cet ordre", ordre(corpsDepart, "<p>--</p>", sigCabinet, sigCabinetLigne2, "<blockquote>"), corpsDepart);
@@ -814,6 +815,25 @@ async function main() {
     const corpsNeuf = await attendre("signature insérée dans le message neuf", () => htmlCorps(), (h) => h.includes(sigCabinet), 15_000);
     verifier("message neuf : un paragraphe pour écrire, puis la signature du compte du cabinet", ordre(corpsNeuf, "<br", "<p>--</p>", sigCabinet) && corpsNeuf.startsWith("<p><br") && occurrences(corpsNeuf, sigCabinet) === 1, corpsNeuf);
     essaiNegatif("la signature d'un autre compte est dans le message neuf", corpsNeuf.includes(sigPerso));
+    // (i) identité d'envoi : le compte d'un message neuf se choisit avant la première saisie.
+    const choixDe = await js(`(() => { const s = document.querySelector("select[data-testid=redac-de-choix]"); return s ? { valeur: s.value, options: [...s.options].map((o) => ({ v: o.value, t: o.text })) } : null; })()`);
+    verifier("(i) message neuf : sélecteur « De », la boîte du cabinet d'abord, puis ma boîte", choixDe !== null && choixDe.valeur === "" && norm(choixDe.options[0]?.t).includes("Boîte d'envoi du cabinet") && choixDe.options.some((o) => o.v === comptePerso && o.t === adressePerso), JSON.stringify(choixDe?.options.slice(0, 3)));
+    // Les comptes de l'utilisateur de démo laissés par d'autres recettes sont les siens et restent proposés ; jamais ceux d'un confrère ni la boîte de classement.
+    const interdits = new Set((await sqlServeur(`SELECT COALESCE(string_agg(id::text, ','), '') FROM comptes_mail WHERE type_compte = 'classement' OR (type_compte = 'nominatif' AND titulaire_id <> '${demoId}')`)).split(",").filter(Boolean));
+    verifier("(i) la liste des comptes d'un confrère n'est pas vide en base (l'essai négatif ci-dessous a un sens)", interdits.size > 0);
+    essaiNegatif("(i) le sélecteur propose la boîte de classement ou le compte d'un confrère", (choixDe?.options ?? []).some((o) => interdits.has(o.v)));
+    await js(`(() => { const s = document.querySelector("select[data-testid=redac-de-choix]"); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(s, ${JSON.stringify(comptePerso)}); s.dispatchEvent(new Event("change", { bubbles: true })); })()`);
+    const corpsDePerso = await attendre("signature de ma boîte à la place de celle du cabinet", () => htmlCorps(), (h) => h.includes(sigPerso) && !h.includes(sigCabinet), 15_000);
+    verifier("(i) changer de compte remplace la signature, une seule fois", occurrences(corpsDePerso, sigPerso) === 1 && occurrences(corpsDePerso, "<p>--</p>") === 1, corpsDePerso);
+    verifier("(i) rien n'est enregistré par le seul choix du compte", (await sqlServeur(`SELECT COUNT(*) FROM brouillons_message WHERE cabinet_id = '${cabinet}' AND objet = 'Sans destinataire ${marque}'`)) === "0");
+    await saisir("[data-testid=redac-objet]", `Sans destinataire ${marque}`);
+    const idNeuf = await idBrouillon();
+    const compteAuServeur = await attendre("brouillon au serveur avec le compte choisi", () => sqlServeur(`SELECT COALESCE(compte_id::text, '') FROM brouillons_message WHERE id = '${idNeuf}'`), (v) => v !== "", 40_000);
+    verifier("(i) le brouillon part du compte choisi", compteAuServeur === comptePerso, compteAuServeur);
+    essaiNegatif("(i) le brouillon part du compte du cabinet", compteAuServeur === compteCabinet);
+    await attendre("compte figé dès l'enregistrement", async () => !(await present("select[data-testid=redac-de-choix]")), Boolean, 15_000);
+    verifier("(i) le compte enregistré s'affiche sans sélecteur", norm(await texteDe("[data-testid=redac-de]")).includes(adressePerso), norm(await texteDe("[data-testid=redac-de]")));
+    essaiNegatif("(i) le sélecteur reste proposé après l'enregistrement", await present("select[data-testid=redac-de-choix]"));
     await saisir("[data-testid=redac-objet]", `Sans destinataire ${marque}`);
     await cliquer("[data-testid=redac-envoyer]");
     await attendre("refus d'envoi", () => texteDe("[data-testid=redac-erreur]"), (t) => t.includes("Ajoutez au moins un destinataire"), 15_000);
@@ -1093,6 +1113,7 @@ async function main() {
 main()
   .catch((err) => {
     console.error(`j11-redaction: ${err instanceof Error ? err.message : String(err)}`);
+    if (err instanceof Error && err.stack) console.error(err.stack.split("\n").slice(1, 6).join("\n"));
     process.exitCode = 1;
   })
   .finally(() => {

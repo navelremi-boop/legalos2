@@ -14,6 +14,7 @@ import {
 import {
   boiteDuMessage,
   compteNominatifDuMessage,
+  comptesEnvoi,
   compterNonLusReception,
   construireRail,
   identifiantUtilisateur,
@@ -321,6 +322,7 @@ export function EcranMails({
     [donnees.comptes],
   );
   // Toutes les adresses du cabinet : une réponse à tous ne s'écrit jamais à soi-même ni à la boîte partagée.
+  const comptesPourEnvoi = useMemo(() => comptesEnvoi(donnees.comptes, monId), [donnees.comptes, monId]);
   const adressesDuCabinet = useMemo(() => donnees.comptes.map((compte) => compte.adresse), [donnees.comptes]);
   const invitation = choisi === null ? null : invitationDuMessage(choisi, donnees.invitations);
 
@@ -642,6 +644,7 @@ export function EcranMails({
                 piecesInitiales={composition.piecesInitiales}
                 signatureActive={composition.signatureActive}
                 compteConnu={composition.compteConnu}
+                comptesEnvoi={comptesPourEnvoi}
                 mails={donnees.mails}
                 adressesPropres={adressesDuCabinet}
                 dossiers={dossiersParId}

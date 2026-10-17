@@ -296,10 +296,10 @@ export function creerSession(etiquette) {
     return { ws, send };
   }
 
-  async function evaluate(send, expression) {
+  async function evaluate(send, expression, delaiMs = 30_000) {
     const msg = await Promise.race([
       send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }),
-      sleep(30_000).then(() => {
+      sleep(delaiMs).then(() => {
         throw new Error("cdp sans réponse");
       }),
     ]);
@@ -453,6 +453,10 @@ export function creerSession(etiquette) {
           };
           return !visible("code-totp") && !visible("instance-url") && !visible("email");
         })()`,
+        // La lecture locale attend la fin de l'écriture de la synchronisation initiale. Juste après un redémarrage de
+        // PowerSync (j11-redaction), cette première synchronisation dépasse 30 s sur la base de développement
+        // (188 seaux) ; la boucle de 180 s borne l'attente, les autres appels gardent leur garde-fou de 30 s.
+        120_000,
       );
       if (totpSoumis && syncOk) return;
       await sleep(250);

@@ -68,6 +68,24 @@ export function compteNominatifDuMessage(
   return compte?.id ?? null;
 }
 
+/**
+ * Comptes depuis lesquels l'utilisateur peut écrire, tels que le poste les connaît : ses comptes nominatifs, puis les
+ * boîtes partagées dont il est membre (les seuls comptes qui descendent sur le poste). La boîte du cabinet n'en fait
+ * pas partie : le serveur la désigne quand le poste ne choisit aucun compte, et c'est le départ d'un message neuf.
+ */
+export function comptesEnvoi(comptes: readonly CompteLocal[], monId: string | null): CompteLocal[] {
+  const parAdresse = (a: CompteLocal, b: CompteLocal) => a.adresse.localeCompare(b.adresse, "fr");
+  const nominatifs = comptes
+    .filter((compte) => compte.type_compte === "nominatif" && monId !== null && compte.titulaire_id === monId)
+    .sort(parAdresse);
+  const partages = comptes.filter((compte) => compte.type_compte === "partage").sort(parAdresse);
+  return [...nominatifs, ...partages];
+}
+
+export function libelleCompteEnvoi(compte: Pick<CompteLocal, "adresse" | "type_compte">): string {
+  return compte.type_compte === "partage" ? `${compte.adresse} (boîte partagée)` : compte.adresse;
+}
+
 export function mailsDeLaBoite(
   mails: readonly MailLocal[],
   boite: IdBoite,
