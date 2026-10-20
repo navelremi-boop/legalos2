@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * S7 — le moteur de boîtes ne perd pas un message arrivé entre la relève et l'armement de la veille
- * (cause d'un échec intermittent de `j11-invitation.mjs` : « message non relevé en 60 s »).
+ * (cause d'un échec intermittent de `j11-invitation.mjs` : « message non relevé en 60 s » ; seuil de ce banc ramené à 30 s le 20/10/2026).
  *
  * La fenêtre est élargie de façon déterministe : un verrou SQL retient l'écriture de la note de relève
  * (`moteur_connexions`) après que le moteur a lu la boîte. Un message déposé pendant ce blocage n'est
@@ -9,7 +9,7 @@
  * est armée après la relève (ancien ordre) : il attendait alors la relève périodique de 10 minutes.
  * La veille est maintenant armée AVANT la relève : le dépôt la réveille et le message est relevé.
  *
- *  - variante A (fenêtre) : dépôt pendant le blocage → relevé en moins de 60 s ;
+ *  - variante A (fenêtre) : dépôt pendant le blocage → relevé en moins de 30 s ;
  *  - variante B (témoin)  : dépôt après l'armement, verrou levé → relevé aussi (le banc sait voir un réveil).
  *
  * Dovecot d'imap-test (QRESYNC : le réveil de la veille déclenche la relève). Données fictives.
@@ -58,7 +58,7 @@ async function variante(nom, jeton, dovecot) {
     await sleep(nom === "A" ? 14_000 : 30_000);
     deposer();
     const depot = Date.now();
-    while (Date.now() - depot < 60_000) {
+    while (Date.now() - depot < 30_000) {
       if ((await sqlServeur(`SELECT COUNT(*) FROM messages WHERE compte_id = '${id}' AND message_id = '${messageId}'`)) === "1") {
         return Math.round((Date.now() - depot) / 1000);
       }
@@ -86,10 +86,10 @@ async function main() {
   connecterAuReseauApi(dovecot);
   const jeton = await demoAccessToken(api, `s7-moteur-fenetre-${randomUUID().slice(0, 8)}`);
   const temoin = await variante("B", jeton, dovecot);
-  if (temoin === null) fail("témoin (dépôt après l'armement) : message non relevé en 60 s, le banc ne voit pas un réveil");
+  if (temoin === null) fail("témoin (dépôt après l'armement) : message non relevé en 30 s, le banc ne voit pas un réveil");
   const fenetre = await variante("A", jeton, dovecot);
   if (fenetre === null) {
-    fail("message déposé entre la relève et l'armement de la veille : non relevé en 60 s (attend la relève périodique)");
+    fail("message déposé entre la relève et l'armement de la veille : non relevé en 30 s (attend la relève périodique)");
   }
   console.log(`s7-moteur-fenetre: OK — témoin relevé en ${temoin} s, message de la fenêtre relevé en ${fenetre} s`);
 }

@@ -83,7 +83,6 @@ function suivre(jeton, seConnecter) {
   return jeton;
 }
 /** Après le redémarrage de l'API, ses jetons (clé éphémère) ne valent plus. */
-const invaliderJetons = () => registre.forEach((entree) => (entree.depuis = 0));
 
 async function requete(chemin, jetonInitial, methode = "GET", corps) {
   const jeton = await jetonFrais(jetonInitial);
@@ -364,6 +363,24 @@ async function nettoyer() {
   }
 }
 
+// Seau PowerSync messages_nominatifs d'un utilisateur : nombre d'opérations gardées dans le stockage.
+function operationsSeau(idUtilisateur) {
+  const [postgres] = conteneur("legalos-instance-postgres");
+  const sortie = docker("exec", postgres, "psql", "-U", "legalos", "-d", "powersync_storage", "-At", "-c",
+    `SELECT COUNT(*) FROM powersync.bucket_data WHERE bucket_name LIKE '1#messages_nominatifs|%${idUtilisateur}%'`);
+  return Number(sortie);
+}
+
+// Deux compactions de suite : la première convertit, la seconde purge (journal du 17/10/2026).
+function compacterPowerSync() {
+  const [powersync] = conteneur("legalos-instance-powersync");
+  for (let i = 0; i < 2; i += 1) docker("exec", powersync, "node", "service/lib/entry.js", "compact");
+}
+
+const MARGE_SEAU_DEMO = 2000;
+let seauDemoAvant = null;
+let idDemo = null;
+
 function docker(...args) {
   const run = spawnSync("docker", args, { encoding: "utf8" });
   if (run.status !== 0) throw new Error(`docker ${args.join(" ")} : ${(run.stderr || run.stdout).slice(-200)}`);
@@ -410,6 +427,8 @@ async function main() {
   const b = await creerCollaborateur("b", "NB2W45DFOJXXE4ZAMFXGI2LTORUGS4ZA");
   const c = await creerCollaborateur("c", "MFRGGZDFMZTWQ2LKNNWG23TPOBYXE43UOV3HO6DZPI");
   const idA = await sql(`SELECT id FROM utilisateurs WHERE email = '${demoEmail}'`);
+  idDemo = idA;
+  seauDemoAvant = operationsSeau(idA);
   const cabinet = await sql(`SELECT cabinet_id FROM utilisateurs WHERE id = '${idA}'`);
   verifier("trois collaborateurs distincts", new Set([idA, b.id, c.id]).size === 3);
 
@@ -728,17 +747,16 @@ async function main() {
   );
   await sleep(12_000);
   verifier("API coupée : une action au bail en cours n'est pas reprise tant que l'API tourne", (await sql(`SELECT etat FROM actions_messages WHERE id = '${idBail}'`)) === "en_attente" && copiesImap(etatImap(dovecot, mid("bail")), "INBOX") === 1);
+  const kidAvant = (await (await fetch(`${api}/auth/jwks`)).json()).keys.map((k) => k.kid).sort().join();
   docker("restart", conteneur("legalos-instance-api")[0]);
   await attendre("API de nouveau en ligne", async () => ((await fetch(`${instance}/health`).catch(() => null))?.ok ? true : null), 120_000);
-  // La clé de signature change à chaque démarrage mais garde le même identifiant : PowerSync garde
-  // l'ancienne clé publique en cache (401 « signature verification failed ») jusqu'à son redémarrage.
-  docker("restart", conteneur("legalos-instance-powersync")[0]);
-  await attendre("PowerSync de nouveau sain, clé publique relue", async () => (docker("inspect", "-f", "{{.State.Health.Status}}", conteneur("legalos-instance-powersync")[0]) === "healthy" ? true : null), 120_000);
+  // La clé de signature est persistante (volume api_cles) et son identifiant en est l'empreinte : après le
+  // redémarrage de l'API, le JWKS est inchangé, PowerSync n'est pas redémarré et les jetons restent valides.
+  const kidApres = (await (await fetch(`${api}/auth/jwks`)).json()).keys.map((k) => k.kid).sort().join();
+  verifier("API coupée : la clé de signature survit au redémarrage (même kid dans le JWKS)", kidAvant !== "" && kidAvant === kidApres);
   await attendre("action au bail perdu reprise après le redémarrage", async () => ((await sql(`SELECT etat FROM actions_messages WHERE id = '${idBail}'`)) === "appliquee" ? true : null), 90_000);
   etat = etatImap(dovecot, mid("bail"));
   verifier("API coupée : l'action est passée une fois", copiesImap(etat, "Archives") === 1 && nbCopies(etat) === 1);
-  // Les jetons d'accès sont signés par une clé éphémère : ils sont renouvelés à la prochaine requête.
-  invaliderJetons();
   ok("reprise : UID obsolète, déplacement fait ailleurs, identifiants refusés, serveur IMAP coupé, API coupée");
 
   // ==========================================================================================
@@ -880,7 +898,10 @@ async function main() {
   // ==========================================================================================
   // (iv) Mesure : recherche sur 50 000 messages
   // ==========================================================================================
-  const boitePerf = await creerCompteNominatif(jetonA2, "perf", { hote: "injoignable.example", port: 143, utilisateur: "perf", motDePasse: "MotDePassePerf123!" });
+  // La mesure insère puis supprime 50 000 messages : elle le fait dans la boîte de C, jamais dans celle de
+  // l'utilisateur de démo, dont le seau PowerSync (messages_nominatifs) alourdirait la synchronisation initiale
+  // de tous les postes suivants (20/10/2026, consigne de l'architecte).
+  const boitePerf = await creerCompteNominatif(jetonC2, "perf", { hote: "injoignable.example", port: 143, utilisateur: "perf", motDePasse: "MotDePassePerf123!" });
   const motRare = `rarissime${marque}`;
   const debutInsertion = Date.now();
   await sql(
@@ -912,22 +933,41 @@ async function main() {
     mesures.push({ libelle, mediane, pire: Math.round(essais[4]), resultats: derniere.json.resultats.length, suite: derniere.json.a_suivre });
     return { mediane, pire: Math.round(essais[4]), reponse: derniere };
   };
-  const rare = await chronometre("mot rare (1 résultat sur 50 000)", jetonA2, motRare);
+  const rare = await chronometre("mot rare (1 résultat sur 50 000)", jetonC2, motRare);
   verifier("mesure : le mot rare est trouvé dans la boîte de 50 000", rare.reponse.json.resultats.length === 1 && rare.reponse.json.resultats[0].compte_id === boitePerf.id);
-  const courant = await chronometre("mot courant (50 000 résultats, 25 rendus)", jetonA2, "audience plaidoirie");
+  const courant = await chronometre("mot courant (50 000 résultats, 25 rendus)", jetonC2, "audience plaidoirie");
   verifier("mesure : le mot courant donne une page pleine et une suite", courant.reponse.json.resultats.length === 25 && courant.reponse.json.a_suivre === true);
-  const adresse = await chronometre("expéditeur (100 résultats possibles)", jetonA2, "expediteur42 example");
-  const absent = await chronometre("mot absent", jetonA2, `introuvable${marque}`);
+  const adresse = await chronometre("expéditeur (100 résultats possibles)", jetonC2, "expediteur42 example");
+  const absent = await chronometre("mot absent", jetonC2, `introuvable${marque}`);
   const tiers = await chronometre("mot courant, pour un collaborateur sans accès à cette boîte", jetonB2, "audience plaidoirie");
   verifier("mesure : B ne voit rien de la boîte de 50 000 messages", tiers.reponse.json.resultats.every((x) => x.compte_id !== boitePerf.id));
   const rareB = await ids(jetonB2, motRare);
-  essaiNegatif("mesure : B trouve le mot rare de la boîte de 50 000", "A, titulaire, le trouve", () => rareB.size > 0);
+  essaiNegatif("mesure : B trouve le mot rare de la boîte de 50 000", "C, titulaire, le trouve", () => rareB.size > 0);
   for (const x of mesures) ok(`mesure ${x.libelle} : médiane ${x.mediane} ms, pire ${x.pire} ms (${x.resultats} résultat(s) rendus, ${totalMessages} messages en base)`);
   ok(`mesure : insertion et analyse de 50 000 messages : ${insereMs} ms`);
   verifier("mesure : mot rare en moins de 500 ms", rare.mediane < 500);
   verifier("mesure : mot courant (page de 25 sur 50 000 candidats) en moins de 2 000 ms", courant.mediane < 2000 && adresse.mediane < 2000 && absent.mediane < 500 && tiers.mediane < 500);
 
   console.log("j11-boites-actions: OK");
+}
+
+// Après le nettoyage : double compaction, puis le seau de l'utilisateur de démo n'a pas grossi (la mesure de
+// 50 000 messages est dans la boîte de C). Une dérive casse la synchronisation initiale des postes suivants.
+async function controlerSeauDemo() {
+  if (seauDemoAvant === null || idDemo === null) return;
+  try {
+    compacterPowerSync();
+    const apres = operationsSeau(idDemo);
+    if (apres - seauDemoAvant > MARGE_SEAU_DEMO) {
+      console.error(`j11-boites-actions: FAIL — seau PowerSync de l'utilisateur de démo : ${seauDemoAvant} opérations avant, ${apres} après (marge ${MARGE_SEAU_DEMO})`);
+      process.exitCode = 1;
+    } else {
+      ok(`seau PowerSync de l'utilisateur de démo : ${seauDemoAvant} opérations avant, ${apres} après la double compaction`);
+    }
+  } catch (err) {
+    console.error(`j11-boites-actions: FAIL — contrôle du seau de démo : ${err instanceof Error ? err.message : String(err)}`);
+    process.exitCode = 1;
+  }
 }
 
 main()
@@ -946,6 +986,7 @@ main()
       // Docker indisponible : rien à relancer.
     }
     await nettoyer();
+    await controlerSeauDemo();
     await sql(`DELETE FROM dossiers WHERE nom = 'Dossier restreint ${marque}'`).catch(() => {});
     for (const boite of [dovecot, greenmail]) {
       try {
