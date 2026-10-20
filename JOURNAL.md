@@ -964,3 +964,17 @@ Commit `7651129` (plan:) : critères (i) à (v) ajoutés à J11, condition « ca
 - **État de session (18/10/2026, arrêt du poste)** : J11 non coché. Critère (v) écrit et vérifié par `j11-connexion-boites`, `boites_integration`, tsc, lint:ci et 321 tests poste, mais NON commité : `cargo test --workspace --no-fail-fast` jamais terminé (tué par le système, mémoire), à relancer avec `CARGO_BUILD_JOBS=4` ; puis recettes `j11-redaction-api`, `j11-boites`, `j11-boites-actions`, `oauth-messagerie`, commit sans `.claude/settings.json`, `git push origin main`, CI par `gh run view`. Disque : `.worktrees/j9/target`, `target-recette/` et `target/debug/incremental` supprimés, cache de build Docker purgé (20 Go, à rendre à Windows en compactant `docker_data.vhdx` après `wsl --shutdown`). Reste : volet OAuth (décision de l'architecte), cause des relèves intermittentes, contrôleur, CI finale.
 2026-10-20 — Reprise état-major : Docker Desktop relancé, instance (7 services healthy) et banc imap-test démarrés. Lecture de `.env` refusée au sous-shell : `cargo test --workspace --no-fail-fast` lancé comme la CI, sur un Postgres jetable `legalos-test-pg` (postgres:16.8, port 5433, legalos:legalos) avec `CARGO_BUILD_JOBS=4`.
 2026-10-20 — Preuves de (v), exit 0 chacune : `cargo test --workspace --no-fail-fast` (env de ci.yml, 31 binaires ok, 0 échec, dont boites_integration, actions_integration, brouillons_integration, invitations_integration) ; `cargo fmt --all --check` ; `cargo clippy --workspace --all-targets -D warnings` ; recettes j11-connexion-boites, j11-redaction-api, j11-boites, j11-boites-actions, oauth-messagerie, encodage-texte ; poste : lint:ci, tsc, j11-mails-logique (19 fichiers de tests, 0 échec). Volet OAuth de (v) NON fait (route de retour absente, décision de l'architecte). Commit de (v) sans `.claude/settings.json`.
+2026-10-20 — 8e9fda7 poussé ((v) connexion des boîtes et santé) ; CI 39472571209 lue par `gh run view` : VERTE, 7 jobs (perimetre, frontend, gouvernance, webdriver-macos, rust, facturx, s1-instance). Postgres jetable `legalos-test-pg` retiré.
+
+## 2026-10-20 — État de session (état-major) : J11 (i) à (v) livrés, J11 non coché
+
+**Fait** : (v) prouvé et poussé (`8e9fda7`, CI verte). Les critères (i) à (iv) étaient déjà poussés (CI verte sur `929bef8`).
+
+**Reste pour la coche de J11** (rien ne se lance sans l'architecte, via le commandement) :
+- volet OAuth de (v) : la route de retour n'existe pas ; faut-il la construire dans J11 ?
+- cause des relèves intermittentes (`s7-classement`, `j11-redaction`, `j11-invitation`) : condition posée avant toute coche. La tranche 0 a établi une cause (curseur de relève non invalidé après changement d'UIDVALIDITY) ; l'architecte doit dire si elle suffit ;
+- contrôleur, puis commit `plan:`, CI.
+
+**Questions à soumettre à l'architecte** : 403 ou 404 pour l'écriture depuis le compte d'un autre ; départ d'un message neuf depuis la boîte nominative par défaut ; indexation des corps jamais ouverts ; route de liste des dossiers IMAP ; clé JWT persistante en développement ; mesure de performance de `j11-boites-actions` à isoler (pollue le seau PowerSync de l'utilisateur de démo) ; routes de comptes (`/messagerie/comptes…`) absentes d'OpenAPI.
+
+**Prochaine action** : transmettre les questions à Rémi ; selon la décision, volet OAuth, puis contrôleur.
