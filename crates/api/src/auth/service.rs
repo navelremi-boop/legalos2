@@ -287,17 +287,118 @@ async fn mettre_a_jour_derniere_connexion(pool: &PgPool, poste_id: Uuid) -> Resu
 }
 
 pub async fn build_jwt_keys(config: &crate::config::Config) -> anyhow::Result<Arc<JwtKeys>> {
-    if let Some(pem) = config.jwt_rsa_private_key_pem.as_ref() {
-        Ok(Arc::new(JwtKeys::from_rsa_pem(
-            pem.as_bytes(),
-            config.jwt_key_id.clone(),
-        )?))
-    } else {
+    Ok(Arc::new(charger_cle(
+        config.jwt_rsa_private_key_pem.as_deref(),
+        config.jwt_key_file.as_deref(),
+        crate::config::mode_developpement(),
+    )?))
+}
+
+/// Clé de signature des jetons : la variable d'environnement, sinon le fichier du volume. Le fichier absent est
+/// créé en développement seulement ; hors développement, sans clé fournie, le démarrage est refusé (une clé qui
+/// change à chaque démarrage invaliderait les jetons de tous les postes et le cache JWKS de PowerSync).
+pub(crate) fn charger_cle(
+    pem: Option<&str>,
+    fichier: Option<&std::path::Path>,
+    developpement: bool,
+) -> anyhow::Result<JwtKeys> {
+    if let Some(pem) = pem {
+        return JwtKeys::from_rsa_pem(pem);
+    }
+    if let Some(chemin) = fichier {
+        return match std::fs::read_to_string(chemin) {
+            Ok(texte) => JwtKeys::from_rsa_pem(&texte)
+                .map_err(|e| anyhow::anyhow!("{} : {e}", chemin.display())),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound && developpement => {
+                let (cle, pem) = JwtKeys::generer()?;
+                ecrire_cle_nouvelle(chemin, &pem)?;
+                tracing::warn!(
+                    fichier = %chemin.display(),
+                    "clé de signature créée au premier démarrage (développement) ; elle survit aux redémarrages"
+                );
+                Ok(cle)
+            }
+            Err(e) => Err(anyhow::anyhow!(
+                "lecture de la clé de signature ({}) : {e}",
+                chemin.display()
+            )),
+        };
+    }
+    if developpement {
         tracing::warn!(
-            "JWT_RSA_PRIVATE_KEY_PEM absent — génération éphémère (dev uniquement ; JWKS change à chaque redémarrage)"
+            "ni JWT_RSA_PRIVATE_KEY_PEM ni JWT_KEY_FILE — clé éphémère (développement seulement ; les jetons ne survivent pas au redémarrage)"
         );
-        Ok(Arc::new(JwtKeys::generate_ephemeral(
-            config.jwt_key_id.clone(),
-        )?))
+        return Ok(JwtKeys::generer()?.0);
+    }
+    anyhow::bail!(
+        "JWT_RSA_PRIVATE_KEY_PEM (ou JWT_KEY_FILE vers une clé existante) est requis hors LEGALOS_MODE=development"
+    )
+}
+
+fn ecrire_cle_nouvelle(chemin: &std::path::Path, pem: &str) -> anyhow::Result<()> {
+    use std::io::Write;
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut fichier = options.open(chemin).map_err(|e| {
+        anyhow::anyhow!(
+            "création de la clé de signature ({}) : {e}",
+            chemin.display()
+        )
+    })?;
+    fichier
+        .write_all(pem.as_bytes())
+        .map_err(|e| anyhow::anyhow!("écriture de la clé de signature : {e}"))
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests_cle {
+    use super::charger_cle;
+    use crate::auth::jwt::JwtKeys;
+
+    fn dossier_neuf(nom: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("legalos-cle-{nom}-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).expect("dossier");
+        dir
+    }
+
+    #[test]
+    fn hors_developpement_sans_cle_le_demarrage_est_refuse() {
+        assert!(charger_cle(None, None, false).is_err());
+        let absent = dossier_neuf("absent").join("jwt.pem");
+        assert!(charger_cle(None, Some(&absent), false).is_err());
+        assert!(!absent.exists(), "hors développement, rien n'est créé");
+    }
+
+    #[test]
+    fn en_developpement_la_cle_du_volume_est_creee_puis_reprise() {
+        let chemin = dossier_neuf("volume").join("jwt.pem");
+        let premiere = charger_cle(None, Some(&chemin), true).expect("création");
+        assert!(chemin.exists());
+        let seconde = charger_cle(None, Some(&chemin), true).expect("reprise");
+        assert_eq!(premiere.kid, seconde.kid, "même clé, donc même kid");
+    }
+
+    #[test]
+    fn la_cle_fournie_est_reprise_et_un_fichier_illisible_est_refuse() {
+        let (cle, pem) = JwtKeys::generer().expect("clé");
+        let fournie = charger_cle(Some(&pem), None, false).expect("fournie");
+        assert_eq!(fournie.kid, cle.kid);
+        let chemin = dossier_neuf("illisible").join("jwt.pem");
+        std::fs::write(&chemin, "pas une clé").expect("écriture");
+        assert!(charger_cle(None, Some(&chemin), true).is_err());
+        assert!(charger_cle(None, Some(&chemin), false).is_err());
+    }
+
+    #[test]
+    fn en_developpement_sans_rien_une_cle_ephemere_est_permise() {
+        let a = charger_cle(None, None, true).expect("éphémère");
+        let b = charger_cle(None, None, true).expect("éphémère");
+        assert_ne!(a.kid, b.kid);
     }
 }

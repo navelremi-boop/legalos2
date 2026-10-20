@@ -239,7 +239,7 @@ fn install(root: &Path) -> Result<()> {
             anyhow::bail!(".env existe déjà et contient une valeur publiée ; installation refusée");
         }
     } else {
-        ecrire_env_production(root, &SecretsInstall::generer())?;
+        ecrire_env_production(root, &SecretsInstall::generer()?)?;
     }
     std::env::remove_var("LEGALOS_MODE");
     let mut noms = std::collections::BTreeSet::new();
@@ -285,29 +285,33 @@ struct SecretsInstall {
     garage_rpc: String,
     garage_admin: String,
     greenmail: String,
+    jwt_cle: String,
 }
 
 impl SecretsInstall {
-    fn generer() -> Self {
-        Self {
+    fn generer() -> Result<Self> {
+        Ok(Self {
             chiffrement: cle_aleatoire(),
             postgres: mot_de_passe_aleatoire(),
             garage_rpc: hex_aleatoire(32),
             garage_admin: hex_aleatoire(32),
             greenmail: mot_de_passe_aleatoire(),
-        }
+            jwt_cle: legalos_api::auth::jwt::JwtKeys::generer_pour_env()?,
+        })
     }
 }
 
 fn ecrire_env_production(root: &Path, secrets: &SecretsInstall) -> Result<()> {
     let modele = std::fs::read_to_string(root.join(".env.example")).context(".env.example")?;
     let mut lignes = Vec::new();
+    let mut cle_jwt_ecrite = false;
     for ligne in modele.lines() {
         if ligne.starts_with("LEGALOS_MODE=") {
             continue;
         }
         if let Some(valeur) = valeur_secrete_generee(ligne, secrets) {
             let nom = ligne.split_once('=').context("affectation")?.0;
+            cle_jwt_ecrite |= nom == "JWT_RSA_PRIVATE_KEY_PEM";
             lignes.push(format!("{nom}={valeur}"));
             continue;
         }
@@ -315,6 +319,9 @@ fn ecrire_env_production(root: &Path, secrets: &SecretsInstall) -> Result<()> {
             "remplacer-mot-de-passe-fort-alphanumerique",
             &secrets.postgres,
         ));
+    }
+    if !cle_jwt_ecrite {
+        lignes.push(format!("JWT_RSA_PRIVATE_KEY_PEM={}", secrets.jwt_cle));
     }
     std::fs::write(root.join(".env"), lignes.join("\n") + "\n")?;
     Ok(())
@@ -331,6 +338,8 @@ fn valeur_secrete_generee<'a>(ligne: &str, secrets: &'a SecretsInstall) -> Optio
         Some(secrets.garage_admin.as_str())
     } else if ligne.starts_with("GREENMAIL_PASSWORD=") {
         Some(secrets.greenmail.as_str())
+    } else if ligne.starts_with("JWT_RSA_PRIVATE_KEY_PEM=") {
+        Some(secrets.jwt_cle.as_str())
     } else {
         None
     }
@@ -417,6 +426,7 @@ mod tests {
             garage_rpc: "ab".repeat(32),
             garage_admin: "cd".repeat(32),
             greenmail: "MotMailInstalle1234567890abcd".into(),
+            jwt_cle: legalos_api::auth::jwt::JwtKeys::generer_pour_env().expect("clé"),
         };
         ecrire_env_production(&tmp, &secrets).expect("écriture");
         let texte = std::fs::read_to_string(tmp.join(".env")).expect("lecture");
@@ -426,6 +436,11 @@ mod tests {
         assert!(texte.contains(&format!("GARAGE_RPC_SECRET={}", secrets.garage_rpc)));
         assert!(texte.contains(&format!("GARAGE_ADMIN_TOKEN={}", secrets.garage_admin)));
         assert!(texte.contains(&format!("GREENMAIL_PASSWORD={}", secrets.greenmail)));
+        assert!(texte.contains(&format!("JWT_RSA_PRIVATE_KEY_PEM={}", secrets.jwt_cle)));
+        assert!(
+            legalos_api::auth::jwt::JwtKeys::from_rsa_pem(&secrets.jwt_cle).is_ok(),
+            "la clé écrite par l'installation doit être relisible"
+        );
         assert!(texte.contains(&format!(
             "postgresql://legalos:{}@localhost:5432/legalos",
             secrets.postgres

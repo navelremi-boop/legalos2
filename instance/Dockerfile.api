@@ -32,6 +32,8 @@ RUN apt-get update \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /src/target/release/legalos-api /usr/local/bin/legalos-api
+# Dossier de la clé de signature des jetons : le volume nommé monté ici reprend ce propriétaire.
+RUN mkdir -p /var/lib/legalos/cles && chown nobody /var/lib/legalos/cles && chmod 700 /var/lib/legalos/cles
 USER nobody
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/legalos-api"]

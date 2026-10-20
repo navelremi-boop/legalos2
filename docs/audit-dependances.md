@@ -1,6 +1,6 @@
 # Audit des dépendances Rust
 
-Dette de la phase 2 (`PLAN.md`) cochée le 29/09/2026 : `cargo-deny` 0.20.2 est dans le job `rust` (installation contrôlée par SHA-256, essai négatif `tests/recette/deny-exception-inutile.mjs`). Preuve d'exécution : run [36572546272](https://github.com/navelremi-boop/legalos2/actions/runs/36572546272). Signalement PowerSync / `time` 0.2 : [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129). Les avis `unic-*` et `rsa` restent hors exceptions.
+Dette de la phase 2 (`PLAN.md`) **décochée le 20/10/2026** par l'architecte : elle avait été cochée le 29/09/2026 alors que la CI n'exécutait que l'essai négatif `tests/recette/deny-exception-inutile.mjs` et jamais `cargo deny check` (le workspace racine échouait en local). Soldée le 20/10/2026 : `cargo deny check` s'exécute désormais dans le job `rust` sur les deux workspaces (voir « Constat du 20 octobre 2026 »). Installation de `cargo-deny` 0.20.2 contrôlée par SHA-256. Signalement PowerSync / `time` 0.2 : [powersync-js#1129](https://github.com/powersync-ja/powersync-js/issues/1129).
 
 ## Outil et politique
 
@@ -14,7 +14,24 @@ Dette de la phase 2 (`PLAN.md`) cochée le 29/09/2026 : `cargo-deny` 0.20.2 est 
 - Sources : crates.io seulement. Versions génériques interdites, sauf chemins locaux (correctifs `apps/poste/src-tauri/patches/`).
 - Exceptions d'avis du poste : aucune depuis le 2026-10-04. `tauri-plugin-powersync` 0.1.0 retire la chaîne http-client. `unused-ignored-advisory = "deny"` : une exception devenue inutile fait échouer le contrôle. Essai négatif en CI : `node tests/recette/deny-exception-inutile.mjs` (identifiant fictif `RUSTSEC-2099-0001`). Les avis `unic-*` et `rsa` ne sont pas des exceptions.
 
-## Constat du 27 septembre 2026
+## Constat du 20 octobre 2026 (consigne de l'architecte)
+
+Commandes exécutées le 20/10/2026 avant correction : `cargo deny --manifest-path Cargo.toml check` (exit 1) et `cargo deny --manifest-path apps/poste/src-tauri/Cargo.toml --config apps/poste/src-tauri/deny.toml check` (exit 1). Après correction, les deux sortent à 0 (`advisories ok, bans ok, licenses ok, sources ok`).
+
+| Avis | Crate (workspace) | Traitement |
+|---|---|---|
+| RUSTSEC-2023-0071 (« Marvin Attack ») | `rsa` 0.9.10 (racine) | `jsonwebtoken` sur le moteur `aws_lc_rs` ; la crate `rsa` n'est plus une dépendance de l'API : clé RS256 générée, lue et publiée (JWKS) par `aws-lc-rs` 1.18.1 (`crates/api/src/auth/jwt.rs`). Le `kid` devient l'empreinte RFC 7638 de la clé |
+| RUSTSEC-2026-0346 à 0349 (TLS) | `rustls` 0.23.45 (racine et poste) | `cargo update -p rustls` : 0.23.46 dans les deux `Cargo.lock` |
+| RUSTSEC-2021-0157, -0158 et RUSTSEC-2026-0373 (XSS, CSS) | `ammonia` 4.2.0 (racine, nettoyage du HTML des mails) | épinglage exact passé à 4.2.4 ; tests du nettoyage de `legalos-messagerie` verts |
+| RUSTSEC-2026-0367 à 0369 (`zip`) | `zip` 8.6.0 (API, lecture des docx) et 3.0.0 (build de `utoipa-swagger-ui` 9) | `zip` 9.0.2 (API : `ZipArchive::new` et `by_name` seulement, aucun changement de code) ; `utoipa` 6.0.0 et `utoipa-swagger-ui` 10.0.2, qui utilise `zip` 9, sans autre changement de code. Plus qu'une version de `zip` dans le lock |
+| Version retirée du registre | `yoke-derive` 0.8.3 (racine) | `cargo update -p yoke-derive` : 0.8.4 |
+| RUSTSEC-2026-0192, non maintenu | `ttf-parser` 0.25.1 (racine) | **exception nominative datée du 2026-10-20** dans `deny.toml` : aucune version corrigée, aucune faille connue ; vient de `lopdf` 0.42 que `pdf-extract` 0.12.1 (dernière version) impose ; `lopdf` 0.45 ne l'utilise plus. Ne sert qu'à l'extraction du texte d'un PDF pour l'indexation. À lever dès qu'un `pdf-extract` accepte `lopdf` 0.45 ou plus ; `unused-ignored-advisory = "deny"` fait alors échouer le contrôle. Alternative écartée : retirer `pdf-extract` pour l'extraction plus pauvre de `lopdf` seul, qui dégraderait l'indexation des PDF |
+
+Poste : seuls les quatre avis `rustls` ressortaient ; aucune exception d'avis (`ignore = []`).
+
+CI : le job `rust` exécute `cargo deny --manifest-path Cargo.toml check` et `cargo deny --manifest-path apps/poste/src-tauri/Cargo.toml --config apps/poste/src-tauri/deny.toml check`, puis l'essai négatif de l'exception inutile. La base d'avis RustSec est relue à chaque exécution : un nouvel avis fait échouer la CI, ce qui est voulu.
+
+## Constat du 27 septembre 2026 (historique, traité le 20/10/2026 pour la racine)
 
 ### Workspace racine
 

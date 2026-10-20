@@ -56,10 +56,10 @@ services:
       MESSAGERIE_SMTP_PORT: "3025"
       MESSAGERIE_FROM: demo@cabinet.example
       LEGALOS_MODE: ${LEGALOS_MODE:-}
-      JWT_KEY_ID: ${JWT_KEY_ID:-legalos-dev-1}
       JWT_ISSUER: ${JWT_ISSUER:-legalos-api}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-legalos-powersync}
       JWT_RSA_PRIVATE_KEY_PEM: ${JWT_RSA_PRIVATE_KEY_PEM:-}
+      JWT_KEY_FILE: /var/lib/legalos/cles/jwt.pem
       S3_ENDPOINT: http://garage:3900
       S3_PUBLIC_ENDPOINT: http://127.0.0.1:3900
       S3_REGION: garage
@@ -69,6 +69,8 @@ services:
     env_file:
       - path: ./garage/cles.local
         required: false
+    volumes:
+      - api_cles:/var/lib/legalos/cles
     ports:
       - "${API_HOST_PORT:-8080}:8080"
     healthcheck:
@@ -219,6 +221,7 @@ services:
       start_period: 5s
 
 volumes:
+  api_cles:
   caddy_data:
   caddy_config:
   postgres_data:

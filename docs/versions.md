@@ -41,14 +41,14 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 | Garage (S3) | **dxflrs/garage:v1.0.1** | https://hub.docker.com/r/dxflrs/garage |
 | OpenDAL | **0.59.3** (`services-s3`) | https://crates.io/crates/opendal — vérifié le 2026-09-25 |
 | quick-xml | **0.42.0** | https://crates.io/crates/quick-xml/0.42.0 — vérifié le 2026-09-29 ; licence MIT ; extraction texte docx (`word/document.xml`) |
-| zip | **8.6.0** | https://crates.io/crates/zip/8.6.0 — vérifié le 2026-09-29 ; licence MIT ; archive docx (feature `deflate` seulement) |
+| zip | **9.0.2** (résolu 9.0.5) | https://crates.io/crates/zip/9.0.2 — vérifié le 2026-10-20 (montée depuis 8.6.0 : RUSTSEC-2026-0367 à 0369) ; licence MIT ; archive docx (feature `deflate` seulement) |
 | pdf-extract | **0.12.1** | https://crates.io/crates/pdf-extract/0.12.1 — vérifié le 2026-09-29 ; licence MIT ; couche texte PDF seulement (pas d'OCR) |
 | GreenMail (IMAP/SMTP test) | **greenmail/standalone:2.1.0** | https://hub.docker.com/r/greenmail/standalone — capacités de la 2.1.0 (source `CapabilityCommand`) : LITERAL+, UIDPLUS, SORT, IDLE, MOVE. Pas de QRESYNC. |
 | io-imap | **0.6.1** (version exacte, ne pas monter sans instruction de l'architecte) | https://crates.io/crates/io-imap/0.6.1 — vérifié le 2026-09-27 ; publié le 2026-09-26 ; licence MIT OR Apache-2.0 ; rust 1.88 ; Pimalaya |
 | imap-codec | **2.0.0-alpha.8** (transitive d'io-imap, épinglée en dépendance directe ; ne pas monter sans instruction de l'architecte) | https://crates.io/crates/imap-codec/2.0.0-alpha.8 — vérifié le 2026-09-27 ; publié le 2026-06-03 ; licence MIT OR Apache-2.0. L'exigence d'io-imap est `^2.0.0-alpha.8`, qui accepterait la 2.0.0-alpha.9 du 2026-07-19 : le dépôt la refuse. |
 | mail-parser | **0.11.9** (épinglée exacte) | https://crates.io/crates/mail-parser/0.11.9 — vérifié le 2026-09-30 ; licence Apache-2.0 OR MIT ; décodage MIME / en-têtes pour la relève de classement. |
 | lettre | **0.11.23** (épinglée exacte) | https://crates.io/crates/lettre/0.11.23 — vérifié le 2026-09-30 ; licence MIT ; SMTP de la file d'envoi (`smtp-transport`, `builder`, sans TLS natif en test GreenMail). |
-| ammonia | **4.2.0** (épinglée exacte) | https://crates.io/crates/ammonia/4.2.0 — vérifié le 2026-09-30 ; licence MIT OR Apache-2.0 ; nettoyage HTML avant stockage. |
+| ammonia | **4.2.4** (épinglée exacte) | https://crates.io/crates/ammonia/4.2.4 — vérifié le 2026-10-20 (montée depuis 4.2.0 : RUSTSEC-2021-0157, -0158 et RUSTSEC-2026-0373) ; licence MIT OR Apache-2.0 ; nettoyage HTML avant stockage. |
 | oauth2 | **5.0.0** (épinglée exacte) | https://crates.io/crates/oauth2/5.0.0 — vérifié le 2026-09-30 ; publié le 2025-01-21 ; licence MIT OR Apache-2.0 ; RFC 6749. XOAUTH2 IMAP reste `io-imap` 0.6.1 (`Sasl::Xoauth2`). |
 | icalendar | **0.17.14** (épinglée exacte) | https://crates.io/crates/icalendar/0.17.14 — vérifié le 2026-10-05 (API crates.io) ; publié le 2026-09-29 ; licence MIT OR Apache-2.0 ; analyse RFC 5545 pour les invitations de J11. Dépendance de `legalos-messagerie`. |
 | chrono-tz | **0.10.4** (épinglée exacte) | https://crates.io/crates/chrono-tz/0.10.4 — vérifié le 2026-10-12 (API crates.io) ; publiée le 2025-07-11, toujours la plus récente ; licence MIT OR Apache-2.0 ; base IANA **2025b** embarquée (fichier `NEWS` de la crate), sans lecture de la base du système. Sert seulement à déduire l'instant UTC d'une invitation de calendrier (`TZID` IANA, `crates/messagerie/src/invitation.rs`). **Écart à la règle « une seule bibliothèque de dates »** : `time` (domaine, API) n'embarque aucune base IANA ; `chrono` est déjà dans le graphe, imposé par `icalendar` (ses types de dates), et `chrono-tz` s'y branche. `chrono` et `chrono-tz` restent confinés à `legalos-messagerie` ; aucun de leurs types ne sort du crate. |
@@ -58,11 +58,12 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 | Axum | **0.8.9** | https://crates.io/crates/axum |
 | sqlx | **0.8.5** | https://crates.io/crates/sqlx |
 | Tokio | **1.44.2** | https://crates.io/crates/tokio |
-| utoipa | **5.3.1** | https://crates.io/crates/utoipa |
+| utoipa | **6.0.0** | https://crates.io/crates/utoipa — vérifié le 2026-10-20 (`cargo info`) ; exigé par `utoipa-swagger-ui` 10, qui utilise `zip` 9 (avis RUSTSEC-2026-0367 à 0369 sur `zip` < 9). `cargo check` du crate API sans autre changement de code |
+| utoipa-swagger-ui | **10.0.2** | https://crates.io/crates/utoipa-swagger-ui — vérifié le 2026-10-20 ; feature `axum` |
 | argon2 | **0.6.0** | https://crates.io/crates/argon2 |
-| jsonwebtoken | **11.1.0** | https://crates.io/crates/jsonwebtoken — vérifié le 2026-09-25 ; `default-features = false` ; fournisseur cryptographique **`rust_crypto`** ; PEM via feature explicite `use_pem` |
+| jsonwebtoken | **11.1.0** | https://crates.io/crates/jsonwebtoken — vérifié le 2026-09-25 ; `default-features = false` ; fournisseur cryptographique **`aws_lc_rs`** depuis le 2026-10-20 (retire la crate `rsa`, RUSTSEC-2023-0071) ; PEM via feature explicite `use_pem` |
 | totp-rs | **6.0.0** | https://crates.io/crates/totp-rs |
-| rsa (JWT RS256) | **0.9.8** | https://crates.io/crates/rsa |
+| aws-lc-rs (clé RS256 des jetons) | **1.18.1** | https://crates.io/crates/aws-lc-rs — vérifié le 2026-10-20 ; déjà dans le graphe par rustls ; génération de la clé RSA 2048 bits, lecture PKCS#8, composantes publiques du JWKS. Remplace la crate `rsa` (RUSTSEC-2023-0071, retirée) |
 | keyring (trousseau poste) | **3.6.3** | https://crates.io/crates/keyring — vérifié le 2026-09-25. Pas de feature `default` : sans feature, le crate utilise le magasin factice `mock`. Features explicites **`windows-native`** (Credential Manager) et **`apple-native`** (Keychain). |
 | Typst (PDF) | **0.14.0** | https://github.com/typst/typst/releases/tag/v0.14.0 — PDF/A-3b et `pdf.attach` |
 | Saxon-HE | **12.5** | https://repo1.maven.org/maven2/net/sf/saxon/Saxon-HE/12.5/ |

@@ -81,11 +81,28 @@ async fn install_demarre_en_production_sans_demo() {
     let mot_url_publie = mot_de_passe_dans_url(&vierge)
         .is_some_and(|mot| valeur_secrete_publiee("POSTGRES_PASSWORD", mot))
         || valeur_secrete_publiee("DATABASE_URL", &vierge);
+    let (_, cle_jwt) = legalos_api::auth::jwt::JwtKeys::generer().expect("clé de signature");
+    let mut sans_cle = Command::new(env!("CARGO_BIN_EXE_legalos-api"));
+    isoler_secrets(&mut sans_cle);
+    sans_cle
+        .env("DATABASE_URL", &vierge)
+        .env("SECRETS_CHIFFREMENT_KEY", cle_brute)
+        .env("API_BIND", format!("127.0.0.1:{}", port_ok + 1))
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    if !mot_url_publie {
+        let echec = sans_cle.status().expect("spawn sans clé");
+        assert!(
+            !echec.success(),
+            "l'API démarre en production sans clé de signature des jetons"
+        );
+    }
     let mut enfant_cmd = Command::new(env!("CARGO_BIN_EXE_legalos-api"));
     isoler_secrets(&mut enfant_cmd);
     enfant_cmd
         .env("DATABASE_URL", &vierge)
         .env("SECRETS_CHIFFREMENT_KEY", cle_brute)
+        .env("JWT_RSA_PRIVATE_KEY_PEM", &cle_jwt)
         .env("API_BIND", format!("127.0.0.1:{port_ok}"))
         .stdout(Stdio::null())
         .stderr(Stdio::null());
@@ -117,6 +134,8 @@ async fn install_demarre_en_production_sans_demo() {
 
 fn isoler_secrets(commande: &mut Command) {
     commande.env_remove("LEGALOS_MODE");
+    commande.env_remove("JWT_RSA_PRIVATE_KEY_PEM");
+    commande.env_remove("JWT_KEY_FILE");
     let mut noms = std::collections::BTreeSet::new();
     for (nom, _) in SECRETS_PUBLIES {
         noms.insert(*nom);

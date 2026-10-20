@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 
@@ -7,8 +8,11 @@ pub struct Config {
     pub bind: SocketAddr,
     pub database_url: String,
     pub run_migrations: bool,
-    pub jwt_key_id: String,
+    /// Clé de signature des jetons, en PEM PKCS#8 (brut ou en base64). Prioritaire sur `jwt_key_file`.
     pub jwt_rsa_private_key_pem: Option<String>,
+    /// Fichier de la clé de signature (volume de l'instance). Absent, il est créé au premier démarrage en
+    /// développement seulement ; hors développement, une clé fournie est obligatoire.
+    pub jwt_key_file: Option<PathBuf>,
     pub jwt_issuer: String,
     /// Claim `aud` des JWT d'accès (doit correspondre à `client_auth.audience` PowerSync).
     pub jwt_audience: String,
@@ -52,10 +56,13 @@ impl Config {
             .map(|v| v != "0" && v.to_lowercase() != "false")
             .unwrap_or(true);
 
-        let jwt_key_id = std::env::var("JWT_KEY_ID").unwrap_or_else(|_| "legalos-dev-1".into());
         let jwt_rsa_private_key_pem = std::env::var("JWT_RSA_PRIVATE_KEY_PEM")
             .ok()
             .filter(|s| !s.trim().is_empty());
+        let jwt_key_file = std::env::var("JWT_KEY_FILE")
+            .ok()
+            .filter(|s| !s.trim().is_empty())
+            .map(PathBuf::from);
         let jwt_issuer = std::env::var("JWT_ISSUER").unwrap_or_else(|_| "legalos-api".into());
         let jwt_audience =
             std::env::var("JWT_AUDIENCE").unwrap_or_else(|_| "legalos-powersync".into());
@@ -75,8 +82,8 @@ impl Config {
             bind,
             database_url,
             run_migrations,
-            jwt_key_id,
             jwt_rsa_private_key_pem,
+            jwt_key_file,
             jwt_issuer,
             jwt_audience,
             totp_cipher_key,

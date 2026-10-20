@@ -9,6 +9,14 @@ all-features = false
 yanked = "deny"
 unmaintained = "all"
 unused-ignored-advisory = "deny"
+# Exception nominative du 2026-10-20 (consigne de l'architecte : mise à jour, ou exception justifiée et datée).
+# `ttf-parser` 0.25.1 est déclaré non maintenu, sans faille connue ; aucune version corrigée n'existe. Il vient de
+# `lopdf` 0.42, que `pdf-extract` 0.12.1 (dernière version) impose (`lopdf = "0.42"`) ; `lopdf` 0.45 ne l'utilise plus.
+# Il ne sert qu'à l'extraction du texte d'un PDF pour l'indexation. À lever dès qu'un `pdf-extract` accepte
+# `lopdf` 0.45 ou plus ; `unused-ignored-advisory = "deny"` fait alors échouer le contrôle. Voir docs/audit-dependances.md.
+ignore = [
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser non maintenu, sans faille ; imposé par lopdf 0.42 via pdf-extract 0.12.1 (extraction de texte PDF)" },
+]
 
 [licenses]
 confidence-threshold = 0.93
