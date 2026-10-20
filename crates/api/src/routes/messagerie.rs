@@ -714,9 +714,12 @@ pub async fn creer_compte_nominatif(
     AuthAccess(claims): AuthAccess,
     Json(body): Json<CreerCompte>,
 ) -> Result<Json<CompteCree>, ApiError> {
-    if body.mot_de_passe.is_empty() || body.hote.is_empty() || body.utilisateur.is_empty() {
-        return Err(ApiError::bad_request("Compte incomplet"));
-    }
+    crate::routes::connexion_boites::valider_connexion(
+        &body.hote,
+        body.port,
+        &body.utilisateur,
+        &body.mot_de_passe,
+    )?;
     let secret =
         crate::moteur_mail::chiffrer_mot_de_passe(&body.mot_de_passe, &state.totp_cipher_key)
             .map_err(|_| ApiError::internal("Chiffrement"))?;

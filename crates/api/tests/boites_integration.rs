@@ -797,4 +797,160 @@ async fn scenario(url_base_jetable: String) {
         .await
         .expect("envoi confirmé");
     assert_eq!(sante(a.clone()).await["envois_en_echec"], json!(0));
+
+    // =========================================================================================
+    // (v) Connexion d'une boîte : seul le titulaire reconnecte sa boîte nominative
+    // =========================================================================================
+    let uri_a = format!("/messagerie/comptes/{compte_a}/connexion");
+    let valide = json!({
+        "hote": "imap.cabinet.example",
+        "port": 993,
+        "utilisateur": "avocat-a",
+        "mot_de_passe": "MotDePasseNeuf-1!",
+        "tls": true,
+        "smtp_hote": "smtp.cabinet.example",
+        "smtp_port": 587,
+        "smtp_utilisateur": "avocat-a",
+        "smtp_mot_de_passe": "SmtpNeuf-1!",
+        "repondre_a": "greffe@cabinet.example"
+    });
+    // Un compte refusé repart de « inconnu » avec de nouveaux identifiants, et le moteur n'a plus d'empreinte de refus.
+    sqlx::query("UPDATE comptes_mail SET etat_connexion = 'identifiants_refuses', empreinte_refus = 'ancienne' WHERE id = $1")
+        .bind(compte_a)
+        .execute(&pool)
+        .await
+        .expect("refus simulé");
+    let (statut, reponse) = appel(&app, "PUT", &uri_a, &a, valide.clone()).await;
+    assert_eq!(statut, StatusCode::OK, "{reponse}");
+    assert_eq!(reponse["adresse"], json!("avocat-a@cabinet.example"));
+    let apres: (String, Option<String>, String, Option<String>, Option<String>) = sqlx::query_as(
+        "SELECT etat_connexion, empreinte_refus, hote, smtp_hote, repondre_a FROM comptes_mail WHERE id = $1",
+    )
+    .bind(compte_a)
+    .fetch_one(&pool)
+    .await
+    .expect("compte mis à jour");
+    assert_eq!(apres.0, "inconnu", "la reconnexion repart de « inconnu »");
+    assert_eq!(
+        apres.1, None,
+        "plus d'empreinte de refus : le moteur réessaie"
+    );
+    assert_eq!(apres.2, "imap.cabinet.example");
+    assert_eq!(apres.3.as_deref(), Some("smtp.cabinet.example"));
+    assert_eq!(apres.4.as_deref(), Some("greffe@cabinet.example"));
+    // Les secrets sont chiffrés en base, jamais en clair ni dans la réponse.
+    let secrets: (Option<String>, Option<String>) = sqlx::query_as(
+        "SELECT secret_chiffre, smtp_secret_chiffre FROM comptes_mail WHERE id = $1",
+    )
+    .bind(compte_a)
+    .fetch_one(&pool)
+    .await
+    .expect("secrets");
+    assert!(secrets
+        .0
+        .as_deref()
+        .is_some_and(|s| !s.contains("MotDePasseNeuf")));
+    assert!(secrets
+        .1
+        .as_deref()
+        .is_some_and(|s| !s.contains("SmtpNeuf")));
+    assert!(!reponse.to_string().contains("MotDePasseNeuf"));
+
+    // Essais négatifs : le compte d'un confrère, la boîte partagée et celle du cabinet sont introuvables (404), sans rien changer.
+    for (compte, nom) in [
+        (compte_b, "boîte nominative d'un confrère"),
+        (partagee, "boîte partagée"),
+        (classement, "boîte du cabinet"),
+    ] {
+        let avant: (String,) = sqlx::query_as("SELECT hote FROM comptes_mail WHERE id = $1")
+            .bind(compte)
+            .fetch_one(&pool)
+            .await
+            .map(|(h,): (Option<String>,)| (h.unwrap_or_default(),))
+            .expect("hôte avant");
+        let (statut, _) = appel(
+            &app,
+            "PUT",
+            &format!("/messagerie/comptes/{compte}/connexion"),
+            &a,
+            valide.clone(),
+        )
+        .await;
+        assert_eq!(statut, StatusCode::NOT_FOUND, "{nom}");
+        let apres_refus: (Option<String>,) =
+            sqlx::query_as("SELECT hote FROM comptes_mail WHERE id = $1")
+                .bind(compte)
+                .fetch_one(&pool)
+                .await
+                .expect("hôte après");
+        assert_eq!(
+            apres_refus.0.unwrap_or_default(),
+            avant.0,
+            "{nom} : rien n'a changé"
+        );
+    }
+    // Sans jeton : 401. Compte inconnu : 404.
+    let (statut, _) = appel(&app, "PUT", &uri_a, "", valide.clone()).await;
+    assert_eq!(statut, StatusCode::UNAUTHORIZED);
+    let (statut, _) = appel(
+        &app,
+        "PUT",
+        &format!("/messagerie/comptes/{}/connexion", Uuid::now_v7()),
+        &a,
+        valide.clone(),
+    )
+    .await;
+    assert_eq!(statut, StatusCode::NOT_FOUND);
+    // Saisies refusées avant tout effet.
+    for (champ, valeur, motif) in [
+        ("hote", json!("imap exemple"), "espace dans le serveur"),
+        (
+            "hote",
+            json!("imap.exemple\r\nX: y"),
+            "retour à la ligne dans le serveur",
+        ),
+        ("hote", json!(""), "serveur vide"),
+        ("port", json!(0), "port zéro"),
+        ("utilisateur", json!(""), "identifiant vide"),
+        ("mot_de_passe", json!(""), "mot de passe vide"),
+        (
+            "smtp_hote",
+            json!(null),
+            "SMTP incomplet (port sans serveur)",
+        ),
+        (
+            "repondre_a",
+            json!("a@exemple.example\r\nBcc: b@exemple.example"),
+            "Reply-To injectable",
+        ),
+    ] {
+        let mut corps_invalide = valide.clone();
+        corps_invalide[champ] = valeur;
+        let (statut, _) = appel(&app, "PUT", &uri_a, &a, corps_invalide).await;
+        assert_eq!(statut, StatusCode::BAD_REQUEST, "{motif}");
+    }
+    let hote_final: (Option<String>,) =
+        sqlx::query_as("SELECT hote FROM comptes_mail WHERE id = $1")
+            .bind(compte_a)
+            .fetch_one(&pool)
+            .await
+            .expect("hôte final");
+    assert_eq!(
+        hote_final.0.as_deref(),
+        Some("imap.cabinet.example"),
+        "les saisies refusées n'ont rien changé"
+    );
+    // Une boîte OAuth se reconnecte par son fournisseur, pas par un mot de passe.
+    sqlx::query("UPDATE comptes_mail SET secret_ref = 'oauth' WHERE id = $1")
+        .bind(compte_a)
+        .execute(&pool)
+        .await
+        .expect("compte oauth");
+    let (statut, reponse) = appel(&app, "PUT", &uri_a, &a, valide.clone()).await;
+    assert_eq!(statut, StatusCode::BAD_REQUEST, "{reponse}");
+    sqlx::query("UPDATE comptes_mail SET secret_ref = 'chiffre' WHERE id = $1")
+        .bind(compte_a)
+        .execute(&pool)
+        .await
+        .expect("compte rétabli");
 }

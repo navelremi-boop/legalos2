@@ -5,6 +5,7 @@ pub mod boites;
 pub mod brouillons;
 pub mod cabinets;
 pub mod collaborateurs;
+pub mod connexion_boites;
 pub mod contacts;
 pub mod destinataires;
 pub mod documents;
@@ -24,7 +25,7 @@ use std::sync::Arc;
 
 use axum::{
     extract::DefaultBodyLimit,
-    routing::{delete, get, patch, post},
+    routing::{delete, get, patch, post, put},
     Router,
 };
 
@@ -154,6 +155,10 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route(
             "/messagerie/comptes",
             get(boites::lister_comptes).post(messagerie::creer_compte_nominatif),
+        )
+        .route(
+            "/messagerie/comptes/{compte_id}/connexion",
+            put(connexion_boites::modifier_connexion),
         )
         .route(
             "/messagerie/boites-partagees",

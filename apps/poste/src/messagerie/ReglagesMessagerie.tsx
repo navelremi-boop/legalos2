@@ -22,6 +22,8 @@ import {
   type CompteMessagerie,
 } from "@/messagerie/formesApiRedaction";
 import { nettoyerSortie } from "@/messagerie/nettoyageHtml";
+import { ComptesMessagerie } from "@/messagerie/ComptesMessagerie";
+import type { SanteMessagerie } from "@/messagerie/formesSanteMessagerie";
 import { memoriserModeles } from "@/messagerie/useModeles";
 
 /**
@@ -38,6 +40,8 @@ export type DemonstrationMessagerie = {
   /** HTML de la signature, par compte. */
   signatures: Record<string, string>;
   modeles: ModeleMessage[];
+  /** État de connexion des boîtes (section « Comptes »). */
+  sante?: SanteMessagerie;
 };
 
 type ReglagesMessagerieProps = {
@@ -502,6 +506,8 @@ export function ReglagesMessagerie({ instanceUrl, horsLigne, demonstration }: Re
           {fr(MESSAGE_EN_LIGNE)}
         </p>
       )}
+
+      <ComptesMessagerie instanceUrl={instanceUrl} enLigne={enLigne} demonstration={demonstration?.sante} />
 
       <h3>{fr("Signature")}</h3>
       <p className="rg-mess__desc">
