@@ -386,8 +386,8 @@ async function main() {
     60_000,
   );
 
-  spawnSync("docker", ["restart", "legalos-instance-powersync-1"], { stdio: "inherit" });
-  await sleep(8000);
+  // La clé de signature des jetons est persistante et son kid en est l'empreinte : le redémarrage de l'API ci-dessus
+  // ne change rien pour PowerSync, qui n'est donc plus redémarré (consigne de l'architecte du 20/10/2026).
 
   // ----- App Tauri (poste A) -----
   resetPostes(["j11ra"]);

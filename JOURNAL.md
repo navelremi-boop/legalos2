@@ -234,3 +234,44 @@ Consigne de l'architecte du 20/10/2026, transmise par le commandement. Critères
 2026-10-20 — Point 2(a) côté produit : clé de signature persistante. `JWT_RSA_PRIVATE_KEY_PEM` (PEM ou PEM en base64) sinon `JWT_KEY_FILE` (volume nommé `api_cles`, créé au premier démarrage en développement seulement) ; hors développement sans clé : démarrage refusé (test `install_production`, non-régression : l'API de production refuse sans clé et démarre avec) ; `cargo xtask install` génère la clé dans le `.env` de production ; `JWT_KEY_ID` supprimé. Preuves : 9 tests unitaires (jwt, chargement de la clé), `cargo test --workspace --no-fail-fast` exit 0 (31 binaires, env de ci.yml, Postgres jetable port 5433), clippy `-D warnings` et `fmt --check` exit 0. Reconstruction de l'image API puis preuve du kid stable au redémarrage de l'API.
 2026-10-20 — Point 2 : preuves avant la série. Image API reconstruite : `kid` du JWKS identique avant et après redémarrage de l'API (`IYowaanwmHIXSpeY7a1g5mgTs5rt4MxMcZv1BTAYdfQ`), clé `jwt.pem` dans le volume `api_cles` (mode 600). `s7-moteur-fenetre` seuil 30 s : exit 0, message de la fenêtre relevé en 8 s (témoin 0 s). `j11-boites-actions` (mesure dans la boîte de C, plus de redémarrage de PowerSync) : exit 0, seau de l'utilisateur de démo 322 → 419 opérations (avant l'isolation : +100 000 par passage). Constat à transmettre à l'architecte : la compaction PowerSync (`compact`, quatre passages, avec et sans `-b`) ne réduit pas un seau gonflé (100 948 → 100 948) et `-b` ne peut pas viser un seau à deux paramètres (la virgule du nom coupe la liste) ; l'isolation de la mesure est donc la seule parade, la compaction n'est qu'un complément. Seau de démo remis à 318 opérations par un teardown du stockage PowerSync (donnée dérivée de Postgres) après la pollution de mon passage de j11-boites-actions de 19 h 20. Commits `cda77eb` (point 4 et clé JWT, CI 39484372175 en cours, ci.yml en attente de revue) et `064d754` (recettes).
 2026-10-20 — Série à froid lancée : Docker Desktop redémarré, instance et banc imap-test remontés, puis s7-classement ×10, j11-invitation ×10, j11-redaction ×5, arrêt au premier échec ; journaux dans le dossier de travail de la session, résumé consigné ici.
+
+## 2026-10-20 (soir) — Point 2 : causes des relèves intermittentes, par recette (consigne de l'architecte)
+
+Série à froid (Docker Desktop redémarré, instance et banc remontés, image API du commit `cda77eb`) : **s7-classement 10 passes sur 10, j11-invitation 10 sur 10, j11-redaction 5 sur 5, toutes exit 0**, aucune relance, arrêt prévu au premier échec (aucun). Durées : 5 à 7 s, 54 à 57 s, 199 à 252 s. Journaux de passes conservés dans le dossier de travail de la session. Cette série sera rejouée sur le code final de J11 avant le contrôleur.
+
+**s7-classement**
+
+| | |
+|---|---|
+| Symptôme | 1 échec isolé « message attendu absent après relève » (contrôleur, 14/10), puis 5 passes vertes |
+| Cause | Établie par reproduction (tranche 0, 14/10) : le curseur de relève de la boîte de classement n'était pas invalidé avant la requête IMAP après un changement d'UIDVALIDITY (GreenMail en change), la relève interrogeait avec le curseur d'une autre génération |
+| Correctif | **Produit** : `crates/api/src/routes/messagerie.rs` (le curseur ne vaut que pour la UIDVALIDITY où il a été lu), commit `6130cb7`. La recette gagne la section « UIDVALIDITY changée » qui l'éprouve |
+| Avant | Échec reproduit avant correctif (entrée du 14/10) |
+| Après | 12 passes vertes le 14/10, **10 passes à froid le 20/10** |
+
+**j11-invitation**
+
+| | |
+|---|---|
+| Symptôme | (a) 13/10, 1er essai : le 2e message n'est jamais relevé ; (b) 13/10, un échec isolé « message du compte partagé non relevé en 60 s » |
+| Cause | (a) GreenMail n'offre ni CONDSTORE ni QRESYNC : le moteur n'y relève un dépôt qu'au plus toutes les 10 minutes (comportement voulu, `RELEVE_SANS_REVEIL_SECS`) ; (b) **fenêtre entre la relève et l'armement de la veille IMAP** : un message déposé après la lecture de la boîte et avant l'armement n'était annoncé par personne et attendait la relève de 10 minutes ; mesure du 14/10, GreenMail d'imap-test : message déposé 2 s après la relève initiale, relevé après **599 s** |
+| Correctif | (a) **Recette** : la recette passe sur le Dovecot d'imap-test (QRESYNC), le comportement de GreenMail reste celui du produit ; (b) **Produit** : la veille est armée **avant** la relève (`moteur_mail.rs`, `tourner`), commit `6130cb7` |
+| Avant | 599 s mesurés (14/10) |
+| Après | Banc déterministe `s7-moteur-fenetre.mjs` : un verrou SQL élargit la fenêtre à 24 s, le message déposé dedans est relevé en **8 s** (20/10, seuil ramené de 60 à 30 s ; témoin 0 s) ; **10 passes à froid de j11-invitation** le 20/10 |
+
+**j11-redaction**
+
+| | |
+|---|---|
+| Symptôme | (a) 14/10, 1er essai : message GreenMail non relevé ; (b) 14/10, suite finale : « message GreenMail non relevé », relance isolée verte ; (c) 17/10 : « cdp sans réponse » au login, 3 fois sur 3 |
+| Cause | (a) comportement voulu de GreenMail (relève au plus toutes les 10 minutes, voir ci-dessus) ; (b) **établie par analyse du chemin, non reproduite isolément** : la recette relève la boîte du cabinet par `POST /messagerie/classement/relever`, le chemin dont le curseur ignorait l'UIDVALIDITY (cause de s7-classement), corrigé en `6130cb7`, donc après cet échec ; l'état du 14/10 ne consigne rien de plus ; (c) **établie** : la mesure de performance de `j11-boites-actions` laissait ~500 000 opérations dans le seau PowerSync `messages_nominatifs` de l'utilisateur de démo ; la synchronisation initiale d'un poste (330 Mo) bloquait le fil JavaScript au-delà du garde-fou de 30 s |
+| Correctif | (a) **Recette** : redémarrage de l'API après le dépôt pour forcer la relève initiale (la recette passe sur GreenMail sans CONDSTORE) ; (b) **Produit**, le même que s7-classement ; (c) **Recette de mesure, 20/10** : les 50 000 messages sont dans la boîte du collaborateur C, jamais sous la démo ; contrôle du seau de démo après la mesure |
+| Avant | (c) seau de démo à 100 948 opérations après un seul passage de `j11-boites-actions` (constaté le 20/10 avant la correction), 501 132 le 17/10 |
+| Après | (c) seau de démo 322 → 419 opérations pendant un passage complet ; **5 passes à froid de j11-redaction** le 20/10, login en quelques secondes |
+
+**Clé de signature des jetons (2(a))** : symptôme 401 « signature verification failed » du flux de synchronisation (vu le 17/10 sur `j11-boites-actions` après le redémarrage de l'API, que la recette contournait en redémarrant PowerSync). Cause établie par analyse (17/10) : sans `JWT_RSA_PRIVATE_KEY_PEM`, la clé était éphémère mais gardait le même `kid` ; PowerSync garde la clé publique en cache. Correctif **produit** (`cda77eb`) : clé persistante (variable, sinon fichier du volume `api_cles` créé au premier démarrage en développement), démarrage refusé hors développement sans clé, `kid` = empreinte RFC 7638. Après : `kid` identique avant et après redémarrage de l'API sur l'instance réelle ; `j11-boites-actions` passe en redémarrant l'API sans redémarrer PowerSync (assertion sur le `kid` du JWKS). `j11-redaction` ne redémarre plus PowerSync non plus (modification du 20/10, à prouver par la série finale).
+
+**Constat à transmettre à l'architecte** : la compaction PowerSync ne réduit pas un seau gonflé (4 passages, 100 948 → 100 948 ; `compact -b` ne peut pas viser un seau à deux paramètres, la virgule du nom coupe la liste) ; la « double compaction à la fin » de la consigne est donc un complément, l'isolation de la mesure est la parade. Le seau de démo avait été remis à 318 opérations par un teardown du stockage PowerSync (donnée dérivée de Postgres).
+
+2026-10-20 — Série à froid finie et consignée ci-dessus. Suite : compilation du travail OAuth (serveur, SMTP chiffré, moteur) non encore compilé, image API, recette `oauth-messagerie.mjs`, puis le poste.
+
