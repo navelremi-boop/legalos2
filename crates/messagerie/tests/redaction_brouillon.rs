@@ -28,6 +28,7 @@ fn parametres() -> ParametresCompte {
         utilisateur: "redacteur".to_owned(),
         mot_de_passe: "MotDePasseRedaction123!".to_owned(),
         tls: false,
+        jeton_acces: None,
     }
 }
 

@@ -231,20 +231,9 @@ pub async fn lire_corps_message(
     AuthAccess(claims): AuthAccess,
     Path(message_id): Path<Uuid>,
 ) -> Result<Json<CorpsMessage>, ApiError> {
-    let row = sqlx::query_as::<
-        _,
-        (
-            i64,
-            String,
-            Option<String>,
-            Option<i32>,
-            Option<String>,
-            Option<bool>,
-            Option<String>,
-        ),
-    >(
+    let row = sqlx::query_as::<_, (i64, String, Uuid, String)>(
         r#"
-        SELECT m.uid, m.dossier_imap, a.hote, a.port, a.utilisateur, a.tls, a.secret_chiffre
+        SELECT m.uid, m.dossier_imap, m.compte_id, a.type_compte
         FROM messages m
         INNER JOIN comptes_mail a ON a.id = m.compte_id
         WHERE m.id = $1 AND m.cabinet_id = $2
@@ -270,19 +259,6 @@ pub async fn lire_corps_message(
         return Ok(Json(CorpsMessage { texte }));
     }
 
-    let secret = row
-        .6
-        .ok_or_else(|| ApiError::bad_request("Compte sans mot de passe"))?;
-    let hote = row
-        .2
-        .ok_or_else(|| ApiError::bad_request("Compte sans hôte"))?;
-    let port = row
-        .3
-        .ok_or_else(|| ApiError::bad_request("Compte sans port"))?;
-    let utilisateur = row
-        .4
-        .ok_or_else(|| ApiError::bad_request("Compte sans identifiant"))?;
-    let tls = row.5.unwrap_or(false);
     let uid = u32::try_from(row.0).map_err(|_| ApiError::bad_request("UID invalide"))?;
     if uid == 0 {
         return Err(ApiError::bad_request("UID invalide"));
@@ -292,17 +268,15 @@ pub async fn lire_corps_message(
     } else {
         row.1
     };
-    let clair = crate::auth::totp::dechiffrer_secret_totp(&secret, &state.totp_cipher_key)
-        .map_err(|_| ApiError::internal("Déchiffrement"))?;
-    let mot_de_passe = String::from_utf8(clair).map_err(|_| ApiError::internal("Déchiffrement"))?;
-    let port = u16::try_from(port).map_err(|_| ApiError::bad_request("Port IMAP invalide"))?;
-    let parametres = ParametresCompte {
-        hote,
-        port,
-        utilisateur,
-        mot_de_passe,
-        tls,
-    };
+    // Identifiants du compte : mot de passe déchiffré, ou jeton d'accès OAuth renouvelé au besoin.
+    let parametres = crate::routes::redaction::parametres_imap_depuis(
+        &state.pool,
+        &state.totp_cipher_key,
+        state.messagerie.as_ref(),
+        row.2,
+        &row.3,
+    )
+    .await?;
     let corps = tokio::task::spawn_blocking(move || {
         let mut session = SessionActions::connecter(&parametres)?;
         session.lire_corps(&dossier, uid)
@@ -729,8 +703,8 @@ pub async fn creer_compte_nominatif(
         INSERT INTO comptes_mail (
             id, cabinet_id, type_compte, titulaire_id, adresse, secret_ref,
             hote, port, utilisateur, tls, secret_chiffre,
-            smtp_hote, smtp_port, smtp_utilisateur, smtp_secret_chiffre, repondre_a
-        ) VALUES ($1, $2, 'nominatif', $3, $4, 'chiffre', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            smtp_hote, smtp_port, smtp_utilisateur, smtp_secret_chiffre, repondre_a, smtp_chiffrement
+        ) VALUES ($1, $2, 'nominatif', $3, $4, 'chiffre', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         "#,
     )
     .bind(body.id)
@@ -747,6 +721,7 @@ pub async fn creer_compte_nominatif(
     .bind(&envoi.smtp_utilisateur)
     .bind(&envoi.smtp_secret_chiffre)
     .bind(&envoi.repondre_a)
+    .bind(&envoi.smtp_chiffrement)
     .execute(&state.pool)
     .await
     .map_err(|_| ApiError::internal("Création compte nominatif"))?;

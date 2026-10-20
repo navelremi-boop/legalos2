@@ -14,7 +14,9 @@
 //! Droit d'écrire : boîte nominative, son titulaire ; boîte partagée, ses membres ; boîte de
 //! classement, tout le cabinet. Un autre compte est refusé (403) avant tout effet.
 
-use legalos_messagerie::{adresse_et_nom, champ_en_tete_valide, ParametresCompte, ParametresSmtp};
+use legalos_messagerie::{
+    adresse_et_nom, champ_en_tete_valide, ChiffrementSmtp, ParametresCompte, ParametresSmtp,
+};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -51,6 +53,10 @@ pub struct SmtpDuCompte {
     pub utilisateur: String,
     /// Secret SMTP propre, sinon celui d'IMAP ; vide si pas d'authentification.
     pub mot_de_passe: String,
+    /// Chiffrement du transport ; à défaut, déduit du port (465 TLS, 587 STARTTLS, sinon en clair).
+    pub chiffrement: Option<ChiffrementSmtp>,
+    /// Jeton d'accès OAuth : le relais est alors authentifié en XOAUTH2.
+    pub jeton_acces: Option<String>,
 }
 
 /// Adresse du `From` : celle du compte, sauf pour la boîte de classement du cabinet qui écrit avec
@@ -77,13 +83,18 @@ pub fn choisir_smtp(
     de: &str,
 ) -> Option<(ParametresSmtp, bool)> {
     if let Some(propre) = compte {
+        let port = propre.port.unwrap_or(PORT_SMTP_DEFAUT);
         return Some((
             ParametresSmtp {
                 hote: propre.hote.clone(),
-                port: propre.port.unwrap_or(PORT_SMTP_DEFAUT),
+                port,
                 utilisateur: propre.utilisateur.clone(),
                 mot_de_passe: propre.mot_de_passe.clone(),
                 adresse_from: de.to_owned(),
+                chiffrement: propre
+                    .chiffrement
+                    .unwrap_or_else(|| ChiffrementSmtp::selon_le_port(port)),
+                jeton_acces: propre.jeton_acces.clone(),
             },
             false,
         ));
@@ -108,6 +119,8 @@ pub struct ReglagesEnvoi {
     pub smtp_mot_de_passe: Option<String>,
     /// Adresse `Reply-To` du compte.
     pub repondre_a: Option<String>,
+    /// `aucun`, `starttls` ou `implicite` ; à défaut, déduit du port SMTP.
+    pub smtp_chiffrement: Option<String>,
 }
 
 /// Réglages validés, prêts à être stockés (secret SMTP chiffré).
@@ -118,6 +131,7 @@ pub struct ReglagesEnvoiStockes {
     pub smtp_utilisateur: Option<String>,
     pub smtp_secret_chiffre: Option<String>,
     pub repondre_a: Option<String>,
+    pub smtp_chiffrement: Option<String>,
 }
 
 fn non_vide(valeur: Option<String>) -> Option<String> {
@@ -155,6 +169,15 @@ impl ReglagesEnvoi {
                 return Err(ApiError::bad_request("Adresse de réponse invalide"));
             }
         }
+        let smtp_chiffrement = match non_vide(self.smtp_chiffrement) {
+            Some(valeur) => Some(
+                ChiffrementSmtp::depuis_texte(&valeur)
+                    .ok_or_else(|| ApiError::bad_request("Chiffrement SMTP invalide"))?
+                    .texte()
+                    .to_owned(),
+            ),
+            None => None,
+        };
         let smtp_secret_chiffre = match secret {
             Some(clair) => Some(
                 crate::moteur_mail::chiffrer_mot_de_passe(&clair, cle)
@@ -168,6 +191,7 @@ impl ReglagesEnvoi {
             smtp_utilisateur,
             smtp_secret_chiffre,
             repondre_a,
+            smtp_chiffrement,
         })
     }
 }
@@ -182,6 +206,8 @@ struct CompteEnvoi {
     smtp_utilisateur: Option<String>,
     smtp_secret_chiffre: Option<String>,
     secret_imap_chiffre: Option<String>,
+    smtp_chiffrement: Option<String>,
+    oauth: bool,
 }
 
 type LigneCompte = (
@@ -194,6 +220,8 @@ type LigneCompte = (
     Option<String>,
     Option<String>,
     bool,
+    Option<String>,
+    String,
 );
 
 /// Lit le compte et vérifie que l'utilisateur peut écrire depuis lui. 404 si le compte n'existe
@@ -208,7 +236,7 @@ async fn compte_autorise(
         r#"
         SELECT type_compte, adresse, repondre_a, smtp_hote, smtp_port, smtp_utilisateur,
                smtp_secret_chiffre, secret_chiffre,
-               COALESCE(compte_mail_lisible_par(id, $3), FALSE)
+               COALESCE(compte_mail_lisible_par(id, $3), FALSE), smtp_chiffrement, secret_ref
         FROM comptes_mail
         WHERE id = $1 AND cabinet_id = $2
         "#,
@@ -234,6 +262,8 @@ async fn compte_autorise(
         smtp_utilisateur: ligne.5,
         smtp_secret_chiffre: ligne.6,
         secret_imap_chiffre: ligne.7,
+        smtp_chiffrement: ligne.9,
+        oauth: ligne.10 == "oauth",
     })
 }
 
@@ -291,11 +321,38 @@ pub async fn identite_pour_utilisateur(
                 }
                 _ => String::new(),
             };
+            let (utilisateur, jeton_acces) = if compte.oauth {
+                // Boîte OAuth : SMTP authentifié en XOAUTH2 avec le jeton d'accès, au nom de l'adresse de la boîte.
+                let jeton = crate::oauth_mail::acces_valide(
+                    &state.pool,
+                    &state.totp_cipher_key,
+                    compte_id,
+                )
+                .await
+                .map_err(|erreur| match erreur {
+                    crate::oauth_mail::ErreurJeton::Revoque => ApiError::conflict(
+                        "Le fournisseur a refusé le jeton de cette boîte : reconnectez-la depuis Réglages.",
+                    ),
+                    _ => ApiError::with_code(
+                        axum::http::StatusCode::BAD_GATEWAY,
+                        "fournisseur_injoignable",
+                        "Le fournisseur de messagerie ne répond pas, réessayez dans un instant.",
+                    ),
+                })?;
+                (compte.adresse.clone(), Some(jeton))
+            } else {
+                (utilisateur, None)
+            };
             Some(SmtpDuCompte {
                 hote,
                 port: compte.smtp_port.and_then(|port| u16::try_from(port).ok()),
                 utilisateur,
                 mot_de_passe,
+                chiffrement: compte
+                    .smtp_chiffrement
+                    .as_deref()
+                    .and_then(ChiffrementSmtp::depuis_texte),
+                jeton_acces,
             })
         }
         None => None,
@@ -343,6 +400,8 @@ mod tests {
             utilisateur: "relais".into(),
             mot_de_passe: "secret-fictif".into(),
             adresse_from: "cabinet@cabinet.example".into(),
+            chiffrement: ChiffrementSmtp::Aucun,
+            jeton_acces: None,
         }
     }
 
@@ -379,6 +438,8 @@ mod tests {
             port: Some(465),
             utilisateur: "me.durand".into(),
             mot_de_passe: "autre-secret".into(),
+            chiffrement: None,
+            jeton_acces: None,
         };
         let (smtp, repli) =
             choisir_smtp(Some(&propre), Some(&cabinet()), "me.durand@cabinet.example")

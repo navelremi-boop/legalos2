@@ -2,11 +2,55 @@
 
 use lettre::address::Envelope;
 use lettre::message::Mailbox;
-use lettre::transport::smtp::authentication::Credentials;
+use lettre::transport::smtp::authentication::{Credentials, Mechanism};
 use lettre::transport::smtp::SmtpTransport;
 use lettre::{Message, Transport};
 
 use crate::ErreurMail;
+
+/// Chiffrement du transport SMTP.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ChiffrementSmtp {
+    /// En clair : serveurs de test et relais de confiance du réseau du cabinet.
+    #[default]
+    Aucun,
+    /// Connexion en clair puis `STARTTLS` obligatoire (soumission, port 587).
+    StartTls,
+    /// TLS dès la connexion (port 465).
+    Implicite,
+}
+
+impl ChiffrementSmtp {
+    /// Valeur par défaut d'après le port : 465 TLS implicite, 587 STARTTLS, tout autre port en clair.
+    #[must_use]
+    pub fn selon_le_port(port: u16) -> Self {
+        match port {
+            465 => Self::Implicite,
+            587 => Self::StartTls,
+            _ => Self::Aucun,
+        }
+    }
+
+    /// Lecture de la valeur stockée en base (`aucun`, `starttls`, `implicite`).
+    #[must_use]
+    pub fn depuis_texte(texte: &str) -> Option<Self> {
+        match texte {
+            "aucun" => Some(Self::Aucun),
+            "starttls" => Some(Self::StartTls),
+            "implicite" => Some(Self::Implicite),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn texte(self) -> &'static str {
+        match self {
+            Self::Aucun => "aucun",
+            Self::StartTls => "starttls",
+            Self::Implicite => "implicite",
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct ParametresSmtp {
@@ -18,19 +62,39 @@ pub struct ParametresSmtp {
     pub mot_de_passe: String,
     /// Adresse d'enveloppe / From (ex. demo@cabinet.example).
     pub adresse_from: String,
+    pub chiffrement: ChiffrementSmtp,
+    /// Jeton d'accès OAuth 2.0 : présent, l'authentification est `XOAUTH2` (l'utilisateur est l'adresse de la
+    /// boîte) et le mot de passe est ignoré. Jamais journalisé.
+    pub jeton_acces: Option<String>,
 }
 
-/// Transport SMTP en clair (le chiffrement du transport SMTP n'est pas encore pris en charge :
-/// voir `docs/versions.md`, entrée `lettre`).
-fn transport(parametres: &ParametresSmtp) -> SmtpTransport {
-    let mut constructeur = SmtpTransport::builder_dangerous(&parametres.hote).port(parametres.port);
-    if !parametres.utilisateur.is_empty() {
+/// Transport SMTP : chiffré selon `chiffrement` (certificats vérifiés sur les racines Mozilla), authentifié par
+/// mot de passe ou par XOAUTH2.
+fn transport(parametres: &ParametresSmtp) -> Result<SmtpTransport, ErreurMail> {
+    let constructeur = match parametres.chiffrement {
+        ChiffrementSmtp::Aucun => SmtpTransport::builder_dangerous(&parametres.hote),
+        ChiffrementSmtp::StartTls => {
+            SmtpTransport::starttls_relay(&parametres.hote).map_err(|_| ErreurMail::Connexion)?
+        }
+        ChiffrementSmtp::Implicite => {
+            SmtpTransport::relay(&parametres.hote).map_err(|_| ErreurMail::Connexion)?
+        }
+    };
+    let mut constructeur = constructeur.port(parametres.port);
+    if let Some(jeton) = &parametres.jeton_acces {
+        constructeur = constructeur
+            .credentials(Credentials::new(
+                parametres.utilisateur.clone(),
+                jeton.clone(),
+            ))
+            .authentication(vec![Mechanism::Xoauth2]);
+    } else if !parametres.utilisateur.is_empty() {
         constructeur = constructeur.credentials(Credentials::new(
             parametres.utilisateur.clone(),
             parametres.mot_de_passe.clone(),
         ));
     }
-    constructeur.build()
+    Ok(constructeur.build())
 }
 
 /// Envoie un message dont le Message-ID est déjà fixé. Ne crée jamais d'autre
@@ -75,7 +139,7 @@ pub fn envoyer_octets(
         a.push(destinataire.parse().map_err(|_| ErreurMail::Protocole)?);
     }
     let enveloppe = Envelope::new(Some(de), a).map_err(|_| ErreurMail::Protocole)?;
-    let mailer = transport(parametres);
+    let mailer = transport(parametres)?;
     mailer
         .send_raw(&enveloppe, octets)
         .map_err(|err| classer_erreur_smtp(&err.to_string()))?;
@@ -94,7 +158,7 @@ fn classer_erreur_smtp(texte: &str) -> ErreurMail {
 }
 
 fn envoyer_brut(parametres: &ParametresSmtp, message: &Message) -> Result<(), ErreurMail> {
-    let mailer = transport(parametres);
+    let mailer = transport(parametres)?;
     mailer.send(message).map_err(|err| {
         let texte = err.to_string().to_ascii_lowercase();
         if texte.contains("authenticat") || texte.contains("535") {

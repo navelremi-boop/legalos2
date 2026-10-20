@@ -298,14 +298,41 @@ pub(crate) async fn parametres_imap_depuis(
             Option<String>,
             bool,
             Option<String>,
+            String,
         ),
     >(
-        "SELECT hote, port, utilisateur, tls, secret_chiffre FROM comptes_mail WHERE id = $1",
+        "SELECT hote, port, utilisateur, tls, secret_chiffre, secret_ref FROM comptes_mail WHERE id = $1",
     )
     .bind(compte_id)
     .fetch_one(pool)
     .await
     .map_err(|_| ApiError::internal("Lecture compte"))?;
+    if ligne.5 == "oauth" {
+        // Boîte OAuth : XOAUTH2 avec un jeton d'accès valide (renouvelé par l'instance au besoin).
+        let (Some(hote), Some(port), Some(utilisateur)) = (ligne.0, ligne.1, ligne.2) else {
+            return Err(ApiError::bad_request("Compte OAuth incomplet"));
+        };
+        let jeton = crate::oauth_mail::acces_valide(pool, cle, compte_id)
+            .await
+            .map_err(|erreur| match erreur {
+                crate::oauth_mail::ErreurJeton::Revoque => ApiError::conflict(
+                    "Le fournisseur a refusé le jeton de cette boîte : reconnectez-la depuis Réglages.",
+                ),
+                _ => ApiError::with_code(
+                    axum::http::StatusCode::BAD_GATEWAY,
+                    "fournisseur_injoignable",
+                    "Le fournisseur de messagerie ne répond pas, réessayez dans un instant.",
+                ),
+            })?;
+        return Ok(ParametresCompte {
+            hote,
+            port: u16::try_from(port).map_err(|_| ApiError::bad_request("Port IMAP invalide"))?,
+            utilisateur,
+            mot_de_passe: String::new(),
+            tls: ligne.3,
+            jeton_acces: Some(jeton),
+        });
+    }
     if let (Some(hote), Some(port), Some(utilisateur), Some(secret)) =
         (ligne.0, ligne.1, ligne.2, ligne.4)
     {
@@ -319,6 +346,7 @@ pub(crate) async fn parametres_imap_depuis(
             utilisateur,
             mot_de_passe,
             tls: ligne.3,
+            jeton_acces: None,
         });
     }
     if type_compte == "classement" {

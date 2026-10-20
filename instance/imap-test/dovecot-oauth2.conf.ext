@@ -1,0 +1,6 @@
+introspection_mode = post
+introspection_url = http://host.docker.internal:18766/introspect
+force_introspection = yes
+username_attribute = email
+active_attribute = active
+active_value = true

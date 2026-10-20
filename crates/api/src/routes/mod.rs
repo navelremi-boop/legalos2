@@ -216,9 +216,10 @@ pub fn router(state: Arc<AppState>) -> Router {
             patch(redaction::patch_modele).delete(redaction::supprimer_modele),
         )
         .route(
-            "/messagerie/oauth/autorisation",
-            post(crate::oauth_mail::autorisation),
+            "/messagerie/oauth/fournisseurs",
+            get(crate::oauth_mail::lister_fournisseurs),
         )
+        .route("/messagerie/oauth/debut", post(crate::oauth_mail::debut))
         .route(
             "/messagerie/oauth/echange",
             post(crate::oauth_mail::echange),

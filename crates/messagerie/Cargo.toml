@@ -15,7 +15,7 @@ legalos-domaine = { path = "../domaine" }
 imap-codec = "=2.0.0-alpha.8"
 io-imap = "=0.6.1"
 io-sasl = "0.1.0"
-lettre = { version = "=0.11.23", default-features = false, features = ["smtp-transport", "builder", "hostname"] }
+lettre = { version = "=0.11.23", default-features = false, features = ["smtp-transport", "builder", "hostname", "rustls", "aws-lc-rs", "webpki-roots"] }
 icalendar = "=0.17.14"
 chrono = { version = "=0.4.45", default-features = false, features = ["std"] }
 chrono-tz = "=0.10.4"
@@ -25,7 +25,6 @@ pimalaya-stream = "0.3.0"
 thiserror = { workspace = true }
 tracing = { workspace = true }
 url = "2.5.8"
-secrecy = "=0.10.3"
 
 [dev-dependencies]
 tokio = { workspace = true }

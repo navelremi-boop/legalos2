@@ -42,7 +42,9 @@ pub use redaction::{
     objet_redaction, type_mime_piece, DemandeRedaction, Destinataires, FilMessage, GenreRedaction,
     MessageOrigine, MessageSortant, PieceJointe, DOSSIER_BROUILLONS, DOSSIER_ENVOYES,
 };
-pub use smtp::{envoyer_message_fixe, envoyer_octets, octets_rfc822, ParametresSmtp};
+pub use smtp::{
+    envoyer_message_fixe, envoyer_octets, octets_rfc822, ChiffrementSmtp, ParametresSmtp,
+};
 
 use thiserror::Error;
 
@@ -57,7 +59,7 @@ pub enum ErreurMail {
     Protocole,
 }
 
-/// Compte IMAP. Le mot de passe n'est pas journalisé.
+/// Compte IMAP. Le mot de passe et le jeton d'accès ne sont pas journalisés.
 #[derive(Clone)]
 pub struct ParametresCompte {
     pub hote: String,
@@ -66,6 +68,9 @@ pub struct ParametresCompte {
     pub mot_de_passe: String,
     /// `false` : IMAP en clair (serveurs de test). `true` : IMAPS.
     pub tls: bool,
+    /// Jeton d'accès OAuth 2.0 : présent, la connexion se fait par `AUTHENTICATE XOAUTH2` (l'utilisateur est
+    /// l'adresse de la boîte) et le mot de passe est ignoré. Le serveur le renouvelle avant chaque connexion.
+    pub jeton_acces: Option<String>,
 }
 
 /// Ce que le reste du serveur peut demander au protocole.
@@ -353,6 +358,7 @@ mod tests_serveurs {
             utilisateur: "capa".to_owned(),
             mot_de_passe: "MotDePasseCapa123!".to_owned(),
             tls: false,
+            jeton_acces: None,
         })
     }
 

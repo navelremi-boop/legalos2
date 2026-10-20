@@ -28,6 +28,7 @@ fn compte(port: u16) -> ParametresCompte {
         utilisateur: "capa".into(),
         mot_de_passe: "MotDePasseCapa123!".into(),
         tls: false,
+        jeton_acces: None,
     }
 }
 

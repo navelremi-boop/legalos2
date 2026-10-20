@@ -152,8 +152,8 @@ pub async fn creer_boite_partagee(
         INSERT INTO comptes_mail (
             id, cabinet_id, type_compte, titulaire_id, adresse, secret_ref,
             hote, port, utilisateur, tls, secret_chiffre,
-            smtp_hote, smtp_port, smtp_utilisateur, smtp_secret_chiffre, repondre_a
-        ) VALUES ($1, $2, 'partage', NULL, $3, 'chiffre', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            smtp_hote, smtp_port, smtp_utilisateur, smtp_secret_chiffre, repondre_a, smtp_chiffrement
+        ) VALUES ($1, $2, 'partage', NULL, $3, 'chiffre', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         "#,
     )
     .bind(body.id)
@@ -169,6 +169,7 @@ pub async fn creer_boite_partagee(
     .bind(&envoi.smtp_utilisateur)
     .bind(&envoi.smtp_secret_chiffre)
     .bind(&envoi.repondre_a)
+    .bind(&envoi.smtp_chiffrement)
     .execute(&mut *tx)
     .await;
     if let Err(err) = insertion {
@@ -342,6 +343,11 @@ pub struct SanteCompte {
     pub alerte: bool,
     /// `identifiants_refuses`, `retard`, `envoi_en_echec`.
     pub motifs: Vec<String>,
+    /// Boîte connectée par OAuth (Microsoft 365, Gmail) : « Reconnecter » repasse par le fournisseur, pas par un
+    /// formulaire de mot de passe. Aucun jeton ne sort ici.
+    pub oauth: bool,
+    /// `microsoft` ou `gmail` pour une boîte OAuth.
+    pub fournisseur: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -364,6 +370,8 @@ type LigneSante = (
     i64,
     Option<String>,
     i64,
+    bool,
+    Option<String>,
 );
 
 /// Motifs d'alerte d'un compte (fonction pure : les règles sont testées sans base).
@@ -404,7 +412,8 @@ pub async fn sante_boites(
                to_char(aut.derniere AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
                (SELECT COUNT(*)::bigint FROM file_envoi f
                  WHERE f.compte_id = c.id AND f.etat = 'echec'
-                   AND (f.auteur_id IS NULL OR f.auteur_id = $2))
+                   AND (f.auteur_id IS NULL OR f.auteur_id = $2)),
+               (c.secret_ref = 'oauth'), c.fournisseur
         FROM comptes_mail c
         LEFT JOIN LATERAL (
             SELECT MAX(k.cree_le) AS derniere FROM moteur_connexions k
@@ -452,6 +461,8 @@ pub async fn sante_boites(
                 envois_en_echec: l.8,
                 alerte: !motifs.is_empty(),
                 motifs,
+                oauth: l.9,
+                fournisseur: if l.9 { l.10 } else { None },
             }
         })
         .collect();

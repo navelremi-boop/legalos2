@@ -20,10 +20,8 @@ use io_imap::types::mailbox::Mailbox;
 use io_imap::types::search::SearchKey;
 use io_imap::types::sequence::SequenceSet;
 use io_sasl::mechanism::Sasl;
-use io_sasl::xoauth2::SaslXoauth2Creds;
 use mail_parser::MessageParser;
 use pimalaya_stream::tls::Tls;
-use secrecy::SecretString;
 use url::Url;
 
 use crate::chemin::Capacites;
@@ -73,6 +71,15 @@ pub struct EtatExamen {
 
 impl Session {
     pub fn connecter(parametres: &ParametresCompte) -> Result<Self, ErreurMail> {
+        if let Some(jeton) = &parametres.jeton_acces {
+            return Self::connecter_xoauth2(
+                &parametres.hote,
+                parametres.port,
+                parametres.tls,
+                &parametres.utilisateur,
+                jeton,
+            );
+        }
         let scheme = if parametres.tls { "imaps" } else { "imap" };
         let url = Url::parse(&format!(
             "{scheme}://{}:{}",
@@ -107,17 +114,18 @@ impl Session {
         let scheme = if tls { "imaps" } else { "imap" };
         let url =
             Url::parse(&format!("{scheme}://{hote}:{port}")).map_err(|_| ErreurMail::Connexion)?;
-        let sasl = Sasl::from(SaslXoauth2Creds {
-            username: utilisateur.to_owned(),
-            token: SecretString::from(jeton_acces.to_owned()),
-        });
-        let (client, _) = ImapClientStd::connect(
+        // Connexion puis authentification en deux temps : une coupure réseau n'est jamais prise pour un
+        // jeton refusé (« Authentification » arrête les tentatives et affiche « Reconnecter »).
+        let (mut client, _) = ImapClientStd::connect(
             &url,
             &Tls::default(),
-            Some(sasl),
+            None::<Sasl>,
             ImapSessionOpenOptions::default(),
         )
-        .map_err(|_| ErreurMail::Authentification)?;
+        .map_err(|_| ErreurMail::Connexion)?;
+        client
+            .auth_xoauth2(utilisateur, jeton_acces, Default::default())
+            .map_err(|_| ErreurMail::Authentification)?;
         Ok(Self { client })
     }
 

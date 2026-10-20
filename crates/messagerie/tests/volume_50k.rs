@@ -16,6 +16,7 @@ fn volume_50k_qresync_et_repli() {
         utilisateur: "capa".into(),
         mot_de_passe: "MotDePasseCapa123!".into(),
         tls: false,
+        jeton_acces: None,
     };
     let mut repli = SessionActions::connecter(&compte).expect("dovecot");
     let debut = Instant::now();

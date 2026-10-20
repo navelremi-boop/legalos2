@@ -59,6 +59,7 @@ fn parametres(banc: Banc) -> ParametresCompte {
         utilisateur: "capa".to_owned(),
         mot_de_passe: "MotDePasseCapa123!".to_owned(),
         tls: false,
+        jeton_acces: None,
     }
 }
 

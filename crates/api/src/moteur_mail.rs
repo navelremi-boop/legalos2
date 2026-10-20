@@ -17,6 +17,7 @@ use crate::actions_messages::{ActionsMessages, BALAYAGE_ACTIONS_SECS};
 use crate::auth::totp::{chiffrer_secret_totp, dechiffrer_secret_totp};
 use crate::depot_brouillons::DepotBrouillons;
 use crate::invitations::{enregistrer_invitation, InvitationRecue, IssueInvitation};
+use crate::oauth_mail::{acces_valide, ErreurJeton};
 
 const AUTRES_DOSSIERS: &[&str] = &["Sent", "Envoyés"];
 
@@ -28,6 +29,8 @@ struct CompteMoteur {
     titulaire_id: Option<Uuid>,
     parametres: ParametresCompte,
     empreinte: String,
+    /// Boîte OAuth : le jeton d'accès est renouvelé par l'instance avant chaque connexion.
+    oauth: bool,
 }
 
 /// Renouvellement IDLE avant la coupure des 30 minutes (RFC 2177).
@@ -109,7 +112,7 @@ async fn boucle(pool: PgPool, cle: [u8; 32]) {
                 let pool = pool.clone();
                 let id = compte.id;
                 tokio::spawn(async move {
-                    tache(pool, compte).await;
+                    tache(pool, cle, compte).await;
                     suivi
                         .lock()
                         .unwrap_or_else(|err| err.into_inner())
@@ -134,17 +137,23 @@ async fn charger(pool: &PgPool, cle: &[u8; 32]) -> Result<Vec<CompteMoteur>, sql
             String,
             String,
             Option<Uuid>,
+            bool,
         ),
     >(
         r#"
-        SELECT id, cabinet_id, hote, port, utilisateur, tls, secret_chiffre, etat_connexion,
-               CASE WHEN type_compte = 'nominatif' THEN titulaire_id END
+        SELECT id, cabinet_id, hote, port, utilisateur, tls,
+               COALESCE(secret_chiffre, 'oauth:' || oauth_generation::text), etat_connexion,
+               CASE WHEN type_compte = 'nominatif' THEN titulaire_id END,
+               (secret_ref = 'oauth')
         FROM comptes_mail
         WHERE hote IS NOT NULL AND port IS NOT NULL AND utilisateur IS NOT NULL
-          AND secret_chiffre IS NOT NULL
+          AND (secret_chiffre IS NOT NULL OR secret_ref = 'oauth')
           AND (
             etat_connexion IS DISTINCT FROM 'identifiants_refuses'
-            OR empreinte_refus IS DISTINCT FROM (hote || '|' || port::text || '|' || utilisateur || '|' || secret_chiffre)
+            OR empreinte_refus IS DISTINCT FROM (
+                hote || '|' || port::text || '|' || utilisateur || '|'
+                || COALESCE(secret_chiffre, 'oauth:' || oauth_generation::text)
+            )
           )
         "#,
     )
@@ -152,11 +161,17 @@ async fn charger(pool: &PgPool, cle: &[u8; 32]) -> Result<Vec<CompteMoteur>, sql
     .await?;
     let mut comptes = Vec::new();
     for row in rows {
-        let Ok(secret) = dechiffrer_secret_totp(&row.6, cle) else {
-            continue;
-        };
-        let Ok(mot_de_passe) = String::from_utf8(secret) else {
-            continue;
+        // Boîte OAuth : pas de mot de passe, le jeton d'accès est pris à chaque tour de la tâche.
+        let mot_de_passe = if row.9 {
+            String::new()
+        } else {
+            let Ok(secret) = dechiffrer_secret_totp(&row.6, cle) else {
+                continue;
+            };
+            let Ok(mot_de_passe) = String::from_utf8(secret) else {
+                continue;
+            };
+            mot_de_passe
         };
         let empreinte = format!("{}|{}|{}|{}", row.2, row.3, row.4, row.6);
         comptes.push(CompteMoteur {
@@ -169,8 +184,10 @@ async fn charger(pool: &PgPool, cle: &[u8; 32]) -> Result<Vec<CompteMoteur>, sql
                 utilisateur: row.4,
                 mot_de_passe,
                 tls: row.5,
+                jeton_acces: None,
             },
             empreinte,
+            oauth: row.9,
         });
     }
     Ok(comptes)
@@ -189,12 +206,12 @@ async fn lire_modseqs(pool: &PgPool, compte: Uuid) -> HashMap<String, u64> {
         .collect()
 }
 
-async fn tache(pool: PgPool, compte: CompteMoteur) {
+async fn tache(pool: PgPool, cle: [u8; 32], compte: CompteMoteur) {
     let handle = tokio::runtime::Handle::current();
-    let _ = tokio::task::spawn_blocking(move || tourner(handle, pool, compte)).await;
+    let _ = tokio::task::spawn_blocking(move || tourner(handle, pool, cle, compte)).await;
 }
 
-fn tourner(handle: tokio::runtime::Handle, pool: PgPool, compte: CompteMoteur) {
+fn tourner(handle: tokio::runtime::Handle, pool: PgPool, cle: [u8; 32], compte: CompteMoteur) {
     use std::time::Instant;
     let mut veille: Option<VeilleReception> = None;
     let mut veille_depuis = Instant::now();
@@ -212,6 +229,25 @@ fn tourner(handle: tokio::runtime::Handle, pool: PgPool, compte: CompteMoteur) {
         if empreinte != compte.empreinte {
             break;
         }
+        let mut parametres = compte.parametres.clone();
+        if compte.oauth {
+            match handle.block_on(acces_valide(&pool, &cle, compte.id)) {
+                Ok(jeton) => parametres.jeton_acces = Some(jeton),
+                Err(ErreurJeton::Revoque) => {
+                    // Le fournisseur refuse le jeton de rafraîchissement : `acces_valide` a marqué la boîte
+                    // « identifiants refusés » ; l'utilisateur la reconnecte (nouvelle génération OAuth).
+                    let _ = handle.block_on(noter(&pool, compte.id, "authentification"));
+                    break;
+                }
+                Err(ErreurJeton::Transitoire) => {
+                    let _ = handle.block_on(noter(&pool, compte.id, "connexion"));
+                    echecs = echecs.saturating_add(1);
+                    std::thread::sleep(delai_echec(echecs));
+                    continue;
+                }
+                Err(ErreurJeton::Introuvable) => break,
+            }
+        }
         // La veille est armée AVANT la relève : un message qui arrive entre les deux est vu par la
         // relève (il est déjà là), un message qui arrive après est annoncé par la veille. Dans
         // l'ordre inverse (relève, puis armement), un message arrivé dans l'intervalle n'était
@@ -222,7 +258,7 @@ fn tourner(handle: tokio::runtime::Handle, pool: PgPool, compte: CompteMoteur) {
             || veille_depuis.elapsed() >= Duration::from_secs(RENOUVELLEMENT_IDLE_SECS)
         {
             let premiere = derniere_releve.is_none();
-            match VeilleReception::ouvrir(&compte.parametres) {
+            match VeilleReception::ouvrir(&parametres) {
                 Ok(ouverte) => {
                     veille = Some(ouverte);
                     veille_depuis = Instant::now();
@@ -264,7 +300,6 @@ fn tourner(handle: tokio::runtime::Handle, pool: PgPool, compte: CompteMoteur) {
                 instant.elapsed() >= Duration::from_secs(RELEVE_SANS_REVEIL_SECS)
             });
         if doit_relever {
-            let parametres = compte.parametres.clone();
             let resultat = relever_session(&parametres, &modseqs, derniere_complete);
             match resultat {
                 Ok(lot) => {
@@ -280,8 +315,14 @@ fn tourner(handle: tokio::runtime::Handle, pool: PgPool, compte: CompteMoteur) {
                     let _ = handle.block_on(marquer_etat(&pool, compte.id, "connecte", None));
                     for (dossier, releve) in lot.releves {
                         let connu = modseqs.get(&dossier).copied().unwrap_or(0);
-                        let _ = handle
-                            .block_on(appliquer_dossier(&pool, &compte, &dossier, &releve, connu));
+                        let _ = handle.block_on(appliquer_dossier(
+                            &pool,
+                            &compte,
+                            &parametres,
+                            &dossier,
+                            &releve,
+                            connu,
+                        ));
                     }
                 }
                 Err(ErreurMail::Authentification) => {
@@ -431,9 +472,9 @@ fn changements_condstore(connus: &[EtatUid], releve: &ReleveDossier) -> Vec<Chan
 async fn empreinte_compte(pool: &PgPool, compte: Uuid) -> Option<String> {
     let row = sqlx::query_as::<_, (String, i32, String, String)>(
         r#"
-        SELECT hote, port, utilisateur, secret_chiffre
+        SELECT hote, port, utilisateur, COALESCE(secret_chiffre, 'oauth:' || oauth_generation::text)
         FROM comptes_mail
-        WHERE id = $1 AND hote IS NOT NULL AND secret_chiffre IS NOT NULL
+        WHERE id = $1 AND hote IS NOT NULL AND (secret_chiffre IS NOT NULL OR secret_ref = 'oauth')
         "#,
     )
     .bind(compte)
@@ -504,6 +545,8 @@ async fn noter_idle(pool: &PgPool, compte: Uuid) -> Result<(), sqlx::Error> {
 async fn appliquer_dossier(
     pool: &PgPool,
     compte: &CompteMoteur,
+    // Paramètres de CE tour : pour une boîte OAuth, ils portent le jeton d'accès renouvelé.
+    parametres: &ParametresCompte,
     dossier: &str,
     releve: &ReleveDossier,
     modseq_connu: u64,
@@ -554,10 +597,10 @@ async fn appliquer_dossier(
             _ => None,
         })
         .collect();
-    let entetes = entetes_des_ajouts(&compte.parametres, dossier, &ajouts).await;
+    let entetes = entetes_des_ajouts(parametres, dossier, &ajouts).await;
     // Les invitations d'abord : si la lecture du message échoue, rien n'est inscrit ni curseur
     // avancé, et la relève suivante revoit les mêmes messages (l'enregistrement est rejouable).
-    traiter_invitations(pool, compte, dossier, &ajouts, &entetes).await?;
+    traiter_invitations(pool, compte, parametres, dossier, &ajouts, &entetes).await?;
     if !retires.is_empty() {
         // Un message dont une action est en cours ne disparaît pas ici : la relève peut voir son
         // ancien UID disparaître parce que l'action vient de le déplacer, avant qu'elle ne
@@ -619,6 +662,7 @@ async fn appliquer_dossier(
 async fn traiter_invitations(
     pool: &PgPool,
     compte: &CompteMoteur,
+    parametres: &ParametresCompte,
     dossier: &str,
     ajouts: &[EtatUid],
     entetes: &[EnteteRecu],
@@ -641,7 +685,7 @@ async fn traiter_invitations(
     if candidats.is_empty() {
         return Ok(());
     }
-    let lues = lire_invitations(&compte.parametres, dossier, &candidats)
+    let lues = lire_invitations(parametres, dossier, &candidats)
         .await
         .map_err(|_| sqlx::Error::Protocol("lecture des invitations impossible".into()))?;
     for (message_id, lue) in &lues {
