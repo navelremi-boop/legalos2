@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-10-14 (jalon en cours : **J11**, refusé par le contrôleur sur `617a45e` ; critères (i) à (v) ajoutés par l'architecte).
+Dernière mise à jour : 2026-10-20 (jalon en cours : **J11**, refusé par le contrôleur sur `617a45e` ; critères (i) à (v) ajoutés le 14/10 et critères de la consigne du 20/10 : OAuth, relèves, droits, audit des dépendances).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -146,7 +146,7 @@ Ordre architecte (révisé 2026-10-04) : **Migration Sync Streams** → **J8** �
 - [ ] **Avant J17** : revue juridique par l'avocat avant toute mise en service réelle (délais H1–H13, facturation F0–F8, installation) — `RAPPORT.md`, section du même nom.
 - [x] **Avant J14** : build distribué sans outils de développement ni débogage distant, vérifié par un test.
 - [x] **Avant J14** : épingler chaque action tierce de la CI sur un hash de commit complet, pas sur une étiquette (la CI manipulera alors les clés de signature) — liste dans `BLOCAGES.md`, contrôle `node tests/recette/workflows-valides.mjs`.
-- [x] **Avant la fin de la phase 2** : `cargo-deny` (ou `cargo-audit`) en CI sur les deux workspaces ; signalement préparé pour PowerSync / dépendance `time` 0.2.
+- [ ] **Avant la coche de J11** (consigne de l'architecte du 20/10/2026, décochée : cochée sans qu'aucun `cargo deny check` ne tourne en CI) : `cargo-deny` en CI sur les deux workspaces ; signalement préparé pour PowerSync / dépendance `time` 0.2. Critères détaillés dans J11, « audit des dépendances ».
 - [x] **Avant Facturation, suite** : contrôle du SIREN (clé de Luhn) et d'un n° TVA commençant par FR (clé = (12 + 3 × (SIREN mod 97)) mod 97), à la saisie sur le poste et dans l'API ; message d'erreur en français — `node tests/recette/siren-tva.mjs`.
 - [x] **Avant la fin de la phase 2** : moteur de délais en TypeScript strict ; licence OFL livrée avec les polices.
 - [x] **Avant la fin de la phase 2** : la preuve « fausse alerte » de `node tests/recette/conflits-poste-tauri.mjs` aligne `revision_edition` par `fixerRevisionEdition` au lieu d'attendre la reprise réelle du même poste.
@@ -241,6 +241,16 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
       - (iv) recherche serveur sur objet, expéditeur, destinataires et corps, dans les limites des droits ; essai négatif sur la boîte d'un autre et sur un dossier restreint — `node tests/recette/j11-boites-actions.mjs` ;
       - (v) écrans de connexion d'une boîte (IMAP/SMTP et OAuth) et de santé — `node tests/recette/j11-connexion-boites.mjs` ; la gestion des membres est la dette « Avant J12 » (§ Dettes transverses).
     - Avant toute coche : la cause des échecs intermittents de relève (`s7-classement`, `j11-redaction`, `j11-invitation`) est établie et consignée dans `JOURNAL.md` ; relancer jusqu'au vert n'est pas une preuve.
+    - Critères ajoutés (consigne de l'architecte du 20/10/2026), chacun couvert par une recette ou un test avec essai négatif :
+      - (v-OAuth) connexion OAuth de Microsoft 365 et de Gmail, IMAP et SMTP en XOAUTH2 : flux code d'autorisation avec PKCE, redirection de bouclage locale (RFC 8252) captée par le poste ; le poste demande l'URL d'autorisation à l'instance (`POST /messagerie/oauth/debut`), ouvre le navigateur du système, capte le code sur 127.0.0.1 et le transmet à l'instance (`POST /messagerie/oauth/echange`) ; l'instance vérifie le `state` (usage unique, 10 minutes, lié à l'utilisateur et au compte), échange le code avec le vérificateur PKCE qu'elle seule détient, chiffre et stocke le jeton de rafraîchissement ; aucun jeton sur le poste, dans une réponse HTTP ni dans un journal ; identifiants d'application configurés par instance (Réglages, installation), procédure d'enregistrement chez Microsoft et Google dans `docs/` ; écran de santé : jeton expiré ou révoqué → « Reconnecter » ; recette sur un simulateur local étendu (autorisation, PKCE, bouclage) ; essais négatifs : `state` inconnu, expiré et rejoué, vérificateur PKCE faux, autre utilisateur, fournisseur inconnu. Essai réel sur la boîte du commandement : B18, avant la coche si cette boîte est chez Microsoft 365 ou Google ;
+      - relèves intermittentes, condition non remplie : dans `JOURNAL.md`, un tableau par recette (`s7-classement`, `j11-invitation`, `j11-redaction`) — symptôme, cause, correctif (produit ou recette), preuve avant et après ; correctifs dans le produit, pas dans les recettes : (a) clé JWT persistante, API qui refuse de démarrer sans elle hors développement, `kid` dérivé de la clé, la recette ne redémarre plus PowerSync après l'API ; (b) fenêtre entre relève initiale et veille IMAP : un test déterministe dépose un message dans cette fenêtre, relevé en moins de 30 s ; (c) mesure de performance de `j11-boites-actions` dans un compte dédié, double compaction à la fin, contrôle du seau de l'utilisateur de démo ; série à froid (Docker redémarré avant) : 10 passes vertes consécutives de `s7-classement` et de `j11-invitation`, 5 de `j11-redaction`, consignées ; un échec sans cause établie empêche la coche ;
+      - droits sur toute l'API : 404 pour une ressource que l'utilisateur ne doit pas voir, 403 pour une ressource visible et une action interdite ; essais négatifs alignés ;
+      - expéditeur par défaut : le compte sélectionné dans le rail de l'écran Mails ; depuis un dossier ou la barre d'actions, la boîte nominative ; réponse et transfert depuis le compte qui a reçu le message ;
+      - indexation en tâche de fond, côté serveur, du corps de tous les messages (les plus récents d'abord), progression dans l'écran de santé ; la recherche (iv) couvre les messages jamais ouverts (test) ;
+      - route de liste des dossiers IMAP d'un compte, avec les noms français des dossiers spéciaux, utilisée par « Déplacer » ;
+      - routes `/messagerie/comptes…` ajoutées à OpenAPI, client du poste régénéré ; contrôle en CI : toute route de l'API figure dans le contrat ;
+      - audit des dépendances (la dette « `cargo-deny` sur les deux workspaces » est décochée et se solde avant la coche de J11) : `cargo deny check` réellement exécuté en CI sur le workspace racine et sur celui du poste ; `jsonwebtoken` sur la variante `aws_lc_rs` pour retirer la crate `rsa` (RUSTSEC-2023-0071) ; avis `ttf-parser` traité (mise à jour, ou exception nominative justifiée et datée) ; `yoke-derive` retirée du lock ; résultat dans `docs/audit-dependances.md` ;
+      - noms de recettes `j11-boites-actions.mjs` et `j11-connexion-boites.mjs` confirmés.
     - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
 - [ ] **Finition des écrans** — après J11 — critères validés par l'architecte le 07/10/2026
