@@ -76,6 +76,7 @@ jobs:
       - run: node tests/recette/s5-sync-streams.mjs
       - run: node tests/recette/s5-sqlite-par-flux.mjs
       - run: node tests/recette/encodage-texte.mjs
+      - run: node tests/recette/marqueurs-tests.mjs
       - run: node tests/recette/workflows-valides.mjs
       - run: node tests/recette/build-distribue.mjs
       - run: node tests/recette/secrets-publies.mjs
