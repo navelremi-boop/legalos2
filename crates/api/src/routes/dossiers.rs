@@ -155,7 +155,7 @@ pub async fn creer_dossier(
         .map_err(|_| ApiError::internal("transaction"))?;
     // Envois concurrents du même dossier (rejeu du poste) : sans ce verrou, deux transactions
     // voient le dossier absent et la seconde échoue sur la clé primaire (500).
-    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))")
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1::uuid::text, 0))")
         .bind(body.id)
         .execute(&mut *tx)
         .await
@@ -520,10 +520,10 @@ pub async fn patch_dossier(
     .ok_or_else(|| ApiError::not_found("Dossier introuvable"))?;
 
     if courant.0 != claims.cabinet_id {
-        return Err(ApiError::forbidden("Dossier hors cabinet"));
+        return Err(ApiError::not_found("Dossier introuvable"));
     }
     if !dossier_visible_tx(&mut tx, claims.cabinet_id, claims.sub, dossier_id).await? {
-        return Err(ApiError::forbidden("Dossier non autorisé"));
+        return Err(ApiError::not_found("Dossier introuvable"));
     }
     valider_base_revision(body.base_revision, courant.7)?;
 
@@ -710,10 +710,10 @@ pub async fn patch_partie(
     .ok_or_else(|| ApiError::not_found("Partie introuvable"))?;
 
     if courant.0 != claims.cabinet_id {
-        return Err(ApiError::forbidden("Partie hors cabinet"));
+        return Err(ApiError::not_found("Partie introuvable"));
     }
     if !dossier_visible_tx(&mut tx, claims.cabinet_id, claims.sub, courant.1).await? {
-        return Err(ApiError::forbidden("Dossier non autorisé"));
+        return Err(ApiError::not_found("Dossier introuvable"));
     }
     valider_base_revision(body.base_revision, courant.4)?;
 
@@ -784,7 +784,7 @@ async fn charger_dossier(
     dossier_id: Uuid,
 ) -> Result<DossierDetailResponse, ApiError> {
     if !dossier_visible(state, cabinet_id, utilisateur_id, dossier_id).await? {
-        return Err(ApiError::forbidden("Dossier non autorisé"));
+        return Err(ApiError::not_found("Dossier introuvable"));
     }
     let row = sqlx::query_as::<
         _,
@@ -842,7 +842,7 @@ async fn charger_partie(
     .map_err(|_| ApiError::internal("lecture partie"))?
     .ok_or_else(|| ApiError::not_found("Partie introuvable"))?;
     if !dossier_visible(state, cabinet_id, utilisateur_id, row.0).await? {
-        return Err(ApiError::forbidden("Dossier non autorisé"));
+        return Err(ApiError::not_found("Dossier introuvable"));
     }
     Ok(PartieDetailResponse {
         id: partie_id,

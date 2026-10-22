@@ -12,7 +12,7 @@
 //! * la copie va dans le dossier « Envoyés » **du compte d'envoi** (ses identifiants IMAP).
 //!
 //! Droit d'écrire : boîte nominative, son titulaire ; boîte partagée, ses membres ; boîte de
-//! classement, tout le cabinet. Un autre compte est refusé (403) avant tout effet.
+//! classement, tout le cabinet. Le compte d'un autre est introuvable (404, jamais 403) avant tout effet.
 
 use legalos_messagerie::{
     adresse_et_nom, champ_en_tete_valide, ChiffrementSmtp, ParametresCompte, ParametresSmtp,
@@ -248,10 +248,9 @@ async fn compte_autorise(
     .await
     .map_err(|_| ApiError::internal("Lecture du compte d'envoi"))?
     .ok_or_else(|| ApiError::not_found("Compte introuvable"))?;
+    // Une boîte que l'utilisateur ne peut pas lire n'existe pas pour lui : 404, jamais 403 (rien n'est révélé).
     if !ligne.8 {
-        return Err(ApiError::forbidden(
-            "Vous n'avez pas le droit d'envoyer depuis cette boîte.",
-        ));
+        return Err(ApiError::not_found("Compte introuvable"));
     }
     Ok(CompteEnvoi {
         type_compte: ligne.0,

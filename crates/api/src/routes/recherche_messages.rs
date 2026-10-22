@@ -203,15 +203,29 @@ pub async fn rechercher_messages(
               AND compte_mail_lisible_par(c.id, $2)
               AND ($3::uuid IS NULL OR c.id = $3)
         ),
+        -- Deux sources, chacune sur son index : le vecteur complet des messages dont le corps est indexé
+        -- (messages_corps_index), le vecteur d'en-tête (début du corps) des autres.
         candidats AS MATERIALIZED (
-            SELECT m.id, m.compte_id, m.dossier_id,
-                   COALESCE(m.date_entete, m.cree_le) AS date_tri
-            FROM messages m
-            WHERE m.cabinet_id = $1
-              AND m.compte_id IN (SELECT id FROM comptes_lus)
-              AND m.recherche_tsv @@ requete_recherche_messages($4)
-              AND ($5::text IS NULL OR m.dossier_imap = $5)
-            ORDER BY date_tri DESC, m.id
+            SELECT * FROM (
+                SELECT m.id, m.compte_id, m.dossier_id,
+                       COALESCE(m.date_entete, m.cree_le) AS date_tri
+                FROM messages_corps_index i
+                INNER JOIN messages m ON m.id = i.message_ref
+                WHERE i.cabinet_id = $1
+                  AND i.compte_id IN (SELECT id FROM comptes_lus)
+                  AND i.tsv @@ requete_recherche_messages($4)
+                  AND ($5::text IS NULL OR m.dossier_imap = $5)
+                UNION ALL
+                SELECT m.id, m.compte_id, m.dossier_id,
+                       COALESCE(m.date_entete, m.cree_le) AS date_tri
+                FROM messages m
+                WHERE m.cabinet_id = $1
+                  AND m.compte_id IN (SELECT id FROM comptes_lus)
+                  AND m.recherche_tsv @@ requete_recherche_messages($4)
+                  AND ($5::text IS NULL OR m.dossier_imap = $5)
+                  AND NOT EXISTS (SELECT 1 FROM messages_corps_index i WHERE i.message_ref = m.id)
+            ) u
+            ORDER BY date_tri DESC, id
         ),
         page AS (
             SELECT k.id, k.date_tri

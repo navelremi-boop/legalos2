@@ -8,6 +8,7 @@ pub mod error;
 pub mod facturation;
 pub mod identifiants;
 pub mod identite_envoi;
+pub mod indexation_corps;
 pub mod install;
 pub mod invitations;
 pub mod moteur_mail;

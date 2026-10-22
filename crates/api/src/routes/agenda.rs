@@ -77,7 +77,7 @@ pub async fn creer_element(
         return Err(ApiError::bad_request("Titre et début requis"));
     }
     if !dossier_visible(state.as_ref(), claims.cabinet_id, claims.sub, dossier_id).await? {
-        return Err(ApiError::forbidden("Dossier non autorisé"));
+        return Err(ApiError::not_found("Dossier introuvable"));
     }
     let rappel = body
         .rappel_le
@@ -177,7 +177,7 @@ pub async fn patch_element(
     .map_err(|_| ApiError::internal("lecture agenda"))?
     .ok_or_else(|| ApiError::not_found("Élément d'agenda introuvable"))?;
     if !dossier_visible(state.as_ref(), claims.cabinet_id, claims.sub, courant.0).await? {
-        return Err(ApiError::forbidden("Dossier non autorisé"));
+        return Err(ApiError::not_found("Dossier introuvable"));
     }
     valider_base_revision(body.base_revision, courant.5)?;
     let mut revision = courant.5;
@@ -301,7 +301,7 @@ pub async fn retirer_element(
     .map_err(|_| ApiError::internal("lecture agenda"))?
     .ok_or_else(|| ApiError::not_found("Élément d'agenda introuvable"))?;
     if !dossier_visible(state.as_ref(), claims.cabinet_id, claims.sub, courant.0).await? {
-        return Err(ApiError::forbidden("Dossier non autorisé"));
+        return Err(ApiError::not_found("Dossier introuvable"));
     }
     noter_historique(
         &mut tx,

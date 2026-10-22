@@ -828,8 +828,8 @@ async fn scenario(url_base_jetable: String) {
     )
     .await;
     assert_eq!(statut, StatusCode::OK, "{cree_y}");
-    // B n'utilise pas le compte nominatif de A : écrire depuis ce compte est refusé (403, critère (i)
-    // de J11), le compte existant dans le cabinet.
+    // B n'utilise pas le compte nominatif de A : ce compte est introuvable pour lui (404, règle de
+    // l'architecte du 20/10/2026 : 404 pour ce que l'utilisateur ne doit pas voir, jamais 403).
     let (statut, _) = appel(
         &app,
         "PUT",
@@ -838,7 +838,7 @@ async fn scenario(url_base_jetable: String) {
         json!({"compte_id": compte_oauth}),
     )
     .await;
-    assert_eq!(statut, StatusCode::FORBIDDEN, "compte nominatif d'un autre");
+    assert_eq!(statut, StatusCode::NOT_FOUND, "compte nominatif d'un autre");
     let (statut, _) = appel(&app, "DELETE", &uri_y, &a, Value::Null).await;
     assert_eq!(statut, StatusCode::NO_CONTENT);
     assert_eq!(

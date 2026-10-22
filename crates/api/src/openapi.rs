@@ -20,6 +20,7 @@ use crate::routes::documents::{
 use crate::routes::dossiers::{
     CreerDossierRequest, CreerPartieRequest, DossierResponse, PartieResponse,
 };
+use crate::routes::dossiers_imap::{DossierImapResponse, DossiersImapResponse};
 use crate::routes::health::HealthResponse;
 use crate::routes::intercalaires::{
     CreerIntercalaireRequest, DetacherElementRequest, ElementIntercalaireResponse,
@@ -85,6 +86,7 @@ use crate::routes::redaction::{
         crate::routes::actions_messages::lire_action,
         crate::routes::actions_messages::lister_actions,
         crate::routes::recherche_messages::rechercher_messages,
+        crate::routes::dossiers_imap::lister_dossiers_imap,
     ),
     components(schemas(
         HealthResponse,
@@ -140,6 +142,8 @@ use crate::routes::redaction::{
         ActionMessageResponse,
         MessageTrouve,
         RechercheResponse,
+        DossierImapResponse,
+        DossiersImapResponse,
         ApiErrorBody,
     )),
     modifiers(&SecurityAddon),

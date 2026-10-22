@@ -348,6 +348,12 @@ pub struct SanteCompte {
     pub oauth: bool,
     /// `microsoft` ou `gmail` pour une boîte OAuth.
     pub fournisseur: Option<String>,
+    /// Indexation de fond du corps des messages (recherche sur les messages jamais ouverts) : messages indexés.
+    pub corps_indexes: i64,
+    /// Messages qu'il reste à indexer (hors abandons).
+    pub corps_restants: i64,
+    /// Messages abandonnés après trois lectures impossibles.
+    pub corps_abandonnes: i64,
 }
 
 #[derive(Debug, Serialize)]
@@ -372,6 +378,9 @@ type LigneSante = (
     i64,
     bool,
     Option<String>,
+    i64,
+    i64,
+    i64,
 );
 
 /// Motifs d'alerte d'un compte (fonction pure : les règles sont testées sans base).
@@ -413,7 +422,12 @@ pub async fn sante_boites(
                (SELECT COUNT(*)::bigint FROM file_envoi f
                  WHERE f.compte_id = c.id AND f.etat = 'echec'
                    AND (f.auteur_id IS NULL OR f.auteur_id = $2)),
-               (c.secret_ref = 'oauth'), c.fournisseur
+               (c.secret_ref = 'oauth'), c.fournisseur,
+               (SELECT COUNT(*)::bigint FROM messages_corps_index i WHERE i.compte_id = c.id),
+               (SELECT COUNT(*)::bigint FROM messages m WHERE m.compte_id = c.id
+                  AND NOT EXISTS (SELECT 1 FROM messages_corps_index i WHERE i.message_ref = m.id)),
+               (SELECT COUNT(*)::bigint FROM messages_corps_echecs e
+                 WHERE e.compte_id = c.id AND e.tentatives >= $3)
         FROM comptes_mail c
         LEFT JOIN LATERAL (
             SELECT MAX(k.cree_le) AS derniere FROM moteur_connexions k
@@ -429,6 +443,7 @@ pub async fn sante_boites(
     )
     .bind(claims.cabinet_id)
     .bind(claims.sub)
+    .bind(crate::indexation_corps::TENTATIVES_MAX)
     .fetch_all(&state.pool)
     .await
     .map_err(|_| ApiError::internal("Lecture de la santé des boîtes"))?;
@@ -463,6 +478,9 @@ pub async fn sante_boites(
                 motifs,
                 oauth: l.9,
                 fournisseur: if l.9 { l.10 } else { None },
+                corps_indexes: l.11,
+                corps_restants: (l.12 - l.13).max(0),
+                corps_abandonnes: l.13,
             }
         })
         .collect();

@@ -192,10 +192,10 @@ pub async fn patch_intercalaire(
     .ok_or_else(|| ApiError::not_found("Intercalaire introuvable"))?;
 
     if courant.0 != claims.cabinet_id {
-        return Err(ApiError::forbidden("Intercalaire hors cabinet"));
+        return Err(ApiError::not_found("Intercalaire introuvable"));
     }
     if !dossier_visible_tx(&mut tx, claims.cabinet_id, claims.sub, courant.1).await? {
-        return Err(ApiError::forbidden("Dossier non autorisé"));
+        return Err(ApiError::not_found("Dossier introuvable"));
     }
     valider_base_revision(body.base_revision, courant.3)?;
 
@@ -319,10 +319,10 @@ pub async fn retirer_intercalaire(
     .ok_or_else(|| ApiError::not_found("Intercalaire introuvable"))?;
 
     if courant.0 != claims.cabinet_id {
-        return Err(ApiError::forbidden("Intercalaire hors cabinet"));
+        return Err(ApiError::not_found("Intercalaire introuvable"));
     }
     if !dossier_visible_tx(&mut tx, claims.cabinet_id, claims.sub, courant.1).await? {
-        return Err(ApiError::forbidden("Dossier non autorisé"));
+        return Err(ApiError::not_found("Dossier introuvable"));
     }
 
     // CASCADE sur intercalaire_elements uniquement — pas sur mails / pièces / factures.
@@ -385,7 +385,7 @@ pub async fn rattacher_element(
     .ok_or_else(|| ApiError::not_found("Intercalaire introuvable"))?;
 
     if intercalaire.0 != claims.cabinet_id {
-        return Err(ApiError::forbidden("Intercalaire hors cabinet"));
+        return Err(ApiError::not_found("Intercalaire introuvable"));
     }
     if !dossier_visible(&state, claims.cabinet_id, claims.sub, intercalaire.1).await? {
         return Err(ApiError::unauthorized("Dossier non autorisé"));
@@ -498,10 +498,10 @@ pub async fn detacher_element(
     .ok_or_else(|| ApiError::not_found("Rattachement introuvable"))?;
 
     if row.1 != claims.cabinet_id {
-        return Err(ApiError::forbidden("Rattachement hors cabinet"));
+        return Err(ApiError::not_found("Rattachement introuvable"));
     }
     if !dossier_visible_tx(&mut tx, claims.cabinet_id, claims.sub, row.0).await? {
-        return Err(ApiError::forbidden("Dossier non autorisé"));
+        return Err(ApiError::not_found("Dossier introuvable"));
     }
 
     sqlx::query(r#"DELETE FROM intercalaire_elements WHERE id = $1"#)
@@ -594,7 +594,7 @@ async fn charger_intercalaire(
     .map_err(|_| ApiError::internal("lecture intercalaire"))?
     .ok_or_else(|| ApiError::not_found("Intercalaire introuvable"))?;
     if !dossier_visible(state, cabinet_id, utilisateur_id, row.0).await? {
-        return Err(ApiError::forbidden("Dossier non autorisé"));
+        return Err(ApiError::not_found("Dossier introuvable"));
     }
     Ok(IntercalaireResponse {
         id: intercalaire_id,

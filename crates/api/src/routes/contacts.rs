@@ -344,7 +344,7 @@ pub async fn lier_dossiers(
     if !dossier_visible(state.as_ref(), claims.cabinet_id, claims.sub, dossier_id).await?
         || !dossier_visible(state.as_ref(), claims.cabinet_id, claims.sub, body.lie_a_id).await?
     {
-        return Err(ApiError::forbidden("Dossier non autorisé"));
+        return Err(ApiError::not_found("Dossier introuvable"));
     }
     let mut tx = state
         .pool

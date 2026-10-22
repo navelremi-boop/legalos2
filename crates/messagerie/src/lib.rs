@@ -5,6 +5,7 @@ mod chemin;
 mod classement;
 mod composition;
 mod date_entete;
+mod dossiers;
 mod file_envoi;
 mod html;
 mod imap;
@@ -23,11 +24,12 @@ pub use classement::{
 };
 pub use composition::{analyser_composition, origine_depuis_octets, MessageComposition};
 pub use date_entete::{borner_date_entete, BORNE_BASSE_SECS, TOLERANCE_FUTUR_SECS};
+pub use dossiers::{presenter_dossiers, DossierPresente, RoleDossier};
 pub use file_envoi::{appliquer, decider_action, ActionEnvoi, EntreeFileEnvoi, EtatFileEnvoi};
 pub use html::{nettoyer_html, texte_depuis_html};
 pub use imap::{
-    CorpsLu, Emplacement, EnteteRecu, EtatUid, IssueDeplacement, ReleveDossier, DOSSIER_ARCHIVES,
-    DOSSIER_CORBEILLE,
+    CorpsLu, DossierListe, Emplacement, EnteteRecu, EtatUid, IssueDeplacement, ReleveDossier,
+    TextesLus, DOSSIER_ARCHIVES, DOSSIER_CORBEILLE, OCTETS_MAX_INDEXATION,
 };
 pub use invitation::{
     decider_invitation, invitation_depuis_stockage, invitation_du_message, juger_origine,
@@ -125,6 +127,23 @@ impl SessionActions {
         Ok(Self {
             interne: imap::Session::connecter_xoauth2(hote, port, tls, utilisateur, jeton_acces)?,
         })
+    }
+
+    /// Texte du corps de messages, sans effet sur la boîte (lecture seule, BODY.PEEK) : voir
+    /// [`TextesLus`]. Réservé à l'indexation de fond.
+    pub fn textes_sans_effet(
+        &mut self,
+        dossier: &str,
+        uid_validity_attendue: u32,
+        uids: &[u32],
+    ) -> Result<TextesLus, ErreurMail> {
+        self.interne
+            .textes_sans_effet(dossier, uid_validity_attendue, uids)
+    }
+
+    /// Dossiers du compte, avec les noms français des dossiers spéciaux (voir [`presenter_dossiers`]).
+    pub fn dossiers_presentes(&mut self) -> Result<Vec<DossierPresente>, ErreurMail> {
+        Ok(presenter_dossiers(&self.interne.lister_dossiers()?))
     }
 
     /// Recherche Message-ID dans un dossier IMAP (Envoyés).

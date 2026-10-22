@@ -67,6 +67,9 @@ pub fn demarrer(pool: PgPool, cle: [u8; 32], classement: Option<ParametresCompte
                         cle,
                         classement.clone(),
                     )));
+                    // L'indexation de fond du corps des messages aussi : lente par construction, jamais sur le
+                    // chemin de la relève.
+                    crate::indexation_corps::demarrer(pool.clone(), cle, classement.clone());
                     tokio::spawn(balayage_brouillons(DepotBrouillons::new(
                         pool.clone(),
                         cle,

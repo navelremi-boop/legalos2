@@ -10,6 +10,7 @@ pub mod contacts;
 pub mod destinataires;
 pub mod documents;
 pub mod dossiers;
+pub mod dossiers_imap;
 pub mod factures;
 pub mod file_envoi;
 pub mod health;
@@ -159,6 +160,10 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route(
             "/messagerie/comptes/{compte_id}/connexion",
             put(connexion_boites::modifier_connexion),
+        )
+        .route(
+            "/messagerie/comptes/{compte_id}/dossiers",
+            get(dossiers_imap::lister_dossiers_imap),
         )
         .route(
             "/messagerie/boites-partagees",

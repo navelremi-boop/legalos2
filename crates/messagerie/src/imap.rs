@@ -61,6 +61,18 @@ pub struct CorpsLu {
     pub lu: bool,
 }
 
+/// Texte des messages lus pour l'indexation (voir [`Session::textes_sans_effet`]).
+#[derive(Debug, Clone, Default)]
+pub struct TextesLus {
+    /// Faux : la UIDVALIDITY du dossier a changé, rien n'a été lu.
+    pub valide: bool,
+    /// Texte du corps par UID ; un UID absent n'existe plus sur le serveur.
+    pub textes: std::collections::HashMap<u32, String>,
+}
+
+/// Octets lus au plus par message pour l'indexation de fond.
+pub const OCTETS_MAX_INDEXATION: u32 = 1_048_576;
+
 pub struct Session {
     client: ImapClientStd,
 }
@@ -211,6 +223,92 @@ impl Session {
             return Ok(());
         }
         self.deplacer(dossier, uid, &corbeille)
+    }
+
+    /// Texte du corps de plusieurs messages, **sans aucun effet sur la boîte** : dossier ouvert en lecture seule
+    /// (EXAMINE) et `BODY.PEEK[]`, donc aucun drapeau `\Seen` posé. Sert à l'indexation de fond. Si la
+    /// UIDVALIDITY du dossier n'est plus celle que l'appelant a connue, rien n'est lu (`valide` faux) : les UID ne
+    /// désignent plus les mêmes messages, la relève s'en charge. Seuls les `OCTETS_MAX_INDEXATION` premiers octets
+    /// de chaque message sont lus : le texte précède presque toujours les pièces jointes.
+    pub fn textes_sans_effet(
+        &mut self,
+        dossier: &str,
+        uid_validity_attendue: u32,
+        uids: &[u32],
+    ) -> Result<TextesLus, ErreurMail> {
+        let mut resultat = TextesLus {
+            valide: true,
+            textes: std::collections::HashMap::new(),
+        };
+        if uids.is_empty() {
+            return Ok(resultat);
+        }
+        let etat = self.examiner(dossier)?;
+        if etat.uid_validity != uid_validity_attendue {
+            resultat.valide = false;
+            return Ok(resultat);
+        }
+        let texte_uids = uids
+            .iter()
+            .map(|uid| uid.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        let jeu: SequenceSet = texte_uids.parse().map_err(|_| ErreurMail::Protocole)?;
+        let items = MacroOrMessageDataItemNames::MessageDataItemNames(vec![
+            MessageDataItemName::Uid,
+            MessageDataItemName::BodyExt {
+                section: None,
+                partial: Some((
+                    0,
+                    NonZeroU32::new(OCTETS_MAX_INDEXATION).unwrap_or(NonZeroU32::MIN),
+                )),
+                peek: true,
+            },
+        ]);
+        let fetched = self
+            .client
+            .fetch(
+                jeu,
+                items,
+                ImapMessageFetchOptions {
+                    uid: true,
+                    modifiers: Vec::new(),
+                },
+            )
+            .map_err(|_| ErreurMail::Protocole)?;
+        let analyseur = MessageParser::default();
+        for (_cle, morceaux) in fetched {
+            let mut uid = None;
+            let mut octets = None;
+            for item in morceaux {
+                match item {
+                    MessageDataItem::Uid(valeur) => uid = Some(valeur.get()),
+                    MessageDataItem::BodyExt { data: valeur, .. } => {
+                        octets = Some(nstring_octets(&valeur));
+                    }
+                    _ => {}
+                }
+            }
+            let (Some(uid), Some(octets)) = (uid, octets) else {
+                continue;
+            };
+            let analyse = analyseur.parse(&octets);
+            let texte = analyse
+                .as_ref()
+                .and_then(|m| m.body_text(0))
+                .map(|c| c.to_string())
+                .filter(|t| !t.trim().is_empty())
+                .unwrap_or_else(|| {
+                    let html = analyse
+                        .as_ref()
+                        .and_then(|m| m.body_html(0))
+                        .map(|c| c.to_string())
+                        .unwrap_or_default();
+                    crate::texte_depuis_html(&crate::nettoyer_html(&html))
+                });
+            resultat.textes.insert(uid, texte);
+        }
+        Ok(resultat)
     }
 
     /// Compte les en-têtes par paquets. `qresync` active QRESYNC et `CHANGEDSINCE 1`.

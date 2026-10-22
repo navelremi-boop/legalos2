@@ -306,10 +306,10 @@ pub async fn patch_temps(
     .ok_or_else(|| ApiError::not_found("Temps introuvable"))?;
 
     if courant.0 != claims.cabinet_id {
-        return Err(ApiError::forbidden("Temps hors cabinet"));
+        return Err(ApiError::not_found("Saisie de temps introuvable"));
     }
     if !dossier_autorise_tx(&mut tx, claims.cabinet_id, claims.sub, courant.1).await? {
-        return Err(ApiError::forbidden("Dossier non autorisé"));
+        return Err(ApiError::not_found("Dossier introuvable"));
     }
 
     let immuable = sqlx::query_scalar::<_, bool>(
@@ -472,10 +472,10 @@ pub async fn patch_brouillon(
         .ok_or_else(|| ApiError::not_found("Brouillon introuvable"))?;
 
     if courant.0 != claims.cabinet_id {
-        return Err(ApiError::forbidden("Brouillon hors cabinet"));
+        return Err(ApiError::not_found("Brouillon introuvable"));
     }
     if !dossier_autorise_tx(&mut tx, claims.cabinet_id, claims.sub, courant.1).await? {
-        return Err(ApiError::forbidden("Dossier non autorisé"));
+        return Err(ApiError::not_found("Dossier introuvable"));
     }
     if courant.3.is_some() {
         return Err(ApiError::conflict(
@@ -618,11 +618,11 @@ pub async fn patch_taux(
     .ok_or_else(|| ApiError::not_found("Taux introuvable"))?;
 
     if courant.0 != claims.cabinet_id {
-        return Err(ApiError::forbidden("Taux hors cabinet"));
+        return Err(ApiError::not_found("Taux introuvable"));
     }
     if let Some(dossier_id) = courant.1 {
         if !dossier_autorise_tx(&mut tx, claims.cabinet_id, claims.sub, dossier_id).await? {
-            return Err(ApiError::forbidden("Dossier non autorisé"));
+            return Err(ApiError::not_found("Dossier introuvable"));
         }
     }
     valider_base_revision(body.base_revision, courant.3)?;
@@ -693,7 +693,7 @@ async fn charger_temps(
     .map_err(|_| ApiError::internal("lecture temps"))?
     .ok_or_else(|| ApiError::not_found("Temps introuvable"))?;
     if !dossier_visible(state, cabinet_id, utilisateur_id, row.0).await? {
-        return Err(ApiError::forbidden("Dossier non autorisé"));
+        return Err(ApiError::not_found("Dossier introuvable"));
     }
     Ok(TempsResponse {
         id: temps_id,
@@ -724,7 +724,7 @@ async fn charger_brouillon(
     .map_err(|_| ApiError::internal("lecture brouillon"))?
     .ok_or_else(|| ApiError::not_found("Brouillon introuvable"))?;
     if !dossier_visible(state, cabinet_id, utilisateur_id, row.0).await? {
-        return Err(ApiError::forbidden("Dossier non autorisé"));
+        return Err(ApiError::not_found("Dossier introuvable"));
     }
     Ok(BrouillonTempsResponse {
         id: brouillon_id,
@@ -755,7 +755,7 @@ async fn charger_taux(
     .ok_or_else(|| ApiError::not_found("Taux introuvable"))?;
     if let Some(dossier_id) = row.0 {
         if !dossier_visible(state, cabinet_id, utilisateur_id, dossier_id).await? {
-            return Err(ApiError::forbidden("Dossier non autorisé"));
+            return Err(ApiError::not_found("Dossier introuvable"));
         }
     }
     Ok(TauxResponse {
