@@ -268,17 +268,7 @@ async function main() {
   ]);
   const mesure = spawnSync(
     "cargo",
-    [
-      "test",
-      "-p",
-      "legalos-messagerie",
-      "--test",
-      "volume_50k",
-      "--",
-      "--ignored",
-      "--nocapture",
-      "--test-threads=1",
-    ],
+    ["run", "-p", "legalos-messagerie", "--example", "volume_50k"],
     { cwd: root, encoding: "utf8" },
   );
   const sortie = `${mesure.stdout}\n${mesure.stderr}`;
