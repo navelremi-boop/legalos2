@@ -5,6 +5,7 @@ use std::sync::Arc;
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 use sqlx::Acquire;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::auth::access::AuthAccess;
@@ -19,7 +20,7 @@ use crate::state::AppState;
 const NATURES: &[&str] = &["physique", "morale"];
 const TYPES_CLIENT: &[&str] = &["professionnel", "particulier", "etranger"];
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreerContactRequest {
     pub id: Uuid,
     pub idempotence_cle: String,
@@ -31,7 +32,7 @@ pub struct CreerContactRequest {
     pub email: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct ContactResponse {
     pub id: Uuid,
     pub nature: String,
@@ -42,7 +43,7 @@ pub struct ContactResponse {
     pub revision: i64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct PatchContactRequest {
     pub base_revision: i64,
     pub idempotence_cle: String,
@@ -52,14 +53,14 @@ pub struct PatchContactRequest {
     pub type_client: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct LierDossiersRequest {
     pub id: Uuid,
     pub idempotence_cle: String,
     pub lie_a_id: Uuid,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct LienResponse {
     pub id: Uuid,
     pub dossier_id: Uuid,
@@ -67,7 +68,7 @@ pub struct LienResponse {
     pub id_inverse: Uuid,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct HistoriqueLigne {
     pub champ: String,
     pub valeur_remplacee: Option<String>,
@@ -75,6 +76,18 @@ pub struct HistoriqueLigne {
     pub cree_le: String,
 }
 
+#[utoipa::path(
+    post,
+    path = "/contacts",
+    tag = "contacts",
+    security(("bearer_auth" = [])),
+    request_body = CreerContactRequest,
+    responses(
+        (status = 200, description = "Contact créé ou déjà présent", body = ContactResponse),
+        (status = 400, description = "Requête invalide (nom, nature, type de client, SIREN ou TVA)", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn creer_contact(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -168,6 +181,20 @@ pub async fn creer_contact(
         .map(Json)
 }
 
+#[utoipa::path(
+    patch,
+    path = "/contacts/{contact_id}",
+    tag = "contacts",
+    security(("bearer_auth" = [])),
+    params(("contact_id" = Uuid, Path, description = "Identifiant du contact")),
+    request_body = PatchContactRequest,
+    responses(
+        (status = 200, description = "Contact mis à jour", body = ContactResponse),
+        (status = 400, description = "Requête invalide (clé d'idempotence, version de base, type de client, SIREN ou TVA)", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Contact introuvable", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn patch_contact(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -281,6 +308,18 @@ pub async fn patch_contact(
         .map(Json)
 }
 
+#[utoipa::path(
+    get,
+    path = "/contacts/{contact_id}/historique",
+    tag = "contacts",
+    security(("bearer_auth" = [])),
+    params(("contact_id" = Uuid, Path, description = "Identifiant du contact")),
+    responses(
+        (status = 200, description = "Historique des modifications du contact et de ses parties, du plus ancien au plus récent", body = Vec<HistoriqueLigne>),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Contact introuvable", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn historique_contact(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -329,6 +368,20 @@ pub async fn historique_contact(
     ))
 }
 
+#[utoipa::path(
+    post,
+    path = "/dossiers/{dossier_id}/liens",
+    tag = "contacts",
+    security(("bearer_auth" = [])),
+    params(("dossier_id" = Uuid, Path, description = "Identifiant du dossier à lier")),
+    request_body = LierDossiersRequest,
+    responses(
+        (status = 200, description = "Lien créé dans les deux sens, ou déjà présent", body = LienResponse),
+        (status = 400, description = "Requête invalide (clé d'idempotence, dossier lié à lui-même)", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Dossier introuvable ou hors de vos droits", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn lier_dossiers(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,

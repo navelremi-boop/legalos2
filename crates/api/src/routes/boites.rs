@@ -26,7 +26,7 @@ use crate::state::AppState;
 /// les 10 minutes (`RELEVE_SANS_REVEIL_SECS`), la marge couvre une relève lente.
 pub const SEUIL_RETARD_SECS: i64 = 20 * 60;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct CompteResume {
     pub id: Uuid,
     pub adresse: String,
@@ -36,6 +36,15 @@ pub struct CompteResume {
 
 /// Comptes que l'utilisateur peut lire : ses boîtes nominatives, les boîtes partagées dont il est
 /// membre, la boîte de classement du cabinet.
+#[utoipa::path(
+    get,
+    path = "/messagerie/comptes",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, description = "Comptes lisibles par l'utilisateur : ses boîtes nominatives, les boîtes partagées dont il est membre, la boîte de classement", body = Vec<CompteResume>),
+    )
+)]
 pub async fn lister_comptes(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -66,7 +75,7 @@ pub async fn lister_comptes(
     ))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CreerBoitePartagee {
     pub id: Uuid,
     pub adresse: String,
@@ -83,19 +92,19 @@ pub struct CreerBoitePartagee {
     pub envoi: ReglagesEnvoi,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct BoitePartagee {
     pub id: Uuid,
     pub adresse: String,
     pub membres: Vec<Uuid>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct DefinirMembres {
     pub membres: Vec<Uuid>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct Membre {
     pub utilisateur_id: Uuid,
     pub email: String,
@@ -123,6 +132,18 @@ async fn membres_du_cabinet(
 }
 
 /// Crée une boîte partagée : mot de passe chiffré, jamais renvoyé ; le créateur est membre.
+#[utoipa::path(
+    post,
+    path = "/messagerie/boites-partagees",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    request_body = CreerBoitePartagee,
+    responses(
+        (status = 200, description = "Boîte partagée créée ; le créateur en est membre (le mot de passe n'est jamais renvoyé)", body = BoitePartagee),
+        (status = 400, description = "Boîte incomplète, membre inconnu du cabinet, ou réglages SMTP invalides", body = crate::error::ApiErrorBody),
+        (status = 409, description = "Identifiant de compte déjà utilisé", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn creer_boite_partagee(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -232,6 +253,16 @@ async fn exiger_membre(
 }
 
 /// Membres d'une boîte partagée, visibles de ses seuls membres.
+#[utoipa::path(
+    get,
+    path = "/messagerie/boites-partagees/{compte_id}/membres",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, description = "Membres de la boîte partagée, par adresse", body = Vec<Membre>),
+        (status = 404, description = "Boîte introuvable, ou dont l'utilisateur n'est pas membre", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn lister_membres(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -264,6 +295,18 @@ pub async fn lister_membres(
 
 /// Remplace la liste des membres. Seul un membre actuel le peut ; la liste ne devient jamais vide
 /// (une boîte sans membre serait orpheline).
+#[utoipa::path(
+    put,
+    path = "/messagerie/boites-partagees/{compte_id}/membres",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    request_body = DefinirMembres,
+    responses(
+        (status = 200, description = "Liste des membres remplacée", body = BoitePartagee),
+        (status = 400, description = "Liste vide ou membre inconnu du cabinet", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Boîte introuvable, ou dont l'utilisateur n'est pas membre", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn definir_membres(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -324,7 +367,7 @@ pub async fn definir_membres(
 // Tableau de santé
 // ---------------------------------------------------------------------------------------------
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct SanteCompte {
     pub compte_id: Uuid,
     pub adresse: String,
@@ -356,7 +399,7 @@ pub struct SanteCompte {
     pub corps_abandonnes: i64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct Sante {
     pub seuil_retard_secondes: i64,
     pub comptes: Vec<SanteCompte>,
@@ -404,6 +447,15 @@ pub fn motifs_alerte(
     motifs
 }
 
+#[utoipa::path(
+    get,
+    path = "/messagerie/sante",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, description = "Tableau de santé des boîtes lisibles par l'utilisateur", body = Sante),
+    )
+)]
 pub async fn sante_boites(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,

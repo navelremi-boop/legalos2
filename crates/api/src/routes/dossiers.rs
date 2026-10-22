@@ -421,13 +421,13 @@ pub async fn creer_partie(
     path = "/dossiers/{dossier_id}",
     tag = "dossiers",
     security(("bearer_auth" = [])),
+    params(("dossier_id" = Uuid, Path, description = "Identifiant du dossier")),
     request_body = PatchDossierRequest,
     responses(
         (status = 200, description = "Dossier mis à jour", body = DossierDetailResponse),
-        (status = 400, description = "Requête invalide", body = crate::error::ApiErrorBody),
+        (status = 400, description = "Requête invalide (clé d'idempotence, champ inconnu ou vide, version de base)", body = crate::error::ApiErrorBody),
         (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
-        (status = 403, description = "Dossier non autorisé", body = crate::error::ApiErrorBody),
-        (status = 404, description = "Dossier introuvable", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Dossier introuvable ou hors de vos droits", body = crate::error::ApiErrorBody),
     )
 )]
 pub async fn patch_dossier(
@@ -646,13 +646,13 @@ pub async fn patch_dossier(
     path = "/parties/{partie_id}",
     tag = "dossiers",
     security(("bearer_auth" = [])),
+    params(("partie_id" = Uuid, Path, description = "Identifiant de la partie")),
     request_body = PatchPartieRequest,
     responses(
         (status = 200, description = "Partie mise à jour", body = PartieDetailResponse),
-        (status = 400, description = "Requête invalide", body = crate::error::ApiErrorBody),
+        (status = 400, description = "Requête invalide (clé d'idempotence, rôle inconnu, aucun champ, version de base)", body = crate::error::ApiErrorBody),
         (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
-        (status = 403, description = "Dossier non autorisé", body = crate::error::ApiErrorBody),
-        (status = 404, description = "Partie introuvable", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Partie ou dossier introuvable, ou hors de vos droits", body = crate::error::ApiErrorBody),
     )
 )]
 pub async fn patch_partie(

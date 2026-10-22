@@ -53,7 +53,7 @@ pub fn valider_connexion(
     Ok(())
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct ModifierConnexion {
     pub hote: String,
     pub port: u16,
@@ -64,7 +64,7 @@ pub struct ModifierConnexion {
     pub envoi: ReglagesEnvoi,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ConnexionModifiee {
     pub id: Uuid,
     pub adresse: String,
@@ -72,6 +72,18 @@ pub struct ConnexionModifiee {
 
 /// Remplace les identifiants IMAP et le relais SMTP d'une boîte nominative du demandeur. L'état de connexion repart de
 /// « inconnu » : le tableau de santé annonce le résultat dès que le moteur a essayé.
+#[utoipa::path(
+    put,
+    path = "/messagerie/comptes/{compte_id}/connexion",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    request_body = ModifierConnexion,
+    responses(
+        (status = 200, description = "Identifiants IMAP et relais SMTP remplacés ; l'état de connexion repart de « inconnu »", body = ConnexionModifiee),
+        (status = 400, description = "Réglages invalides, ou boîte connectée par un fournisseur OAuth", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Boîte introuvable ou dont l'utilisateur n'est pas le titulaire", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn modifier_connexion(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,

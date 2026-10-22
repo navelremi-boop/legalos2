@@ -90,7 +90,19 @@ pub struct PatchTauxRequest {
     pub centimes_par_heure: Option<i64>,
 }
 
-#[utoipa::path(post, path = "/temps", tag = "factures", security(("bearer_auth" = [])), request_body = CreerTempsRequest, responses((status = 200, body = TempsResponse)))]
+#[utoipa::path(
+    post,
+    path = "/temps",
+    tag = "factures",
+    security(("bearer_auth" = [])),
+    request_body = CreerTempsRequest,
+    responses(
+        (status = 200, description = "Saisie de temps créée, ou déjà présente (rejeu du même identifiant) ; hors taxes en centimes entiers", body = TempsResponse),
+        (status = 400, description = "Clé d'idempotence ou libellé absent, minutes ou taux invalides, dossier introuvable", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié, ou dossier non autorisé pour l'utilisateur", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Erreur interne", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn creer_temps(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -142,7 +154,19 @@ pub async fn creer_temps(
     }))
 }
 
-#[utoipa::path(post, path = "/brouillons-facture", tag = "factures", security(("bearer_auth" = [])), request_body = CreerBrouillonTempsRequest, responses((status = 200, body = BrouillonTempsResponse)))]
+#[utoipa::path(
+    post,
+    path = "/brouillons-facture",
+    tag = "factures",
+    security(("bearer_auth" = [])),
+    request_body = CreerBrouillonTempsRequest,
+    responses(
+        (status = 200, description = "Brouillon de facture au temps passé créé, ou déjà présent ; sans numéro tant qu'il n'est pas numéroté par le serveur", body = BrouillonTempsResponse),
+        (status = 400, description = "Clé d'idempotence ou libellé absent, montant ou taux invalides, dossier introuvable", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié, ou dossier non autorisé pour l'utilisateur", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Erreur interne", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn creer_brouillon_temps(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -196,7 +220,19 @@ pub async fn creer_brouillon_temps(
     }))
 }
 
-#[utoipa::path(post, path = "/taux-horaires", tag = "factures", security(("bearer_auth" = [])), request_body = CreerTauxRequest, responses((status = 200, body = TauxResponse)))]
+#[utoipa::path(
+    post,
+    path = "/taux-horaires",
+    tag = "factures",
+    security(("bearer_auth" = [])),
+    request_body = CreerTauxRequest,
+    responses(
+        (status = 200, description = "Taux horaire créé, ou déjà présent (rejeu du même identifiant) ; en centimes par heure", body = TauxResponse),
+        (status = 400, description = "Clé d'idempotence absente, taux invalide, dossier introuvable", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié, ou dossier non autorisé pour l'utilisateur", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Erreur interne", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn creer_taux(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -248,7 +284,22 @@ pub async fn creer_taux(
     }))
 }
 
-#[utoipa::path(patch, path = "/temps/{temps_id}", tag = "factures", security(("bearer_auth" = [])), request_body = PatchTempsRequest, responses((status = 200, body = TempsResponse)))]
+#[utoipa::path(
+    patch,
+    path = "/temps/{temps_id}",
+    tag = "factures",
+    security(("bearer_auth" = [])),
+    params(("temps_id" = Uuid, Path, description = "Identifiant de la saisie de temps")),
+    request_body = PatchTempsRequest,
+    responses(
+        (status = 200, description = "Saisie de temps mise à jour (champs modifiés seulement, hors taxes recalculé) ; rejeu avec la même clé d'idempotence sans effet", body = TempsResponse),
+        (status = 400, description = "Clé d'idempotence absente, aucun champ à appliquer, champ vide, minutes ou taux invalides, version de base invalide ou postérieure au serveur", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Saisie de temps ou dossier introuvable", body = crate::error::ApiErrorBody),
+        (status = 409, description = "Temps référencé par un brouillon numéroté : plus modifiable", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Erreur interne", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn patch_temps(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -417,7 +468,22 @@ pub async fn patch_temps(
     }))
 }
 
-#[utoipa::path(patch, path = "/brouillons-facture/{brouillon_id}", tag = "factures", security(("bearer_auth" = [])), request_body = PatchBrouillonRequest, responses((status = 200, body = BrouillonTempsResponse)))]
+#[utoipa::path(
+    patch,
+    path = "/brouillons-facture/{brouillon_id}",
+    tag = "factures",
+    security(("bearer_auth" = [])),
+    params(("brouillon_id" = Uuid, Path, description = "Identifiant du brouillon de facture")),
+    request_body = PatchBrouillonRequest,
+    responses(
+        (status = 200, description = "Brouillon mis à jour (libellé, taux ; hors taxes recalculé) ; rejeu avec la même clé d'idempotence sans effet", body = BrouillonTempsResponse),
+        (status = 400, description = "Clé d'idempotence absente, aucun champ à appliquer, champ vide, taux invalide, temps lié introuvable, version de base invalide ou postérieure au serveur", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Brouillon ou dossier introuvable", body = crate::error::ApiErrorBody),
+        (status = 409, description = "Brouillon numéroté : plus modifiable", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Erreur interne", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn patch_brouillon(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -568,7 +634,21 @@ pub async fn patch_brouillon(
     }))
 }
 
-#[utoipa::path(patch, path = "/taux-horaires/{taux_id}", tag = "factures", security(("bearer_auth" = [])), request_body = PatchTauxRequest, responses((status = 200, body = TauxResponse)))]
+#[utoipa::path(
+    patch,
+    path = "/taux-horaires/{taux_id}",
+    tag = "factures",
+    security(("bearer_auth" = [])),
+    params(("taux_id" = Uuid, Path, description = "Identifiant du taux horaire")),
+    request_body = PatchTauxRequest,
+    responses(
+        (status = 200, description = "Taux horaire mis à jour ; rejeu avec la même clé d'idempotence sans effet", body = TauxResponse),
+        (status = 400, description = "Clé d'idempotence absente, aucun champ à appliquer, taux invalide, version de base invalide ou postérieure au serveur", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Taux ou dossier introuvable", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Erreur interne", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn patch_taux(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,

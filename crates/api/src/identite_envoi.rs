@@ -111,7 +111,7 @@ pub fn choisir_smtp(
 
 /// Réglages d'envoi donnés à la création d'un compte (nominatif ou partagé). Tout est facultatif :
 /// sans `smtp_hote`, le compte envoie par le SMTP du cabinet (repli).
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, utoipa::ToSchema)]
 pub struct ReglagesEnvoi {
     pub smtp_hote: Option<String>,
     pub smtp_port: Option<u16>,

@@ -41,7 +41,7 @@ const DEMANDES_PAR_UTILISATEUR: i64 = 5;
 // ---------------------------------------------------------------------------------------------
 
 /// Serveurs IMAP et SMTP d'une boîte OAuth.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
 pub struct Hotes {
     pub imap_hote: String,
     pub imap_port: u16,
@@ -275,19 +275,28 @@ macro_rules! client_oauth {
 // Routes
 // ---------------------------------------------------------------------------------------------
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct FournisseurDisponible {
     pub id: &'static str,
     pub libelle: &'static str,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct Fournisseurs {
     pub fournisseurs: Vec<FournisseurDisponible>,
 }
 
 /// Fournisseurs que l'instance sait connecter (identifiants d'application configurés). Aucun secret.
-pub async fn lister_fournisseurs(AuthAccess(_): AuthAccess) -> Json<Fournisseurs> {
+#[utoipa::path(
+    get,
+    path = "/messagerie/oauth/fournisseurs",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, description = "Fournisseurs que l'instance sait connecter (aucun secret)", body = Fournisseurs),
+    )
+)]
+pub async fn lister_fournisseurs(AuthAccess(_claims): AuthAccess) -> Json<Fournisseurs> {
     Json(Fournisseurs {
         fournisseurs: fournisseurs_configures()
             .into_iter()
@@ -303,7 +312,7 @@ pub async fn lister_fournisseurs(AuthAccess(_): AuthAccess) -> Json<Fournisseurs
     })
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct DemandeDebut {
     /// Identifiant du compte : celui d'une boîte OAuth du demandeur (reconnexion) ou un nouvel identifiant.
     pub id: Uuid,
@@ -317,19 +326,19 @@ pub struct DemandeDebut {
     pub hotes: Option<Hotes>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct Autorisation {
     pub state: String,
     pub url: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct EchangeCode {
     pub state: String,
     pub code: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct CompteOAuth {
     pub id: Uuid,
     pub adresse: String,
@@ -339,6 +348,19 @@ pub struct CompteOAuth {
 
 /// Début de la connexion : enregistre le `state` (usage unique, 10 minutes, lié à l'utilisateur et au compte) et
 /// le vérificateur PKCE, rend l'adresse d'autorisation à ouvrir dans le navigateur du système.
+#[utoipa::path(
+    post,
+    path = "/messagerie/oauth/debut",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    request_body = DemandeDebut,
+    responses(
+        (status = 200, description = "Demande de connexion enregistrée (usage unique, dix minutes) et adresse d'autorisation à ouvrir dans le navigateur", body = Autorisation),
+        (status = 400, description = "Fournisseur inconnu ou non configuré, redirection de bouclage invalide, ou adresse de la boîte invalide", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Boîte introuvable ou dont l'utilisateur n'est pas le titulaire", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Enregistrement de la demande impossible", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn debut(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -474,6 +496,19 @@ type LigneEtat = (
 /// Fin de la connexion : le code reçu sur le bouclage est échangé contre les jetons, avec le vérificateur PKCE
 /// que seule l'instance détient. La demande est consommée dès la lecture : un `state` ne sert qu'une fois, même
 /// si l'échange échoue. Un `state` inconnu, expiré ou d'un autre utilisateur est introuvable (404).
+#[utoipa::path(
+    post,
+    path = "/messagerie/oauth/echange",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    request_body = EchangeCode,
+    responses(
+        (status = 200, description = "Boîte connectée ou reconnectée (aucun jeton n'est renvoyé)", body = CompteOAuth),
+        (status = 400, description = "Échange du code refusé par le fournisseur, ou jeton de rafraîchissement absent", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Demande de connexion inconnue, expirée ou d'un autre utilisateur, ou boîte introuvable", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Chiffrement ou enregistrement des jetons impossible", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn echange(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -789,17 +824,29 @@ async fn rafraichir(
     Ok(acces)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct DemandeRenouvellement {
     pub id: Uuid,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct Renouvellement {
     pub renouvele: bool,
 }
 
 /// Renouvellement demandé (poste ou recette) : force un nouveau jeton d'accès pour une boîte OAuth du demandeur.
+#[utoipa::path(
+    post,
+    path = "/messagerie/oauth/renouveler",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    request_body = DemandeRenouvellement,
+    responses(
+        (status = 200, description = "Nouveau jeton d'accès obtenu (non renvoyé)", body = Renouvellement),
+        (status = 400, description = "Renouvellement impossible, ou refusé par le fournisseur : la boîte doit être reconnectée", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Boîte OAuth introuvable ou dont l'utilisateur n'est pas le titulaire", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn renouveler(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,

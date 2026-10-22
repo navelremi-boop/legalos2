@@ -73,7 +73,25 @@ pub struct AvoirRequest {
     pub id: Uuid,
 }
 
-#[utoipa::path(post, path = "/factures", tag = "factures", security(("bearer_auth" = [])), request_body = CreerFactureRequest, responses((status = 200, body = FactureResponse)))]
+/// Contenu binaire d'un PDF (PDF/A-3b Factur-X), pour la description du contrat.
+#[derive(ToSchema)]
+#[schema(value_type = String, format = Binary)]
+#[allow(dead_code)]
+pub struct PdfFacturX(Vec<u8>);
+
+#[utoipa::path(
+    post,
+    path = "/factures",
+    tag = "factures",
+    security(("bearer_auth" = [])),
+    request_body = CreerFactureRequest,
+    responses(
+        (status = 200, description = "Brouillon de facture créé, ou déjà présent (rejeu du même identifiant) ; aucun numéro tant qu'il n'est pas validé", body = FactureResponse),
+        (status = 400, description = "Dossier introuvable, type de client inconnu, lignes ou taux de TVA invalides, nature de ligne inconnue", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié, ou dossier non autorisé pour l'utilisateur", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Erreur interne", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn creer_brouillon(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -151,7 +169,19 @@ pub async fn creer_brouillon(
     charger(&state, body.id).await.map(Json)
 }
 
-#[utoipa::path(post, path = "/factures/{id}/valider", tag = "factures", security(("bearer_auth" = [])), responses((status = 200, body = FactureResponse)))]
+#[utoipa::path(
+    post,
+    path = "/factures/{id}/valider",
+    tag = "factures",
+    security(("bearer_auth" = [])),
+    params(("id" = Uuid, Path, description = "Identifiant de la facture")),
+    responses(
+        (status = 200, description = "Facture validée : numéro définitif attribué par le serveur, PDF Factur-X et CII figés ; rejeu sans effet sur une facture déjà validée", body = FactureResponse),
+        (status = 400, description = "Facture ou dossier introuvable", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Erreur interne (numérotation, génération du PDF Factur-X)", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn valider(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -228,7 +258,20 @@ pub async fn valider(
     charger(&state, id).await.map(Json)
 }
 
-#[utoipa::path(post, path = "/factures/{id}/emettre", tag = "factures", security(("bearer_auth" = [])), request_body = EmettreRequest, responses((status = 200, body = FactureResponse)))]
+#[utoipa::path(
+    post,
+    path = "/factures/{id}/emettre",
+    tag = "factures",
+    security(("bearer_auth" = [])),
+    params(("id" = Uuid, Path, description = "Identifiant de la facture validée")),
+    request_body = EmettreRequest,
+    responses(
+        (status = 200, description = "Facture transmise à la plateforme agréée (dépôt, ou e-reporting pour un particulier ou un client étranger) ; rejeu avec la même clé d'idempotence sans nouvel envoi", body = FactureResponse),
+        (status = 400, description = "Facture introuvable ou non validée, clé d'idempotence trop courte (moins de 8 caractères), opération refusée par la plateforme", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Plateforme absente ou indisponible, erreur interne", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn emettre(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -293,7 +336,20 @@ pub async fn emettre(
     charger(&state, id).await.map(Json)
 }
 
-#[utoipa::path(post, path = "/factures/{id}/encaissements", tag = "factures", security(("bearer_auth" = [])), request_body = EncaisserRequest, responses((status = 200, body = FactureResponse)))]
+#[utoipa::path(
+    post,
+    path = "/factures/{id}/encaissements",
+    tag = "factures",
+    security(("bearer_auth" = [])),
+    params(("id" = Uuid, Path, description = "Identifiant de la facture validée")),
+    request_body = EncaisserRequest,
+    responses(
+        (status = 200, description = "Règlement enregistré (montant en centimes) et statut « encaissée » transmis à la plateforme agréée ; idempotent par clé", body = FactureResponse),
+        (status = 400, description = "Facture introuvable ou non validée, montant nul ou négatif, clé d'idempotence trop courte (moins de 8 caractères), opération refusée par la plateforme", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Plateforme absente ou indisponible, erreur interne", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn encaisser(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -333,7 +389,20 @@ pub async fn encaisser(
     charger(&state, id).await.map(Json)
 }
 
-#[utoipa::path(post, path = "/factures/{id}/avoir", tag = "factures", security(("bearer_auth" = [])), request_body = AvoirRequest, responses((status = 200, body = FactureResponse)))]
+#[utoipa::path(
+    post,
+    path = "/factures/{id}/avoir",
+    tag = "factures",
+    security(("bearer_auth" = [])),
+    params(("id" = Uuid, Path, description = "Identifiant de la facture d'origine, validée")),
+    request_body = AvoirRequest,
+    responses(
+        (status = 200, description = "Avoir créé et validé (nouveau numéro, mêmes montants que la facture d'origine) ; rejeu avec le même identifiant d'avoir sans effet", body = FactureResponse),
+        (status = 400, description = "Facture d'origine introuvable ou non validée, ou déjà un avoir", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Erreur interne", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn avoir(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -469,6 +538,19 @@ async fn facture_validee(
     .ok_or_else(|| ApiError::bad_request("Facture non validée"))
 }
 
+#[utoipa::path(
+    get,
+    path = "/factures/{id}/cii",
+    tag = "factures",
+    security(("bearer_auth" = [])),
+    params(("id" = Uuid, Path, description = "Identifiant de la facture validée")),
+    responses(
+        (status = 200, description = "XML CII profil EN 16931 de la facture (le même que celui joint au PDF Factur-X)", body = String, content_type = "application/xml"),
+        (status = 400, description = "Facture introuvable ou non validée", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Artefact absent ou erreur interne", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn lire_cii(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -488,6 +570,19 @@ pub async fn lire_cii(
     Ok(([(CONTENT_TYPE, "application/xml; charset=utf-8")], xml).into_response())
 }
 
+#[utoipa::path(
+    get,
+    path = "/factures/{id}/pdf",
+    tag = "factures",
+    security(("bearer_auth" = [])),
+    params(("id" = Uuid, Path, description = "Identifiant de la facture validée")),
+    responses(
+        (status = 200, description = "PDF/A-3b Factur-X de la facture, servi en pièce jointe (facture.pdf)", body = PdfFacturX, content_type = "application/pdf"),
+        (status = 400, description = "Facture introuvable ou non validée", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Artefact absent ou erreur interne", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn lire_pdf(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -515,7 +610,19 @@ pub async fn lire_pdf(
     Ok(reponse)
 }
 
-#[utoipa::path(get, path = "/annuaire/{siren}", tag = "factures", security(("bearer_auth" = [])), responses((status = 200)))]
+#[utoipa::path(
+    get,
+    path = "/annuaire/{siren}",
+    tag = "factures",
+    security(("bearer_auth" = [])),
+    params(("siren" = String, Path, description = "Numéro SIREN à interroger dans l'annuaire de la plateforme agréée")),
+    responses(
+        (status = 200, description = "Fiche d'annuaire renvoyée par la plateforme agréée (objet JSON)", body = Object),
+        (status = 400, description = "La plateforme agréée a refusé la requête", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Plateforme agréée absente ou indisponible", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn annuaire(
     AuthAccess(_claims): AuthAccess,
     axum::extract::Path(siren): axum::extract::Path<String>,

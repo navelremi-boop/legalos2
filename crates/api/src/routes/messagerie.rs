@@ -27,13 +27,13 @@ pub struct ReleverQuery {
     pub limite: Option<usize>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ReleverResponse {
     pub traites: usize,
     pub total_messages: i64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct MessageResponse {
     pub id: Uuid,
     pub dossier_id: Option<Uuid>,
@@ -44,7 +44,7 @@ pub struct MessageResponse {
     pub message_id: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ChronoMailResponse {
     pub id: Uuid,
     pub message_id: String,
@@ -53,6 +53,20 @@ pub struct ChronoMailResponse {
     pub etat_classement: String,
 }
 
+#[utoipa::path(
+    post,
+    path = "/messagerie/classement/relever",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    params(
+        ("limite" = Option<usize>, Query, description = "Coupe la relève après ce nombre de messages (essai d'interruption)"),
+    ),
+    responses(
+        (status = 200, description = "Relève effectuée : messages intégrés et total de la boîte de classement", body = ReleverResponse),
+        (status = 400, description = "Messagerie de classement non configurée sur l'instance", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Connexion, authentification ou protocole IMAP refusés, ou erreur interne", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn relever_classement(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -177,6 +191,15 @@ pub(crate) async fn message_lisible(
     Ok(lisible.flatten().unwrap_or(false))
 }
 
+#[utoipa::path(
+    get,
+    path = "/messagerie/messages",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, description = "Messages lisibles par l'utilisateur, les plus anciens d'abord", body = Vec<MessageResponse>),
+    )
+)]
 pub async fn lister_messages(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -221,11 +244,23 @@ pub async fn lister_messages(
     ))
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct CorpsMessage {
     pub texte: String,
 }
 
+#[utoipa::path(
+    post,
+    path = "/messagerie/messages/{message_id}/corps",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, description = "Corps du message en texte brut (lu au besoin sur le serveur IMAP, puis conservé)", body = CorpsMessage),
+        (status = 400, description = "Identifiant IMAP du message invalide", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Message introuvable, ou d'une boîte ou d'un dossier que l'utilisateur ne peut pas lire", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Lecture IMAP refusée ou interrompue, ou erreur interne", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn lire_corps_message(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -306,6 +341,16 @@ pub async fn lire_corps_message(
     Ok(Json(CorpsMessage { texte: corps.texte }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/messagerie/messages/{message_id}/accepter-suggestion",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, description = "Message classé dans le dossier suggéré", body = MessageResponse),
+        (status = 404, description = "Message introuvable ou sans suggestion de classement", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn accepter_suggestion(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -371,11 +416,23 @@ pub async fn accepter_suggestion(
     }))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct ClasserCorps {
     pub dossier_id: Uuid,
 }
 
+#[utoipa::path(
+    post,
+    path = "/messagerie/messages/{message_id}/classer",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    request_body = ClasserCorps,
+    responses(
+        (status = 200, description = "Message classé dans le dossier demandé", body = MessageResponse),
+        (status = 400, description = "Message déjà classé", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Message ou dossier introuvable, ou illisible pour l'utilisateur", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn classer_message(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -441,6 +498,16 @@ pub async fn classer_message(
     }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/dossiers/{dossier_id}/chrono-mails",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, description = "Messages classés dans le dossier, les plus anciens d'abord", body = Vec<ChronoMailResponse>),
+        (status = 404, description = "Dossier introuvable ou non visible par l'utilisateur", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn chrono_mails_dossier(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -660,7 +727,7 @@ async fn inserer_message(
     Ok(())
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CreerCompte {
     pub id: Uuid,
     pub adresse: String,
@@ -674,7 +741,7 @@ pub struct CreerCompte {
     pub envoi: ReglagesEnvoi,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct CompteCree {
     pub id: Uuid,
     pub adresse: String,
@@ -683,6 +750,18 @@ pub struct CompteCree {
     pub utilisateur: String,
 }
 
+#[utoipa::path(
+    post,
+    path = "/messagerie/comptes",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    request_body = CreerCompte,
+    responses(
+        (status = 200, description = "Boîte nominative créée (le mot de passe n'est jamais renvoyé)", body = CompteCree),
+        (status = 400, description = "Réglages IMAP ou SMTP incomplets ou invalides", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Chiffrement ou enregistrement impossible", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn creer_compte_nominatif(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,

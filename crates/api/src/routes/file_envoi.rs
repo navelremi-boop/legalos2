@@ -27,7 +27,7 @@ use crate::routes::redaction::{
 };
 use crate::state::AppState;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CreerEnvoiBody {
     pub id: Uuid,
     pub idempotence_cle: String,
@@ -35,7 +35,7 @@ pub struct CreerEnvoiBody {
     pub dossier_id: Option<Uuid>,
     /// Compte d'envoi (boîte nominative ou partagée) : le `From`, l'enveloppe, le relais SMTP et
     /// le dossier « Envoyés » sont les siens. Absent : la boîte de classement du cabinet. Refusé
-    /// (403) si l'utilisateur n'a pas le droit d'écrire depuis ce compte.
+    /// (404, comme une boîte absente) si l'utilisateur ne peut pas lire ce compte.
     #[serde(default)]
     pub compte_id: Option<Uuid>,
     /// Champ « à » historique (une adresse) ; repris avec `a`.
@@ -68,7 +68,7 @@ pub struct CreerEnvoiBody {
     pub references: Vec<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct FileEnvoiResponse {
     pub id: Uuid,
     pub dossier_id: Option<Uuid>,
@@ -116,6 +116,20 @@ fn repond(genre: GenreRedaction) -> bool {
     )
 }
 
+#[utoipa::path(
+    post,
+    path = "/messagerie/file-envoi",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    request_body = CreerEnvoiBody,
+    responses(
+        (status = 200, description = "Envoi inscrit dans la file à l'état brouillon (ou ligne existante rendue si l'appel est rejoué)", body = FileEnvoiResponse),
+        (status = 400, description = "Message invalide : genre, destinataires, en-têtes, message d'origine, pièces ou SMTP non configuré", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Dossier, compte ou message d'origine introuvable, ou illisible pour l'utilisateur", body = crate::error::ApiErrorBody),
+        (status = 409, description = "Identifiant de message déjà utilisé, ou jeton refusé par le fournisseur OAuth de la boîte", body = crate::error::ApiErrorBody),
+        (status = 502, description = "Fournisseur de messagerie injoignable", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn creer_envoi(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -313,6 +327,17 @@ pub async fn creer_envoi(
     charger_reponse(&state, &claims, body.id).await
 }
 
+#[utoipa::path(
+    post,
+    path = "/messagerie/file-envoi/{id}/mettre-en-attente",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, description = "Brouillon passé en attente d'envoi", body = FileEnvoiResponse),
+        (status = 400, description = "Seul un brouillon passe en attente", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Envoi introuvable", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn mettre_en_attente(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -327,6 +352,17 @@ pub async fn mettre_en_attente(
     charger_reponse(&state, &claims, id).await
 }
 
+#[utoipa::path(
+    post,
+    path = "/messagerie/file-envoi/{id}/annuler",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, description = "Envoi en attente rendu à l'état de brouillon", body = FileEnvoiResponse),
+        (status = 400, description = "Seul un envoi en attente est annulable", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Envoi introuvable", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn annuler_envoi(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -352,6 +388,23 @@ pub async fn annuler_envoi(
     charger_reponse(&state, &claims, id).await
 }
 
+#[utoipa::path(
+    post,
+    path = "/messagerie/file-envoi/{id}/traiter",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    params(
+        ("couper_apres" = Option<String>, Query, description = "Essai de coupure : `smtp` s'arrête après acceptation SMTP, `echec` force un échec d'envoi"),
+    ),
+    responses(
+        (status = 200, description = "État de l'envoi après avancement dans la file (jusqu'à la copie dans Envoyés confirmée, ou jusqu'au premier échec)", body = FileEnvoiResponse),
+        (status = 400, description = "SMTP de messagerie non configuré", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Envoi ou compte d'envoi introuvable", body = crate::error::ApiErrorBody),
+        (status = 409, description = "Jeton refusé par le fournisseur OAuth de la boîte", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Connexion, authentification ou protocole refusés par le serveur de messagerie", body = crate::error::ApiErrorBody),
+        (status = 502, description = "Fournisseur de messagerie injoignable", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn traiter_envoi(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -465,6 +518,15 @@ pub(crate) async fn traiter(
     charger_reponse(state, claims, id).await
 }
 
+#[utoipa::path(
+    get,
+    path = "/messagerie/file-envoi",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, description = "Envois et brouillons de l'utilisateur, les plus anciens d'abord", body = Vec<FileEnvoiResponse>),
+    )
+)]
 pub async fn lister_file_envoi(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,

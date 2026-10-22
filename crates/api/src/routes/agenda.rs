@@ -5,6 +5,7 @@ use std::sync::Arc;
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 use sqlx::Acquire;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::auth::access::AuthAccess;
@@ -18,7 +19,7 @@ use crate::state::AppState;
 
 const TYPES: &[&str] = &["audience", "rendez_vous", "tache"];
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreerAgendaRequest {
     pub id: Uuid,
     pub idempotence_cle: String,
@@ -32,7 +33,7 @@ pub struct CreerAgendaRequest {
     pub annees_calcul: Option<i32>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct AgendaResponse {
     pub id: Uuid,
     pub dossier_id: Uuid,
@@ -43,13 +44,13 @@ pub struct AgendaResponse {
     pub revision: i64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct RetirerAgendaRequest {
     pub idempotence_cle: String,
     pub confirmer: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct PatchAgendaRequest {
     pub base_revision: i64,
     pub idempotence_cle: String,
@@ -59,6 +60,27 @@ pub struct PatchAgendaRequest {
     pub origine_calcul: Option<String>,
 }
 
+/// Résultat du retrait d'un élément d'agenda.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct RetraitAgendaResponse {
+    /// `true` si l'élément a été retiré ; `false` si la requête était un rejeu (clé d'idempotence déjà vue).
+    pub retire: bool,
+}
+
+#[utoipa::path(
+    post,
+    path = "/dossiers/{dossier_id}/agenda",
+    tag = "agenda",
+    security(("bearer_auth" = [])),
+    params(("dossier_id" = Uuid, Path, description = "Identifiant du dossier")),
+    request_body = CreerAgendaRequest,
+    responses(
+        (status = 200, description = "Élément d'agenda créé ou déjà présent", body = AgendaResponse),
+        (status = 400, description = "Requête invalide (clé d'idempotence, type, titre ou début)", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Dossier introuvable ou hors de vos droits", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn creer_element(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -137,6 +159,20 @@ pub async fn creer_element(
     lire(&state, claims.cabinet_id, body.id).await.map(Json)
 }
 
+#[utoipa::path(
+    patch,
+    path = "/agenda/{element_id}",
+    tag = "agenda",
+    security(("bearer_auth" = [])),
+    params(("element_id" = Uuid, Path, description = "Identifiant de l'élément d'agenda")),
+    request_body = PatchAgendaRequest,
+    responses(
+        (status = 200, description = "Élément d'agenda mis à jour", body = AgendaResponse),
+        (status = 400, description = "Requête invalide (clé d'idempotence, version de base)", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Élément ou dossier introuvable, ou hors de vos droits", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn patch_element(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -258,6 +294,20 @@ pub async fn patch_element(
     lire(&state, claims.cabinet_id, element_id).await.map(Json)
 }
 
+#[utoipa::path(
+    delete,
+    path = "/agenda/{element_id}",
+    tag = "agenda",
+    security(("bearer_auth" = [])),
+    params(("element_id" = Uuid, Path, description = "Identifiant de l'élément d'agenda")),
+    request_body = RetirerAgendaRequest,
+    responses(
+        (status = 200, description = "Élément retiré (ou rejeu d'une requête déjà traitée)", body = RetraitAgendaResponse),
+        (status = 400, description = "Requête invalide (confirmation ou clé d'idempotence manquante)", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Élément ou dossier introuvable, ou hors de vos droits", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn retirer_element(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,

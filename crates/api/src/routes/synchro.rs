@@ -13,7 +13,7 @@ use crate::auth::access::AuthAccess;
 use crate::error::ApiError;
 use crate::state::AppState;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ReleveNominatif {
     pub chemin: String,
     pub resynchronisation: bool,
@@ -22,13 +22,13 @@ pub struct ReleveNominatif {
     pub dernier_uid: i64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct AttenteNominatif {
     pub notifie: bool,
     pub chemin: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct UidCorps {
     pub uid: u32,
     pub lu: Option<bool>,
@@ -36,7 +36,7 @@ pub struct UidCorps {
     pub drapeau: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ActionNominatif {
     pub applique: bool,
     pub lu: bool,
@@ -47,7 +47,7 @@ pub struct RechercheQuery {
     pub q: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct Trouve {
     pub message_id: String,
     pub objet: String,
@@ -59,7 +59,7 @@ pub struct ContenuQuery {
     pub message_id: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct Contenu {
     pub html: String,
     pub texte: String,
@@ -67,6 +67,15 @@ pub struct Contenu {
     pub uid: i64,
 }
 
+#[utoipa::path(
+    post,
+    path = "/messagerie/nominatif/relever",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, description = "État du curseur de relève de la boîte (lecture seule : la synchronisation est faite par le moteur)", body = ReleveNominatif),
+    )
+)]
 pub async fn relever_nominatif(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -98,6 +107,17 @@ pub async fn relever_nominatif(
     }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/messagerie/nominatif/attendre",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, description = "Résultat de la veille IMAP (douze secondes au plus)", body = AttenteNominatif),
+        (status = 400, description = "Messagerie non configurée", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Veille IMAP interrompue ou refusée", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn attendre_nominatif(
     State(state): State<Arc<AppState>>,
     AuthAccess(_claims): AuthAccess,
@@ -118,6 +138,18 @@ pub async fn attendre_nominatif(
     }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/messagerie/nominatif/lu",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    request_body = UidCorps,
+    responses(
+        (status = 200, description = "Résultat de l'action ; `applique` est faux quand le serveur IMAP l'a refusée", body = ActionNominatif),
+        (status = 400, description = "Messagerie non configurée", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Action interrompue", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn marquer_lu(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -155,6 +187,18 @@ pub async fn marquer_lu(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/messagerie/nominatif/deplacer",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    request_body = UidCorps,
+    responses(
+        (status = 200, description = "Résultat de l'action ; `applique` est faux quand le serveur IMAP l'a refusée", body = ActionNominatif),
+        (status = 400, description = "Dossier de destination absent, ou messagerie non configurée", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Action interrompue", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn deplacer_message(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -197,6 +241,18 @@ pub async fn deplacer_message(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/messagerie/nominatif/supprimer",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    request_body = UidCorps,
+    responses(
+        (status = 200, description = "Résultat de l'action ; `applique` est faux quand le serveur IMAP l'a refusée", body = ActionNominatif),
+        (status = 400, description = "Messagerie non configurée", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Action interrompue", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn supprimer_message(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -230,6 +286,18 @@ pub async fn supprimer_message(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/messagerie/nominatif/drapeau",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    request_body = UidCorps,
+    responses(
+        (status = 200, description = "Résultat de l'action ; `applique` est faux quand le serveur IMAP l'a refusée", body = ActionNominatif),
+        (status = 400, description = "Drapeau absent, ou messagerie non configurée", body = crate::error::ApiErrorBody),
+        (status = 500, description = "Action interrompue", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn poser_drapeau(
     State(state): State<Arc<AppState>>,
     AuthAccess(_claims): AuthAccess,
@@ -256,6 +324,19 @@ pub async fn poser_drapeau(
     }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/messagerie/nominatif/recherche",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    params(
+        ("q" = String, Query, description = "Mots cherchés dans le texte des messages déjà lus"),
+    ),
+    responses(
+        (status = 200, description = "Vingt messages au plus, des plus récents aux plus anciens", body = Vec<Trouve>),
+        (status = 400, description = "Recherche vide", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn rechercher(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
@@ -293,6 +374,19 @@ pub async fn rechercher(
     ))
 }
 
+#[utoipa::path(
+    get,
+    path = "/messagerie/nominatif/contenu",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    params(
+        ("message_id" = String, Query, description = "Identifiant de message (en-tête Message-ID)"),
+    ),
+    responses(
+        (status = 200, description = "Contenu déjà conservé du message (HTML nettoyé et texte brut)", body = Contenu),
+        (status = 404, description = "Message introuvable ou illisible pour l'utilisateur", body = crate::error::ApiErrorBody),
+    )
+)]
 pub async fn lire_contenu(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
