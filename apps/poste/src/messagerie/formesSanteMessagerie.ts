@@ -1,3 +1,4 @@
+import { libelleFournisseur } from "@/messagerie/formesOAuth";
 import { muralMail } from "@/messagerie/listeMails";
 
 /**
@@ -20,6 +21,10 @@ export type SanteCompte = {
   envoisEnEchec: number;
   alerte: boolean;
   motifs: string[];
+  /** Boîte connectée par OAuth (Microsoft 365, Gmail) : aucun mot de passe, la reconnexion passe par le navigateur. */
+  oauth: boolean;
+  /** `microsoft`, `gmail`… pour une boîte OAuth ; `null` sinon. */
+  fournisseur: string | null;
 };
 
 export type SanteMessagerie = {
@@ -73,6 +78,8 @@ export function lireSante(json: unknown): SanteMessagerie {
           envoisEnEchec: nombre(ligne.envois_en_echec),
           alerte: ligne.alerte === true,
           motifs: Array.isArray(ligne.motifs) ? (ligne.motifs as unknown[]).filter((m): m is string => typeof m === "string") : [],
+          oauth: ligne.oauth === true,
+          fournisseur: texteOuNul(ligne.fournisseur),
         },
       ];
     }),
@@ -112,6 +119,8 @@ export type PresentationSante = {
   detail: string;
   /** Vrai quand les identifiants sont à ressaisir : le bouton « Reconnecter » est mis en avant. */
   reconnecter: boolean;
+  /** Nom du fournisseur d'une boîte OAuth (« Microsoft 365 »), `null` pour une boîte à mot de passe. */
+  fournisseur: string | null;
 };
 
 function envois(n: number): string {
@@ -123,13 +132,20 @@ function envois(n: number): string {
  * Rien n'est affirmé que la donnée ne dise : une boîte jamais relevée n'est pas « connectée ».
  */
 export function presenterSante(compte: SanteCompte): PresentationSante {
+  const nom = compte.oauth ? libelleFournisseur(compte.fournisseur) : "";
+  return { ...presenterEtat(compte), fournisseur: nom === "" ? null : nom };
+}
+
+type EtatPresente = Omit<PresentationSante, "fournisseur">;
+
+function presenterEtat(compte: SanteCompte): EtatPresente {
   const sansEnvoiEnEchec = compte.envoisEnEchec === 0;
   if (compte.motifs.includes("identifiants_refuses") || compte.etatConnexion === "identifiants_refuses") {
     const depuis = dateEtHeure(compte.derniereErreurAuthentificationLe);
     return {
       niveau: "alerte",
       titre: "Identifiants refusés",
-      detail: `${depuis === "" ? "" : `Depuis ${depuis}. `}Les tentatives sont suspendues.`,
+      detail: `${depuis === "" ? "" : `Depuis ${depuis}. `}Les tentatives sont suspendues.${compte.oauth ? " L'autorisation est à renouveler." : ""}`,
       reconnecter: true,
     };
   }

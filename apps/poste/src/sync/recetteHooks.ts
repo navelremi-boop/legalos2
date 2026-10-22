@@ -7,6 +7,7 @@ import {
   renvoyerVersionDepuisCache,
 } from "@/documents/ouvrirDocument";
 import { estFichierIgnorePourVersion } from "@/documents/filtreTemporaire";
+import { creerCrochetOAuthRecette, type CrochetOAuthRecette } from "@/messagerie/oauthRecette";
 import { fts5Disponible } from "@/documents/rechercheDocuments";
 import { DEMO_CABINET_ID } from "@/sync/demoCabinet";
 import { getPowerSyncDatabase } from "@/sync/database";
@@ -100,10 +101,13 @@ export type RecetteHooks = {
   ) => Promise<{ numero: number; divergence: boolean } | null>;
   estFichierIgnorePourVersion: (nom: string) => boolean;
   fts5Disponible: () => Promise<boolean>;
+  /** Connexion OAuth des boîtes : le « navigateur » et le fournisseur simulé sont ceux de la recette. */
+  oauth: CrochetOAuthRecette;
 };
 
 export function createRecetteHooks(): RecetteHooks {
   return {
+    oauth: creerCrochetOAuthRecette(),
     async readCabinetNom() {
       const database = await getPowerSyncDatabase();
       const rows = await database.getAll<{ nom: string }>(

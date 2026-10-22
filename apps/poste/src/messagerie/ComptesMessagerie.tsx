@@ -1,17 +1,21 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fr } from "@/lib/fr";
 import { ajouterBoite, reconnecterBoite } from "@/messagerie/apiConnexionBoites";
+import { lancerConnexionOAuth, lireFournisseursOAuth } from "@/messagerie/apiOAuthBoites";
 import { lireSanteMessagerie } from "@/messagerie/apiSanteMessagerie";
+import { ChoixConnexionBoite } from "@/messagerie/ChoixConnexionBoite";
 import { FormulaireConnexionBoite } from "@/messagerie/FormulaireConnexionBoite";
 import { libelleTypeCompte } from "@/messagerie/formesApiRedaction";
 import { verificationTerminee, type ChampsConnexion, type ModeConnexion } from "@/messagerie/formesConnexionBoite";
+import { libelleEtape, libelleFournisseur, type EtapeOAuth, type FournisseurOAuth } from "@/messagerie/formesOAuth";
 import { presenterSante, type SanteMessagerie } from "@/messagerie/formesSanteMessagerie";
 
 /**
  * Réglages, Messagerie, « Comptes » (maquette prototype-reglages) : chaque boîte avec son état de connexion, sa dernière
  * relève et ses envois en échec ; ajout d'une boîte et reconnexion d'une boîte dont les identifiants sont refusés.
  * L'état vient du serveur (`GET /messagerie/sante`) et se rafraîchit tout seul ; le poste ne tient aucun identifiant de
- * messagerie : ceux du formulaire partent au serveur et disparaissent avec lui.
+ * messagerie : ceux du formulaire partent au serveur et disparaissent avec lui. Une boîte Microsoft 365 ou Gmail se
+ * connecte par le navigateur du système (OAuth) : aucun mot de passe, aucun jeton sur le poste.
  */
 
 const RAFRAICHISSEMENT_MS = 30_000;
@@ -19,6 +23,18 @@ const RAFRAICHISSEMENT_MS = 30_000;
 const RAFRAICHISSEMENT_RAPIDE_MS = 3_000;
 
 type FormulaireOuvert = { mode: ModeConnexion; compteId: string; adresse: string };
+
+/** Choix du mode de connexion d'une nouvelle boîte ; `fournisseurs` est `null` tant que la liste se charge. */
+type ChoixOuvert = { compteId: string; fournisseurs: FournisseurOAuth[] | null };
+
+/** Connexion OAuth en cours (étape) ou terminée en échec (`erreur`). */
+type OauthEnCours = {
+  compteId: string;
+  adresse: string;
+  fournisseur: string;
+  etape: EtapeOAuth;
+  erreur: string | null;
+};
 
 type ComptesMessagerieProps = {
   instanceUrl: string;
@@ -36,6 +52,17 @@ export function ComptesMessagerie({ instanceUrl, enLigne, demonstration }: Compt
   /** Boîtes dont la connexion vient d'être saisie : suivies de près jusqu'à la réponse du moteur. */
   const [enVerification, setEnVerification] = useState<readonly string[]>([]);
   const [rechargement, setRechargement] = useState(0);
+  const [choix, setChoix] = useState<ChoixOuvert | null>(null);
+  const [oauth, setOauth] = useState<OauthEnCours | null>(null);
+  const annulerOauth = useRef<(() => void) | null>(null);
+
+  // Quitter l'écran pendant la connexion l'annule : l'écoute locale se ferme.
+  useEffect(
+    () => () => {
+      annulerOauth.current?.();
+    },
+    [],
+  );
 
   const aSurveiller =
     sante === null
@@ -95,6 +122,44 @@ export function ComptesMessagerie({ instanceUrl, enLigne, demonstration }: Compt
     setFormulaire({ mode, compteId, adresse });
   };
 
+  const ouvrirChoix = () => {
+    const compteId = crypto.randomUUID();
+    setChoix({ compteId, fournisseurs: null });
+    void lireFournisseursOAuth(instanceUrl).then((resultat) => {
+      // Une instance sans connexion par fournisseur (ou qui ne répond pas) ne propose que le mot de passe.
+      setChoix((actuel) =>
+        actuel !== null && actuel.compteId === compteId
+          ? { compteId, fournisseurs: resultat.ok ? resultat.valeur : [] }
+          : actuel,
+      );
+    });
+  };
+
+  const connecterParFournisseur = (compteId: string, adresse: string, fournisseur: string) => {
+    if (demonstration !== undefined || (oauth !== null && oauth.erreur === null)) return;
+    setOauth({ compteId, adresse, fournisseur, etape: "ouverture", erreur: null });
+    const parcours = lancerConnexionOAuth(instanceUrl, { compteId, adresse, fournisseur }, (etape) => {
+      setOauth((actuel) => (actuel !== null && actuel.compteId === compteId ? { ...actuel, etape } : actuel));
+    });
+    annulerOauth.current = parcours.annuler;
+    void parcours.resultat.then((resultat) => {
+      annulerOauth.current = null;
+      if (resultat.ok) {
+        setEnVerification((actuel) => [...actuel, compteId]);
+        setOauth(null);
+        setRechargement((n) => n + 1);
+      } else if (resultat.annule) {
+        setOauth(null);
+      } else {
+        setOauth((actuel) =>
+          actuel !== null && actuel.compteId === compteId ? { ...actuel, erreur: resultat.message } : actuel,
+        );
+      }
+    });
+  };
+
+  const connexionEnCours = oauth !== null && oauth.erreur === null;
+
   return (
     <div data-testid="comptes-messagerie">
       <h3>{fr("Comptes")}</h3>
@@ -113,7 +178,9 @@ export function ComptesMessagerie({ instanceUrl, enLigne, demonstration }: Compt
         <div className="rg-mess__liste" data-testid="comptes-liste">
           {sante.comptes.map((compte) => {
             const presentation = presenterSante(compte);
-            const modifiable = compte.typeCompte === "nominatif" && enLigne && demonstration === undefined;
+            const nominatif = compte.typeCompte === "nominatif" && enLigne && demonstration === undefined;
+            // Une boîte OAuth n'a rien à modifier : seule sa reconnexion existe, quand le fournisseur a refusé le jeton.
+            const modifiable = nominatif && (!compte.oauth || presentation.reconnecter);
             return (
               <div
                 key={compte.compteId}
@@ -125,6 +192,9 @@ export function ComptesMessagerie({ instanceUrl, enLigne, demonstration }: Compt
                 <span className="rg-mess__nom">
                   <b>{fr(libelleTypeCompte(compte.typeCompte).titre)}</b>
                   <small data-testid="compte-adresse">{compte.adresse}</small>
+                  {presentation.fournisseur !== null ? (
+                    <small data-testid="compte-fournisseur">{fr(`Connexion par ${presentation.fournisseur}`)}</small>
+                  ) : null}
                   <span className="rg-mess__etat">
                     <span className="rg-mess__puce" data-niveau={presentation.niveau}>
                       <i aria-hidden />
@@ -140,8 +210,13 @@ export function ComptesMessagerie({ instanceUrl, enLigne, demonstration }: Compt
                       className="rg-mess__bouton"
                       data-fort={presentation.reconnecter ? "true" : undefined}
                       data-testid="compte-reconnecter"
+                      disabled={connexionEnCours}
                       onClick={() => {
-                        ouvrir("reconnexion", compte.compteId, compte.adresse);
+                        if (compte.oauth) {
+                          connecterParFournisseur(compte.compteId, compte.adresse, compte.fournisseur ?? "");
+                        } else {
+                          ouvrir("reconnexion", compte.compteId, compte.adresse);
+                        }
                       }}
                     >
                       {fr(presentation.reconnecter ? "Reconnecter" : "Modifier")}
@@ -170,16 +245,73 @@ export function ComptesMessagerie({ instanceUrl, enLigne, demonstration }: Compt
             setFormulaire(null);
           }}
         />
+      ) : choix !== null ? (
+        <ChoixConnexionBoite
+          fournisseurs={choix.fournisseurs}
+          onMotDePasse={() => {
+            ouvrir("ajout", choix.compteId, "");
+            setChoix(null);
+          }}
+          onFournisseur={(fournisseur, adresse) => {
+            setChoix(null);
+            connecterParFournisseur(choix.compteId, adresse, fournisseur.id);
+          }}
+          onAnnuler={() => {
+            setChoix(null);
+          }}
+        />
+      ) : oauth !== null ? (
+        <div
+          className="rg-mess__formulaire"
+          data-testid="connexion-oauth-progression"
+          data-etape={oauth.erreur === null ? oauth.etape : "erreur"}
+        >
+          {oauth.erreur === null ? (
+            <>
+              <p className="rg-mess__desc" role="status" data-testid="connexion-oauth-etape">
+                {fr(libelleEtape(oauth.etape))}
+              </p>
+              <p className="rg-mess__note">
+                {fr(`Boîte ${oauth.adresse}, connexion par ${libelleFournisseur(oauth.fournisseur)}.`)}
+              </p>
+              {oauth.etape !== "echange" ? (
+                <div className="rg-mess__actions">
+                  <button
+                    type="button"
+                    className="rg-mess__bouton"
+                    data-testid="connexion-oauth-annuler"
+                    onClick={() => {
+                      annulerOauth.current?.();
+                    }}
+                  >
+                    {fr("Annuler")}
+                  </button>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <p className="rg-mess__erreur" role="alert" data-testid="connexion-oauth-erreur">
+                {fr(oauth.erreur)}
+              </p>
+              <div className="rg-mess__actions">
+                <button
+                  type="button"
+                  className="rg-mess__bouton"
+                  data-testid="connexion-oauth-fermer"
+                  onClick={() => {
+                    setOauth(null);
+                  }}
+                >
+                  {fr("Fermer")}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       ) : enLigne && demonstration === undefined ? (
         <div className="rg-mess__actions">
-          <button
-            type="button"
-            className="rg-mess__bouton"
-            data-testid="compte-ajouter"
-            onClick={() => {
-              ouvrir("ajout", crypto.randomUUID(), "");
-            }}
-          >
+          <button type="button" className="rg-mess__bouton" data-testid="compte-ajouter" onClick={ouvrirChoix}>
             {fr("Ajouter une boîte")}
           </button>
         </div>

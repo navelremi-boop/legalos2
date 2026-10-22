@@ -1,6 +1,7 @@
 // Feature `test-webdriver` : WebDriver embarqué réservé aux builds CI (§ 22-tauri).
 
 mod document_cache;
+mod oauth_boucle;
 mod powersync_connect;
 mod trousseau;
 
@@ -12,6 +13,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_powersync::init())
         .manage(document_cache::SurveillanceDocuments::default())
+        .manage(oauth_boucle::EtatBouclage::default())
         .invoke_handler(tauri::generate_handler![
             powersync_connect::connect_powersync,
             trousseau::assurer_repertoire_poste,
@@ -26,7 +28,10 @@ pub fn run() {
             document_cache::ecrire_octets_cache,
             document_cache::deposer_octets_url,
             document_cache::surveiller_cache_document,
-            document_cache::arreter_surveillance_document
+            document_cache::arreter_surveillance_document,
+            oauth_boucle::oauth_ecouter_bouclage,
+            oauth_boucle::oauth_attendre_retour,
+            oauth_boucle::oauth_annuler_bouclage
         ]);
 
     #[cfg(feature = "test-webdriver")]

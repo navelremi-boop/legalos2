@@ -15,6 +15,8 @@ function compte(extra: Partial<SanteCompte> = {}): SanteCompte {
     envoisEnEchec: 0,
     alerte: false,
     motifs: [],
+    oauth: false,
+    fournisseur: null,
     ...extra,
   };
 }
@@ -49,6 +51,18 @@ describe("lecture du tableau de santé", () => {
     assert.equal(sante.alerte, true);
   });
 
+  it("lit le mode de connexion : OAuth et fournisseur, mot de passe par défaut", () => {
+    const sante = lireSante({
+      comptes: [
+        { compte_id: "o", oauth: true, fournisseur: "microsoft" },
+        { compte_id: "m", oauth: false, fournisseur: null },
+        { compte_id: "a" },
+        { compte_id: "x", oauth: "true", fournisseur: 3 },
+      ],
+    });
+    assert.deepEqual(sante.comptes.map((c) => [c.oauth, c.fournisseur]), [[true, "microsoft"], [false, null], [false, null], [false, null]]);
+  });
+
   it("une réponse illisible donne un tableau vide, jamais une boîte saine", () => {
     assert.deepEqual(lireSante(null), { comptes: [], envoisEnEchec: 0, alerte: false });
     assert.deepEqual(lireSante("x"), { comptes: [], envoisEnEchec: 0, alerte: false });
@@ -77,7 +91,7 @@ describe("durées et dates", () => {
 describe("ce que l'écran dit d'une boîte", () => {
   it("boîte saine", () => {
     const p = presenterSante(compte());
-    assert.deepEqual(p, { niveau: "ok", titre: "Connectée", detail: "Relevée il y a 1 min, aucun envoi en échec.", reconnecter: false });
+    assert.deepEqual(p, { niveau: "ok", titre: "Connectée", detail: "Relevée il y a 1 min, aucun envoi en échec.", reconnecter: false, fournisseur: null });
   });
 
   it("identifiants refusés : alerte, reconnecter, tentatives suspendues", () => {
@@ -88,6 +102,29 @@ describe("ce que l'écran dit d'une boîte", () => {
     assert.equal(p.titre, "Identifiants refusés");
     assert.equal(p.reconnecter, true);
     assert.equal(p.detail, "Depuis le 17 oct., 8 h 12. Les tentatives sont suspendues.");
+  });
+
+  it("boîte OAuth connectée : le fournisseur est nommé, pas de bouton de reconnexion", () => {
+    const p = presenterSante(compte({ oauth: true, fournisseur: "microsoft" }));
+    assert.equal(p.titre, "Connectée");
+    assert.equal(p.fournisseur, "Microsoft 365");
+    assert.equal(p.reconnecter, false);
+    assert.equal(presenterSante(compte({ oauth: true, fournisseur: "gmail" })).fournisseur, "Gmail");
+  });
+
+  it("boîte OAuth dont le fournisseur a refusé le jeton : identifiants refusés, Reconnecter", () => {
+    const p = presenterSante(
+      compte({ oauth: true, fournisseur: "gmail", etatConnexion: "identifiants_refuses", motifs: ["identifiants_refuses"], derniereErreurAuthentificationLe: "2026-10-17T06:12:00Z" }),
+    );
+    assert.equal(p.niveau, "alerte");
+    assert.equal(p.titre, "Identifiants refusés");
+    assert.equal(p.reconnecter, true);
+    assert.equal(p.fournisseur, "Gmail");
+    assert.equal(p.detail, "Depuis le 17 oct., 8 h 12. Les tentatives sont suspendues. L'autorisation est à renouveler.");
+  });
+
+  it("une boîte à mot de passe ne nomme aucun fournisseur, même si le serveur en envoyait un", () => {
+    assert.equal(presenterSante(compte({ oauth: false, fournisseur: "gmail" })).fournisseur, null);
   });
 
   it("les identifiants refusés l'emportent sur le retard et les envois en échec", () => {

@@ -49,6 +49,11 @@ export function portImapParDefaut(tls: boolean): string {
 
 const ADRESSE = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]{2,}$/u;
 
+/** Vrai si le texte ressemble à une adresse de messagerie (une vraie vérification a lieu chez le fournisseur). */
+export function adresseValide(texte: string): boolean {
+  return ADRESSE.test(texte.trim());
+}
+
 function propre(valeur: string): string {
   return valeur.trim();
 }
