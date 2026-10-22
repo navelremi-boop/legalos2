@@ -51,6 +51,10 @@ const INTERDITS = [
   "galerie-commandes",
   "galerie-scene",
   "?galerie=1",
+  // Point d'extension de recette de la connexion OAuth (le « navigateur » de la recette) : jamais dans le bundle distribué.
+  "__legalosRecette",
+  "adressesOuvertes",
+  "supplementsDebut",
 ];
 
 const fautes = [];

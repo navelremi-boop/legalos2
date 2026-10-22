@@ -12,7 +12,7 @@
  * (i) identité d'envoi : le From est l'adresse du compte choisi (nominatif ou partagé), le Reply-To
  *     n'existe que si le compte en définit un, le relais SMTP est celui du compte (repli sur celui du
  *     cabinet sinon), la copie va dans les envoyés du compte ; envoi depuis le compte d'un autre refusé
- *     (403, message en français) ; file idempotente après coupure ; en-têtes toujours non injectables.
+ *     (404 : le compte d'un autre est introuvable, jamais 403) ; file idempotente après coupure ; en-têtes toujours non injectables.
  * Droits : un collaborateur ne lit ni ne modifie le brouillon ni la signature d'un autre, et ne
  * compose pas depuis un message d'une boîte nominative qui n'est pas la sienne.
  *
@@ -850,15 +850,15 @@ async function etapeIdentiteEnvoi({ secret, jetonA, jetonB }) {
     for (const [nom, compte] of [["nominatif de A", ids.nominatif], ["partagé dont B n'est pas membre", ids.partage]]) {
       const intrus = corpsEnvoi(compte, `Intrus ${m}`);
       const refus = await requete("/messagerie/file-envoi", jetonB, "POST", intrus);
-      attendreStatut(refus, 403, `B envoie depuis le compte ${nom}`);
-      if (!/droit/i.test(refus.json?.message ?? "")) fail(`message du refus (${nom}) : ${refus.texte.slice(0, 200)}`);
+      attendreStatut(refus, 404, `B envoie depuis le compte ${nom}`);
+      if (!/introuvable/i.test(refus.json?.message ?? "")) fail(`message du refus (${nom}) : ${refus.texte.slice(0, 200)}`);
       if ((await sqlServeur(`SELECT COUNT(*) FROM file_envoi WHERE id = '${intrus.id}'`)) !== "0") fail(`une ligne de file a été créée pour B (${nom})`);
       attendreStatut(
         await requete(`/messagerie/brouillons/${randomUUID()}`, jetonB, "PUT", { compte_id: compte, a: [boite], objet: "Intrus" }),
-        403,
+        404,
         `B écrit un brouillon depuis le compte ${nom}`,
       );
-      attendreStatut(await requete("/messagerie/composition", jetonB, "POST", { genre: "nouveau", compte_id: compte }), 403, `B compose depuis le compte ${nom}`);
+      attendreStatut(await requete("/messagerie/composition", jetonB, "POST", { genre: "nouveau", compte_id: compte }), 404, `B compose depuis le compte ${nom}`);
     }
     // Même requête, depuis la boîte de classement du cabinet : acceptée (le refus vient bien du droit).
     attendreStatut(
@@ -866,7 +866,7 @@ async function etapeIdentiteEnvoi({ secret, jetonA, jetonB }) {
       200,
       "B envoie depuis la boîte de classement du cabinet",
     );
-    ok("droits : B refusé (403, message en français) pour l'envoi, le brouillon et la composition depuis le compte nominatif de A et depuis la boîte partagée dont il n'est pas membre");
+    ok("droits : compte introuvable (404, message en français) pour B à l'envoi, le brouillon et la composition depuis le compte nominatif de A et depuis la boîte partagée dont il n'est pas membre");
 
     // --- Compte nominatif : From, Reply-To, enveloppe, copie dans les envoyés du compte -----------
     const cachee = `cachee.envoi.${m}@example.com`;

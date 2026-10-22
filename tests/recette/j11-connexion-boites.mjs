@@ -2,7 +2,10 @@
 /**
  * J11, critère (v) — écrans de connexion d'une boîte (IMAP/SMTP) et de santé, dans l'app Tauri (Réglages, Messagerie,
  * « Comptes »), sur un vrai serveur IMAP (Dovecot d'imap-test) et l'API réelle. Services requis : instance Docker et
- * instance/imap-test. Le volet OAuth n'est pas couvert : sa route de retour n'existe pas (question à l'architecte).
+ * instance/imap-test. Le volet OAuth (Microsoft 365, Gmail) tourne sur le fournisseur simulé de lib/simulateur-oauth.mjs
+ * (jetons de 100 s), un Dovecot XOAUTH2 et l'écoute de bouclage réelle de l'app ; seul le « navigateur » est simulé, par
+ * le crochet de recette `window.__legalosRecette.oauth` (absent du build distribué). Services requis en plus : Docker
+ * (Dovecot) et les ports 18766 et 18767 libres (ne pas lancer avec oauth-messagerie.mjs).
  *
  * Prouve, par le DOM de l'app, chacun avec un essai négatif :
  *  1. la santé : une boîte au bon mot de passe est « Connectée », une boîte au mauvais « Identifiants refusés » (tentatives
@@ -11,16 +14,25 @@
  *  3. reconnecter avec un mauvais mot de passe : la boîte reste « Identifiants refusés » ;
  *  4. reconnecter avec le bon : « Connectée », sans autre geste ;
  *  5. ajouter une boîte : saisie invalide refusée avant tout appel ; saisie valide : la boîte apparaît « Connectée » ;
- *  6. aucun identifiant ne reste sur le poste (page, stockage du navigateur, base locale) ni en clair sur le serveur.
+ *  6. OAuth, depuis l'écran : le choix du mode (mot de passe, ou un bouton par fournisseur de l'instance ; le simulateur
+ *     n'est proposé que par le crochet de recette) ; ajout d'une boîte (adresse demandée, navigateur appelé avec l'adresse
+ *     d'autorisation, requêtes parasites sur le port d'écoute : 404 et l'attente continue, retour : boîte « Connectée »
+ *     avec son fournisseur, sans « Modifier ») ; révocation côté fournisseur : « Identifiants refusés » avec
+ *     « Reconnecter » en avant ; reconnexion depuis l'écran (même boîte, sans formulaire de mot de passe) : « Connectée » ;
+ *     essais négatifs : annulation (aucune boîte, le port ne répond plus), retour d'un autre state (rien n'est envoyé à
+ *     /echange, la demande du serveur n'est pas consommée), refus du fournisseur (message français, aucune boîte) ;
+ *  7. aucun identifiant ni jeton ne reste sur le poste (page, stockage du navigateur, base locale) ni en clair sur le serveur.
  */
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { demarrerBancOauth, portRepond } from "./lib/banc-oauth-poste.mjs";
 import { demoAccessToken, demoEmail, demoPassword, totpSecretB32 } from "./lib/demo-auth.mjs";
 import { creerClientImap } from "./lib/imap-controle.mjs";
 import { MOT_IMAP_TEST, conteneur, connecterAuReseauApi } from "./lib/moteur-mail.mjs";
 import { creerSession, racineInstance, sleep, sqlServeur } from "./lib/poste-session.mjs";
+import { autoriserDansLeNavigateur } from "./lib/simulateur-oauth.mjs";
 import { creerUi, lit, norm } from "./lib/ui-mails.mjs";
 
 const racine = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -31,7 +43,7 @@ const { api, fail, ok, resetPostes, stopApp, ouvrirPoste, fermer } = session;
 const marque = String(Date.now()).slice(-6);
 let send;
 const ui = creerUi({ getSend: () => send, fail, dossierCaptures });
-const { js, cliquer, texteDe, present, compter, sqliteLocal, saisir, attendre, verifier, essaiNegatif, capturer } = ui;
+const { js, cliquer, texteDe, present, compter, desactive, sqliteLocal, saisir, attendre, verifier, essaiNegatif, capturer } = ui;
 
 const capa = creerClientImap({ hote: "127.0.0.1", port: "1143", login: "capa", secret: MOT_IMAP_TEST });
 const MAUVAIS = `MauvaisMotDePasse-${marque}`;
@@ -54,6 +66,7 @@ const WHERE_COMPTES = `adresse LIKE '${PREFIXE}.%@cabinet.example'`;
 async function retirerComptes() {
   const ids = `SELECT id FROM comptes_mail WHERE ${WHERE_COMPTES}`;
   for (const requete of [
+    `DELETE FROM oauth_etats WHERE ${WHERE_COMPTES}`,
     `DELETE FROM actions_messages WHERE compte_id IN (${ids})`,
     `DELETE FROM file_envoi WHERE compte_id IN (${ids})`,
     `DELETE FROM releve_curseurs WHERE compte_id IN (${ids})`,
@@ -130,7 +143,10 @@ async function main() {
 
   resetPostes(["jcnx"]);
   let poste = null;
+  let banc = null;
   try {
+    console.log("j11-connexion: banc OAuth : fournisseur simulé (jetons de 100 s), relais SMTP XOAUTH2, Dovecot XOAUTH2");
+    banc = await demarrerBancOauth({ fail });
     poste = await ouvrirPoste("jcnx", 9371, {
       email: demoEmail,
       password: demoPassword,
@@ -212,6 +228,9 @@ async function main() {
     const nbComptes = () => sqlServeur(`SELECT COUNT(*) FROM comptes_mail WHERE ${WHERE_COMPTES}`);
     const avantAjout = await nbComptes();
     await cliquer("[data-testid=compte-ajouter]");
+    await attendre("choix du mode de connexion", () => present("[data-testid=connexion-mode-motdepasse]"), Boolean, 10_000);
+    verifier("« Ajouter une boîte » ouvre d'abord le choix du mode, pas le formulaire", !(await present(FORM)));
+    await cliquer("[data-testid=connexion-mode-motdepasse]");
     await attendre("formulaire d'ajout", () => present(FORM), Boolean, 10_000);
     verifier("le formulaire est en mode ajout, avec le champ adresse", (await js(`document.querySelector(${JSON.stringify(FORM)}).getAttribute("data-mode")`)) === "ajout" && (await present("[data-testid=connexion-adresse]")));
     await remplir({ adresse: "pas une adresse", hote: dovecot, utilisateur: "capa", motDePasse: MOT_IMAP_TEST });
@@ -233,8 +252,211 @@ async function main() {
     verifier("trois boîtes de l'avocat à l'écran, pas celle du confrère", (await compter("[data-testid=compte-sante]")) >= 3 && !(await present(ligne(compteConfrere))));
     ok("ajout d'une boîte : saisie invalide refusée avant tout appel, saisie valide « Connectée »");
 
-    // ===== 6. Aucun identifiant ne reste sur le poste ni en clair sur le serveur =====
-    const secrets = [MOT_IMAP_TEST, MAUVAIS];
+    // ===== 6. OAuth =====
+    const CROCHET = "window.__legalosRecette.oauth";
+    const BOUTON_SIMULATEUR = "[data-testid=connexion-fournisseur-simulateur]";
+    const ETAPE = "[data-testid=connexion-oauth-etape]";
+    const ADRESSE_ATTENTE = "En attente de l'autorisation dans le navigateur…";
+    const adressesOuvertes = () => js(`${CROCHET}.adressesOuvertes.length`);
+    const echanges = () => js(`window.__echangesOAuth`);
+    const montrer = (sel) => js(`document.querySelector(${JSON.stringify(sel)})?.scrollIntoView({ block: "center" })`);
+    const nbBoitesAdresse = (a) => sqlServeur(`SELECT COUNT(*) FROM comptes_mail WHERE adresse = ${lit(a)}`);
+    const nbEtats = (state) => sqlServeur(`SELECT COUNT(*) FROM oauth_etats WHERE state = ${lit(state)}`);
+    const codesVus = [];
+    const idsFournisseursUi = () =>
+      js(`[...document.querySelectorAll("[data-testid^=connexion-fournisseur-]")].map((b) => b.getAttribute("data-testid").slice("connexion-fournisseur-".length)).sort()`);
+    const sansEcoute = async (port) => {
+      await attendre("l'écoute locale est fermée (le port ne répond plus)", () => portRepond(port), (v) => v === false, 15_000);
+    };
+    // Compte les appels de l'écran à /messagerie/oauth/echange (preuve qu'un retour refusé n'est rien envoyé à l'instance).
+    await js(`(() => { window.__echangesOAuth = 0; const f = window.fetch; window.fetch = (...a) => { if (String(a[0]?.url ?? a[0]).includes("/messagerie/oauth/echange")) window.__echangesOAuth += 1; return f.apply(window, a); }; return true; })()`);
+
+    // --- 6.1 Choix du mode : le simulateur n'est jamais proposé hors recette ---
+    const listeInstance = await json("/messagerie/oauth/fournisseurs", jeton, "GET");
+    const idsInstance = listeInstance.fournisseurs.map((f) => f.id).sort();
+    verifier("l'instance ne propose pas le simulateur", !idsInstance.includes("simulateur"), JSON.stringify(idsInstance));
+    await cliquer("[data-testid=compte-ajouter]");
+    await attendre("choix du mode", () => present("[data-testid=connexion-mode-motdepasse]"), Boolean, 10_000);
+    await attendre("liste des fournisseurs chargée", () => present("[data-testid=connexion-fournisseurs-chargement]"), (v) => v === false, 20_000);
+    verifier("les boutons de fournisseur sont ceux de l'instance, rien de plus", JSON.stringify(await idsFournisseursUi()) === JSON.stringify(idsInstance), JSON.stringify(await idsFournisseursUi()));
+    essaiNegatif("le simulateur est proposé sans le crochet de recette", (await idsFournisseursUi()).includes("simulateur"));
+    await cliquer("[data-testid=connexion-choix-annuler]");
+    await attendre("retour à l'écran des comptes", () => present("[data-testid=compte-ajouter]"), Boolean, 10_000);
+    await js(`${CROCHET}.configurer(${JSON.stringify({ fournisseurs: [{ id: "simulateur", libelle: "Fournisseur de test" }], supplementsDebut: { simulateur: banc.supplement } })})`);
+    await cliquer("[data-testid=compte-ajouter]");
+    await attendre("le crochet de recette ajoute le simulateur (contrôle positif)", () => present(BOUTON_SIMULATEUR), Boolean, 20_000);
+    verifier("le bouton du simulateur porte son libellé", norm(await texteDe(BOUTON_SIMULATEUR)) === "Fournisseur de test");
+    verifier("« Mot de passe (IMAP/SMTP) » reste proposé", norm(await texteDe("[data-testid=connexion-mode-motdepasse]")) === "Mot de passe (IMAP/SMTP)");
+    await montrer("[data-testid=connexion-choix]");
+    await capturer("connexion-oauth-choix-jour.png", "light");
+    await capturer("connexion-oauth-choix-nuit.png", "dark");
+    await cliquer("[data-testid=connexion-choix-annuler]");
+    await attendre("retour à l'écran des comptes", () => present("[data-testid=compte-ajouter]"), Boolean, 10_000);
+    ok("choix du mode : mot de passe ou fournisseurs de l'instance ; le simulateur n'apparaît que par le crochet de recette");
+
+    /** Ajouter une boîte par le simulateur jusqu'à l'ouverture du navigateur ; rend l'adresse d'autorisation et le bouclage. */
+    const demarrerParcours = async (adresseBoite) => {
+      await cliquer("[data-testid=compte-ajouter]");
+      await attendre("choix du mode de connexion", () => present(BOUTON_SIMULATEUR), Boolean, 20_000);
+      await cliquer(BOUTON_SIMULATEUR);
+      await attendre("l'adresse est demandée avant l'ouverture du navigateur", () => present("[data-testid=connexion-oauth-adresse]"), Boolean, 10_000);
+      const avant = await adressesOuvertes();
+      await cliquer("[data-testid=connexion-oauth-ouvrir]");
+      await attendre("une adresse invalide est refusée avant tout appel", () => texteDe("[data-testid=connexion-oauth-erreur]"), (t) => norm(t).includes("l'adresse de la boîte"), 10_000);
+      verifier("le navigateur n'est pas appelé tant que l'adresse est invalide", (await adressesOuvertes()) === avant);
+      verifier("adresse saisie", await saisir("[data-testid=connexion-oauth-adresse]", adresseBoite));
+      await cliquer("[data-testid=connexion-oauth-ouvrir]");
+      await attendre("le navigateur est appelé avec l'adresse d'autorisation", adressesOuvertes, (n) => n === avant + 1, 30_000);
+      await attendre("attente de l'autorisation", () => texteDe(ETAPE), (t) => norm(t) === ADRESSE_ATTENTE, 15_000);
+      const url = new URL(await js(`${CROCHET}.adressesOuvertes.at(-1)`));
+      const redirection = url.searchParams.get("redirect_uri") ?? "";
+      verifier("la redirection est le bouclage 127.0.0.1 du poste", /^http:\/\/127\.0\.0\.1:\d{4,5}\/$/u.test(redirection), redirection);
+      return { url, state: url.searchParams.get("state"), redirection, port: Number(new URL(redirection).port) };
+    };
+
+    /** Le « navigateur » : suit l'adresse d'autorisation, puis fait la requête de redirection vers le poste. */
+    const navigateur = async (p, { refus = false, etat: autreState } = {}) => {
+      const reponse = await autoriserDansLeNavigateur(p.url.href, refus ? { refus: "1" } : {});
+      verifier("le fournisseur redirige vers le bouclage du poste", reponse.statut === 302 && String(reponse.location).startsWith(p.redirection), String(reponse.location).slice(0, 60));
+      const cible = new URL(reponse.location);
+      if (cible.searchParams.get("code")) codesVus.push(cible.searchParams.get("code"));
+      if (autreState !== undefined) cible.searchParams.set("state", autreState);
+      const retour = await fetch(cible, { signal: AbortSignal.timeout(10_000) });
+      return { statut: retour.status, corps: await retour.text(), entetes: retour.headers };
+    };
+
+    // --- 6.2 Ajout d'une boîte OAuth, avec des requêtes parasites sur le port d'écoute ---
+    const adresseOauth = adresse("oauth");
+    const avantOauth = await nbBoitesAdresse(adresseOauth);
+    verifier("la boîte OAuth n'existe pas encore", avantOauth === "0");
+    const p1 = await demarrerParcours(adresseOauth);
+    verifier("adresse d'autorisation : fournisseur simulé, PKCE S256, state, indice de connexion", p1.url.origin === `http://127.0.0.1:${banc.fournisseur.port}` && p1.url.searchParams.get("code_challenge_method") === "S256" && (p1.url.searchParams.get("code_challenge") ?? "").length >= 43 && (p1.state ?? "").length >= 16 && p1.url.searchParams.get("login_hint") === adresseOauth);
+    verifier("l'écoute locale répond (contrôle positif des essais qui suivent)", await portRepond(p1.port));
+    verifier("« Annuler » est proposé pendant l'attente", await present("[data-testid=connexion-oauth-annuler]"));
+    essaiNegatif("« Ajouter une boîte » reste proposé pendant la connexion", await present("[data-testid=compte-ajouter]"));
+    await montrer("[data-testid=connexion-oauth-progression]");
+    await capturer("connexion-oauth-attente-jour.png", "light");
+    await capturer("connexion-oauth-attente-nuit.png", "dark");
+    for (const [nom, chemin, options] of [["favicon", "/favicon.ico", {}], ["autre chemin avec paramètres", "/callback?code=x&state=y", {}], ["code sans state", "/?code=seul", {}], ["autre méthode", "/", { method: "POST" }]]) {
+      const parasite = await fetch(`http://127.0.0.1:${p1.port}${chemin}`, { ...options, signal: AbortSignal.timeout(10_000) });
+      verifier(`requête parasite (${nom}) : 404`, parasite.status === 404, String(parasite.status));
+    }
+    verifier("après les requêtes parasites, l'attente continue", norm(await texteDe(ETAPE)) === ADRESSE_ATTENTE && (await portRepond(p1.port)) && (await echanges()) === 0);
+    essaiNegatif("une requête parasite termine l'attente", norm(await texteDe(ETAPE)) !== ADRESSE_ATTENTE);
+    const retour1 = await navigateur(p1);
+    verifier("le navigateur reçoit la page de confirmation en français", retour1.statut === 200 && retour1.corps.includes("Connexion reçue : vous pouvez fermer cette fenêtre et revenir à LEGAL OS."));
+    verifier("page sans cache ni contenu actif", retour1.entetes.get("cache-control") === "no-store" && /charset=utf-8/iu.test(retour1.entetes.get("content-type") ?? "") && !/<script|<iframe|<img|onclick/iu.test(retour1.corps) && !retour1.corps.includes(codesVus[0]));
+    const idOauth = await attendre("la boîte OAuth est au serveur", () => sqlServeur(`SELECT id FROM comptes_mail WHERE adresse = ${lit(adresseOauth)}`), (v) => /^[0-9a-f-]{36}$/u.test(String(v)), 30_000);
+    await attendre("la boîte OAuth apparaît connectée", () => etat(idOauth), (t) => norm(t) === "Connectée", 150_000);
+    verifier("l'écran nomme le fournisseur", norm(await texteDe(`${ligne(idOauth)} [data-testid=compte-fournisseur]`)) === "Connexion par Fournisseur de test");
+    verifier("aucun bouton « Modifier » ni « Reconnecter » pour une boîte OAuth connectée", !(await present(`${ligne(idOauth)} [data-testid=compte-reconnecter]`)));
+    verifier("contrôle positif : une boîte à mot de passe connectée garde « Modifier »", (await texteDe(`${ligne(compteBon)} [data-testid=compte-reconnecter]`)) === "Modifier");
+    verifier("serveur : boîte du simulateur, sans mot de passe, première connexion", (await sqlServeur(`SELECT fournisseur || '|' || secret_ref || '|' || oauth_generation::text || '|' || (secret_chiffre IS NULL)::text FROM comptes_mail WHERE id = '${idOauth}'`)) === "simulateur|oauth|0|true");
+    verifier("l'écran a envoyé un échange de code à l'instance (et un seul)", (await echanges()) === 1);
+    verifier("la demande du serveur est consommée", (await nbEtats(p1.state)) === "0");
+    verifier("l'écoute locale est fermée après le retour", (await attendre("écoute fermée", () => portRepond(p1.port), (v) => v === false, 15_000)) === false);
+    verifier("l'écran des comptes est revenu (plus de progression)", !(await present("[data-testid=connexion-oauth-progression]")) && (await present("[data-testid=compte-ajouter]")));
+    await montrer(ligne(idOauth));
+    await capturer("connexion-oauth-connectee-jour.png", "light");
+    await capturer("connexion-oauth-connectee-nuit.png", "dark");
+    ok("OAuth : boîte ajoutée depuis l'écran, requêtes parasites ignorées (404, l'attente continue), « Connectée » avec son fournisseur, sans « Modifier »");
+
+    // --- 6.3 Révocation côté fournisseur, puis reconnexion depuis l'écran ---
+    banc.fournisseur.revoquer();
+    await attendre("la boîte révoquée passe à « Identifiants refusés »", () => etat(idOauth), (t) => norm(t) === "Identifiants refusés", 180_000);
+    const boutonOauth = `${ligne(idOauth)} [data-testid=compte-reconnecter]`;
+    verifier("« Reconnecter » en avant pour la boîte OAuth", (await texteDe(boutonOauth)) === "Reconnecter" && (await js(`document.querySelector(${JSON.stringify(boutonOauth)})?.getAttribute("data-fort")`)) === "true");
+    verifier("tentatives suspendues, reconnexion proposée", norm(await detail(idOauth)).includes("Les tentatives sont suspendues. L'autorisation est à renouveler."), await detail(idOauth));
+    verifier("le serveur dit la boîte refusée", (await etatServeur(idOauth)) === "identifiants_refuses");
+    essaiNegatif("la boîte révoquée est dite connectée", norm(await etat(idOauth)) === "Connectée");
+    verifier("la révocation ne touche pas la boîte à mot de passe (contrôle positif)", norm(await etat(compteBon)) === "Connectée");
+    await montrer(ligne(idOauth));
+    await capturer("connexion-oauth-reconnecter-jour.png", "light");
+    await capturer("connexion-oauth-reconnecter-nuit.png", "dark");
+
+    const avantReco = await adressesOuvertes();
+    await cliquer(boutonOauth);
+    await attendre("le navigateur est appelé pour la reconnexion", adressesOuvertes, (n) => n === avantReco + 1, 30_000);
+    await attendre("attente de l'autorisation (reconnexion)", () => texteDe(ETAPE), (t) => norm(t) === ADRESSE_ATTENTE, 15_000);
+    verifier("aucun formulaire de mot de passe pour une boîte OAuth", !(await present(FORM)) && !(await present("[data-testid=connexion-motDePasse]")) && (await compter("input[type=password]")) === 0);
+    verifier("pendant la connexion, « Reconnecter » est inactif (un seul parcours à la fois)", (await desactive(boutonOauth)) === true);
+    const urlReco = new URL(await js(`${CROCHET}.adressesOuvertes.at(-1)`));
+    verifier("la demande de reconnexion garde l'identifiant de la boîte et son adresse", urlReco.searchParams.get("login_hint") === adresseOauth);
+    const p2 = { url: urlReco, state: urlReco.searchParams.get("state"), redirection: urlReco.searchParams.get("redirect_uri") ?? "" };
+    p2.port = Number(new URL(p2.redirection).port);
+    await navigateur(p2);
+    await attendre("la boîte reconnectée redevient connectée sans autre geste", () => etat(idOauth), (t) => norm(t) === "Connectée", 150_000);
+    verifier("même boîte, connexion suivante", (await sqlServeur(`SELECT oauth_generation::text || '|' || (SELECT COUNT(*) FROM comptes_mail WHERE adresse = ${lit(adresseOauth)})::text FROM comptes_mail WHERE id = '${idOauth}'`)) === "1|1");
+    verifier("le serveur la dit connectée", (await etatServeur(idOauth)) === "connecte");
+    verifier("deux échanges de code en tout (ajout, reconnexion)", (await echanges()) === 2);
+    essaiNegatif("la boîte reconnectée reste dite refusée", norm(await etat(idOauth)) === "Identifiants refusés");
+    ok("OAuth : révocation côté fournisseur : « Identifiants refusés » avec « Reconnecter » ; reconnexion depuis l'écran : « Connectée »");
+
+    // --- 6.4 Essai négatif : annulation du parcours ---
+    const adresseAnnulee = adresse("oauth-annulee");
+    const echangesAvantAnnulation = await echanges();
+    const pa = await demarrerParcours(adresseAnnulee);
+    verifier("avant l'annulation, l'écoute répond (contrôle positif)", await portRepond(pa.port));
+    await cliquer("[data-testid=connexion-oauth-annuler]");
+    await attendre("retour à l'écran des comptes", () => present("[data-testid=compte-ajouter]"), Boolean, 10_000);
+    await sansEcoute(pa.port);
+    essaiNegatif("le port répond encore après l'annulation", await portRepond(pa.port));
+    let retourTardif = null;
+    try {
+      retourTardif = await navigateur(pa);
+    } catch {
+      retourTardif = null;
+    }
+    essaiNegatif("un retour tardif du navigateur est reçu après l'annulation", retourTardif !== null);
+    await sleep(1500);
+    essaiNegatif("une boîte est créée par un parcours annulé", (await nbBoitesAdresse(adresseAnnulee)) !== "0");
+    verifier("rien n'a été envoyé à /echange", (await echanges()) === echangesAvantAnnulation);
+    verifier("aucune progression ni erreur ne reste à l'écran", !(await present("[data-testid=connexion-oauth-progression]")));
+    ok("OAuth : annulation : aucune boîte, l'écoute est fermée, rien envoyé à /echange");
+
+    // --- 6.5 Essai négatif : retour avec un autre state ---
+    const adresseIncoherente = adresse("oauth-incoherente");
+    const echangesAvantIncoherence = await echanges();
+    const codesAvant = banc.fournisseur.etat.echangesDeCode;
+    const pm = await demarrerParcours(adresseIncoherente);
+    verifier("la demande du serveur existe et attend (contrôle positif)", (await nbEtats(pm.state)) === "1");
+    await navigateur(pm, { etat: `etat-pirate-${marque}-abcdefgh` });
+    await attendre("message d'incohérence en français", () => texteDe("[data-testid=connexion-oauth-erreur]"), (t) => norm(t).includes("ne correspond pas à la demande"), 20_000);
+    await sleep(1500);
+    essaiNegatif("un retour au state différent est transmis à l'instance", (await echanges()) !== echangesAvantIncoherence);
+    verifier("rien n'est parti vers /echange", (await echanges()) === echangesAvantIncoherence);
+    verifier("la demande du serveur n'a pas été consommée (aucun échange)", (await nbEtats(pm.state)) === "1");
+    verifier("le fournisseur n'a reçu aucun échange de code", banc.fournisseur.etat.echangesDeCode === codesAvant);
+    essaiNegatif("une boîte est créée par un retour incohérent", (await nbBoitesAdresse(adresseIncoherente)) !== "0");
+    await sansEcoute(pm.port);
+    await montrer("[data-testid=connexion-oauth-progression]");
+    await capturer("connexion-oauth-erreur-jour.png", "light");
+    await capturer("connexion-oauth-erreur-nuit.png", "dark");
+    await cliquer("[data-testid=connexion-oauth-fermer]");
+    await attendre("retour à l'écran des comptes", () => present("[data-testid=compte-ajouter]"), Boolean, 10_000);
+    ok("OAuth : retour avec un autre state : refusé en français, rien envoyé à /echange, demande du serveur intacte");
+
+    // --- 6.6 Essai négatif : refus dans le navigateur (error=access_denied) ---
+    const adresseRefusee = adresse("oauth-refusee");
+    const echangesAvantRefus = await echanges();
+    const pr = await demarrerParcours(adresseRefusee);
+    verifier("avant le refus, l'écoute répond (contrôle positif)", await portRepond(pr.port));
+    const refus = await navigateur(pr, { refus: true });
+    verifier("le navigateur reçoit une page en français", refus.statut === 200 && refus.corps.includes("La connexion n'a pas abouti"));
+    await attendre("message de refus en français", () => texteDe("[data-testid=connexion-oauth-erreur]"), (t) => norm(t).includes("L'autorisation a été refusée dans le navigateur."), 20_000);
+    await sleep(1000);
+    essaiNegatif("un refus du fournisseur est transmis à l'instance", (await echanges()) !== echangesAvantRefus);
+    essaiNegatif("une boîte est créée par un refus", (await nbBoitesAdresse(adresseRefusee)) !== "0");
+    await sansEcoute(pr.port);
+    await cliquer("[data-testid=connexion-oauth-fermer]");
+    await attendre("retour à l'écran des comptes", () => present("[data-testid=compte-ajouter]"), Boolean, 10_000);
+    ok("OAuth : refus du fournisseur : message français, aucune boîte, rien envoyé à /echange");
+
+    // ===== 7. Aucun identifiant ni jeton ne reste sur le poste ni en clair sur le serveur =====
+    const jetons = banc.fournisseur.jetonsEmis();
+    const jetonsEtCodes = [...jetons.acces, ...jetons.rafraichissements, ...codesVus];
+    verifier("contrôle positif : le fournisseur a émis des jetons et le navigateur a vu des codes", jetons.acces.length >= 2 && jetons.rafraichissements.length >= 2 && codesVus.length >= 3);
+    const secrets = [MOT_IMAP_TEST, MAUVAIS, ...jetonsEtCodes];
     const page = norm(await js(`document.body.innerText`));
     const stockage = await js(`JSON.stringify([Object.entries(localStorage), Object.entries(sessionStorage)])`);
     for (const secret of secrets) {
@@ -248,11 +470,23 @@ async function main() {
     essaiNegatif("la table des comptes du poste porte une colonne d'identifiants", colonnes.some((c) => /secret|mot_de_passe|hote|utilisateur|jeton/u.test(c)));
     const enBase = await sqlServeur(`SELECT string_agg(coalesce(secret_chiffre, ''), '|') FROM comptes_mail WHERE ${WHERE_COMPTES}`);
     verifier("les secrets sont chiffrés sur le serveur", enBase.length > 0 && !secrets.some((s) => enBase.includes(s)));
-    ok("aucun identifiant sur le poste (page, stockage, base locale), secrets chiffrés au serveur");
+    const lignesLocales = JSON.stringify(await sqliteLocal(`SELECT * FROM comptes_mail`));
+    verifier("contrôle positif : la base locale contient bien les boîtes OAuth (adresse)", lignesLocales.includes(adresseOauth));
+    for (const secret of jetonsEtCodes) verifier("jeton ou code d'autorisation absent de la base locale", !lignesLocales.includes(secret));
+    const jetonsEnBase = await sqlServeur(`SELECT string_agg(coalesce(jeton_rafraichissement_chiffre, '') || coalesce(jeton_acces_chiffre, ''), '|') FROM comptes_mail WHERE ${WHERE_COMPTES}`);
+    verifier("les jetons OAuth sont chiffrés sur le serveur (contrôle positif : ils y sont)", jetonsEnBase.length > 0 && !jetonsEtCodes.some((s) => jetonsEnBase.includes(s)));
+    ok("aucun identifiant ni jeton sur le poste (page, stockage, base locale), secrets et jetons chiffrés au serveur");
     send = null;
     poste.page.ws.close();
   } finally {
     if (poste) await stopApp(poste.child);
+    if (banc) {
+      try {
+        await banc.arreter();
+      } catch (err) {
+        console.error(`j11-connexion: arrêt du banc OAuth impossible : ${String(err.message).slice(0, 200)}`);
+      }
+    }
     try {
       await retirerComptes();
     } catch (err) {
