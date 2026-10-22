@@ -332,3 +332,24 @@ Série à froid (Docker Desktop redémarré, instance et banc remontés, image A
 
 Constat sur la mesure du seau PowerSync de l'utilisateur de démo : 12 255 opérations avant, 12 620 après compaction (322 → 419 le 20/10) : le seau a grossi au fil des passes de la journée (isolation de la mesure toujours en place, croissance due aux recettes de la journée).
 2026-10-22 — CI 39840437726 sur 049ac20 : job rust en échec à « cargo-deny, workspace racine » : deux avis RustSec publiés depuis le 20/10 (RUSTSEC-2026-0382 rustls-webpki 0.103.15, RUSTSEC-2026-0383 webpki-root-certs 1.0.9, racines emSign). Autres jobs verts (gouvernance, périmètre, frontend, facturx, webdriver-macos) ; s1-instance sauté. Correctif : cargo update -p rustls-webpki et -p webpki-root-certs.
+
+## 2026-10-22 (nuit) — Contrôleur J11 sur `049ac20` : REFUSÉ
+
+Rapport du contrôleur indépendant (aucun fichier de production modifié). Vérifiés ensuite par l'état-major, par grep sur le code : D1, D2, D3 confirmés ; `url` absente de `docs/versions.md` confirmée. Validés par le contrôleur : (i), (ii), (iii), (iv) avec réserve D6, (v-OAuth) serveur et poste, routes au contrat OpenAPI (essai négatif par mutation joué), `marqueurs-tests`, `plan-gouvernance`, `workflows-valides`, `encodage-texte`, `dossiers_creation_integration` (échoue avec l'ancien SQL), `cargo test --workspace` 215 tests, `lint:ci`, 346 tests poste, secrets et journaux de l'API sans jeton.
+
+**Défauts bloquants**
+- **D1 — expéditeur par défaut non réalisé.** Pour un message neuf, `EcranMails.tsx:529` donne `compteConnu: null` ; `VoletRedaction.tsx:200,210` présentent « Boîte d'envoi du cabinet » ; `redaction.rs` (`composer`) retombe sur le compte de classement ; `j11-redaction.mjs:820` affirme l'inverse de la consigne. Seules la réponse et le transfert sont conformes.
+- **D2 — droits 404/403 « sur toute l'API » non tenus.** Aucun appel à `ApiError::forbidden` dans `routes/` ; `regle_404_403.rs` ne surveille que `forbidden(` : il passe à vide. 401 « Dossier non autorisé » sur un dossier invisible : `documents.rs:133,251,354,445,848`, `dossiers.rs:349`, `intercalaires.rs:101,391`, `temps.rs:865`, et « Cabinet non autorisé » `cabinets.rs:72,252,280`. `temps.rs:865` : dossier inexistant → 400, invisible → 401, ce qui révèle l'existence d'un dossier restreint. Divulgation inter-cabinets : `POST /factures/{id}/avoir` (`factures.rs:420-431`) et `POST /factures`. `/messagerie/nominatif/*` ignore l'utilisateur. **Priorité : secret professionnel (§ 5 n°1).**
+- **D3 — « Déplacer » et indexation côté poste non livrés.** `destinationsDeplacement` (`formesActionsMessages.ts:73-88`) calcule les dossiers localement, aucun appel à `GET /messagerie/comptes/{id}/dossiers` (route fonctionnelle, sans test HTTP). `corps_indexes`, `corps_restants`, `corps_abandonnes` exposés par `/messagerie/sante`, jamais lus par le poste : pas de progression à l'écran de santé.
+- **D7 — audit des dépendances** : l'avis RUSTSEC-2026-0382/0383 est corrigé et poussé (`548ef1d`, CI 39843692116 en cours). Invariant 9 : `url` 2.5.8 ajoutée sans entrée dans `docs/versions.md` : entrée ajoutée le 22/10.
+
+**Défauts majeurs, à faire arbitrer par l'architecte (dettes à inscrire au PLAN)**
+- **D4** — `j11-connexion-boites.mjs` instable : trois exécutions du contrôleur = blocage de plus de 12 min, échec « Identifiants refusés » alors que le serveur dit « connectée », puis vert ; plus le blocage de 47 min de la série. Cause non établie ; le plan interdit « relancer jusqu'au vert ».
+- **D5** — cause (b) des relèves de `j11-redaction` déduite par analyse, jamais reproduite.
+- **D8** — identifiants d'application OAuth : variables d'environnement seulement, ni écran Réglages ni écriture par l'installation, contrairement au critère (« Réglages, installation »).
+- **D9** — « client du poste régénéré » sans cible : aucun client généré, fichiers `api*.ts` écrits à la main, contraire à `11-api.md`.
+- **D11** — la mesure de 50 000 messages n'est exécutée par aucun automate (`s7-synchro.mjs` périmé, hors CI, hors plan).
+
+**Mineurs** : D6 (la recette n'affirme pas que le message du critère (iv) n'a jamais été ouvert ; l'indexation bute sur ~1 540 messages de la boîte GreenMail, une ligne comptée « 0 tentative » est retentée indéfiniment) ; D10 (`Message-ID` des invitations refusées journalisé, `moteur_mail.rs:706-713`) ; commentaire « 403 sinon » faux dans `redaction.rs` ; les recettes réécrivent des captures PNG suivies.
+
+**Conclusion** : J11 non coché. Le commit `plan:` de coche n'est pas préparé.
