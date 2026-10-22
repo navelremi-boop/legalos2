@@ -582,13 +582,7 @@ pub async fn preparer_version(
         .await
         .map_err(|_| ApiError::internal("Transaction"))?;
     // Verrou transactionnel : deux préparations concurrentes obtiennent des numéros distincts.
-    sqlx::query("SELECT pg_advisory_xact_lock(872014, hashtext($1::text))")
-        .bind(document_id)
-        .execute(
-            tx.acquire()
-                .await
-                .map_err(|_| ApiError::internal("Transaction"))?,
-        )
+    crate::verrous::verrouiller_versions_document(&mut tx, document_id)
         .await
         .map_err(|_| ApiError::internal("verrou version"))?;
     let numero = sqlx::query_as::<_, (i32,)>(

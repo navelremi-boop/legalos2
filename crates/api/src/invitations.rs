@@ -67,10 +67,11 @@ pub async fn enregistrer_invitation(
 ) -> Result<IssueInvitation, sqlx::Error> {
     let lue = recue.lue;
     let mut tx = pool.begin().await?;
-    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
-        .bind(format!("invitation:{}:{}", recue.titulaire_id, lue.uid))
-        .execute(&mut *tx)
-        .await?;
+    crate::verrous::verrouiller_texte(
+        &mut tx,
+        &format!("invitation:{}:{}", recue.titulaire_id, lue.uid),
+    )
+    .await?;
     let enregistree = sqlx::query_as::<_, (i32, String, String)>(
         "SELECT sequence, effet, organisateur FROM invitations_agenda WHERE titulaire_id = $1 AND uid_ical = $2",
     )

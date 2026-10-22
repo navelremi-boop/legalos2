@@ -677,9 +677,7 @@ async fn rafraichir(
 ) -> Result<String, ErreurJeton> {
     let transitoire = |_| ErreurJeton::Transitoire;
     let mut tx = pool.begin().await.map_err(transitoire)?;
-    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))")
-        .bind(compte.to_string())
-        .execute(&mut *tx)
+    crate::verrous::verrouiller_texte(&mut tx, &compte.to_string())
         .await
         .map_err(transitoire)?;
     let ligne: Option<LigneJeton> = sqlx::query_as(

@@ -206,9 +206,7 @@ pub async fn creer_action(
         .begin()
         .await
         .map_err(|_| ApiError::internal("Inscription de l'action"))?;
-    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1::uuid::text, 0))")
-        .bind(message_id)
-        .execute(&mut *tx)
+    crate::verrous::verrouiller_uuid(&mut tx, message_id)
         .await
         .map_err(|_| ApiError::internal("Inscription de l'action"))?;
     let inseree = sqlx::query_scalar::<_, Uuid>(

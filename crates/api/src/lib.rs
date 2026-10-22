@@ -19,6 +19,7 @@ pub mod plateforme;
 pub mod routes;
 pub mod state;
 pub mod texte_document;
+pub mod verrous;
 
 use std::sync::Arc;
 

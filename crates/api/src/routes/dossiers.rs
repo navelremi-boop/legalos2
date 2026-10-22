@@ -155,9 +155,7 @@ pub async fn creer_dossier(
         .map_err(|_| ApiError::internal("transaction"))?;
     // Envois concurrents du même dossier (rejeu du poste) : sans ce verrou, deux transactions
     // voient le dossier absent et la seconde échoue sur la clé primaire (500).
-    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1::uuid::text, 0))")
-        .bind(body.id)
-        .execute(&mut *tx)
+    crate::verrous::verrouiller_uuid(&mut tx, body.id)
         .await
         .map_err(|_| ApiError::internal("verrou dossier"))?;
     let existant = sqlx::query_as::<_, (Uuid, bool, Option<String>)>(
