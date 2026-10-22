@@ -100,3 +100,14 @@ Déposé par le commandement le 28/09/2026 : [powersync-js#1129](https://github.
 ## Constat du 4 octobre 2026
 
 `tauri-plugin-powersync` 0.1.0 (crates.io, publié le 2026-10-01) et `powersync` 0.1.0 (publié le 2026-09-28) remplacent la 0.0.6. Le plugin dépend de `reqwest` 0.13. Le `Cargo.lock` du poste ne contient plus `http-client`, `http-types`, `async-std`, `aes-soft`, `cpuid-bool`, `time` 0.2 ni `rand` 0.7.3. Les quatre exceptions sont retirées de `deny.toml`. Les rustines `patches/time-macros` et `patches/time-macros-impl` sont retirées. Le paquet npm `@powersync/tauri-plugin` reste en 0.0.6 : aucune 0.1 n'est publiée. Le connecteur Rust compile tel quel avec le trait `BackendConnector` 0.1.0.
+
+## Constat du 22 octobre 2026 : avis RUSTSEC-2026-0382 et RUSTSEC-2026-0383
+
+La CI (run 39840437726 sur `049ac20`) a échoué à `cargo deny check` sur le workspace racine : deux avis publiés après le passage local du 20/10 (base d'avis relue à chaque exécution). Les deux concernent des racines emSign dont les clés privées d'intermédiaires sont connues.
+
+| Avis | Crate | Version avant | Version après | Chemin |
+|---|---|---|---|---|
+| RUSTSEC-2026-0382 | `rustls-webpki` | 0.103.15 | 0.103.16 | `rustls` 0.23.46 → `reqwest` (opendal), `lettre`, `pimalaya-stream` (io-imap) |
+| RUSTSEC-2026-0383 | `webpki-root-certs` | 1.0.9 | 1.0.10 | `rustls-platform-verifier` 0.7.1 → `pimalaya-stream` |
+
+Correctif : `cargo update -p rustls-webpki` et `cargo update -p webpki-root-certs`, sur le workspace racine et sur celui du poste (mêmes versions dans les deux verrous). Aucune exception ajoutée. Après : `cargo deny check` exit 0 (advisories, bans, licenses, sources ok) sur les deux workspaces.
