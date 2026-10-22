@@ -54,15 +54,23 @@ export function sqlServeur(requete) {
     );
     let out = "";
     let err = "";
+    // Un `docker compose exec` qui ne rend jamais la main suspendait toute la recette (série du 22/10) :
+    // après 90 s l'appel échoue et nomme la requête.
+    const garde = setTimeout(() => {
+      child.kill();
+      reject(new Error(`sql sans réponse après 90 s : ${requete.slice(0, 120)}`));
+    }, 90_000);
     child.stdout.on("data", (chunk) => {
       out += chunk.toString();
     });
     child.stderr.on("data", (chunk) => {
       err += chunk.toString();
     });
-    child.on("exit", (code) =>
-      code === 0 ? resolve(out.trim()) : reject(new Error(`sql ${code}: ${err.slice(0, 200)}`)),
-    );
+    child.on("exit", (code) => {
+      clearTimeout(garde);
+      if (code === 0) resolve(out.trim());
+      else reject(new Error(`sql ${code}: ${err.slice(0, 200)}`));
+    });
   });
 }
 

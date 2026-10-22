@@ -805,13 +805,15 @@ async function main() {
   await trouveA(expediteurRare, "rech-exp", "par l'adresse entière de l'expéditeur");
   await trouveA(`fictif${marque}`, "rech-dest", "par un destinataire");
   await trouveA(motCorpsCourt, "rech-corps", "par le début du corps");
-  // Le corps long : seul le début est stocké tant que le message n'est pas ouvert.
-  const avantLecture = await ids(jetonA2, motCorpsLong);
-  essaiNegatif("recherche : le milieu d'un corps jamais ouvert est trouvé", "limite documentée : seul le début du corps (extrait) est indexé avant la lecture", () => avantLecture.has(r["rech-long"]));
+  // Le corps long n'est jamais ouvert : l'indexation de fond du serveur (critère J11) le rend cherchable sans
+  // lecture. L'ancien essai négatif (« seul le début du corps est indexé avant la lecture ») dépendait d'une course
+  // avec cette indexation (échec du 22/10/2026) ; il est remplacé par une attente bornée et un mot voisin absent.
+  await attendre("le milieu d'un corps jamais ouvert est indexé en tâche de fond", async () => ((await ids(jetonA2, motCorpsLong)).has(r["rech-long"]) ? true : null), 150_000);
+  const motVoisin = await ids(jetonA2, `${motCorpsLong}absent`);
+  essaiNegatif("recherche : un mot voisin du corps jamais ouvert est trouvé", "le mot exact est trouvé, pas un mot qui n'existe pas", () => motVoisin.has(r["rech-long"]));
   const lecture = await requete(`/messagerie/messages/${r["rech-long"]}/corps`, jetonA2, "POST");
-  verifier("recherche : le corps long est lu", lecture.statut === 200);
-  await attendre("le corps lu est indexé", async () => ((await ids(jetonA2, motCorpsLong)).has(r["rech-long"]) ? true : null), 30_000);
-  ok("recherche : objet, expéditeur, destinataires, début du corps, corps complet après lecture ; casse, accents, début de mot, mots multiples");
+  verifier("recherche : le corps long peut aussi être lu, et reste trouvé après la lecture", lecture.statut === 200 && (await ids(jetonA2, motCorpsLong)).has(r["rech-long"]));
+  ok("recherche : objet, expéditeur, destinataires, début du corps, corps complet sans lecture (indexation de fond) ; casse, accents, début de mot, mots multiples");
 
   // Résultat complet d'un message : champs utiles, aucun secret.
   const detail = (await cherche(jetonA2, motObjet)).json.resultats.find((x) => x.id === r["rech-objet"]);

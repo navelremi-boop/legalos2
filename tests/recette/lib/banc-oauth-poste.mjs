@@ -58,7 +58,7 @@ export async function demarrerBancOauth({ fail }) {
   const fournisseur = await demarrerSimulateurOAuth({ port: PORT_FOURNISSEUR, dureeJetonSecondes: 100 });
   const smtp = await demarrerSmtpXoauth2({ port: PORT_SMTP, verifier: (jeton) => fournisseur.accesValide(jeton) });
   const racine = racineInstance();
-  spawnSync("docker", ["rm", "-f", NOM_DOVECOT], { encoding: "utf8" });
+  spawnSync("docker", ["rm", "-f", NOM_DOVECOT], { encoding: "utf8", timeout: 120_000 });
   const lance = spawnSync(
     "docker",
     [
@@ -68,10 +68,10 @@ export async function demarrerBancOauth({ fail }) {
       "--entrypoint", "sh", "dovecot/dovecot:2.3.21.1",
       "-c", "mkdir -p /tmp/mail && chown -R dovecot:dovecot /tmp/mail && exec dovecot -F",
     ],
-    { encoding: "utf8" },
+    { encoding: "utf8", timeout: 120_000 },
   );
   const arreter = async () => {
-    spawnSync("docker", ["rm", "-f", NOM_DOVECOT], { encoding: "utf8" });
+    spawnSync("docker", ["rm", "-f", NOM_DOVECOT], { encoding: "utf8", timeout: 120_000 });
     await smtp.arreter();
     await fournisseur.arreter();
   };

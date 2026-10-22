@@ -309,3 +309,25 @@ Série à froid (Docker Desktop redémarré, instance et banc remontés, image A
 - Annuaire : `GET /annuaire/{siren}` sans contrôle de droits au-delà de l'authentification ni validation du SIREN ; `err_pa` : plateforme indisponible → 500.
 - Messagerie : les routes `/messagerie/nominatif/*` agissent sur la boîte IMAP de classement du cabinet sans tenir compte de l'utilisateur (`attendre_nominatif`, `poser_drapeau` ignorent `claims`, `relever_classement` sans contrôle de rôle) ; `applique: false` en 200 quand IMAP échoue, erreurs SQL ignorées (`let _ =`) ; création de compte nominatif existant → 500 au lieu de 409 ; `CreerEnvoiBody.idempotence_cle` obligatoire mais jamais lue ; `lister_messages` sans pagination ; `traiter_envoi` accepte en production les paramètres d'essai `couper_apres` ; commentaires parlant encore de 403.
 - Agenda : `DELETE /agenda/{element_id}` attend un corps JSON.
+2026-10-22 — Série à froid sur le code final (5e1eeb4) : reconstruction de l'image API, redémarrage de Docker Desktop, instance et banc imap-test remontés, puis s7-classement ×10, j11-invitation ×10, j11-redaction ×5 et les quatre recettes J11 ; arrêt au premier échec.
+2026-10-22 — Série à froid : s7-classement 10/10 exit 0 (7 à 9 s) ; j11-invitation passes 1 à 7 exit 0, passe 8 exit 1 à l'étape « compte jetable » : `DELETE FROM comptes_mail` refusé par messages_compte_id_fkey (journal Postgres 17:34:37) car le moteur avait relevé le compte avant son retrait. Cause : défaut de la recette (retrait non atomique d'un compte que le moteur observe), pas du produit. Correctif de la recette : verrou de ligne, suppression des messages et du compte en une seule transaction ; j11-invitation repart de la passe 1 (10 consécutives exigées).
+2026-10-22 — Série : s7-classement 10/10, j11-invitation 10/10 (après correction de la recette), j11-redaction 5/5, s7-moteur-fenetre, oauth-messagerie, j11-redaction-api, j11-boites-actions exit 0 ; j11-connexion-boites resté bloqué 47 min après « ajout d'une boîte » (début du volet OAuth), tué à la main (exit 127) : à diagnostiquer, relance isolée.
+
+## 2026-10-22 (nuit) — Série à froid sur le code final `5e1eeb4` : résultats et défauts de recette trouvés
+
+| Recette | Résultat |
+|---|---|
+| s7-classement | 10 passes sur 10, exit 0 (7 à 9 s) |
+| j11-invitation | première série : passes 1 à 7 vertes, **passe 8 en échec** (voir ci-dessous) ; série reprise depuis la passe 1 après correction : **10 sur 10**, exit 0 (80 à 89 s) |
+| j11-redaction | 5 passes sur 5, exit 0 (200 à 313 s) |
+| s7-moteur-fenetre, oauth-messagerie, j11-redaction-api | exit 0 |
+| j11-boites-actions | 1re exécution verte, puis **échec** (essai négatif périmé), puis 3 passes sur 3 vertes après correction |
+| j11-connexion-boites | **bloquée 47 min** une fois (série), verte ensuite 3 fois (isolée, enchaînée deux fois) |
+
+**j11-invitation, passe 8 (cause établie, journal Postgres 17:34:37)** : l'étape « compte jetable » supprimait le compte sans retirer ses messages ; le moteur l'avait relevé entre la création et la suppression (`messages_compte_id_fkey`). Défaut de la recette (suppression non atomique d'un compte que le moteur observe), pas du produit. Correctif : une seule transaction avec verrou de ligne (`SELECT … FOR UPDATE`, suppression des messages puis du compte). Après : 10 passes sur 10.
+
+**j11-boites-actions, essai négatif périmé (cause établie)** : « le milieu d'un corps jamais ouvert est trouvé » supposait que seul le début du corps est indexé avant la lecture. Le critère J11 dit le contraire (indexation de fond de tous les corps) : l'essai ne passait que si la recherche précédait l'indexation (pause de 2 s au travail, 60 s au repos). Remplacé par une attente bornée à 150 s de la recherche sur un corps jamais ouvert et un essai négatif sur un mot voisin absent. Après : 3 passes sur 3.
+
+**j11-connexion-boites, blocage de 47 min (cause NON établie)** : plus aucune ligne après « ajout d'une boîte… Connectée », début du volet OAuth ; le processus a dû être tué (exit 127). Non reproduit en 3 exécutions. Les attentes de l'interface (`attendre`, CDP à 30 s) sont bornées ; ne l'étaient pas : `sqlServeur` (docker compose exec) et les appels `docker` du banc OAuth. Mesure prise, qui ne prouve pas la cause : délai de 90 s sur `sqlServeur`, de 2 minutes sur les appels `docker` du banc ; un prochain blocage échouera en nommant l'appel. À surveiller, à signaler à l'architecte.
+
+Constat sur la mesure du seau PowerSync de l'utilisateur de démo : 12 255 opérations avant, 12 620 après compaction (322 → 419 le 20/10) : le seau a grossi au fil des passes de la journée (isolation de la mesure toujours en place, croissance due aux recettes de la journée).

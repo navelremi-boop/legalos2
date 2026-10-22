@@ -374,7 +374,12 @@ async function main() {
                '${dovecotTest}', 143, '${capa.login}', FALSE, '${secretChiffre}')`,
     );
     idsNettoyage.push(idPartage);
-    await sqlServeur(`DELETE FROM comptes_mail WHERE id = '${jetable.id}'`);
+    // Un seul envoi, donc une seule transaction : le verrou de la ligne du compte retient l'insertion d'un message
+    // par le moteur (clé étrangère) jusqu'à la suppression. Sans lui, un moteur qui relevait le compte jetable
+    // avant ce retrait (passe 8 de la série du 22/10) laissait des messages et faisait échouer la suppression.
+    await sqlServeur(
+      `SELECT 1 FROM comptes_mail WHERE id = '${jetable.id}' FOR UPDATE; DELETE FROM messages WHERE compte_id = '${jetable.id}'; DELETE FROM comptes_mail WHERE id = '${jetable.id}'`,
+    );
 
     const uidPartage = `partage-${marque}@example.com`;
     const adresseCompteA = `inv-j11.a.${marque}@cabinet.example`;
