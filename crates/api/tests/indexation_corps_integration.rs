@@ -293,3 +293,153 @@ async fn scenario(url_base_jetable: String) {
         "resynchronisé, le message est sélectionné"
     );
 }
+
+/// Non-régression : un dossier que le serveur refuse d'ouvrir (la corbeille d'un message supprimé par une autre boîte,
+/// jamais créée ici) ne doit pas empêcher de lire les messages des autres dossiers. Avant la correction, le groupe
+/// « Corbeille », trié avant « INBOX », interrompait tout le tour : la boîte n'était jamais lue jusqu'au bout.
+/// GreenMail 3143 ; `LEGALOS_IMAP_CI=1` : son absence est un échec.
+#[tokio::test]
+async fn indexation_corps_un_dossier_illisible_n_empeche_pas_les_autres() {
+    environnement();
+    let adresse: std::net::SocketAddr = "127.0.0.1:3143".parse().expect("adresse");
+    if std::net::TcpStream::connect_timeout(&adresse, std::time::Duration::from_millis(400))
+        .is_err()
+    {
+        assert!(
+            std::env::var("LEGALOS_IMAP_CI").is_err(),
+            "GreenMail absent en CI : {adresse}"
+        );
+        return;
+    }
+    let url = std::env::var("DATABASE_URL").expect("DATABASE_URL requis (Postgres réel)");
+    let admin = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(1)
+        .connect(&remplacer_base(&url, "postgres"))
+        .await
+        .expect("connexion postgres");
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("horloge")
+        .as_nanos();
+    let base = format!("legalos_indexation_dossier_{nanos}");
+    sqlx::query(&format!("CREATE DATABASE \"{base}\""))
+        .execute(&admin)
+        .await
+        .expect("create database");
+    let issue = tokio::spawn(scenario_dossier_illisible(remplacer_base(&url, &base))).await;
+    sqlx::query(&format!("DROP DATABASE \"{base}\" WITH (FORCE)"))
+        .execute(&admin)
+        .await
+        .expect("drop database");
+    if let Err(erreur) = issue {
+        if erreur.is_panic() {
+            std::panic::resume_unwind(erreur.into_panic());
+        }
+        std::panic::resume_unwind(Box::new(format!("scénario interrompu : {erreur}")));
+    }
+}
+
+async fn scenario_dossier_illisible(url_base_jetable: String) {
+    use legalos_messagerie::{ParametresCompte, SessionActions};
+
+    let parametres = ParametresCompte {
+        hote: "127.0.0.1".into(),
+        port: 3143,
+        utilisateur: "capa".into(),
+        mot_de_passe: "MotDePasseCapa123!".into(),
+        tls: false,
+        jeton_acces: None,
+    };
+    // Un message réel dans INBOX, que la relève du serveur a vu.
+    let mot = format!("dossierillisible{}", std::process::id());
+    let brut = format!(
+        "From: a@example.com\r\nTo: b@example.com\r\nSubject: Dossier\r\nMessage-ID: <{mot}@example.com>\r\n\r\nCorps {mot}.\r\n"
+    );
+    let (uid, validity) = tokio::task::spawn_blocking({
+        let parametres = parametres.clone();
+        move || {
+            let mut session = SessionActions::connecter(&parametres).expect("greenmail");
+            session
+                .deposer_brouillon("INBOX", &format!("<{mot}@example.com>"), brut.as_bytes())
+                .expect("dépôt");
+            let releve = session.synchroniser_dossier("INBOX", 0).expect("relève");
+            let uid = releve
+                .etats
+                .iter()
+                .map(|e| e.uid)
+                .max()
+                .expect("un message");
+            (uid, releve.uid_validity)
+        }
+    })
+    .await
+    .expect("tâche");
+
+    let pool = legalos_api::db::connect_pool(&url_base_jetable)
+        .await
+        .expect("connexion base jetable");
+    legalos_api::db::appliquer_migrations(&pool)
+        .await
+        .expect("migrations");
+    let cabinet = Uuid::now_v7();
+    sqlx::query("INSERT INTO cabinets (id, slug, nom, totp_obligatoire) VALUES ($1, 'indexation', 'Cabinet fictif', TRUE)")
+        .bind(cabinet)
+        .execute(&pool)
+        .await
+        .expect("cabinet");
+    let compte = Uuid::now_v7();
+    sqlx::query("INSERT INTO comptes_mail (id, cabinet_id, type_compte, adresse, secret_ref) VALUES ($1, $2, 'classement', 'classement@cabinet.example', 'test')")
+        .bind(compte)
+        .bind(cabinet)
+        .execute(&pool)
+        .await
+        .expect("compte");
+    let lisible = message(&pool, cabinet, compte, i64::from(uid), i64::from(validity)).await;
+    let illisible = message(&pool, cabinet, compte, 1, 1).await;
+    sqlx::query("UPDATE messages SET dossier_imap = 'Corbeille' WHERE id = $1")
+        .bind(illisible)
+        .execute(&pool)
+        .await
+        .expect("dossier");
+    sqlx::query("UPDATE messages SET dossier_imap = 'INBOX' WHERE id = $1")
+        .bind(lisible)
+        .execute(&pool)
+        .await
+        .expect("dossier");
+
+    let traites = legalos_api::indexation_corps::indexer_un_lot(
+        &pool,
+        &[0; 32],
+        Some(&parametres),
+        compte,
+        "classement",
+    )
+    .await
+    .expect("le tour n'est pas interrompu par le dossier illisible");
+    assert_eq!(traites, 2, "les deux messages sont traités");
+    let (indexes,): (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM messages_corps_index WHERE message_ref = $1")
+            .bind(lisible)
+            .fetch_one(&pool)
+            .await
+            .expect("index");
+    assert_eq!(indexes, 1, "le message de INBOX est indexé");
+    let (tentatives,): (i32,) =
+        sqlx::query_as("SELECT tentatives FROM messages_corps_echecs WHERE message_ref = $1")
+            .bind(illisible)
+            .fetch_one(&pool)
+            .await
+            .expect("échec lu");
+    assert_eq!(
+        tentatives, 1,
+        "le message du dossier illisible compte un essai"
+    );
+    // Essai négatif : le message lisible n'a aucun échec noté.
+    let (echecs,): (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM messages_corps_echecs WHERE message_ref = $1")
+            .bind(lisible)
+            .fetch_one(&pool)
+            .await
+            .expect("échecs");
+    assert_eq!(echecs, 0);
+}

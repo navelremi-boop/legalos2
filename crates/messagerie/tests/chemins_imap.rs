@@ -145,3 +145,43 @@ fn dovecot_textes_sans_effet_lisent_un_corps() {
 fn greenmail_textes_sans_effet_lisent_un_corps() {
     lire_un_corps_sans_effet(3143);
 }
+
+/// Même lecture dans `INBOX`, avec des UID absents de part et d'autre du message déposé (messages supprimés ou déplacés
+/// par d'autres recettes : cas de la boîte de classement de l'instance de développement).
+#[test]
+fn greenmail_textes_sans_effet_dans_inbox_avec_des_uid_absents() {
+    let adresse: SocketAddr = "127.0.0.1:3143".parse().unwrap();
+    exiger_ou_passer(adresse);
+    if !joignable(adresse) {
+        return;
+    }
+    let mut session = SessionActions::connecter(&compte(3143)).expect("greenmail");
+    let mot = format!("inbox{}", std::process::id());
+    let message = format!(
+        "From: a@example.com\r\nTo: b@example.com\r\nSubject: Inbox\r\nMessage-ID: <{mot}@example.com>\r\n\r\nCorps {mot}.\r\n"
+    );
+    session
+        .deposer_brouillon("INBOX", &format!("<{mot}@example.com>"), message.as_bytes())
+        .expect("dépôt");
+    let releve = session.synchroniser_dossier("INBOX", 0).expect("relève");
+    let uid = releve
+        .etats
+        .iter()
+        .map(|e| e.uid)
+        .max()
+        .expect("un message");
+    let lus = session
+        .textes_sans_effet("INBOX", releve.uid_validity, &[1, 2, 4, uid, uid + 50])
+        .expect("lecture avec des UID absents");
+    assert!(lus.valide);
+    assert!(
+        lus.textes.get(&uid).is_some_and(|t| t.contains(&mot)),
+        "le message présent est lu malgré les UID absents : {:?}",
+        lus.textes.keys().collect::<Vec<_>>()
+    );
+    // Que des UID absents : rien à lire, aucune erreur.
+    let vides = session
+        .textes_sans_effet("INBOX", releve.uid_validity, &[2, 4, uid + 50])
+        .expect("que des UID absents");
+    assert!(vides.valide && vides.textes.is_empty());
+}

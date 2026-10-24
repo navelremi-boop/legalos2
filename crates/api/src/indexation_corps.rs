@@ -56,7 +56,7 @@ pub fn demarrer(pool: PgPool, cle: [u8; 32], classement: Option<ParametresCompte
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Pause {
+pub enum Pause {
     /// Identifiants refusés par le serveur : on laisse la boîte tranquille longtemps.
     Refusee,
     /// Serveur injoignable ou en erreur passagère ; le code dit où (base, paramètres, connexion, lecture, délai).
@@ -191,7 +191,7 @@ pub async fn messages_a_indexer(
 }
 
 /// Lit et indexe un lot de messages d'une boîte. Rend le nombre de messages traités (indexés ou notés en échec).
-async fn indexer_un_lot(
+pub async fn indexer_un_lot(
     pool: &PgPool,
     cle: &[u8; 32],
     classement: Option<&ParametresCompte>,
@@ -239,7 +239,14 @@ async fn indexer_un_lot(
         let mut session = SessionActions::connecter(&parametres)?;
         let mut sortie = Vec::with_capacity(a_lire.len());
         for (dossier, validity, uids) in a_lire {
-            let textes = session.textes_sans_effet(&dossier, validity, &uids)?;
+            // Un dossier que le serveur refuse d'ouvrir (supprimé, jamais créé : la corbeille d'un message supprimé par une
+            // autre boîte) n'empêche pas de lire les autres : ses messages sont notés en échec, ceux des autres dossiers
+            // sont lus. Une coupure ou un refus d'identifiants, eux, interrompent tout le tour.
+            let textes = match session.textes_sans_effet(&dossier, validity, &uids) {
+                Ok(textes) => Some(textes),
+                Err(ErreurMail::Protocole) => None,
+                Err(erreur) => return Err(erreur),
+            };
             sortie.push((dossier, validity, textes));
         }
         Ok::<_, ErreurMail>(sortie)
@@ -248,7 +255,9 @@ async fn indexer_un_lot(
     .map_err(|_| Pause::Injoignable("lecture"))?
     .map_err(|erreur| match erreur {
         ErreurMail::Authentification => Pause::Refusee,
-        _ => Pause::Injoignable("connexion"),
+        ErreurMail::Connexion => Pause::Injoignable("connexion"),
+        // Le serveur répond mais refuse une commande (dossier absent, FETCH refusé) : autre cause que la connexion.
+        ErreurMail::Protocole => Pause::Injoignable("protocole"),
     })?;
 
     let mut traites = 0;
@@ -257,6 +266,14 @@ async fn indexer_un_lot(
             continue;
         };
         for (uid, message_ref) in messages {
+            let Some(textes) = textes.as_ref() else {
+                // Dossier illisible : un essai compté, comme un message absent.
+                journaliser_echec(
+                    noter_echec(pool, *message_ref, compte_id, "dossier", true).await,
+                );
+                traites += 1;
+                continue;
+            };
             if !textes.valide {
                 // Les UID ne désignent plus les mêmes messages : la relève va les remettre à jour.
                 journaliser_echec(
