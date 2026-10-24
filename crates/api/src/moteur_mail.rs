@@ -1076,53 +1076,6 @@ pub fn chiffrer_mot_de_passe(mot_de_passe: &str, cle: &[u8; 32]) -> Result<Strin
     chiffrer_secret_totp(mot_de_passe.as_bytes(), cle)
 }
 
-pub fn attendre_idle(
-    parametres: &ParametresCompte,
-    delai: Duration,
-) -> Result<(bool, String), ErreurMail> {
-    let veille = VeilleReception::ouvrir(parametres)?;
-    let chemin = match veille.chemin() {
-        legalos_messagerie::CheminVeille::Qresync => "qresync",
-        legalos_messagerie::CheminVeille::Repli => "repli",
-    };
-    let recu = veille.attendre(delai)?;
-    Ok((recu, chemin.to_owned()))
-}
-
-pub fn marquer_lu_imap(
-    parametres: &ParametresCompte,
-    uid: u32,
-    lu: bool,
-) -> Result<bool, ErreurMail> {
-    let mut session = SessionActions::connecter(parametres)?;
-    session.marquer_lu("INBOX", uid, lu)?;
-    Ok(session.lire_lu("INBOX", uid).unwrap_or(lu))
-}
-
-pub fn deplacer_imap(
-    parametres: &ParametresCompte,
-    uid: u32,
-    destination: &str,
-) -> Result<(), ErreurMail> {
-    let mut session = SessionActions::connecter(parametres)?;
-    session.deplacer("INBOX", uid, destination)
-}
-
-pub fn supprimer_imap(parametres: &ParametresCompte, uid: u32) -> Result<(), ErreurMail> {
-    let mut session = SessionActions::connecter(parametres)?;
-    session.supprimer("INBOX", uid)
-}
-
-pub fn poser_drapeau_imap(
-    parametres: &ParametresCompte,
-    uid: u32,
-    drapeau: &str,
-) -> Result<bool, ErreurMail> {
-    let mut session = SessionActions::connecter(parametres)?;
-    session.poser_drapeau("INBOX", uid, drapeau)?;
-    Ok(session.lire_lu("INBOX", uid).unwrap_or(false))
-}
-
 #[cfg(test)]
 mod tests {
     use super::{

@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
- * S7 / J9 étape 3 — boîte nominative contre GreenMail.
- * Relève incrémentale, IDLE, resynchronisation si l'UIDVALIDITY change,
- * HTML nettoyé, recherche, 50 000 messages (QRESYNC et repli).
+ * S7 / J9 étape 3 — boîte de classement du cabinet contre GreenMail, par les routes actuelles de l'API
+ * (`/messagerie/classement/relever`, `/messagerie/messages`, `…/corps`, `…/actions`, `/messagerie/recherche`).
+ * Relève, resynchronisation si l'UIDVALIDITY change, HTML nettoyé, recherche, actions répercutées sur IMAP,
+ * 50 000 messages (QRESYNC et repli, exemple `volume_50k`). Les routes `/messagerie/nominatif/*`, supprimées le
+ * 24/10/2026, n'existent plus ; l'IDLE du moteur est éprouvé par `s7-moteur-fenetre.mjs`.
  */
 import { createConnection } from "node:net";
 import { randomUUID } from "node:crypto";
@@ -12,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { demoAccessToken } from "./lib/demo-auth.mjs";
+import { creerClientImap } from "./lib/imap-controle.mjs";
 import { racineInstance, sleep, sqlServeur } from "./lib/poste-session.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -19,6 +22,18 @@ const instance = process.env.LEGALOS_INSTANCE_URL ?? "http://127.0.0.1:8088";
 const api = `${instance}/api`;
 const smtpPort = Number(process.env.LEGALOS_SMTP_PORT ?? "13025");
 const boite = "demo@cabinet.example";
+
+function motDePasseBoite() {
+  if (process.env.LEGALOS_IMAP_PASSWORD) return process.env.LEGALOS_IMAP_PASSWORD;
+  const chemin = join(racineInstance(), ".env");
+  if (!existsSync(chemin)) fail(".env introuvable (GREENMAIL_PASSWORD)");
+  const ligne = readFileSync(chemin, "utf8")
+    .split(/\r?\n/)
+    .find((l) => l.startsWith("GREENMAIL_PASSWORD="));
+  const valeur = ligne?.slice("GREENMAIL_PASSWORD=".length).trim();
+  if (!valeur) fail("GREENMAIL_PASSWORD absent de .env");
+  return valeur;
+}
 
 function fail(message) {
   console.error(`s7-synchro: FAIL — ${message}`);
@@ -140,9 +155,13 @@ async function main() {
   if (!existsSync(envPath)) fail(".env introuvable");
   const jeton = await demoAccessToken(api, `s7-synchro-${randomUUID().slice(0, 8)}`);
 
-  const premiere = await json("/messagerie/nominatif/relever", jeton, "POST");
-  if (premiere.chemin !== "repli" && premiere.chemin !== "qresync") {
-    fail(`chemin inconnu ${premiere.chemin}`);
+  const imap = creerClientImap({ hote: "127.0.0.1", port: 13143, login: "demo", secret: motDePasseBoite() });
+  const demandes = { corps: (id) => `/messagerie/messages/${id}/corps`, actions: (id) => `/messagerie/messages/${id}/actions` };
+
+  // Relève de la boîte de classement du cabinet (le moteur la relève en continu ; la route la force).
+  const premiere = await json("/messagerie/classement/relever", jeton, "POST");
+  if (typeof premiere.traites !== "number" || typeof premiere.total_messages !== "number") {
+    fail(`réponse de relève inattendue ${JSON.stringify(premiere)}`);
   }
 
   const mot = `fenetre${randomUUID().slice(0, 8)}`;
@@ -151,89 +170,87 @@ async function main() {
   const midSuppr = `<s7-sync-del-${randomUUID()}@cabinet.example>`;
   const html = `<p>${mot}</p><script>${secret}</script><img src="https://exemple.test/pixel.png">`;
 
-  const attente = json("/messagerie/nominatif/attendre", jeton, "POST");
-  await sleep(1500);
-  await envoyerSmtp({
-    de: "tiers@example.com",
-    a: boite,
-    messageId: mid,
-    html,
-  });
-  await envoyerSmtp({
-    de: "tiers@example.com",
-    a: boite,
-    messageId: midSuppr,
-    html: "<p>a supprimer</p>",
-  });
-  const notif = await attente;
-  if (!notif.notifie) fail("aucune notification sur la boîte de réception");
+  await envoyerSmtp({ de: "tiers@example.com", a: boite, messageId: mid, html });
+  await envoyerSmtp({ de: "tiers@example.com", a: boite, messageId: midSuppr, html: "<p>a supprimer</p>" });
 
-  const releve = await json("/messagerie/nominatif/relever", jeton, "POST");
-  if (!releve.resynchronisation && releve.ajoutes < 1) {
-    fail(`relève incrémentale vide (ajoutes=${releve.ajoutes})`);
+  // Les deux messages deviennent lisibles par l'API une fois relevés (GreenMail n'a ni CONDSTORE ni QRESYNC : la
+  // route force la relève, l'IDLE du moteur est éprouvé par `s7-moteur-fenetre.mjs`).
+  const messageDe = async (messageId) => {
+    const liste = await json("/messagerie/messages", jeton);
+    return liste.find((m) => m.message_id === messageId) ?? null;
+  };
+  let message = null;
+  let aSupprimer = null;
+  for (let essai = 0; essai < 20 && (message === null || aSupprimer === null); essai += 1) {
+    await json("/messagerie/classement/relever", jeton, "POST");
+    message = await messageDe(mid);
+    aSupprimer = await messageDe(midSuppr);
+    if (message === null || aSupprimer === null) await sleep(1000);
   }
-  const contenu = await json(
-    `/messagerie/nominatif/contenu?message_id=${encodeURIComponent(mid)}`,
-    jeton,
-  );
-  if (contenu.html.toLowerCase().includes("script")) fail("script conservé");
-  if (contenu.html.includes("exemple.test")) fail("image distante conservée");
-  if (!contenu.texte.includes(mot)) fail("texte utile absent");
-  if (contenu.texte.includes(secret)) fail("jeton de script indexé");
+  if (message === null) fail("le message déposé n'est pas relevé");
+  if (aSupprimer === null) fail("le second message déposé n'est pas relevé");
 
-  const trouves = await json(
-    `/messagerie/nominatif/recherche?q=${encodeURIComponent(mot)}`,
-    jeton,
-  );
-  if (!trouves.some((m) => m.message_id === mid)) fail("recherche serveur muette");
-  const secrets = await json(
-    `/messagerie/nominatif/recherche?q=${encodeURIComponent(secret)}`,
-    jeton,
-  );
-  if (secrets.some((m) => m.message_id === mid)) fail("recherche serveur a indexé le script");
-  if (fts5(contenu.texte, mot) !== 1) fail("FTS5 hors ligne muet");
-  if (fts5(contenu.texte, secret) !== 0) fail("FTS5 a indexé le script");
+  // Corps : texte lu sur le serveur IMAP puis conservé ; HTML nettoyé conservé côté serveur.
+  const corps = await json(demandes.corps(message.id), jeton, "POST");
+  if (!corps.texte.includes(mot)) fail("texte utile absent");
+  if (corps.texte.includes(secret)) fail("jeton de script indexé");
+  const htmlConserve = await sqlServeur(`SELECT html_nettoye FROM contenus_messages WHERE message_id_ref = '${message.id}'`);
+  if (htmlConserve === "") fail("HTML nettoyé non conservé");
+  if (htmlConserve.toLowerCase().includes("script")) fail("script conservé");
+  if (htmlConserve.includes("exemple.test")) fail("image distante conservée");
+  if (!htmlConserve.includes(mot)) fail("texte utile absent du HTML nettoyé");
 
-  const uid = contenu.uid;
-  const lu = await json("/messagerie/nominatif/lu", jeton, "POST", { uid, lu: true });
-  if (!lu.applique || !lu.lu) fail("marquage lu refusé");
-  const drapeau = await json("/messagerie/nominatif/drapeau", jeton, "POST", {
-    uid,
-    drapeau: "\\Flagged",
+  // Recherche sur le serveur : le mot est trouvé, le jeton du script ne l'est pas.
+  const trouves = await json(`/messagerie/recherche?q=${encodeURIComponent(mot)}`, jeton);
+  if (!trouves.resultats.some((m) => m.id === message.id)) fail("recherche serveur muette");
+  const secrets = await json(`/messagerie/recherche?q=${encodeURIComponent(secret)}`, jeton);
+  if (secrets.resultats.some((m) => m.id === message.id)) fail("recherche serveur a indexé le script");
+  if (fts5(corps.texte, mot) !== 1) fail("FTS5 hors ligne muet");
+  if (fts5(corps.texte, secret) !== 0) fail("FTS5 a indexé le script");
+
+  // Actions par message (file idempotente, répercutée sur IMAP) : lu, déplacement, suppression, et un genre inconnu refusé.
+  const action = (id, genre, destination) =>
+    json(demandes.actions(id), jeton, "POST", {
+      genre,
+      idempotence_cle: `s7-${genre}-${randomUUID()}`,
+      ...(destination === undefined ? {} : { destination }),
+    });
+  // Lire le corps d'un message sur le serveur IMAP le marque lu (comportement du client de messagerie) : on le constate, puis
+  // « non lu » l'enlève et « lu » le remet, chaque fois vérifié sur le serveur IMAP et jamais déduit de la réponse.
+  const apresLecture = imap.drapeaux("INBOX", "Message-ID", mid);
+  if (apresLecture.length !== 1 || !apresLecture[0].includes("\\Seen")) fail(`la lecture du corps n'a pas marqué le message lu ${JSON.stringify(apresLecture)}`);
+  const nonLu = await action(message.id, "non_lu");
+  if (nonLu.etat !== "appliquee") fail(`marquage non lu non appliqué ${JSON.stringify(nonLu)}`);
+  const apresNonLu = imap.drapeaux("INBOX", "Message-ID", mid);
+  if (apresNonLu.length !== 1 || apresNonLu[0].includes("\\Seen")) fail(`\\Seen encore présent après « non lu » ${JSON.stringify(apresNonLu)}`);
+  const lu = await action(message.id, "lu");
+  if (lu.etat !== "appliquee") fail(`marquage lu non appliqué ${JSON.stringify(lu)}`);
+  const apresLu = imap.drapeaux("INBOX", "Message-ID", mid);
+  if (apresLu.length !== 1 || !apresLu[0].includes("\\Seen")) fail(`\\Seen absent sur le serveur IMAP après « lu » ${JSON.stringify(apresLu)}`);
+  const refus = await fetch(`${api}${demandes.actions(message.id)}`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${jeton}`, "content-type": "application/json" },
+    body: JSON.stringify({ genre: "drapeau", idempotence_cle: `s7-refus-${randomUUID()}` }),
+    signal: AbortSignal.timeout(60_000),
   });
-  if (!drapeau.applique) fail("drapeau refusé");
-  const refus = await json("/messagerie/nominatif/drapeau", jeton, "POST", {
-    uid,
-    drapeau: "\\Recent",
-  });
-  if (refus.applique) fail("le drapeau \\Recent a été accepté");
-  if (!refus.lu) fail("l'état réel n'a pas été relu après refus");
+  if (refus.status !== 400) fail(`un genre d'action inconnu n'est pas refusé en 400 (${refus.status})`);
 
-  const aSupprimer = await json(
-    `/messagerie/nominatif/contenu?message_id=${encodeURIComponent(midSuppr)}`,
-    jeton,
-  );
-  const suppr = await json("/messagerie/nominatif/supprimer", jeton, "POST", {
-    uid: aSupprimer.uid,
-  });
-  if (!suppr.applique) fail("suppression refusée");
+  const suppr = await action(aSupprimer.id, "supprimer");
+  if (suppr.etat !== "appliquee") fail(`suppression non appliquée ${JSON.stringify(suppr)}`);
+  if (imap.drapeaux("INBOX", "Message-ID", midSuppr).length !== 0) fail("le message supprimé est encore dans la réception");
 
-  const deplace = await json("/messagerie/nominatif/deplacer", jeton, "POST", {
-    uid,
-    destination: "Archives",
-  });
-  if (!deplace.applique) fail("déplacement refusé");
+  const deplace = await action(message.id, "deplacer", "Archives");
+  if (deplace.etat !== "appliquee") fail(`déplacement non appliqué ${JSON.stringify(deplace)}`);
+  if (imap.drapeaux("INBOX", "Message-ID", mid).length !== 0) fail("le message déplacé est encore dans la réception");
+  if (imap.drapeaux("Archives", "Message-ID", mid).length !== 1) fail("le message déplacé est absent des archives");
 
-  await sqlServeur(
-    "UPDATE releve_curseurs SET uid_validity = 0 WHERE dossier_imap = 'INBOX'",
-  );
-  const reprise = await json("/messagerie/nominatif/relever", jeton, "POST");
-  if (!reprise.resynchronisation) fail("changement d'UIDVALIDITY sans resynchronisation");
-  const encore = await json(
-    `/messagerie/nominatif/contenu?message_id=${encodeURIComponent(mid)}`,
-    jeton,
-  );
-  if (!encore.texte.includes(mot)) fail("resynchronisation a perdu le message");
+  // Changement d'UIDVALIDITY : la relève repart de zéro sans perdre le message déjà relevé.
+  await sqlServeur("UPDATE releve_curseurs SET uid_validity = 0 WHERE dossier_imap = 'INBOX'");
+  await json("/messagerie/classement/relever", jeton, "POST");
+  const apres = await messageDe(mid);
+  if (apres === null) fail("resynchronisation a perdu le message");
+  const encore = await json(demandes.corps(apres.id), jeton, "POST");
+  if (!encore.texte.includes(mot)) fail("resynchronisation a perdu le texte du message");
 
   const composeVolume = join(root, "instance/imap-test/docker-compose.yml");
   const up = spawnSync(
@@ -278,7 +295,7 @@ async function main() {
   }
   if (Number(ligne[1]) < 50_000) fail(`volume ${ligne[1]} messages`);
   console.log(
-    `s7-synchro: OK chemin=${premiere.chemin} idle=${notif.chemin} volume=${ligne[1]} repli_ms=${ligne[2]} qresync_ms=${ligne[3]}`,
+    `s7-synchro: OK relevés=${premiere.total_messages} volume=${ligne[1]} repli_ms=${ligne[2]} qresync_ms=${ligne[3]}`,
   );
 }
 

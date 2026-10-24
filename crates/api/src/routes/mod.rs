@@ -19,7 +19,6 @@ pub mod invitations;
 pub mod messagerie;
 pub mod recherche_messages;
 pub mod redaction;
-pub mod synchro;
 pub mod temps;
 
 use std::sync::Arc;
@@ -247,28 +246,5 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/messagerie/file-envoi/{id}/traiter",
             post(file_envoi::traiter_envoi),
         )
-        .route(
-            "/messagerie/nominatif/relever",
-            post(synchro::relever_nominatif),
-        )
-        .route(
-            "/messagerie/nominatif/attendre",
-            post(synchro::attendre_nominatif),
-        )
-        .route("/messagerie/nominatif/lu", post(synchro::marquer_lu))
-        .route(
-            "/messagerie/nominatif/deplacer",
-            post(synchro::deplacer_message),
-        )
-        .route(
-            "/messagerie/nominatif/supprimer",
-            post(synchro::supprimer_message),
-        )
-        .route(
-            "/messagerie/nominatif/drapeau",
-            post(synchro::poser_drapeau),
-        )
-        .route("/messagerie/nominatif/recherche", get(synchro::rechercher))
-        .route("/messagerie/nominatif/contenu", get(synchro::lire_contenu))
         .with_state(state)
 }

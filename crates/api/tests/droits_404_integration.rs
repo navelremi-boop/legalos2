@@ -595,125 +595,29 @@ async fn scenario(url_base_jetable: String) {
             .expect("facture de X");
     assert_eq!((statut_x.as_str(), montant_x), ("validee", 14_760));
 
-    // ===== 4. Routes /messagerie/nominatif/* : la boîte de classement et ses messages fermés =====
-    let classement = Uuid::now_v7();
-    sqlx::query("INSERT INTO comptes_mail (id, cabinet_id, type_compte, adresse, secret_ref) VALUES ($1, $2, 'classement', 'classement@cabinet.example', 'test')")
-        .bind(classement)
-        .bind(cabinet1)
-        .execute(&pool)
-        .await
-        .expect("compte de classement");
-    for (uid, dossier) in [(501_i64, Some(ouvert)), (502_i64, Some(restreint))] {
-        sqlx::query(
-            r#"INSERT INTO messages (id, cabinet_id, compte_id, dossier_id, message_id, uid_validity, uid, objet, expediteur, etat_classement)
-               VALUES ($1, $2, $3, $4, $5, 1, $6, 'Objet fictif', 'tiers@example.com', 'classe')"#,
-        )
-        .bind(Uuid::now_v7())
-        .bind(cabinet1)
-        .bind(classement)
-        .bind(dossier)
-        .bind(format!("<droits-{uid}@example.com>"))
-        .bind(uid)
-        .execute(&pool)
-        .await
-        .expect("message de classement");
-    }
-    // Aucune boîte de classement pour le cabinet 2 : X ne touche à rien.
-    assert_introuvable(
-        &appel(
-            &app,
-            "POST",
-            "/messagerie/nominatif/lu",
-            &x,
-            json!({"uid": 501}),
-        )
-        .await,
-        "X, marquer lu sans boîte de classement",
-    );
-    assert_introuvable(
-        &appel(
-            &app,
-            "POST",
-            "/messagerie/nominatif/attendre",
-            &x,
-            Value::Null,
-        )
-        .await,
-        "X, attendre sans boîte de classement",
-    );
-    for action in ["lu", "supprimer", "drapeau"] {
-        let contenu = json!({"uid": 502, "destination": "Archives", "drapeau": "\\Flagged"});
-        // Message d'un dossier restreint : fermé à B, ouvert à A (le serveur IMAP du test est injoignable :
-        // la porte est franchie quand l'API répond 200 `applique: false`, pas 404).
-        assert_introuvable(
-            &appel(
-                &app,
-                "POST",
-                &format!("/messagerie/nominatif/{action}"),
-                &b,
-                contenu.clone(),
-            )
-            .await,
-            &format!("B, {action} sur un message de dossier restreint"),
-        );
-        let ouverte = appel(
-            &app,
-            "POST",
-            &format!("/messagerie/nominatif/{action}"),
-            &a,
-            contenu.clone(),
-        )
-        .await;
-        assert_eq!(ouverte.0, StatusCode::OK, "A, {action} : {:?}", ouverte.1);
+    // ===== 4. Les routes /messagerie/nominatif/* n'existent plus (consigne de l'architecte du 24/10/2026) =====
+    // Elles agissaient sur la boîte IMAP unique de l'instance, hors du modèle de droits des actions par message
+    // (`/messagerie/messages/{id}/actions`), que le poste utilise seule. Une route supprimée répond 404 à tous, y
+    // compris à un utilisateur authentifié, quelle que soit la méthode.
+    for (methode, chemin) in [
+        ("POST", "/messagerie/nominatif/relever"),
+        ("POST", "/messagerie/nominatif/attendre"),
+        ("POST", "/messagerie/nominatif/lu"),
+        ("POST", "/messagerie/nominatif/deplacer"),
+        ("POST", "/messagerie/nominatif/supprimer"),
+        ("POST", "/messagerie/nominatif/drapeau"),
+        ("GET", "/messagerie/nominatif/recherche"),
+        ("GET", "/messagerie/nominatif/contenu"),
+    ] {
+        let reponse = appel(&app, methode, chemin, &a, json!({"uid": 1})).await;
         assert_eq!(
-            ouverte.1["applique"], false,
-            "A, {action} : IMAP injoignable dans ce test"
+            reponse.0,
+            StatusCode::NOT_FOUND,
+            "{methode} {chemin} : {:?}",
+            reponse.1
         );
     }
-    assert_introuvable(
-        &appel(
-            &app,
-            "POST",
-            "/messagerie/nominatif/deplacer",
-            &b,
-            json!({"uid": 502, "destination": "Archives"}),
-        )
-        .await,
-        "B, déplacer un message de dossier restreint",
-    );
-    // B agit sur un message de dossier ouvert (témoin positif) ; un UID inconnu répond comme un message fermé.
-    let ouvert_b = appel(
-        &app,
-        "POST",
-        "/messagerie/nominatif/lu",
-        &b,
-        json!({"uid": 501}),
-    )
-    .await;
-    assert_eq!(
-        ouvert_b.0,
-        StatusCode::OK,
-        "B, message de dossier ouvert : {:?}",
-        ouvert_b.1
-    );
-    let inconnu = appel(
-        &app,
-        "POST",
-        "/messagerie/nominatif/lu",
-        &a,
-        json!({"uid": 999}),
-    )
-    .await;
-    let ferme = appel(
-        &app,
-        "POST",
-        "/messagerie/nominatif/lu",
-        &b,
-        json!({"uid": 502}),
-    )
-    .await;
-    assert_eq!(
-        inconnu, ferme,
-        "UID inconnu et message fermé doivent se ressembler"
-    );
+    // Témoin positif : une route qui existe répond autre chose que 404 au même utilisateur.
+    let sante = appel(&app, "GET", "/messagerie/sante", &a, Value::Null).await;
+    assert_eq!(sante.0, StatusCode::OK, "{:?}", sante.1);
 }

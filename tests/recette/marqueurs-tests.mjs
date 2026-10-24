@@ -10,7 +10,7 @@
  * Usage : node tests/recette/marqueurs-tests.mjs
  */
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -60,7 +60,8 @@ function analyser(base, chemins) {
   const refus = [];
   let lus = 0;
   for (const chemin of chemins) {
-    if (chemin === SELF || !EXTENSIONS.test(chemin)) continue;
+    // Un fichier suivi mais supprimé de l'arbre de travail (suppression pas encore commitée) n'a rien à contrôler.
+    if (chemin === SELF || !EXTENSIONS.test(chemin) || !existsSync(join(base, chemin))) continue;
     lus += 1;
     for (const m of marqueursDe(readFileSync(join(base, chemin), "utf8"))) refus.push(`${chemin}:${m.ligne} ${m.nom}`);
   }
