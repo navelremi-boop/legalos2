@@ -179,6 +179,23 @@ async function main() {
     essaiNegatif("la boîte aux identifiants refusés est dite connectée", norm(await etat(compteRefuse)) === "Connectée");
     essaiNegatif("la boîte d'un confrère figure dans les comptes de l'avocat", await present(ligne(compteConfrere)));
     essaiNegatif("l'adresse d'un confrère figure dans l'écran", norm(await texteDe("[data-testid=comptes-messagerie]")).includes(adresse("confrere")));
+    // Progression de l'indexation de fond (critère J11) : la ligne de l'écran reprend les chiffres du serveur, sans dire
+    // « terminée » tant qu'il reste des messages. La boîte du cabinet est celle qui porte des messages dans cette instance.
+    const santeServeur = await json("/messagerie/sante", jeton, "GET");
+    const cabinetSante = (santeServeur.comptes ?? []).find((c) => c.type_compte === "classement");
+    verifier("la boîte du cabinet est dans le tableau de santé du serveur", Boolean(cabinetSante), JSON.stringify(Object.keys(santeServeur)));
+    const ligneCabinet = ligne(cabinetSante.compte_id);
+    const avecMessages = cabinetSante.corps_indexes + cabinetSante.corps_restants + cabinetSante.corps_abandonnes > 0;
+    verifier("l'indexation de la boîte du cabinet est connue (sinon la ligne n'a rien à dire)", avecMessages, JSON.stringify(cabinetSante));
+    const indexation = norm(await texteDe(`${ligneCabinet} [data-testid=compte-indexation]`));
+    verifier("la ligne d'indexation est affichée pour la boîte du cabinet", indexation.startsWith("Recherche dans le texte des messages : "), indexation);
+    const nombres = (indexation.match(/\d+/gu) ?? []).map(Number);
+    // L'écran montre un instantané pris avant cette lecture ; l'indexation ne fait qu'avancer : le serveur, relu après, ne peut pas en être derrière.
+    const santeApres = (await json("/messagerie/sante", jeton, "GET")).comptes.find((c) => c.compte_id === cabinetSante.compte_id);
+    verifier("la ligne reprend un nombre de messages préparés que le serveur, relu après, a atteint", nombres.length >= 1 && nombres[0] <= santeApres.corps_indexes, `${indexation} / ${JSON.stringify(santeApres)}`);
+    essaiNegatif("l'indexation est dite terminée alors qu'il reste des messages à préparer", santeApres.corps_restants > 0 && indexation.includes("tous les messages"));
+    verifier("une boîte sans message indexé ni attendu n'affiche aucune ligne d'indexation", !(await present(`${ligne(compteRefuse)} [data-testid=compte-indexation]`)));
+    await js(`document.querySelector(${JSON.stringify(ligneCabinet)})?.scrollIntoView({ block: "center" })`);
     await capturer("connexion-sante-jour.png", "light");
     await capturer("connexion-sante-nuit.png", "dark");
     ok("santé : une boîte connectée, une boîte aux identifiants refusés (tentatives suspendues), la boîte d'un confrère absente");

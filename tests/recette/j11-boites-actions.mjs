@@ -832,6 +832,20 @@ async function main() {
   verifier("droits : B ne cible pas la boîte de A (404)", (await cherche(jetonB2, motObjet, `&compte_id=${boiteA.id}`)).statut === 404);
   verifier("droits : C ne cible pas la boîte de B (404)", (await cherche(jetonC2, "boite", `&compte_id=${boiteB.id}`)).statut === 404);
   verifier("droits : A cible sa boîte", (await ids(jetonA2, motObjet, `&compte_id=${boiteA.id}`)).has(r["rech-objet"]));
+
+  // Route des dossiers IMAP (« Déplacer ») : noms français pour les dossiers spéciaux, nom IMAP exact conservé, droits en 404.
+  const dossiersA = await requete(`/messagerie/comptes/${boiteA.id}/dossiers`, jetonA2);
+  verifier("dossiers IMAP : A lit la liste de sa boîte (200)", dossiersA.statut === 200 && Array.isArray(dossiersA.json?.dossiers), JSON.stringify(dossiersA.json)?.slice(0, 200));
+  const reception = dossiersA.json.dossiers.find((d) => d.nom === "INBOX");
+  verifier("dossiers IMAP : la réception porte son nom IMAP et son libellé français", reception?.libelle === "Réception" && reception?.role === "reception", JSON.stringify(reception));
+  verifier("dossiers IMAP : les archives sont proposées, même créées au premier déplacement", dossiersA.json.dossiers.some((d) => d.role === "archives"));
+  essaiNegatif("dossiers IMAP : la réception est présentée sous son nom IMAP brut", "le libellé est français", () => reception?.libelle === "INBOX");
+  const dossiersB = await requete(`/messagerie/comptes/${boiteA.id}/dossiers`, jetonB2);
+  const dossiersInconnu = await requete(`/messagerie/comptes/${randomUUID()}/dossiers`, jetonB2);
+  verifier("dossiers IMAP : B ne lit pas la liste de la boîte de A (404)", dossiersB.statut === 404, String(dossiersB.statut));
+  verifier("dossiers IMAP : boîte d'un autre et boîte inconnue répondent pareil", dossiersB.statut === dossiersInconnu.statut && JSON.stringify(dossiersB.json) === JSON.stringify(dossiersInconnu.json));
+  essaiNegatif("dossiers IMAP : B obtient la liste de la boîte de A", "A l'obtient (200)", () => dossiersB.statut === 200);
+  verifier("dossiers IMAP : sans jeton, 401", (await requete(`/messagerie/comptes/${boiteA.id}/dossiers`, undefined)).statut === 401);
   const autreBoite = await ids(jetonA2, motObjet, `&compte_id=${partagee}`);
   essaiNegatif("recherche : limitée à la boîte partagée, elle trouve le message de la boîte nominative", "la même recherche limitée à la boîte A le trouve", () => autreBoite.has(r["rech-objet"]));
 

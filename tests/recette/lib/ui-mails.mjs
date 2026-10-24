@@ -28,7 +28,21 @@ export const occurrences = (texte, motif) => texte.split(motif).length - 1;
  * @param {{ getSend: () => Function, fail: (message: string) => never, dossierCaptures: string }} options
  */
 export function creerUi({ getSend, fail, dossierCaptures }) {
-  const send = (...args) => getSend()(...args);
+  /**
+   * Commande CDP bornée à 60 s : sans réponse, la recette échoue en nommant la commande au lieu de rester suspendue
+   * (blocages de j11-connexion-boites des 22 et 24/10/2026 : aucun message, processus vivant, page muette).
+   */
+  const send = (...args) => {
+    let minuteur;
+    const delai = new Promise((_, rejeter) => {
+      minuteur = setTimeout(() => {
+        rejeter(new Error(`cdp sans réponse en 60 s (${String(args[0])})`));
+      }, 60_000);
+    });
+    return Promise.race([getSend()(...args), delai]).finally(() => {
+      clearTimeout(minuteur);
+    });
+  };
 
   /** Évalue dans la page ; une exception remonte avec sa description. */
   const js = async (expr) => {

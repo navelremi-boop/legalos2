@@ -733,6 +733,18 @@ async function main() {
     await attendre("nouveau mail", () => present(FORM), Boolean, 15_000);
     verifier("titre « Nouveau mail »", (await texteDe("[data-testid=redac-titre]")) === "Nouveau mail");
     verifier("aucun historique pour un message neuf", (await present("[data-testid=redac-histo]")) === false);
+    // Consigne du 20/10/2026 : un message neuf part par défaut de la boîte nominative. Ce scénario envoie depuis la boîte du
+    // cabinet : il la choisit, après avoir constaté que ce n'est pas le départ par défaut.
+    // Le formulaire s'affiche avant que le compte de départ soit posé : on attend qu'il le soit, sans quoi la lecture est une course.
+    const departParDefaut = await attendre(
+      "un compte de départ est choisi pour le message neuf",
+      () => js(`document.querySelector("select[data-testid=redac-de-choix]")?.value ?? null`),
+      (v) => typeof v === "string" && v !== "",
+      15_000,
+    );
+    verifier("le départ par défaut d'un message neuf est une boîte nominative, pas la boîte du cabinet", typeof departParDefaut === "string" && departParDefaut !== "", String(departParDefaut));
+    essaiNegatif("le départ par défaut d'un message neuf est la boîte du cabinet", departParDefaut === "");
+    await js(`(() => { const s = document.querySelector("select[data-testid=redac-de-choix]"); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(s, ""); s.dispatchEvent(new Event("change", { bubbles: true })); })()`);
     const corpsNeuf = await attendre("signature du cabinet insérée", () => htmlCorps(), (h) => h.includes(sigCabinet), 20_000);
     verifier("un paragraphe pour écrire, puis la signature du cabinet, une fois", corpsNeuf.startsWith("<p><br") && ordre(corpsNeuf, "<br", "<p>--</p>", sigCabinet) && occurrences(corpsNeuf, sigCabinet) === 1, corpsNeuf);
     essaiNegatif("la signature de la boîte nominative est dans le message neuf", corpsNeuf.includes(sigPerso));
@@ -771,6 +783,7 @@ async function main() {
     await nouveauMail();
     await attendre("nouveau mail (brouillon)", () => present(FORM), Boolean, 15_000);
     const idBrouillonRepris = await idBrouillon();
+    await js(`(() => { const s = document.querySelector("select[data-testid=redac-de-choix]"); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(s, ""); s.dispatchEvent(new Event("change", { bubbles: true })); })()`);
     await attendre("signature du cabinet (brouillon)", () => htmlCorps(), (h) => h.includes(sigCabinet), 20_000);
     const objetBrouillon = `Brouillon repris ${marque}`;
     const texteBrouillon = `Texte commencé sur le poste A ${marque}`;

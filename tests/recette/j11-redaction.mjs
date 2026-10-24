@@ -812,19 +812,34 @@ async function main() {
     await attendre("nouveau mail", () => present(FORM), Boolean, 15_000);
     verifier("titre « Nouveau mail »", (await texteDe("[data-testid=redac-titre]")) === "Nouveau mail");
     verifier("aucun historique pour un message neuf", (await present("[data-testid=redac-histo]")) === false);
-    const corpsNeuf = await attendre("signature insérée dans le message neuf", () => htmlCorps(), (h) => h.includes(sigCabinet), 15_000);
-    verifier("message neuf : un paragraphe pour écrire, puis la signature du compte du cabinet", ordre(corpsNeuf, "<br", "<p>--</p>", sigCabinet) && corpsNeuf.startsWith("<p><br") && occurrences(corpsNeuf, sigCabinet) === 1, corpsNeuf);
-    essaiNegatif("la signature d'un autre compte est dans le message neuf", corpsNeuf.includes(sigPerso));
     // (i) identité d'envoi : le compte d'un message neuf se choisit avant la première saisie.
-    const choixDe = await js(`(() => { const s = document.querySelector("select[data-testid=redac-de-choix]"); return s ? { valeur: s.value, options: [...s.options].map((o) => ({ v: o.value, t: o.text })) } : null; })()`);
-    verifier("(i) message neuf : sélecteur « De », la boîte du cabinet d'abord, puis ma boîte", choixDe !== null && choixDe.valeur === "" && norm(choixDe.options[0]?.t).includes("Boîte d'envoi du cabinet") && choixDe.options.some((o) => o.v === comptePerso && o.t === adressePerso), JSON.stringify(choixDe?.options.slice(0, 3)));
+    // Le formulaire s'affiche avant que le compte de départ soit posé : on attend qu'il le soit (sinon, la lecture est une course).
+    const choixDe = await attendre(
+      "un compte de départ est choisi pour le message neuf",
+      () => js(`(() => { const s = document.querySelector("select[data-testid=redac-de-choix]"); return s ? { valeur: s.value, options: [...s.options].map((o) => ({ v: o.value, t: o.text })) } : null; })()`),
+      (c) => c !== null && c.valeur !== "",
+      15_000,
+    );
+    verifier("(i) message neuf depuis la barre d'actions : sélecteur « De », la boîte du cabinet proposée en premier, puis mes boîtes", choixDe !== null && norm(choixDe.options[0]?.t).includes("Boîte d'envoi du cabinet") && choixDe.options.some((o) => o.v === comptePerso && o.t === adressePerso), JSON.stringify(choixDe?.options.slice(0, 3)));
     // Les comptes de l'utilisateur de démo laissés par d'autres recettes sont les siens et restent proposés ; jamais ceux d'un confrère ni la boîte de classement.
     const interdits = new Set((await sqlServeur(`SELECT COALESCE(string_agg(id::text, ','), '') FROM comptes_mail WHERE type_compte = 'classement' OR (type_compte = 'nominatif' AND titulaire_id <> '${demoId}')`)).split(",").filter(Boolean));
     verifier("(i) la liste des comptes d'un confrère n'est pas vide en base (l'essai négatif ci-dessous a un sens)", interdits.size > 0);
     essaiNegatif("(i) le sélecteur propose la boîte de classement ou le compte d'un confrère", (choixDe?.options ?? []).some((o) => interdits.has(o.v)));
-    await js(`(() => { const s = document.querySelector("select[data-testid=redac-de-choix]"); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(s, ${JSON.stringify(comptePerso)}); s.dispatchEvent(new Event("change", { bubbles: true })); })()`);
+    const choisirDe = (valeur) => js(`(() => { const s = document.querySelector("select[data-testid=redac-de-choix]"); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(s, ${JSON.stringify(valeur)}); s.dispatchEvent(new Event("change", { bubbles: true })); })()`);
+    const premierNominatif = choixDe?.options.find((o) => o.v !== "")?.v;
+    const nominatifsDeMoi = new Set((await sqlServeur(`SELECT COALESCE(string_agg(id::text, ','), '') FROM comptes_mail WHERE type_compte = 'nominatif' AND titulaire_id = '${demoId}'`)).split(",").filter(Boolean));
+    verifier("(i) le départ par défaut est mon premier compte nominatif proposé, pas la boîte du cabinet", choixDe !== null && choixDe.valeur !== "" && choixDe.valeur === premierNominatif && nominatifsDeMoi.has(choixDe.valeur), JSON.stringify({ valeur: choixDe?.valeur, premier: premierNominatif }));
+    essaiNegatif("(i) le départ par défaut est la boîte du cabinet", choixDe?.valeur === "");
+    await choisirDe(comptePerso);
+    const corpsNeuf = await attendre("signature de ma boîte insérée dans le message neuf (compte choisi)", () => htmlCorps(), (h) => h.includes(sigPerso) && !h.includes(sigCabinet), 15_000);
+    verifier("message neuf : un paragraphe pour écrire, puis la signature de ma boîte", ordre(corpsNeuf, "<br", "<p>--</p>", sigPerso) && corpsNeuf.startsWith("<p><br") && occurrences(corpsNeuf, sigPerso) === 1, corpsNeuf);
+    essaiNegatif("la signature de la boîte du cabinet est dans le message neuf", corpsNeuf.includes(sigCabinet));
+    await choisirDe("");
+    const corpsDuCabinet = await attendre("signature de la boîte du cabinet à la place de la mienne", () => htmlCorps(), (h) => h.includes(sigCabinet) && !h.includes(sigPerso), 15_000);
+    verifier("(i) choisir la boîte du cabinet remplace la signature, une seule fois", occurrences(corpsDuCabinet, sigCabinet) === 1 && occurrences(corpsDuCabinet, "<p>--</p>") === 1, corpsDuCabinet);
+    await choisirDe(comptePerso);
     const corpsDePerso = await attendre("signature de ma boîte à la place de celle du cabinet", () => htmlCorps(), (h) => h.includes(sigPerso) && !h.includes(sigCabinet), 15_000);
-    verifier("(i) changer de compte remplace la signature, une seule fois", occurrences(corpsDePerso, sigPerso) === 1 && occurrences(corpsDePerso, "<p>--</p>") === 1, corpsDePerso);
+    verifier("(i) revenir à ma boîte remplace la signature, une seule fois", occurrences(corpsDePerso, sigPerso) === 1 && occurrences(corpsDePerso, "<p>--</p>") === 1, corpsDePerso);
     verifier("(i) rien n'est enregistré par le seul choix du compte", (await sqlServeur(`SELECT COUNT(*) FROM brouillons_message WHERE cabinet_id = '${cabinet}' AND objet = 'Sans destinataire ${marque}'`)) === "0");
     await saisir("[data-testid=redac-objet]", `Sans destinataire ${marque}`);
     const idNeuf = await idBrouillon();
@@ -881,6 +896,9 @@ async function main() {
     await evaluate(send, `[...document.querySelectorAll("[data-testid=barre-actions] button")].find((b) => b.innerText.includes("Nouveau mail"))?.click()`);
     await attendre("nouveau mail (reprise)", () => present(FORM), Boolean, 15_000);
     const idR = await idBrouillon();
+    // Le départ par défaut est une boîte nominative quelconque (les recettes en laissent beaucoup) : ce scénario part de la
+    // boîte du cabinet, dont la signature est connue, comme avant la consigne du 20/10.
+    await choisirDe("");
     await attendre("signature du message à reprendre", () => htmlCorps(), (h) => h.includes(sigCabinet), 15_000);
     const objetReprise = `Reprise ${marque}`;
     await saisir("[data-testid=redac-objet]", objetReprise);
@@ -961,6 +979,7 @@ async function main() {
     await ouvrirMails();
     await evaluate(send, `[...document.querySelectorAll("[data-testid=barre-actions] button")].find((b) => b.innerText.includes("Nouveau mail"))?.click()`);
     await attendre("nouveau mail (modèle)", () => present(FORM), Boolean, 15_000);
+    await choisirDe("");
     await attendre("signature du message (modèle)", () => htmlCorps(), (h) => h.includes(sigCabinet), 15_000);
     const idM = await idBrouillon();
     await cliquer("[data-testid=outil-modele]");
