@@ -9,8 +9,12 @@
 //!   opération au seau des utilisateurs ; le corps indexé ne quitte jamais le serveur ;
 //! * **débit borné** : 20 messages au plus par boîte et par tour, une connexion IMAP à la fois, pause entre les tours ;
 //! * **reprise** : l'état est en base (un message indexé a sa ligne), un redémarrage de l'API reprend où il en était ;
-//! * **échecs bornés** : un message illisible est retenté puis abandonné au troisième échec, compté à l'écran de
-//!   santé ; une boîte dont les identifiants sont refusés est laissée de côté ;
+//! * **échecs bornés** : un message illisible est retenté (cinq tentatives, attente croissante : 2 min, 10 min, 1 h,
+//!   6 h) puis abandonné au cinquième échec, compté à l'écran de santé ; une boîte dont les identifiants sont refusés
+//!   est laissée de côté ;
+//! * **UIDVALIDITY périmée** : un message dont la génération d'UID n'est plus celle de son dossier (la boîte a changé
+//!   d'UIDVALIDITY et la relève ne l'a pas encore remis à jour) n'est ni lu, ni compté parmi les « à venir » :
+//!   il reprend sa place dès sa resynchronisation, de sorte que la progression finit par « terminée » ;
 //! * **rien dans les journaux** que des identifiants techniques : jamais de texte, d'objet ni d'adresse.
 
 use std::collections::{BTreeMap, HashMap};
@@ -30,8 +34,12 @@ const PAUSE_BOITE_REFUSEE: Duration = Duration::from_secs(30 * 60);
 const PAUSE_BOITE_INJOIGNABLE: Duration = Duration::from_secs(90);
 /// Caractères du corps gardés pour l'index (un tsvector ne dépasse pas 1 Mo).
 pub const CARACTERES_MAX: usize = 100_000;
-/// Au troisième échec, le message est abandonné.
-pub const TENTATIVES_MAX: i32 = 3;
+/// Au cinquième échec, le message est abandonné (consigne de l'architecte du 24/10/2026, D6).
+pub const TENTATIVES_MAX: i32 = 5;
+/// Attente avant la tentative suivante, selon le nombre d'échecs déjà constatés (1, 2, 3, puis 4 et plus) : elle croît.
+pub const DELAIS_ECHEC_MINUTES: [i64; 4] = [2, 10, 60, 360];
+/// Attente avant de relire un message dont le serveur répond une autre UIDVALIDITY que celle qu'on a gardée.
+const DELAI_UIDVALIDITY_MINUTES: i64 = 10;
 
 /// Avancement de l'indexation d'une boîte, pour l'écran de santé.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -119,6 +127,11 @@ async fn comptes_a_indexer(pool: &PgPool) -> Result<Vec<(Uuid, String)>, sqlx::E
                     SELECT 1 FROM messages_corps_echecs e
                     WHERE e.message_ref = m.id AND (e.tentatives >= $1 OR e.prochaine_le > NOW())
                 )
+                AND NOT EXISTS (
+                    SELECT 1 FROM releve_curseurs r
+                    WHERE r.compte_id = m.compte_id AND r.dossier_imap = m.dossier_imap
+                      AND r.uid_validity <> m.uid_validity
+                )
           )
         ORDER BY c.cree_le
         LIMIT 50
@@ -129,17 +142,18 @@ async fn comptes_a_indexer(pool: &PgPool) -> Result<Vec<(Uuid, String)>, sqlx::E
     .await
 }
 
-type LigneAIndexer = (Uuid, String, i64, i64);
+/// Un message à lire : identifiant, dossier IMAP, UID, UIDVALIDITY.
+pub type LigneAIndexer = (Uuid, String, i64, i64);
 
-/// Lit et indexe un lot de messages d'une boîte. Rend le nombre de messages traités (indexés ou notés en échec).
-async fn indexer_un_lot(
+/// Messages d'une boîte à lire maintenant, les plus récents d'abord : ni déjà indexés, ni abandonnés, ni en attente
+/// d'une nouvelle tentative, ni d'une UIDVALIDITY périmée (la génération d'UID du message n'est plus celle que la
+/// relève a gardée pour son dossier : on n'y touche pas avant sa resynchronisation).
+pub async fn messages_a_indexer(
     pool: &PgPool,
-    cle: &[u8; 32],
-    classement: Option<&ParametresCompte>,
     compte_id: Uuid,
-    type_compte: &str,
-) -> Result<usize, Pause> {
-    let lignes: Vec<LigneAIndexer> = sqlx::query_as(
+    limite: i64,
+) -> Result<Vec<LigneAIndexer>, sqlx::Error> {
+    sqlx::query_as(
         r#"
         SELECT m.id, m.dossier_imap, m.uid, m.uid_validity
         FROM messages m
@@ -149,16 +163,33 @@ async fn indexer_un_lot(
               SELECT 1 FROM messages_corps_echecs e
               WHERE e.message_ref = m.id AND (e.tentatives >= $3 OR e.prochaine_le > NOW())
           )
+          AND NOT EXISTS (
+              SELECT 1 FROM releve_curseurs r
+              WHERE r.compte_id = m.compte_id AND r.dossier_imap = m.dossier_imap
+                AND r.uid_validity <> m.uid_validity
+          )
         ORDER BY COALESCE(m.date_entete, m.cree_le) DESC, m.id
         LIMIT $2
         "#,
     )
     .bind(compte_id)
-    .bind(LOT)
+    .bind(limite)
     .bind(TENTATIVES_MAX)
     .fetch_all(pool)
     .await
-    .map_err(|_| Pause::Injoignable)?;
+}
+
+/// Lit et indexe un lot de messages d'une boîte. Rend le nombre de messages traités (indexés ou notés en échec).
+async fn indexer_un_lot(
+    pool: &PgPool,
+    cle: &[u8; 32],
+    classement: Option<&ParametresCompte>,
+    compte_id: Uuid,
+    type_compte: &str,
+) -> Result<usize, Pause> {
+    let lignes: Vec<LigneAIndexer> = messages_a_indexer(pool, compte_id, LOT)
+        .await
+        .map_err(|_| Pause::Injoignable)?;
     if lignes.is_empty() {
         return Ok(0);
     }
@@ -217,13 +248,17 @@ async fn indexer_un_lot(
         for (uid, message_ref) in messages {
             if !textes.valide {
                 // Les UID ne désignent plus les mêmes messages : la relève va les remettre à jour.
-                noter_echec(pool, *message_ref, compte_id, "uidvalidity", false).await;
+                journaliser_echec(
+                    noter_echec(pool, *message_ref, compte_id, "uidvalidity", false).await,
+                );
             } else if let Some(texte) = textes.textes.get(uid) {
                 if inscrire(pool, *message_ref, texte).await.is_err() {
-                    noter_echec(pool, *message_ref, compte_id, "texte", true).await;
+                    journaliser_echec(
+                        noter_echec(pool, *message_ref, compte_id, "texte", true).await,
+                    );
                 }
             } else {
-                noter_echec(pool, *message_ref, compte_id, "absent", true).await;
+                journaliser_echec(noter_echec(pool, *message_ref, compte_id, "absent", true).await);
             }
             traites += 1;
         }
@@ -264,26 +299,57 @@ async fn inscrire(pool: &PgPool, message_ref: Uuid, texte: &str) -> Result<(), s
     Ok(())
 }
 
-/// Note un échec de lecture. `compte` : le tour compte pour un essai (sinon le message est seulement repoussé).
-async fn noter_echec(pool: &PgPool, message_ref: Uuid, compte_id: Uuid, code: &str, compte: bool) {
-    let delai_minutes: i64 = if compte { 60 } else { 10 };
-    let _ = sqlx::query(
+/// Attente avant la tentative qui suit un échec, d'après le nombre d'échecs déjà constatés (croissante, bornée).
+#[must_use]
+pub fn delai_apres_echecs(echecs: i32) -> i64 {
+    let rang = usize::try_from(echecs.max(1) - 1).unwrap_or(0);
+    DELAIS_ECHEC_MINUTES[rang.min(DELAIS_ECHEC_MINUTES.len() - 1)]
+}
+
+/// Note un échec de lecture. `compte` : le tour compte pour un essai (sinon le message est seulement repoussé, de
+/// dix minutes). Un essai compté repousse le suivant de plus en plus loin ; au `TENTATIVES_MAX`-ième le message est
+/// abandonné (plus jamais sélectionné, compté dans `corps_abandonnes`).
+pub async fn noter_echec(
+    pool: &PgPool,
+    message_ref: Uuid,
+    compte_id: Uuid,
+    code: &str,
+    compte: bool,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
         r#"
         INSERT INTO messages_corps_echecs (message_ref, compte_id, tentatives, erreur, prochaine_le)
-        VALUES ($1, $2, $3, $4, NOW() + ($5::bigint * INTERVAL '1 minute'))
+        VALUES (
+            $1, $2, $3, $4,
+            NOW() + (CASE WHEN $3 = 0 THEN $6::bigint ELSE ($5::bigint[])[LEAST($3, CARDINALITY($5::bigint[]))] END)
+                    * INTERVAL '1 minute'
+        )
         ON CONFLICT (message_ref) DO UPDATE
             SET tentatives = messages_corps_echecs.tentatives + $3,
                 erreur = EXCLUDED.erreur,
-                prochaine_le = EXCLUDED.prochaine_le
+                prochaine_le = NOW() + (
+                    CASE WHEN $3 = 0 THEN $6::bigint
+                    ELSE ($5::bigint[])[LEAST(messages_corps_echecs.tentatives + $3, CARDINALITY($5::bigint[]))]
+                    END
+                ) * INTERVAL '1 minute'
         "#,
     )
     .bind(message_ref)
     .bind(compte_id)
     .bind(i32::from(compte))
     .bind(code)
-    .bind(delai_minutes)
+    .bind(DELAIS_ECHEC_MINUTES.to_vec())
+    .bind(DELAI_UIDVALIDITY_MINUTES)
     .execute(pool)
-    .await;
+    .await
+    .map(|_| ())
+}
+
+/// L'écriture d'un échec de lecture peut elle-même échouer (base indisponible) : elle est journalisée, sans contenu.
+fn journaliser_echec(resultat: Result<(), sqlx::Error>) {
+    if resultat.is_err() {
+        tracing::warn!("indexation des corps : échec de lecture non enregistré");
+    }
 }
 
 /// Avancement de l'indexation d'une boîte (écran de santé).
@@ -293,7 +359,16 @@ pub async fn progression(pool: &PgPool, compte_id: Uuid) -> Result<Progression, 
         SELECT
             (SELECT COUNT(*)::bigint FROM messages_corps_index i WHERE i.compte_id = $1),
             (SELECT COUNT(*)::bigint FROM messages m WHERE m.compte_id = $1
-                AND NOT EXISTS (SELECT 1 FROM messages_corps_index i WHERE i.message_ref = m.id)),
+                AND NOT EXISTS (SELECT 1 FROM messages_corps_index i WHERE i.message_ref = m.id)
+                AND NOT EXISTS (
+                    SELECT 1 FROM messages_corps_echecs e
+                    WHERE e.message_ref = m.id AND e.tentatives >= $2
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM releve_curseurs r
+                    WHERE r.compte_id = m.compte_id AND r.dossier_imap = m.dossier_imap
+                      AND r.uid_validity <> m.uid_validity
+                )),
             (SELECT COUNT(*)::bigint FROM messages_corps_echecs e
                 WHERE e.compte_id = $1 AND e.tentatives >= $2)
         "#,
@@ -304,7 +379,7 @@ pub async fn progression(pool: &PgPool, compte_id: Uuid) -> Result<Progression, 
     .await?;
     Ok(Progression {
         indexes,
-        restants: (restants - abandonnes).max(0),
+        restants,
         abandonnes,
     })
 }

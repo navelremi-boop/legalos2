@@ -704,19 +704,37 @@ async fn traiter_invitations(
         )
         .await?;
         match issue {
-            // Journal de relève : l'identifiant du message et le motif, jamais d'adresse ni d'objet.
-            IssueInvitation::Refusee(motif) => tracing::warn!(
-                compte = %compte.id,
-                message = %message_id,
-                motif = motif.motif(),
-                "invitation de calendrier refusée : origine non confirmée"
-            ),
+            // Journal de relève : l'identifiant interne du message et le motif, jamais d'adresse, d'objet ni de
+            // `Message-ID` (il porte le domaine de l'expéditeur ; consigne de l'architecte du 24/10/2026).
+            IssueInvitation::Refusee(motif) => {
+                let interne = identifiant_interne(pool, compte.id, message_id).await;
+                tracing::warn!(
+                    compte = %compte.id,
+                    message = ?interne,
+                    motif = motif.motif(),
+                    "invitation de calendrier refusée : origine non confirmée"
+                );
+            }
             _ => {
                 tracing::info!(compte = %compte.id, issue = ?issue, "invitation de calendrier relevée")
             }
         }
     }
     Ok(())
+}
+
+/// Identifiant interne (ligne de `messages`) d'un message relevé : ce qu'on met dans les journaux à la place du
+/// `Message-ID` de l'en-tête. `None` si la ligne a disparu entre-temps.
+async fn identifiant_interne(pool: &PgPool, compte_id: Uuid, message_id: &str) -> Option<Uuid> {
+    sqlx::query_scalar::<_, Uuid>(
+        "SELECT id FROM messages WHERE compte_id = $1 AND message_id = $2 LIMIT 1",
+    )
+    .bind(compte_id)
+    .bind(message_id)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
 }
 
 /// Relit les messages en entier (une connexion) et en tire l'invitation. Un calendrier illisible

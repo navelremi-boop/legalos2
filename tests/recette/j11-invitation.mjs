@@ -746,8 +746,9 @@ async function main() {
     essaiNegatif("création non vérifiée", "la même création envoyée par l'organisateur", () => !directeVerifiee);
 
     // Mise à jour et annulation (SEQUENCE supérieure) par un tiers : aucun effet.
-    await apresMessage("o1", { uid: uidOrigine, sequence: 1, objet: `Audience deplacee par un intrus ${marque}`, de: intrus, organisateurIcal: organisateur });
-    await apresMessage("o2", { uid: uidOrigine, sequence: 2, methode: "CANCEL", objet: `Audience origine ${marque}`, de: intrus });
+    const messagesRefuses = [];
+    messagesRefuses.push(await apresMessage("o1", { uid: uidOrigine, sequence: 1, objet: `Audience deplacee par un intrus ${marque}`, de: intrus, organisateurIcal: organisateur }));
+    messagesRefuses.push(await apresMessage("o2", { uid: uidOrigine, sequence: 2, methode: "CANCEL", objet: `Audience origine ${marque}`, de: intrus }));
     const apresTiers = await ligneInvitation(uidOrigine);
     const miseAJourAppliquee = (l) => l.sequence >= 1 || l.objet.includes("intrus");
     const annulationAppliquee = (l) => l.effet === "annulation";
@@ -756,11 +757,21 @@ async function main() {
     verifier("tiers : la ligne est strictement inchangée", inchangee(creeeParTiers, apresTiers));
 
     // ORGANIZER modifié dans une mise à jour envoyée par l'organisateur enregistré : refusé.
-    await apresMessage("o3", { uid: uidOrigine, sequence: 3, objet: `Audience reprise ${marque}`, organisateurIcal: intrus });
+    messagesRefuses.push(await apresMessage("o3", { uid: uidOrigine, sequence: 3, objet: `Audience reprise ${marque}`, organisateurIcal: intrus }));
     const apresChangement = await ligneInvitation(uidOrigine);
     const organisateurEnBase = () => sqlServeur(`SELECT organisateur FROM invitations_agenda WHERE uid_ical = '${uidOrigine}'`);
     verifier("ORGANIZER modifié : mise à jour refusée", inchangee(creeeParTiers, apresChangement));
     verifier("ORGANIZER modifié : l'organisateur enregistré ne change pas", (await organisateurEnBase()) === organisateur);
+
+    // D10 (consigne de l'architecte du 24/10/2026) : le refus est journalisé par l'API, sans le Message-ID du message refusé.
+    const journauxApi = spawnSync("docker", ["logs", "--since", "30m", "legalos-instance-api-1"], { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
+    const journauxBruts = `${journauxApi.stdout}\n${journauxApi.stderr}`;
+    const texteJournaux = journauxBruts.replace(new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "gu"), "");
+    verifier("journaux de l'API : le refus d'une invitation dont l'origine n'est pas confirmée est journalisé", texteJournaux.includes("invitation de calendrier refusée"), `${texteJournaux.length} caractères lus`);
+    const sansChevrons = (id) => id.replace(/^<|>$/gu, "");
+    verifier("trois messages refusés suivis", messagesRefuses.length === 3 && messagesRefuses.every((id) => sansChevrons(id).startsWith("inv-")));
+    verifier("journaux de l'API : aucun Message-ID d'un message refusé", messagesRefuses.every((id) => !texteJournaux.includes(sansChevrons(id))));
+    essaiNegatif("journaux de l'API : le Message-ID d'un message refusé y figure", "il n'y figure pas", () => messagesRefuses.some((id) => texteJournaux.includes(sansChevrons(id))));
 
     // Essais négatifs : les mêmes mises à jour et annulation, envoyées par l'organisateur enregistré
     // (ici via l'en-tête Sender, l'expéditeur réel étant un secrétariat), s'appliquent.

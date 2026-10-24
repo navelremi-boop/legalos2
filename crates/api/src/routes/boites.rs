@@ -395,7 +395,7 @@ pub struct SanteCompte {
     pub corps_indexes: i64,
     /// Messages qu'il reste à indexer (hors abandons).
     pub corps_restants: i64,
-    /// Messages abandonnés après trois lectures impossibles.
+    /// Messages abandonnés après cinq lectures impossibles (attente croissante entre deux).
     pub corps_abandonnes: i64,
 }
 
