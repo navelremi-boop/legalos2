@@ -551,7 +551,7 @@ mod tests {
         chemin
     }
 
-    fn saisir(chemin: &PathBuf, reponses: &str) -> (usize, String) {
+    fn saisir(chemin: &std::path::Path, reponses: &str) -> (usize, String) {
         let mut entree = Cursor::new(reponses.as_bytes().to_vec());
         let mut sortie = Vec::new();
         let ecrites = demander_oauth(chemin, &mut entree, &mut sortie).expect("demande");
