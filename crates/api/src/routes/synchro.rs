@@ -9,9 +9,81 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
+use uuid::Uuid;
+
 use crate::auth::access::AuthAccess;
 use crate::error::ApiError;
 use crate::state::AppState;
+
+/// Boîte de classement du cabinet de l'utilisateur, à condition qu'il puisse la lire (règle unique de la base,
+/// `compte_mail_lisible_par`, la même que celle de `/messagerie/comptes` et des actions). Sinon 404 « Boîte
+/// introuvable », sans rien dire du cabinet ni de la boîte. Les routes `/messagerie/nominatif/*` qui agissent sur
+/// le serveur IMAP de l'instance passent toutes par ce contrôle avant de toucher à IMAP.
+async fn exiger_boite_classement(
+    state: &AppState,
+    cabinet_id: Uuid,
+    utilisateur_id: Uuid,
+) -> Result<Uuid, ApiError> {
+    sqlx::query_scalar::<_, Uuid>(
+        r#"
+        SELECT c.id FROM comptes_mail c
+        WHERE c.cabinet_id = $1 AND c.type_compte = 'classement' AND compte_mail_lisible_par(c.id, $2)
+        ORDER BY c.cree_le ASC, c.id ASC
+        LIMIT 1
+        "#,
+    )
+    .bind(cabinet_id)
+    .bind(utilisateur_id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("Lecture de la boîte de classement"))?
+    .ok_or_else(|| ApiError::not_found("Boîte introuvable"))
+}
+
+/// Le message (UID de l'INBOX de la boîte de classement) doit exister et être lisible par l'utilisateur
+/// (`message_lisible_par`, la règle de la base : un message classé dans un dossier restreint reste fermé à qui n'a pas
+/// accès au dossier). Absent ou fermé : le même 404 « Message introuvable ».
+async fn exiger_message_classement(
+    state: &AppState,
+    cabinet_id: Uuid,
+    utilisateur_id: Uuid,
+    uid: u32,
+) -> Result<(), ApiError> {
+    let lisible = sqlx::query_scalar::<_, Option<bool>>(
+        r#"
+        SELECT bool_and(message_lisible_par(m.compte_id, m.dossier_id, $3))
+        FROM messages m
+        JOIN comptes_mail c ON c.id = m.compte_id
+        WHERE m.cabinet_id = $1 AND c.type_compte = 'classement'
+          AND m.dossier_imap = 'INBOX' AND m.uid = $2
+        "#,
+    )
+    .bind(cabinet_id)
+    .bind(i64::from(uid))
+    .bind(utilisateur_id)
+    .fetch_one(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("Lecture du message"))?;
+    if lisible == Some(true) {
+        Ok(())
+    } else {
+        Err(ApiError::not_found("Message introuvable"))
+    }
+}
+
+/// Une mise à jour SQL qui suit une action IMAP déjà faite ne change pas la réponse (le moteur resynchronise),
+/// mais son échec n'est jamais avalé : il est journalisé, sans contenu.
+fn journaliser_echec_sql(
+    contexte: &str,
+    resultat: Result<sqlx::postgres::PgQueryResult, sqlx::Error>,
+) {
+    if resultat.is_err() {
+        tracing::warn!(
+            action = contexte,
+            "mise à jour SQL échouée après l'action IMAP ; le moteur resynchronisera"
+        );
+    }
+}
 
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ReleveNominatif {
@@ -115,13 +187,15 @@ pub async fn relever_nominatif(
     responses(
         (status = 200, description = "Résultat de la veille IMAP (douze secondes au plus)", body = AttenteNominatif),
         (status = 400, description = "Messagerie non configurée", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Le cabinet n'a pas de boîte de classement lisible par l'utilisateur, ou message absent ou fermé à l'utilisateur (dossier restreint hors accès), même réponse", body = crate::error::ApiErrorBody),
         (status = 500, description = "Veille IMAP interrompue ou refusée", body = crate::error::ApiErrorBody),
     )
 )]
 pub async fn attendre_nominatif(
     State(state): State<Arc<AppState>>,
-    AuthAccess(_claims): AuthAccess,
+    AuthAccess(claims): AuthAccess,
 ) -> Result<Json<AttenteNominatif>, ApiError> {
+    exiger_boite_classement(&state, claims.cabinet_id, claims.sub).await?;
     let imap = state
         .messagerie
         .clone()
@@ -147,6 +221,7 @@ pub async fn attendre_nominatif(
     responses(
         (status = 200, description = "Résultat de l'action ; `applique` est faux quand le serveur IMAP l'a refusée", body = ActionNominatif),
         (status = 400, description = "Messagerie non configurée", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Le cabinet n'a pas de boîte de classement lisible par l'utilisateur, ou message absent ou fermé à l'utilisateur (dossier restreint hors accès), même réponse", body = crate::error::ApiErrorBody),
         (status = 500, description = "Action interrompue", body = crate::error::ApiErrorBody),
     )
 )]
@@ -155,6 +230,8 @@ pub async fn marquer_lu(
     AuthAccess(claims): AuthAccess,
     Json(corps): Json<UidCorps>,
 ) -> Result<Json<ActionNominatif>, ApiError> {
+    exiger_boite_classement(&state, claims.cabinet_id, claims.sub).await?;
+    exiger_message_classement(&state, claims.cabinet_id, claims.sub, corps.uid).await?;
     let lu = corps.lu.unwrap_or(true);
     let imap = state
         .messagerie
@@ -167,7 +244,7 @@ pub async fn marquer_lu(
             .map_err(|_| ApiError::internal("Action interrompue"))?;
     match resultat {
         Ok(reel) => {
-            let _ = sqlx::query(
+            let maj = sqlx::query(
                 "UPDATE messages SET lu = $1, revision = revision + 1 WHERE cabinet_id = $2 AND uid = $3 AND dossier_imap = 'INBOX' AND compte_id IN (SELECT id FROM comptes_mail WHERE cabinet_id = $2 AND type_compte = 'classement')",
             )
             .bind(lu)
@@ -175,6 +252,7 @@ pub async fn marquer_lu(
             .bind(i64::from(corps.uid))
             .execute(&state.pool)
             .await;
+            journaliser_echec_sql("lu", maj);
             Ok(Json(ActionNominatif {
                 applique: true,
                 lu: reel,
@@ -196,6 +274,7 @@ pub async fn marquer_lu(
     responses(
         (status = 200, description = "Résultat de l'action ; `applique` est faux quand le serveur IMAP l'a refusée", body = ActionNominatif),
         (status = 400, description = "Dossier de destination absent, ou messagerie non configurée", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Le cabinet n'a pas de boîte de classement lisible par l'utilisateur, ou message absent ou fermé à l'utilisateur (dossier restreint hors accès), même réponse", body = crate::error::ApiErrorBody),
         (status = 500, description = "Action interrompue", body = crate::error::ApiErrorBody),
     )
 )]
@@ -204,6 +283,8 @@ pub async fn deplacer_message(
     AuthAccess(claims): AuthAccess,
     Json(corps): Json<UidCorps>,
 ) -> Result<Json<ActionNominatif>, ApiError> {
+    exiger_boite_classement(&state, claims.cabinet_id, claims.sub).await?;
+    exiger_message_classement(&state, claims.cabinet_id, claims.sub, corps.uid).await?;
     let destination = corps
         .destination
         .filter(|d| !d.is_empty())
@@ -221,7 +302,7 @@ pub async fn deplacer_message(
     .map_err(|_| ApiError::internal("Action interrompue"))?;
     match resultat {
         Ok(()) => {
-            let _ = sqlx::query(
+            let maj = sqlx::query(
                 "UPDATE messages SET dossier_imap = $1, revision = revision + 1 WHERE cabinet_id = $2 AND uid = $3 AND compte_id IN (SELECT id FROM comptes_mail WHERE cabinet_id = $2 AND type_compte = 'classement')",
             )
             .bind(&destination)
@@ -229,6 +310,7 @@ pub async fn deplacer_message(
             .bind(i64::from(corps.uid))
             .execute(&state.pool)
             .await;
+            journaliser_echec_sql("deplacer", maj);
             Ok(Json(ActionNominatif {
                 applique: true,
                 lu: false,
@@ -250,6 +332,7 @@ pub async fn deplacer_message(
     responses(
         (status = 200, description = "Résultat de l'action ; `applique` est faux quand le serveur IMAP l'a refusée", body = ActionNominatif),
         (status = 400, description = "Messagerie non configurée", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Le cabinet n'a pas de boîte de classement lisible par l'utilisateur, ou message absent ou fermé à l'utilisateur (dossier restreint hors accès), même réponse", body = crate::error::ApiErrorBody),
         (status = 500, description = "Action interrompue", body = crate::error::ApiErrorBody),
     )
 )]
@@ -258,6 +341,8 @@ pub async fn supprimer_message(
     AuthAccess(claims): AuthAccess,
     Json(corps): Json<UidCorps>,
 ) -> Result<Json<ActionNominatif>, ApiError> {
+    exiger_boite_classement(&state, claims.cabinet_id, claims.sub).await?;
+    exiger_message_classement(&state, claims.cabinet_id, claims.sub, corps.uid).await?;
     let imap = state
         .messagerie
         .clone()
@@ -269,11 +354,12 @@ pub async fn supprimer_message(
             .map_err(|_| ApiError::internal("Action interrompue"))?;
     match resultat {
         Ok(()) => {
-            let _ = sqlx::query("DELETE FROM messages WHERE cabinet_id = $1 AND uid = $2 AND dossier_imap = 'INBOX' AND compte_id IN (SELECT id FROM comptes_mail WHERE cabinet_id = $1 AND type_compte = 'classement')")
+            let maj = sqlx::query("DELETE FROM messages WHERE cabinet_id = $1 AND uid = $2 AND dossier_imap = 'INBOX' AND compte_id IN (SELECT id FROM comptes_mail WHERE cabinet_id = $1 AND type_compte = 'classement')")
                 .bind(claims.cabinet_id)
                 .bind(i64::from(corps.uid))
                 .execute(&state.pool)
                 .await;
+            journaliser_echec_sql("supprimer", maj);
             Ok(Json(ActionNominatif {
                 applique: true,
                 lu: false,
@@ -295,14 +381,17 @@ pub async fn supprimer_message(
     responses(
         (status = 200, description = "Résultat de l'action ; `applique` est faux quand le serveur IMAP l'a refusée", body = ActionNominatif),
         (status = 400, description = "Drapeau absent, ou messagerie non configurée", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Le cabinet n'a pas de boîte de classement lisible par l'utilisateur, ou message absent ou fermé à l'utilisateur (dossier restreint hors accès), même réponse", body = crate::error::ApiErrorBody),
         (status = 500, description = "Action interrompue", body = crate::error::ApiErrorBody),
     )
 )]
 pub async fn poser_drapeau(
     State(state): State<Arc<AppState>>,
-    AuthAccess(_claims): AuthAccess,
+    AuthAccess(claims): AuthAccess,
     Json(corps): Json<UidCorps>,
 ) -> Result<Json<ActionNominatif>, ApiError> {
+    exiger_boite_classement(&state, claims.cabinet_id, claims.sub).await?;
+    exiger_message_classement(&state, claims.cabinet_id, claims.sub, corps.uid).await?;
     let drapeau = corps
         .drapeau
         .filter(|d| !d.is_empty())

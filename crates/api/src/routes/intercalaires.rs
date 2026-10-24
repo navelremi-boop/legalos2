@@ -14,7 +14,7 @@ use crate::conflits::{
     ContexteChamp,
 };
 use crate::error::ApiError;
-use crate::routes::dossiers::dossier_visible;
+use crate::routes::dossiers::{dossier_visible, exiger_dossier_visible, exiger_visible_pour};
 use crate::state::AppState;
 
 const TYPES_ELEMENT: &[&str] = &["mail", "piece", "facture", "audience", "note"];
@@ -97,9 +97,7 @@ pub async fn creer_intercalaire(
         return Err(ApiError::bad_request("Clé d'idempotence requise"));
     }
     let nom = texte_requis(&body.nom, "Nom d'intercalaire requis")?;
-    if !dossier_visible(&state, claims.cabinet_id, claims.sub, dossier_id).await? {
-        return Err(ApiError::unauthorized("Dossier non autorisé"));
-    }
+    exiger_dossier_visible(&state, claims.cabinet_id, claims.sub, dossier_id).await?;
 
     sqlx::query(
         r#"
@@ -195,7 +193,7 @@ pub async fn patch_intercalaire(
         return Err(ApiError::not_found("Intercalaire introuvable"));
     }
     if !dossier_visible_tx(&mut tx, claims.cabinet_id, claims.sub, courant.1).await? {
-        return Err(ApiError::not_found("Dossier introuvable"));
+        return Err(ApiError::not_found("Intercalaire introuvable"));
     }
     valider_base_revision(body.base_revision, courant.3)?;
 
@@ -322,7 +320,7 @@ pub async fn retirer_intercalaire(
         return Err(ApiError::not_found("Intercalaire introuvable"));
     }
     if !dossier_visible_tx(&mut tx, claims.cabinet_id, claims.sub, courant.1).await? {
-        return Err(ApiError::not_found("Dossier introuvable"));
+        return Err(ApiError::not_found("Intercalaire introuvable"));
     }
 
     // CASCADE sur intercalaire_elements uniquement — pas sur mails / pièces / factures.
@@ -387,9 +385,14 @@ pub async fn rattacher_element(
     if intercalaire.0 != claims.cabinet_id {
         return Err(ApiError::not_found("Intercalaire introuvable"));
     }
-    if !dossier_visible(&state, claims.cabinet_id, claims.sub, intercalaire.1).await? {
-        return Err(ApiError::unauthorized("Dossier non autorisé"));
-    }
+    exiger_visible_pour(
+        &state,
+        claims.cabinet_id,
+        claims.sub,
+        intercalaire.1,
+        "Intercalaire introuvable",
+    )
+    .await?;
 
     verifier_element_metier(
         &state,
@@ -501,7 +504,7 @@ pub async fn detacher_element(
         return Err(ApiError::not_found("Rattachement introuvable"));
     }
     if !dossier_visible_tx(&mut tx, claims.cabinet_id, claims.sub, row.0).await? {
-        return Err(ApiError::not_found("Dossier introuvable"));
+        return Err(ApiError::not_found("Rattachement introuvable"));
     }
 
     sqlx::query(r#"DELETE FROM intercalaire_elements WHERE id = $1"#)
@@ -594,7 +597,7 @@ async fn charger_intercalaire(
     .map_err(|_| ApiError::internal("lecture intercalaire"))?
     .ok_or_else(|| ApiError::not_found("Intercalaire introuvable"))?;
     if !dossier_visible(state, cabinet_id, utilisateur_id, row.0).await? {
-        return Err(ApiError::not_found("Dossier introuvable"));
+        return Err(ApiError::not_found("Intercalaire introuvable"));
     }
     Ok(IntercalaireResponse {
         id: intercalaire_id,

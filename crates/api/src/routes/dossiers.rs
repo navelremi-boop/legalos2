@@ -167,7 +167,7 @@ pub async fn creer_dossier(
     .map_err(|_| ApiError::internal("lecture dossier"))?;
     if let Some((cabinet_id, restreint, reference)) = existant {
         if cabinet_id != claims.cabinet_id {
-            return Err(ApiError::unauthorized("Dossier hors cabinet"));
+            return Err(ApiError::not_found("Dossier introuvable"));
         }
         // Dossier restreint : le rejeu ne renvoie rien à un collaborateur hors dossier_acces
         // (droits par dossier, § 3.1).
@@ -207,7 +207,7 @@ pub async fn creer_dossier(
     .fetch_optional(&mut *tx)
     .await
     .map_err(|_| ApiError::internal("lecture cabinet"))?
-    .ok_or_else(|| ApiError::bad_request("Cabinet introuvable"))?;
+    .ok_or_else(|| ApiError::not_found("Cabinet introuvable"))?;
     let remise = remise_depuis_sql(&cabinet.1)?;
     let modele = ModeleReference::analyser_pour(&cabinet.0, remise)
         .map_err(|_| ApiError::internal("modèle de référence"))?;
@@ -345,9 +345,7 @@ pub async fn creer_partie(
     if !ROLES_PARTIE.contains(&body.role.as_str()) {
         return Err(ApiError::bad_request("Rôle de partie inconnu"));
     }
-    if !dossier_visible(&state, claims.cabinet_id, claims.sub, dossier_id).await? {
-        return Err(ApiError::unauthorized("Dossier non autorisé"));
-    }
+    exiger_dossier_visible(&state, claims.cabinet_id, claims.sub, dossier_id).await?;
     if let Some(contact_id) = body.contact_id {
         let ok = sqlx::query_scalar::<_, bool>(
             "SELECT EXISTS(SELECT 1 FROM contacts WHERE id = $1 AND cabinet_id = $2)",
@@ -711,7 +709,7 @@ pub async fn patch_partie(
         return Err(ApiError::not_found("Partie introuvable"));
     }
     if !dossier_visible_tx(&mut tx, claims.cabinet_id, claims.sub, courant.1).await? {
-        return Err(ApiError::not_found("Dossier introuvable"));
+        return Err(ApiError::not_found("Partie introuvable"));
     }
     valider_base_revision(body.base_revision, courant.4)?;
 
@@ -840,7 +838,7 @@ async fn charger_partie(
     .map_err(|_| ApiError::internal("lecture partie"))?
     .ok_or_else(|| ApiError::not_found("Partie introuvable"))?;
     if !dossier_visible(state, cabinet_id, utilisateur_id, row.0).await? {
-        return Err(ApiError::not_found("Dossier introuvable"));
+        return Err(ApiError::not_found("Partie introuvable"));
     }
     Ok(PartieDetailResponse {
         id: partie_id,
@@ -895,6 +893,40 @@ fn champ_texte_optionnel(valeur: Option<String>) -> Result<Option<String>, ApiEr
         return Err(ApiError::bad_request("Champ vide"));
     }
     Ok(Some(valeur))
+}
+
+/// Dossier absent, d'un autre cabinet ou restreint hors `dossier_acces` : un seul et même 404, sans rien révéler
+/// (règle de l'architecte du 20/10/2026, étendue à toute l'API le 22/10/2026).
+pub(crate) async fn exiger_dossier_visible(
+    state: &AppState,
+    cabinet_id: Uuid,
+    utilisateur_id: Uuid,
+    dossier_id: Uuid,
+) -> Result<(), ApiError> {
+    exiger_visible_pour(
+        state,
+        cabinet_id,
+        utilisateur_id,
+        dossier_id,
+        "Dossier introuvable",
+    )
+    .await
+}
+
+/// Comme `exiger_dossier_visible`, pour une ressource fille (répertoire, document, intercalaire, temps…) : le message
+/// est celui de la ressource demandée, le même que si elle n'existait pas, pour ne pas révéler qu'elle existe.
+pub(crate) async fn exiger_visible_pour(
+    state: &AppState,
+    cabinet_id: Uuid,
+    utilisateur_id: Uuid,
+    dossier_id: Uuid,
+    introuvable: &'static str,
+) -> Result<(), ApiError> {
+    if dossier_visible(state, cabinet_id, utilisateur_id, dossier_id).await? {
+        Ok(())
+    } else {
+        Err(ApiError::not_found(introuvable))
+    }
 }
 
 pub(crate) async fn dossier_visible(

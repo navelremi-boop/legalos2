@@ -5,7 +5,7 @@ use crate::conflits::{
 };
 use crate::error::ApiError;
 use crate::facturation::ht_temps_centimes;
-use crate::routes::dossiers::dossier_visible;
+use crate::routes::dossiers::{dossier_visible, exiger_dossier_visible};
 use crate::state::AppState;
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
@@ -98,8 +98,9 @@ pub struct PatchTauxRequest {
     request_body = CreerTempsRequest,
     responses(
         (status = 200, description = "Saisie de temps créée, ou déjà présente (rejeu du même identifiant) ; hors taxes en centimes entiers", body = TempsResponse),
-        (status = 400, description = "Clé d'idempotence ou libellé absent, minutes ou taux invalides, dossier introuvable", body = crate::error::ApiErrorBody),
-        (status = 401, description = "Non authentifié, ou dossier non autorisé pour l'utilisateur", body = crate::error::ApiErrorBody),
+        (status = 400, description = "Clé d'idempotence ou libellé absent, minutes ou taux invalides", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Dossier introuvable, d'un autre cabinet ou restreint hors accès (même réponse)", body = crate::error::ApiErrorBody),
         (status = 500, description = "Erreur interne", body = crate::error::ApiErrorBody),
     )
 )]
@@ -162,8 +163,9 @@ pub async fn creer_temps(
     request_body = CreerBrouillonTempsRequest,
     responses(
         (status = 200, description = "Brouillon de facture au temps passé créé, ou déjà présent ; sans numéro tant qu'il n'est pas numéroté par le serveur", body = BrouillonTempsResponse),
-        (status = 400, description = "Clé d'idempotence ou libellé absent, montant ou taux invalides, dossier introuvable", body = crate::error::ApiErrorBody),
-        (status = 401, description = "Non authentifié, ou dossier non autorisé pour l'utilisateur", body = crate::error::ApiErrorBody),
+        (status = 400, description = "Clé d'idempotence ou libellé absent, montant ou taux invalides", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Dossier introuvable, d'un autre cabinet ou restreint hors accès (même réponse)", body = crate::error::ApiErrorBody),
         (status = 500, description = "Erreur interne", body = crate::error::ApiErrorBody),
     )
 )]
@@ -228,8 +230,9 @@ pub async fn creer_brouillon_temps(
     request_body = CreerTauxRequest,
     responses(
         (status = 200, description = "Taux horaire créé, ou déjà présent (rejeu du même identifiant) ; en centimes par heure", body = TauxResponse),
-        (status = 400, description = "Clé d'idempotence absente, taux invalide, dossier introuvable", body = crate::error::ApiErrorBody),
-        (status = 401, description = "Non authentifié, ou dossier non autorisé pour l'utilisateur", body = crate::error::ApiErrorBody),
+        (status = 400, description = "Clé d'idempotence absente, taux invalide", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Dossier introuvable, d'un autre cabinet ou restreint hors accès (même réponse)", body = crate::error::ApiErrorBody),
         (status = 500, description = "Erreur interne", body = crate::error::ApiErrorBody),
     )
 )]
@@ -357,10 +360,10 @@ pub async fn patch_temps(
     .ok_or_else(|| ApiError::not_found("Temps introuvable"))?;
 
     if courant.0 != claims.cabinet_id {
-        return Err(ApiError::not_found("Saisie de temps introuvable"));
+        return Err(ApiError::not_found("Temps introuvable"));
     }
     if !dossier_autorise_tx(&mut tx, claims.cabinet_id, claims.sub, courant.1).await? {
-        return Err(ApiError::not_found("Dossier introuvable"));
+        return Err(ApiError::not_found("Temps introuvable"));
     }
 
     let immuable = sqlx::query_scalar::<_, bool>(
@@ -477,7 +480,7 @@ pub async fn patch_temps(
     request_body = PatchBrouillonRequest,
     responses(
         (status = 200, description = "Brouillon mis à jour (libellé, taux ; hors taxes recalculé) ; rejeu avec la même clé d'idempotence sans effet", body = BrouillonTempsResponse),
-        (status = 400, description = "Clé d'idempotence absente, aucun champ à appliquer, champ vide, taux invalide, temps lié introuvable, version de base invalide ou postérieure au serveur", body = crate::error::ApiErrorBody),
+        (status = 400, description = "Clé d'idempotence absente, aucun champ à appliquer, champ vide, taux invalide, version de base invalide ou postérieure au serveur", body = crate::error::ApiErrorBody),
         (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
         (status = 404, description = "Brouillon ou dossier introuvable", body = crate::error::ApiErrorBody),
         (status = 409, description = "Brouillon numéroté : plus modifiable", body = crate::error::ApiErrorBody),
@@ -541,7 +544,7 @@ pub async fn patch_brouillon(
         return Err(ApiError::not_found("Brouillon introuvable"));
     }
     if !dossier_autorise_tx(&mut tx, claims.cabinet_id, claims.sub, courant.1).await? {
-        return Err(ApiError::not_found("Dossier introuvable"));
+        return Err(ApiError::not_found("Brouillon introuvable"));
     }
     if courant.3.is_some() {
         return Err(ApiError::conflict(
@@ -592,7 +595,7 @@ pub async fn patch_brouillon(
                 )
                 .await
                 .map_err(|_| ApiError::internal("lecture temps lié"))?
-                .ok_or_else(|| ApiError::bad_request("Temps lié introuvable"))?;
+                .ok_or_else(|| ApiError::not_found("Temps lié introuvable"))?;
         ht_temps_centimes(minutes, taux_f)
             .ok_or_else(|| ApiError::bad_request("Minutes ou taux invalides"))?
     } else {
@@ -702,7 +705,7 @@ pub async fn patch_taux(
     }
     if let Some(dossier_id) = courant.1 {
         if !dossier_autorise_tx(&mut tx, claims.cabinet_id, claims.sub, dossier_id).await? {
-            return Err(ApiError::not_found("Dossier introuvable"));
+            return Err(ApiError::not_found("Taux introuvable"));
         }
     }
     valider_base_revision(body.base_revision, courant.3)?;
@@ -773,7 +776,7 @@ async fn charger_temps(
     .map_err(|_| ApiError::internal("lecture temps"))?
     .ok_or_else(|| ApiError::not_found("Temps introuvable"))?;
     if !dossier_visible(state, cabinet_id, utilisateur_id, row.0).await? {
-        return Err(ApiError::not_found("Dossier introuvable"));
+        return Err(ApiError::not_found("Temps introuvable"));
     }
     Ok(TempsResponse {
         id: temps_id,
@@ -804,7 +807,7 @@ async fn charger_brouillon(
     .map_err(|_| ApiError::internal("lecture brouillon"))?
     .ok_or_else(|| ApiError::not_found("Brouillon introuvable"))?;
     if !dossier_visible(state, cabinet_id, utilisateur_id, row.0).await? {
-        return Err(ApiError::not_found("Dossier introuvable"));
+        return Err(ApiError::not_found("Brouillon introuvable"));
     }
     Ok(BrouillonTempsResponse {
         id: brouillon_id,
@@ -835,7 +838,7 @@ async fn charger_taux(
     .ok_or_else(|| ApiError::not_found("Taux introuvable"))?;
     if let Some(dossier_id) = row.0 {
         if !dossier_visible(state, cabinet_id, utilisateur_id, dossier_id).await? {
-            return Err(ApiError::not_found("Dossier introuvable"));
+            return Err(ApiError::not_found("Taux introuvable"));
         }
     }
     Ok(TauxResponse {
@@ -851,20 +854,7 @@ pub(crate) async fn exiger_dossier_existant(
     utilisateur_id: Uuid,
     dossier_id: Uuid,
 ) -> Result<(), ApiError> {
-    let existe =
-        sqlx::query_as::<_, (Uuid,)>("SELECT id FROM dossiers WHERE id = $1 AND cabinet_id = $2")
-            .bind(dossier_id)
-            .bind(cabinet_id)
-            .fetch_optional(&state.pool)
-            .await
-            .map_err(|_| ApiError::internal("lecture dossier"))?;
-    if existe.is_none() {
-        return Err(ApiError::bad_request("Dossier introuvable"));
-    }
-    if !dossier_visible(state, cabinet_id, utilisateur_id, dossier_id).await? {
-        return Err(ApiError::unauthorized("Dossier non autorisé"));
-    }
-    Ok(())
+    exiger_dossier_visible(state, cabinet_id, utilisateur_id, dossier_id).await
 }
 
 async fn meta_dossier(state: &AppState, dossier_id: Uuid) -> Result<(String, String), ApiError> {
@@ -874,7 +864,7 @@ async fn meta_dossier(state: &AppState, dossier_id: Uuid) -> Result<(String, Str
         .await
         .map_err(|_| ApiError::internal("visibilité dossier"))?
         .map(|row| (row.0, dossier_id.to_string()))
-        .ok_or_else(|| ApiError::bad_request("Dossier introuvable"))
+        .ok_or_else(|| ApiError::not_found("Dossier introuvable"))
 }
 
 async fn dossier_autorise_tx(

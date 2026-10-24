@@ -213,7 +213,7 @@ pub async fn patch_element(
     .map_err(|_| ApiError::internal("lecture agenda"))?
     .ok_or_else(|| ApiError::not_found("Élément d'agenda introuvable"))?;
     if !dossier_visible(state.as_ref(), claims.cabinet_id, claims.sub, courant.0).await? {
-        return Err(ApiError::not_found("Dossier introuvable"));
+        return Err(ApiError::not_found("Élément d'agenda introuvable"));
     }
     valider_base_revision(body.base_revision, courant.5)?;
     let mut revision = courant.5;
@@ -351,7 +351,7 @@ pub async fn retirer_element(
     .map_err(|_| ApiError::internal("lecture agenda"))?
     .ok_or_else(|| ApiError::not_found("Élément d'agenda introuvable"))?;
     if !dossier_visible(state.as_ref(), claims.cabinet_id, claims.sub, courant.0).await? {
-        return Err(ApiError::not_found("Dossier introuvable"));
+        return Err(ApiError::not_found("Élément d'agenda introuvable"));
     }
     noter_historique(
         &mut tx,

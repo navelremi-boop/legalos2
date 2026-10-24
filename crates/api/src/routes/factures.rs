@@ -14,6 +14,7 @@ use crate::pdf_facturx;
 use crate::plateforme::{
     DepotFacture, EncaissementPa, ErreurPlateforme, HttpPlateformeAgreee, PlateformeAgreee,
 };
+use crate::routes::dossiers::exiger_visible_pour;
 use crate::routes::temps::exiger_dossier_existant;
 use crate::state::AppState;
 
@@ -87,8 +88,9 @@ pub struct PdfFacturX(Vec<u8>);
     request_body = CreerFactureRequest,
     responses(
         (status = 200, description = "Brouillon de facture créé, ou déjà présent (rejeu du même identifiant) ; aucun numéro tant qu'il n'est pas validé", body = FactureResponse),
-        (status = 400, description = "Dossier introuvable, type de client inconnu, lignes ou taux de TVA invalides, nature de ligne inconnue", body = crate::error::ApiErrorBody),
-        (status = 401, description = "Non authentifié, ou dossier non autorisé pour l'utilisateur", body = crate::error::ApiErrorBody),
+        (status = 400, description = "Type de client inconnu, lignes ou taux de TVA invalides, nature de ligne inconnue", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Dossier introuvable, d'un autre cabinet ou restreint hors accès (même réponse), ou identifiant déjà pris par une facture que l'utilisateur ne doit pas voir", body = crate::error::ApiErrorBody),
         (status = 500, description = "Erreur interne", body = crate::error::ApiErrorBody),
     )
 )]
@@ -131,24 +133,32 @@ pub async fn creer_brouillon(
     .execute(&mut *tx)
     .await
     .map_err(|_| ApiError::internal("brouillon"))?;
-    let inseree = sqlx::query_as::<_, (i64,)>("SELECT COUNT(*) FROM factures WHERE id = $1")
+    // `ON CONFLICT DO NOTHING` laisse en place la facture qui porte déjà cet identifiant : elle n'est rendue que si
+    // elle est à ce cabinet et dans le dossier demandé (déjà contrôlé visible). Sinon l'identifiant est celui d'une
+    // facture que l'utilisateur ne doit pas voir : 404, sans montants (transaction abandonnée).
+    let existante = sqlx::query_as::<_, (Uuid, Uuid)>(
+        "SELECT cabinet_id, dossier_id FROM factures WHERE id = $1",
+    )
+    .bind(body.id)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(|_| ApiError::internal("lecture brouillon"))?
+    .ok_or_else(|| ApiError::internal("brouillon absent après insertion"))?;
+    if existante.0 != claims.cabinet_id || existante.1 != body.dossier_id {
+        return Err(ApiError::not_found("Facture introuvable"));
+    }
+    if sqlx::query_as::<_, (i64,)>("SELECT COUNT(*) FROM facture_lignes WHERE facture_id = $1")
         .bind(body.id)
         .fetch_one(&mut *tx)
         .await
-        .map_err(|_| ApiError::internal("lecture brouillon"))?;
-    if inseree.0 > 0
-        && sqlx::query_as::<_, (i64,)>("SELECT COUNT(*) FROM facture_lignes WHERE facture_id = $1")
-            .bind(body.id)
-            .fetch_one(&mut *tx)
-            .await
-            .map_err(|_| ApiError::internal("lignes"))?
-            .0
-            > 0
+        .map_err(|_| ApiError::internal("lignes"))?
+        .0
+        > 0
     {
         tx.commit()
             .await
             .map_err(|_| ApiError::internal("commit"))?;
-        return charger(&state, body.id).await.map(Json);
+        return charger(&state, claims.cabinet_id, body.id).await.map(Json);
     }
     for ligne in &body.lignes {
         sqlx::query(
@@ -166,7 +176,7 @@ pub async fn creer_brouillon(
     tx.commit()
         .await
         .map_err(|_| ApiError::internal("validation brouillon"))?;
-    charger(&state, body.id).await.map(Json)
+    charger(&state, claims.cabinet_id, body.id).await.map(Json)
 }
 
 #[utoipa::path(
@@ -177,8 +187,8 @@ pub async fn creer_brouillon(
     params(("id" = Uuid, Path, description = "Identifiant de la facture")),
     responses(
         (status = 200, description = "Facture validée : numéro définitif attribué par le serveur, PDF Factur-X et CII figés ; rejeu sans effet sur une facture déjà validée", body = FactureResponse),
-        (status = 400, description = "Facture ou dossier introuvable", body = crate::error::ApiErrorBody),
         (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Facture introuvable, d'un autre cabinet ou d'un dossier restreint hors accès (même réponse)", body = crate::error::ApiErrorBody),
         (status = 500, description = "Erreur interne (numérotation, génération du PDF Factur-X)", body = crate::error::ApiErrorBody),
     )
 )]
@@ -192,37 +202,30 @@ pub async fn valider(
         .begin()
         .await
         .map_err(|_| ApiError::internal("transaction"))?;
-    let actuelle = sqlx::query_as::<_, (String, Option<i64>)>(
-        "SELECT statut, numero FROM factures WHERE id = $1 AND cabinet_id = $2 FOR UPDATE",
+    let actuelle = sqlx::query_as::<_, (String, Option<i64>, Uuid)>(
+        "SELECT statut, numero, dossier_id FROM factures WHERE id = $1 AND cabinet_id = $2 FOR UPDATE",
     )
     .bind(id)
     .bind(claims.cabinet_id)
     .fetch_optional(&mut *tx)
     .await
     .map_err(|_| ApiError::internal("lecture facture"))?
-    .ok_or_else(|| ApiError::bad_request("Facture introuvable"))?;
+    .ok_or_else(|| ApiError::not_found("Facture introuvable"))?;
+    // Facture d'un dossier restreint hors `dossier_acces` : même réponse qu'une facture absente.
+    exiger_visible_pour(
+        &state,
+        claims.cabinet_id,
+        claims.sub,
+        actuelle.2,
+        "Facture introuvable",
+    )
+    .await?;
     if actuelle.0 == "validee" {
         tx.commit()
             .await
             .map_err(|_| ApiError::internal("commit"))?;
-        assurer_artefacts(&state, claims.cabinet_id, id).await?;
-        return charger(&state, id).await.map(Json);
-    }
-    let dossier_id = sqlx::query_as::<_, (Uuid,)>("SELECT dossier_id FROM factures WHERE id = $1")
-        .bind(id)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(|_| ApiError::internal("dossier facture"))?
-        .0;
-    let dossier_ok =
-        sqlx::query_as::<_, (Uuid,)>("SELECT id FROM dossiers WHERE id = $1 AND cabinet_id = $2")
-            .bind(dossier_id)
-            .bind(claims.cabinet_id)
-            .fetch_optional(&mut *tx)
-            .await
-            .map_err(|_| ApiError::internal("lecture dossier"))?;
-    if dossier_ok.is_none() {
-        return Err(ApiError::bad_request("Dossier introuvable"));
+        assurer_artefacts(&state, claims.cabinet_id, claims.sub, id).await?;
+        return charger(&state, claims.cabinet_id, id).await.map(Json);
     }
     let numero = sqlx::query_as::<_, (i64,)>(
         r#"
@@ -254,8 +257,8 @@ pub async fn valider(
         .await
         .map_err(|_| ApiError::internal("commit validation"))?;
     // PDF + Factur-X figés après attribution du numéro (cahier § 3.7).
-    assurer_artefacts(&state, claims.cabinet_id, id).await?;
-    charger(&state, id).await.map(Json)
+    assurer_artefacts(&state, claims.cabinet_id, claims.sub, id).await?;
+    charger(&state, claims.cabinet_id, id).await.map(Json)
 }
 
 #[utoipa::path(
@@ -267,8 +270,10 @@ pub async fn valider(
     request_body = EmettreRequest,
     responses(
         (status = 200, description = "Facture transmise à la plateforme agréée (dépôt, ou e-reporting pour un particulier ou un client étranger) ; rejeu avec la même clé d'idempotence sans nouvel envoi", body = FactureResponse),
-        (status = 400, description = "Facture introuvable ou non validée, clé d'idempotence trop courte (moins de 8 caractères), opération refusée par la plateforme", body = crate::error::ApiErrorBody),
+        (status = 400, description = "Clé d'idempotence trop courte (moins de 8 caractères), opération refusée par la plateforme", body = crate::error::ApiErrorBody),
         (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Facture introuvable, d'un autre cabinet ou d'un dossier restreint hors accès (même réponse)", body = crate::error::ApiErrorBody),
+        (status = 409, description = "Facture visible mais pas encore validée", body = crate::error::ApiErrorBody),
         (status = 500, description = "Plateforme absente ou indisponible, erreur interne", body = crate::error::ApiErrorBody),
     )
 )]
@@ -278,7 +283,7 @@ pub async fn emettre(
     axum::extract::Path(id): axum::extract::Path<Uuid>,
     Json(body): Json<EmettreRequest>,
 ) -> Result<Json<FactureResponse>, ApiError> {
-    let facture = facture_validee(&state, claims.cabinet_id, id).await?;
+    let facture = facture_validee(&state, claims.cabinet_id, claims.sub, id).await?;
     let cle = body.cle_idempotence.trim();
     if cle.len() < 8 {
         return Err(ApiError::bad_request("Clé d'idempotence trop courte"));
@@ -291,7 +296,7 @@ pub async fn emettre(
     .await
     .map_err(|_| ApiError::internal("lecture envoi"))?;
     if deja.is_some() {
-        return charger(&state, id).await.map(Json);
+        return charger(&state, claims.cabinet_id, id).await.map(Json);
     }
     let pa = HttpPlateformeAgreee::depuis_env().map_err(err_pa)?;
     let identifiant = match facture.type_client.as_str() {
@@ -333,7 +338,7 @@ pub async fn emettre(
     .execute(&state.pool)
     .await
     .map_err(|_| ApiError::internal("journal d'envoi"))?;
-    charger(&state, id).await.map(Json)
+    charger(&state, claims.cabinet_id, id).await.map(Json)
 }
 
 #[utoipa::path(
@@ -345,8 +350,10 @@ pub async fn emettre(
     request_body = EncaisserRequest,
     responses(
         (status = 200, description = "Règlement enregistré (montant en centimes) et statut « encaissée » transmis à la plateforme agréée ; idempotent par clé", body = FactureResponse),
-        (status = 400, description = "Facture introuvable ou non validée, montant nul ou négatif, clé d'idempotence trop courte (moins de 8 caractères), opération refusée par la plateforme", body = crate::error::ApiErrorBody),
+        (status = 400, description = "Montant nul ou négatif, clé d'idempotence trop courte (moins de 8 caractères), opération refusée par la plateforme", body = crate::error::ApiErrorBody),
         (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Facture introuvable, d'un autre cabinet ou d'un dossier restreint hors accès (même réponse)", body = crate::error::ApiErrorBody),
+        (status = 409, description = "Facture visible mais pas encore validée", body = crate::error::ApiErrorBody),
         (status = 500, description = "Plateforme absente ou indisponible, erreur interne", body = crate::error::ApiErrorBody),
     )
 )]
@@ -356,7 +363,7 @@ pub async fn encaisser(
     axum::extract::Path(id): axum::extract::Path<Uuid>,
     Json(body): Json<EncaisserRequest>,
 ) -> Result<Json<FactureResponse>, ApiError> {
-    let facture = facture_validee(&state, claims.cabinet_id, id).await?;
+    let facture = facture_validee(&state, claims.cabinet_id, claims.sub, id).await?;
     if body.montant_centimes <= 0 {
         return Err(ApiError::bad_request("Montant nul"));
     }
@@ -386,7 +393,7 @@ pub async fn encaisser(
     )
     .await
     .map_err(err_pa)?;
-    charger(&state, id).await.map(Json)
+    charger(&state, claims.cabinet_id, id).await.map(Json)
 }
 
 #[utoipa::path(
@@ -398,8 +405,10 @@ pub async fn encaisser(
     request_body = AvoirRequest,
     responses(
         (status = 200, description = "Avoir créé et validé (nouveau numéro, mêmes montants que la facture d'origine) ; rejeu avec le même identifiant d'avoir sans effet", body = FactureResponse),
-        (status = 400, description = "Facture d'origine introuvable ou non validée, ou déjà un avoir", body = crate::error::ApiErrorBody),
+        (status = 400, description = "Un avoir ne corrige qu'une facture (la source est déjà un avoir)", body = crate::error::ApiErrorBody),
         (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Facture d'origine introuvable, d'un autre cabinet ou d'un dossier restreint hors accès ; ou identifiant d'avoir déjà pris par une autre facture, un autre avoir ou un autre cabinet (même réponse)", body = crate::error::ApiErrorBody),
+        (status = 409, description = "Facture d'origine visible mais pas encore validée", body = crate::error::ApiErrorBody),
         (status = 500, description = "Erreur interne", body = crate::error::ApiErrorBody),
     )
 )]
@@ -409,7 +418,7 @@ pub async fn avoir(
     axum::extract::Path(origine): axum::extract::Path<Uuid>,
     Json(body): Json<AvoirRequest>,
 ) -> Result<Json<FactureResponse>, ApiError> {
-    let source = facture_validee(&state, claims.cabinet_id, origine).await?;
+    let source = facture_validee(&state, claims.cabinet_id, claims.sub, origine).await?;
     if source.type_document != "facture" {
         return Err(ApiError::bad_request("Un avoir ne corrige qu'une facture"));
     }
@@ -418,17 +427,30 @@ pub async fn avoir(
         .begin()
         .await
         .map_err(|_| ApiError::internal("transaction"))?;
-    let deja = sqlx::query_as::<_, (Uuid,)>("SELECT id FROM factures WHERE id = $1")
-        .bind(body.id)
-        .fetch_optional(&mut *tx)
+    // Rejeux concurrents du même avoir : sérialisés, le second voit le premier.
+    crate::verrous::verrouiller_uuid(&mut tx, body.id)
         .await
-        .map_err(|_| ApiError::internal("lecture avoir"))?;
-    if deja.is_some() {
+        .map_err(|_| ApiError::internal("verrou avoir"))?;
+    let deja = sqlx::query_as::<_, (Uuid, String, Option<Uuid>)>(
+        "SELECT cabinet_id, type, facture_origine_id FROM factures WHERE id = $1",
+    )
+    .bind(body.id)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(|_| ApiError::internal("lecture avoir"))?;
+    if let Some((cabinet_id, type_document, origine_existante)) = deja {
+        // Un identifiant déjà pris par une autre facture, un autre avoir ou un autre cabinet n'est pas à rendre.
+        if cabinet_id != claims.cabinet_id
+            || type_document != "avoir"
+            || origine_existante != Some(origine)
+        {
+            return Err(ApiError::not_found("Facture introuvable"));
+        }
         tx.commit()
             .await
             .map_err(|_| ApiError::internal("commit"))?;
-        assurer_artefacts(&state, claims.cabinet_id, body.id).await?;
-        return charger(&state, body.id).await.map(Json);
+        assurer_artefacts(&state, claims.cabinet_id, claims.sub, body.id).await?;
+        return charger(&state, claims.cabinet_id, body.id).await.map(Json);
     }
     // Brouillon d'abord : le déclencheur d'immutabilité refuse les lignes si déjà validée.
     sqlx::query(
@@ -496,8 +518,8 @@ pub async fn avoir(
     tx.commit()
         .await
         .map_err(|_| ApiError::internal("commit avoir"))?;
-    assurer_artefacts(&state, claims.cabinet_id, body.id).await?;
-    charger(&state, body.id).await.map(Json)
+    assurer_artefacts(&state, claims.cabinet_id, claims.sub, body.id).await?;
+    charger(&state, claims.cabinet_id, body.id).await.map(Json)
 }
 
 struct FactureLue {
@@ -511,12 +533,15 @@ struct FactureLue {
     taux_tva_bp: i32,
 }
 
+/// Facture validée du cabinet, dans un dossier que l'utilisateur voit. Absente, d'un autre cabinet ou d'un dossier
+/// restreint hors `dossier_acces` : un seul 404 « Facture introuvable ». Visible mais pas encore validée : 409.
 async fn facture_validee(
     state: &AppState,
     cabinet_id: Uuid,
+    utilisateur_id: Uuid,
     id: Uuid,
 ) -> Result<FactureLue, ApiError> {
-    sqlx::query_as::<_, (Uuid, String, String, String, Option<i64>, i64, i64, i64, i32)>(
+    let row = sqlx::query_as::<_, (Uuid, String, String, String, Option<i64>, i64, i64, i64, i32)>(
         "SELECT dossier_id, type, type_client, statut, numero, montant_ht_centimes, montant_tva_centimes, montant_ttc_centimes, taux_tva_bp FROM factures WHERE id = $1 AND cabinet_id = $2",
     )
     .bind(id)
@@ -524,8 +549,19 @@ async fn facture_validee(
     .fetch_optional(&state.pool)
     .await
     .map_err(|_| ApiError::internal("lecture facture"))?
-    .filter(|row| row.3 == "validee")
-    .map(|row| FactureLue {
+    .ok_or_else(|| ApiError::not_found("Facture introuvable"))?;
+    exiger_visible_pour(
+        state,
+        cabinet_id,
+        utilisateur_id,
+        row.0,
+        "Facture introuvable",
+    )
+    .await?;
+    if row.3 != "validee" {
+        return Err(ApiError::conflict("Facture non validée"));
+    }
+    Ok(FactureLue {
         dossier_id: row.0,
         type_document: row.1,
         type_client: row.2,
@@ -535,7 +571,6 @@ async fn facture_validee(
         montant_ttc_centimes: row.7,
         taux_tva_bp: row.8,
     })
-    .ok_or_else(|| ApiError::bad_request("Facture non validée"))
 }
 
 #[utoipa::path(
@@ -546,8 +581,9 @@ async fn facture_validee(
     params(("id" = Uuid, Path, description = "Identifiant de la facture validée")),
     responses(
         (status = 200, description = "XML CII profil EN 16931 de la facture (le même que celui joint au PDF Factur-X)", body = String, content_type = "application/xml"),
-        (status = 400, description = "Facture introuvable ou non validée", body = crate::error::ApiErrorBody),
         (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Facture introuvable, d'un autre cabinet ou d'un dossier restreint hors accès (même réponse)", body = crate::error::ApiErrorBody),
+        (status = 409, description = "Facture visible mais pas encore validée", body = crate::error::ApiErrorBody),
         (status = 500, description = "Artefact absent ou erreur interne", body = crate::error::ApiErrorBody),
     )
 )]
@@ -556,8 +592,8 @@ pub async fn lire_cii(
     AuthAccess(claims): AuthAccess,
     axum::extract::Path(id): axum::extract::Path<Uuid>,
 ) -> Result<axum::response::Response, ApiError> {
-    let _facture = facture_validee(&state, claims.cabinet_id, id).await?;
-    assurer_artefacts(&state, claims.cabinet_id, id).await?;
+    let _facture = facture_validee(&state, claims.cabinet_id, claims.sub, id).await?;
+    assurer_artefacts(&state, claims.cabinet_id, claims.sub, id).await?;
     let xml = sqlx::query_as::<_, (String,)>(
         "SELECT cii_xml FROM facture_artefacts WHERE facture_id = $1",
     )
@@ -578,8 +614,9 @@ pub async fn lire_cii(
     params(("id" = Uuid, Path, description = "Identifiant de la facture validée")),
     responses(
         (status = 200, description = "PDF/A-3b Factur-X de la facture, servi en pièce jointe (facture.pdf)", body = PdfFacturX, content_type = "application/pdf"),
-        (status = 400, description = "Facture introuvable ou non validée", body = crate::error::ApiErrorBody),
         (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Facture introuvable, d'un autre cabinet ou d'un dossier restreint hors accès (même réponse)", body = crate::error::ApiErrorBody),
+        (status = 409, description = "Facture visible mais pas encore validée", body = crate::error::ApiErrorBody),
         (status = 500, description = "Artefact absent ou erreur interne", body = crate::error::ApiErrorBody),
     )
 )]
@@ -588,8 +625,8 @@ pub async fn lire_pdf(
     AuthAccess(claims): AuthAccess,
     axum::extract::Path(id): axum::extract::Path<Uuid>,
 ) -> Result<axum::response::Response, ApiError> {
-    let _facture = facture_validee(&state, claims.cabinet_id, id).await?;
-    assurer_artefacts(&state, claims.cabinet_id, id).await?;
+    let _facture = facture_validee(&state, claims.cabinet_id, claims.sub, id).await?;
+    assurer_artefacts(&state, claims.cabinet_id, claims.sub, id).await?;
     let pdf = sqlx::query_as::<_, (Vec<u8>,)>(
         "SELECT pdf_octets FROM facture_artefacts WHERE facture_id = $1",
     )
@@ -691,7 +728,12 @@ async fn construire_cii(
     }))
 }
 
-async fn assurer_artefacts(state: &AppState, cabinet_id: Uuid, id: Uuid) -> Result<(), ApiError> {
+async fn assurer_artefacts(
+    state: &AppState,
+    cabinet_id: Uuid,
+    utilisateur_id: Uuid,
+    id: Uuid,
+) -> Result<(), ApiError> {
     let existe =
         sqlx::query_as::<_, (i64,)>("SELECT COUNT(*) FROM facture_artefacts WHERE facture_id = $1")
             .bind(id)
@@ -702,7 +744,7 @@ async fn assurer_artefacts(state: &AppState, cabinet_id: Uuid, id: Uuid) -> Resu
     if existe > 0 {
         return Ok(());
     }
-    let facture = facture_validee(state, cabinet_id, id).await?;
+    let facture = facture_validee(state, cabinet_id, utilisateur_id, id).await?;
     let xml = construire_cii(state, id, &facture).await?;
     let numero = facture.numero.unwrap_or(0);
     let libelle = sqlx::query_as::<_, (String,)>(
@@ -765,15 +807,20 @@ fn montants(lignes: &[LigneFacture], taux_bp: i32) -> Result<(i64, i64, i64), Ap
     Ok((ht, tva, ht + tva))
 }
 
-async fn charger(state: &AppState, id: Uuid) -> Result<FactureResponse, ApiError> {
+async fn charger(
+    state: &AppState,
+    cabinet_id: Uuid,
+    id: Uuid,
+) -> Result<FactureResponse, ApiError> {
     let row = sqlx::query_as::<_, (String, Option<i64>, i64, i64, i64)>(
-        "SELECT statut, numero, montant_ht_centimes, montant_tva_centimes, montant_ttc_centimes FROM factures WHERE id = $1",
+        "SELECT statut, numero, montant_ht_centimes, montant_tva_centimes, montant_ttc_centimes FROM factures WHERE id = $1 AND cabinet_id = $2",
     )
     .bind(id)
+    .bind(cabinet_id)
     .fetch_optional(&state.pool)
     .await
     .map_err(|_| ApiError::internal("lecture facture"))?
-    .ok_or_else(|| ApiError::bad_request("Facture introuvable"))?;
+    .ok_or_else(|| ApiError::not_found("Facture introuvable"))?;
     Ok(FactureResponse {
         id,
         statut: row.0,

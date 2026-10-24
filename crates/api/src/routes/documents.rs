@@ -14,7 +14,7 @@ use crate::conflits::{
     ContexteChamp,
 };
 use crate::error::ApiError;
-use crate::routes::dossiers::dossier_visible;
+use crate::routes::dossiers::{exiger_dossier_visible, exiger_visible_pour};
 use crate::state::AppState;
 use crate::texte_document::extraire_texte;
 
@@ -129,9 +129,7 @@ pub async fn creer_repertoire(
     if body.idempotence_cle.trim().is_empty() || body.nom.trim().is_empty() {
         return Err(ApiError::bad_request("Nom et clé d'idempotence requis"));
     }
-    if !dossier_visible(&state, claims.cabinet_id, claims.sub, body.dossier_id).await? {
-        return Err(ApiError::unauthorized("Dossier non autorisé"));
-    }
+    exiger_dossier_visible(&state, claims.cabinet_id, claims.sub, body.dossier_id).await?;
     let mut tx = state
         .pool
         .begin()
@@ -187,7 +185,7 @@ pub async fn creer_repertoire(
         .await
         .map_err(|_| ApiError::internal("lecture répertoire"))?;
         if deja.is_none() {
-            return Err(ApiError::bad_request("Dossier introuvable"));
+            return Err(ApiError::not_found("Dossier introuvable"));
         }
     }
     tx.commit()
@@ -247,9 +245,14 @@ pub async fn patch_repertoire(
     .await
     .map_err(|_| ApiError::internal("lecture répertoire"))?
     .ok_or_else(|| ApiError::not_found("Répertoire introuvable"))?;
-    if !dossier_visible(&state, claims.cabinet_id, claims.sub, courant.0).await? {
-        return Err(ApiError::unauthorized("Dossier non autorisé"));
-    }
+    exiger_visible_pour(
+        &state,
+        claims.cabinet_id,
+        claims.sub,
+        courant.0,
+        "Répertoire introuvable",
+    )
+    .await?;
     let revision_courante = i64::from(courant.3);
     valider_base_revision(body.base_revision, revision_courante)?;
     let mut revision = revision_courante;
@@ -350,9 +353,7 @@ pub async fn creer_document(
     if body.idempotence_cle.trim().is_empty() || body.nom.trim().is_empty() {
         return Err(ApiError::bad_request("Nom et clé d'idempotence requis"));
     }
-    if !dossier_visible(&state, claims.cabinet_id, claims.sub, body.dossier_id).await? {
-        return Err(ApiError::unauthorized("Dossier non autorisé"));
-    }
+    exiger_dossier_visible(&state, claims.cabinet_id, claims.sub, body.dossier_id).await?;
     if let Some(repertoire_id) = body.repertoire_id {
         verifier_repertoire_du_dossier(&state, claims.cabinet_id, body.dossier_id, repertoire_id)
             .await?;
@@ -386,7 +387,7 @@ pub async fn creer_document(
         .await
         .map_err(|_| ApiError::internal("lecture document"))?;
         if deja.is_none() {
-            return Err(ApiError::bad_request("Dossier introuvable"));
+            return Err(ApiError::not_found("Dossier introuvable"));
         }
     }
     depot(&state, body.id, 1).await.map(Json)
@@ -441,9 +442,14 @@ pub async fn patch_document(
     .await
     .map_err(|_| ApiError::internal("lecture document"))?
     .ok_or_else(|| ApiError::not_found("Document introuvable"))?;
-    if !dossier_visible(&state, claims.cabinet_id, claims.sub, courant.0).await? {
-        return Err(ApiError::unauthorized("Dossier non autorisé"));
-    }
+    exiger_visible_pour(
+        &state,
+        claims.cabinet_id,
+        claims.sub,
+        courant.0,
+        "Document introuvable",
+    )
+    .await?;
     let revision_courante = i64::from(courant.3);
     valider_base_revision(body.base_revision, revision_courante)?;
     let mut revision = revision_courante;
@@ -843,10 +849,15 @@ async fn verifier_document(
     .fetch_optional(&state.pool)
     .await
     .map_err(|_| ApiError::internal("lecture document"))?
-    .ok_or_else(|| ApiError::bad_request("Document introuvable"))?;
-    if !dossier_visible(state, cabinet_id, utilisateur_id, dossier.0).await? {
-        return Err(ApiError::unauthorized("Dossier non autorisé"));
-    }
+    .ok_or_else(|| ApiError::not_found("Document introuvable"))?;
+    exiger_visible_pour(
+        state,
+        cabinet_id,
+        utilisateur_id,
+        dossier.0,
+        "Document introuvable",
+    )
+    .await?;
     Ok(())
 }
 
@@ -890,7 +901,7 @@ async fn verifier_parent_repertoire(
     )
     .await
     .map_err(|_| ApiError::internal("lecture parent"))?
-    .ok_or_else(|| ApiError::bad_request("Répertoire parent introuvable"))?;
+    .ok_or_else(|| ApiError::not_found("Répertoire parent introuvable"))?;
     if parent.0 != dossier_id {
         return Err(ApiError::bad_request("Répertoire parent hors dossier"));
     }

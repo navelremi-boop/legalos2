@@ -69,7 +69,7 @@ pub async fn patch_cabinet(
     Json(body): Json<PatchCabinetRequest>,
 ) -> Result<Json<CabinetResponse>, ApiError> {
     if cabinet_id != claims.cabinet_id {
-        return Err(ApiError::unauthorized("Cabinet non autorisé pour ce jeton"));
+        return Err(ApiError::not_found("Cabinet introuvable"));
     }
     if body.idempotence_cle.trim().is_empty() {
         return Err(ApiError::bad_request("Clé d'idempotence requise"));
@@ -180,7 +180,7 @@ async fn charger_cabinet(state: &AppState, cabinet_id: Uuid) -> Result<CabinetRe
     .fetch_optional(&state.pool)
     .await
     .map_err(|_| ApiError::internal("Base de données"))?
-    .ok_or_else(|| ApiError::bad_request("Cabinet introuvable"))?;
+    .ok_or_else(|| ApiError::not_found("Cabinet introuvable"))?;
 
     Ok(CabinetResponse {
         id: row.0,
@@ -249,7 +249,7 @@ pub async fn lire_reference(
     axum::extract::Path(cabinet_id): axum::extract::Path<Uuid>,
 ) -> Result<Json<ReferenceCabinetResponse>, ApiError> {
     if cabinet_id != claims.cabinet_id {
-        return Err(ApiError::unauthorized("Cabinet non autorisé pour ce jeton"));
+        return Err(ApiError::not_found("Cabinet introuvable"));
     }
     charger_etat_reference(&state, cabinet_id, claims.sub)
         .await
@@ -277,7 +277,7 @@ pub async fn ecrire_reference(
     Json(body): Json<PutReferenceRequest>,
 ) -> Result<Json<ReferenceCabinetResponse>, ApiError> {
     if cabinet_id != claims.cabinet_id {
-        return Err(ApiError::unauthorized("Cabinet non autorisé pour ce jeton"));
+        return Err(ApiError::not_found("Cabinet introuvable"));
     }
     if body.idempotence_cle.trim().is_empty() {
         return Err(ApiError::bad_request("Clé d'idempotence requise"));
@@ -325,7 +325,7 @@ pub async fn ecrire_reference(
     )
     .await
     .map_err(|_| ApiError::internal("Base de données"))?
-    .ok_or_else(|| ApiError::bad_request("Cabinet introuvable"))?;
+    .ok_or_else(|| ApiError::not_found("Cabinet introuvable"))?;
 
     let remise = RemiseAZero::from(body.remise_a_zero);
     let modele = ModeleReference::analyser_pour(&body.modele, remise).map_err(|e| {
@@ -483,7 +483,7 @@ pub(crate) async fn charger_etat_reference(
     .fetch_optional(&state.pool)
     .await
     .map_err(|_| ApiError::internal("Base de données"))?
-    .ok_or_else(|| ApiError::bad_request("Cabinet introuvable"))?;
+    .ok_or_else(|| ApiError::not_found("Cabinet introuvable"))?;
 
     let remise = remise_depuis_sql(&row.1)?;
     let annee = sqlx::query_as::<_, (i32,)>(
@@ -532,6 +532,7 @@ pub(crate) async fn initiales_utilisateur(
     .fetch_optional(executant)
     .await
     .map_err(|_| ApiError::internal("utilisateur"))?
+    // 401 : le jeton désigne un utilisateur qui n'existe plus, c'est l'authentification qui est invalide.
     .ok_or_else(|| ApiError::unauthorized("Utilisateur introuvable"))?;
     Ok(match row.0 {
         Some(ini) if initiales_valides(&ini) => ini,
