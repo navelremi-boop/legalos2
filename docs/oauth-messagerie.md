@@ -35,6 +35,20 @@ Le fournisseur « simulateur », qui sert aux recettes, **n'existe qu'en dévelo
 
 Le SMTP est chiffré : STARTTLS (port 587) ou TLS implicite (port 465), certificat vérifié sur les racines Mozilla. Un relais SMTP de cabinet configuré à la main prend le même chemin : 465 en TLS implicite, 587 en STARTTLS, tout autre port en clair (serveurs de test), sauf indication contraire du champ `smtp_chiffrement`.
 
+## Renseigner l'instance
+
+Après l'enregistrement chez le fournisseur (sections suivantes), les identifiants vont dans le `.env` de l'instance :
+
+| Variable | Rôle |
+|---|---|
+| `LEGALOS_OAUTH_MICROSOFT_CLIENT_ID` | identifiant d'application Microsoft 365 ; vide : le fournisseur n'est pas proposé |
+| `LEGALOS_OAUTH_MICROSOFT_CLIENT_SECRET` | secret client, facultatif (client public) |
+| `LEGALOS_OAUTH_MICROSOFT_TENANT` | locataire (`common` si vide) |
+| `LEGALOS_OAUTH_GMAIL_CLIENT_ID` | identifiant client Google (application de bureau) ; vide : le fournisseur n'est pas proposé |
+| `LEGALOS_OAUTH_GMAIL_CLIENT_SECRET` | secret client, facultatif |
+
+`cargo xtask install` pose ces cinq questions à l'installation (réponse vide pour ignorer). Seules les lettres, chiffres, le point, le tiret, le soulignement et le tilde sont acceptés : ces valeurs traversent l'interpolation de docker compose. Redémarrer l'API après toute modification de `.env`.
+
 ## Enregistrer l'application chez Microsoft (Microsoft Entra)
 
 À faire par l'administrateur du locataire, une fois par instance.
@@ -62,7 +76,7 @@ La demande d'autorisation Gmail ajoute `access_type=offline` et `prompt=consent`
 
 - **Essai réel non fait** : la preuve (`oauth-messagerie.mjs`) tourne sur un fournisseur simulé, un Dovecot qui valide `XOAUTH2` par introspection et un relais SMTP simulé. Aucun appel à Microsoft ou à Google n'a eu lieu. L'essai réel sur la boîte du commandement est le blocage **B18** (à lever avant la coche de J11 si cette boîte est chez Microsoft 365 ou Google).
 - **TLS du SMTP** : le chemin STARTTLS / TLS implicite est celui de `lettre` avec les racines Mozilla ; il n'est éprouvé contre aucun serveur réel avant B18 (les recettes parlent à des serveurs en clair).
-- **Identifiants d'application par variables d'environnement** : il n'y a pas encore d'écran d'administration pour les saisir dans Réglages ; il faut pour cela le rôle administrateur, dette « Avant J12 » du plan.
+- **Identifiants d'application** : `cargo xtask install` les demande à l'installation (facultatif, réponse vide pour ignorer, valeurs contrôlées, jamais réaffichées) et les écrit dans le `.env` de l'instance ; une variable déjà renseignée n'est pas redemandée. Sans terminal interactif, rien n'est demandé : renseigner `.env` à la main. Il n'y a pas encore d'écran Réglages pour les modifier ensuite : il faut pour cela le rôle administrateur, dette « Avant J12 » du plan.
 - **Boîtes partagées** : seule une boîte nominative se connecte par OAuth.
 
 ## Sources consultées (2026-10-20)

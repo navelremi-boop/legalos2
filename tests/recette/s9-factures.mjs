@@ -44,8 +44,30 @@ function verifierSyncRules() {
       fail(`sync-config : ${table} absente`);
     }
   }
-  if (!/INNER JOIN dossier_acces/i.test(yaml)) {
-    fail("sync-config : JOIN dossier_acces requis pour flux restreints (S5)");
+  // Garantie S5 sur le temps, les brouillons et les taux (contrat actuel, `docs/sync-streams.md` et
+  // `.cursor/rules/13-synchronisation.mdc`) : un flux restreint ne joint que `groupe_acces_membres` sur `auth.user_id()`,
+  // jamais `dossier_acces` ni `dossiers` (un bucket par groupe d'accès, jamais par dossier) ; un flux public filtre sur
+  // le cabinet de l'utilisateur et sur `visibilite = 'public'`. La preuve sur la base locale d'un poste non autorisé est
+  // `s9-s5-temps.mjs`, lancée plus loin.
+  const bloc = (flux) => {
+    const debut = yaml.search(new RegExp(`^  ${flux}:`, "m"));
+    const suite = yaml.slice(debut + 1).search(/^  [a-z_]+:/m);
+    return yaml.slice(debut, suite < 0 ? undefined : debut + 1 + suite);
+  };
+  for (const flux of ["temps_restreints", "brouillons_restreints", "taux_restreints"]) {
+    const corps = bloc(flux);
+    if (!/INNER JOIN groupe_acces_membres/i.test(corps) || !/utilisateur_texte = auth\.user_id\(\)/i.test(corps)) {
+      fail(`sync-config : ${flux} doit joindre groupe_acces_membres sur auth.user_id() (S5)`);
+    }
+    if (/JOIN\s+dossier_acces|JOIN\s+dossiers\b/i.test(corps)) {
+      fail(`sync-config : ${flux} joint dossier_acces ou dossiers (un bucket par dossier est interdit)`);
+    }
+  }
+  for (const flux of ["temps_publics", "brouillons_publics", "taux_publics"]) {
+    const corps = bloc(flux);
+    if (!/visibilite = 'public'/i.test(corps) || !/auth\.parameter\('cabinet_id'\)/i.test(corps)) {
+      fail(`sync-config : ${flux} doit filtrer sur visibilite = 'public' et sur le cabinet de l'utilisateur`);
+    }
   }
   const schema = readFileSync(join(root, "apps/poste/src/sync/AppSchema.ts"), "utf8");
   for (const table of ["temps_saisis", "brouillons_facture", "taux_horaires"]) {

@@ -1,5 +1,6 @@
 //! LEGAL OS — commandes dépôt (recette, démo). Multiplateforme, sans bash.
 
+use std::io::{BufRead, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
@@ -241,6 +242,17 @@ fn install(root: &Path) -> Result<()> {
     } else {
         ecrire_env_production(root, &SecretsInstall::generer()?)?;
     }
+    if std::io::stdin().is_terminal() {
+        demander_oauth(
+            &env_path,
+            &mut std::io::stdin().lock(),
+            &mut std::io::stdout(),
+        )?;
+    } else {
+        println!(
+            "Identifiants OAuth non demandés (entrée non interactive) : voir docs/oauth-messagerie.md."
+        );
+    }
     std::env::remove_var("LEGALOS_MODE");
     let mut noms = std::collections::BTreeSet::new();
     for (nom, _) in legalos_api::config::SECRETS_PUBLIES {
@@ -277,6 +289,122 @@ fn install(root: &Path) -> Result<()> {
     println!("secret TOTP (base32): {}", cree.secret_totp_base32);
     println!("otpauth: {uri}");
     Ok(())
+}
+
+/// Variables d'application OAuth de l'instance (`docs/oauth-messagerie.md`) : nom, question posée à l'installation.
+/// Toutes facultatives : une variable vide laisse le fournisseur non proposé.
+const VARIABLES_OAUTH: [(&str, &str); 5] = [
+    (
+        "LEGALOS_OAUTH_MICROSOFT_CLIENT_ID",
+        "Microsoft 365 : identifiant d'application (client ID)",
+    ),
+    (
+        "LEGALOS_OAUTH_MICROSOFT_CLIENT_SECRET",
+        "Microsoft 365 : secret client (facultatif, saisie visible)",
+    ),
+    (
+        "LEGALOS_OAUTH_MICROSOFT_TENANT",
+        "Microsoft 365 : locataire (tenant), « common » si vide",
+    ),
+    (
+        "LEGALOS_OAUTH_GMAIL_CLIENT_ID",
+        "Gmail : identifiant client OAuth (type application de bureau)",
+    ),
+    (
+        "LEGALOS_OAUTH_GMAIL_CLIENT_SECRET",
+        "Gmail : secret client (facultatif, saisie visible)",
+    ),
+];
+
+/// Une valeur d'application OAuth s'écrit dans `.env` et passe par l'interpolation de docker compose : lettres, chiffres,
+/// point, tiret, soulignement et tilde seulement (les identifiants Microsoft et Google n'en contiennent pas d'autres).
+fn valeur_oauth_valide(valeur: &str) -> bool {
+    !valeur.is_empty()
+        && valeur.len() <= 300
+        && valeur
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '~' | '-'))
+}
+
+/// Valeur non vide de `NOM=` dans le texte d'un `.env`.
+fn valeur_env(texte: &str, nom: &str) -> Option<String> {
+    texte
+        .lines()
+        .find_map(|ligne| ligne.strip_prefix(&format!("{nom}=")))
+        .map(|valeur| valeur.trim().to_owned())
+        .filter(|valeur| !valeur.is_empty())
+}
+
+/// Écrit `NOM=valeur` dans le texte d'un `.env` : remplace la ligne si elle existe (même vide), sinon l'ajoute.
+fn poser_valeur_env(texte: &str, nom: &str, valeur: &str) -> String {
+    let debut = format!("{nom}=");
+    let mut present = false;
+    let mut lignes: Vec<String> = texte
+        .lines()
+        .map(|ligne| {
+            if ligne.starts_with(&debut) {
+                present = true;
+                format!("{nom}={valeur}")
+            } else {
+                ligne.to_owned()
+            }
+        })
+        .collect();
+    if !present {
+        lignes.push(format!("{nom}={valeur}"));
+    }
+    lignes.join("\n") + "\n"
+}
+
+/// Demande à l'installation les identifiants d'application OAuth (Microsoft 365, Gmail) et les écrit dans `.env`.
+/// Facultatif : une réponse vide ignore la question. Une variable déjà renseignée n'est pas redemandée. Une valeur
+/// refusée n'est pas écrite. Aucune valeur n'est réaffichée. Rend le nombre de variables écrites.
+fn demander_oauth(
+    env_path: &Path,
+    entree: &mut impl BufRead,
+    sortie: &mut impl Write,
+) -> Result<usize> {
+    let mut texte = std::fs::read_to_string(env_path).context(".env")?;
+    writeln!(
+        sortie,
+        "Applications OAuth des boîtes Microsoft 365 et Gmail (facultatif, voir docs/oauth-messagerie.md)."
+    )?;
+    writeln!(
+        sortie,
+        "Laissez vide pour ignorer : le fournisseur n'est alors pas proposé."
+    )?;
+    let mut ecrites = 0;
+    for (nom, question) in VARIABLES_OAUTH {
+        if valeur_env(&texte, nom).is_some() {
+            writeln!(sortie, "{nom} est déjà renseigné, conservé.")?;
+            continue;
+        }
+        write!(sortie, "{question} : ")?;
+        sortie.flush()?;
+        let mut ligne = String::new();
+        if entree.read_line(&mut ligne)? == 0 {
+            writeln!(sortie)?;
+            break;
+        }
+        let valeur = ligne.trim();
+        if valeur.is_empty() {
+            continue;
+        }
+        if !valeur_oauth_valide(valeur) {
+            writeln!(
+                sortie,
+                "Valeur refusée pour {nom} (lettres, chiffres, point, tiret, soulignement et tilde seulement) ; ligne ignorée."
+            )?;
+            continue;
+        }
+        texte = poser_valeur_env(&texte, nom, valeur);
+        ecrites += 1;
+    }
+    if ecrites > 0 {
+        std::fs::write(env_path, texte)?;
+        writeln!(sortie, "{ecrites} variable(s) OAuth écrite(s) dans .env.")?;
+    }
+    Ok(ecrites)
 }
 
 struct SecretsInstall {
@@ -409,7 +537,110 @@ fn run() -> Result<()> {
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
-    use super::{ecrire_env_production, SecretsInstall};
+    use super::{demander_oauth, ecrire_env_production, valeur_oauth_valide, SecretsInstall};
+    use std::io::Cursor;
+    use std::path::PathBuf;
+
+    /// `.env` jetable (valeurs fictives) et son chemin.
+    fn env_jetable(nom: &str, contenu: &str) -> PathBuf {
+        let dossier =
+            std::env::temp_dir().join(format!("legalos-oauth-{nom}-{}", std::process::id()));
+        std::fs::create_dir_all(&dossier).expect("tmp");
+        let chemin = dossier.join(".env");
+        std::fs::write(&chemin, contenu).expect("écriture");
+        chemin
+    }
+
+    fn saisir(chemin: &PathBuf, reponses: &str) -> (usize, String) {
+        let mut entree = Cursor::new(reponses.as_bytes().to_vec());
+        let mut sortie = Vec::new();
+        let ecrites = demander_oauth(chemin, &mut entree, &mut sortie).expect("demande");
+        (ecrites, String::from_utf8(sortie).expect("sortie"))
+    }
+
+    #[test]
+    fn install_oauth_ecrit_les_identifiants_saisis() {
+        let chemin = env_jetable(
+            "saisie",
+            "POSTGRES_PASSWORD=fictif\nLEGALOS_OAUTH_GMAIL_CLIENT_ID=\n",
+        );
+        // Ordre des questions : Microsoft (identifiant, secret, locataire) puis Gmail (identifiant, secret).
+        let (ecrites, sortie) = saisir(
+            &chemin,
+            "app-ms-fictive\n\ntenant-fictif\ngmail-fictif.apps\nGOCSPX-secret_fictif\n",
+        );
+        assert_eq!(ecrites, 4, "quatre réponses non vides : {sortie}");
+        let texte = std::fs::read_to_string(&chemin).expect("lecture");
+        assert!(texte.contains("LEGALOS_OAUTH_MICROSOFT_CLIENT_ID=app-ms-fictive\n"));
+        assert!(texte.contains("LEGALOS_OAUTH_MICROSOFT_TENANT=tenant-fictif\n"));
+        // La ligne vide existante est remplacée, pas dupliquée.
+        assert_eq!(texte.matches("LEGALOS_OAUTH_GMAIL_CLIENT_ID=").count(), 1);
+        assert!(texte.contains("LEGALOS_OAUTH_GMAIL_CLIENT_ID=gmail-fictif.apps\n"));
+        assert!(texte.contains("LEGALOS_OAUTH_GMAIL_CLIENT_SECRET=GOCSPX-secret_fictif\n"));
+        // Essai négatif : la réponse vide du secret Microsoft n'a rien écrit ; le reste du fichier est intact.
+        assert!(!texte.contains("LEGALOS_OAUTH_MICROSOFT_CLIENT_SECRET="));
+        assert!(texte.starts_with("POSTGRES_PASSWORD=fictif\n"));
+        // Aucune valeur saisie n'est réaffichée (ni dans les questions, ni dans le bilan).
+        for valeur in [
+            "app-ms-fictive",
+            "tenant-fictif",
+            "gmail-fictif.apps",
+            "GOCSPX-secret_fictif",
+        ] {
+            assert!(!sortie.contains(valeur), "valeur réaffichée : {valeur}");
+        }
+    }
+
+    #[test]
+    fn install_oauth_entree_vide_n_ecrit_rien() {
+        let origine = "POSTGRES_PASSWORD=fictif\n";
+        let chemin = env_jetable("vide", origine);
+        let (ecrites, _) = saisir(&chemin, "\n\n\n\n\n");
+        assert_eq!(ecrites, 0);
+        assert_eq!(
+            std::fs::read_to_string(&chemin).expect("lecture"),
+            origine,
+            "fichier inchangé"
+        );
+        // Fin de l'entrée (installation sans saisie) : rien d'écrit non plus.
+        let (ecrites, _) = saisir(&chemin, "");
+        assert_eq!(ecrites, 0);
+        assert_eq!(std::fs::read_to_string(&chemin).expect("lecture"), origine);
+    }
+
+    #[test]
+    fn install_oauth_refuse_les_valeurs_dangereuses() {
+        let origine = "POSTGRES_PASSWORD=fictif\n";
+        let chemin = env_jetable("refus", origine);
+        // Espace, guillemet, dollar (interpolation de docker compose), retour de ligne glissé, égal : refusés.
+        let (ecrites, sortie) = saisir(&chemin, "a b\n\"x\"\n$HOME\nx=y\nz;rm\n");
+        assert_eq!(ecrites, 0, "{sortie}");
+        assert_eq!(std::fs::read_to_string(&chemin).expect("lecture"), origine);
+        assert_eq!(sortie.matches("Valeur refusée").count(), 5);
+        // Contrôle positif : des valeurs ordinaires passent.
+        assert!(valeur_oauth_valide("0b3a1c7e-1111-2222-3333-444455556666"));
+        assert!(valeur_oauth_valide("GOCSPX-abc_DEF.123~"));
+        assert!(!valeur_oauth_valide(""));
+        assert!(!valeur_oauth_valide(&"a".repeat(301)));
+    }
+
+    #[test]
+    fn install_oauth_ne_redemande_pas_ce_qui_est_deja_renseigne() {
+        let chemin = env_jetable(
+            "deja",
+            "LEGALOS_OAUTH_GMAIL_CLIENT_ID=deja-la\nLEGALOS_OAUTH_GMAIL_CLIENT_SECRET=\n",
+        );
+        // Quatre questions seulement (Gmail identifiant déjà là) : la première réponse va à l'identifiant Microsoft.
+        let (ecrites, sortie) = saisir(&chemin, "ms-neuf\n\n\n\n");
+        assert_eq!(ecrites, 1, "{sortie}");
+        assert!(sortie.contains("LEGALOS_OAUTH_GMAIL_CLIENT_ID est déjà renseigné"));
+        let texte = std::fs::read_to_string(&chemin).expect("lecture");
+        assert!(
+            texte.contains("LEGALOS_OAUTH_GMAIL_CLIENT_ID=deja-la\n"),
+            "valeur existante conservée"
+        );
+        assert!(texte.contains("LEGALOS_OAUTH_MICROSOFT_CLIENT_ID=ms-neuf\n"));
+    }
 
     #[test]
     fn env_installe_sans_mode_developpement() {

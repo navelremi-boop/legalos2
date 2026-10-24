@@ -7,11 +7,11 @@
  * Usage : node tests/recette/reference-dossier-api.mjs
  */
 import { randomUUID } from "node:crypto";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { accessToken, demoAccessToken } from "./lib/demo-auth.mjs";
+import { accessToken, demoAccessToken, demoEmail } from "./lib/demo-auth.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const instance = process.env.LEGALOS_INSTANCE_URL ?? "http://127.0.0.1:8088";
@@ -106,6 +106,41 @@ const mig = await sqlServeur(
 if (mig.out !== "1") fail("colonne dossiers.reference absente (migration non appliquée)");
 
 const jeton = await demoAccessToken(api, "reference-dossier-api");
+
+// Pose son propre modèle de référence (`{AAAA}-{N:3}`, remise à zéro annuelle) et restaure celui de l'instance à la sortie,
+// quelle qu'elle soit : l'instance de développement porte les modèles que d'autres recettes y laissent (`RN/{AA}/{N:4}`...),
+// et cette recette attend le format R0 par défaut (consigne de l'architecte du 24/10/2026).
+const litteral = (texte) => `'${String(texte).replaceAll("'", "''")}'`;
+const cabinetDemo = `(SELECT cabinet_id FROM utilisateurs WHERE email = ${litteral(demoEmail)})`;
+const modeleAvant = await sqlServeur(
+  `SELECT reference_modele || chr(31) || reference_remise_a_zero FROM cabinets WHERE id = ${cabinetDemo}`,
+);
+if (modeleAvant.code !== 0 || !modeleAvant.out.includes("\u001f")) {
+  fail(`modèle de référence du cabinet de démo illisible : ${modeleAvant.err || modeleAvant.out}`);
+}
+const [reponseModele, reponseRemise] = modeleAvant.out.split("\u001f");
+let modeleRestaure = false;
+function restaurerModele() {
+  if (modeleRestaure) return;
+  modeleRestaure = true;
+  const restauration = spawnSync(
+    "docker",
+    [
+      "compose", "-f", "instance/docker-compose.yml", "--env-file", envFile, "exec", "-T", "postgres",
+      "psql", "-U", "legalos", "-d", "legalos", "-tAc",
+      `UPDATE cabinets SET reference_modele = ${litteral(reponseModele)}, reference_remise_a_zero = ${litteral(reponseRemise)} WHERE id = ${cabinetDemo}`,
+    ],
+    { cwd: root, encoding: "utf8" },
+  );
+  if (restauration.status !== 0) {
+    console.error(`reference-dossier-api: le modèle de référence n'a pas pu être restauré (${restauration.stderr?.trim()})`);
+  }
+}
+process.on("exit", restaurerModele);
+const pose = await sqlServeur(
+  `UPDATE cabinets SET reference_modele = '{AAAA}-{N:3}', reference_remise_a_zero = 'annuelle' WHERE id = ${cabinetDemo}`,
+);
+if (pose.code !== 0) fail(`pose du modèle de la recette impossible : ${pose.err || pose.out}`);
 
 const anneeRes = await sqlServeur(
   "SELECT EXTRACT(YEAR FROM (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Paris'))::integer",
