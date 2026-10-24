@@ -421,9 +421,6 @@ type LigneSante = (
     i64,
     bool,
     Option<String>,
-    i64,
-    i64,
-    i64,
 );
 
 /// Motifs d'alerte d'un compte (fonction pure : les règles sont testées sans base).
@@ -474,12 +471,7 @@ pub async fn sante_boites(
                (SELECT COUNT(*)::bigint FROM file_envoi f
                  WHERE f.compte_id = c.id AND f.etat = 'echec'
                    AND (f.auteur_id IS NULL OR f.auteur_id = $2)),
-               (c.secret_ref = 'oauth'), c.fournisseur,
-               (SELECT COUNT(*)::bigint FROM messages_corps_index i WHERE i.compte_id = c.id),
-               (SELECT COUNT(*)::bigint FROM messages m WHERE m.compte_id = c.id
-                  AND NOT EXISTS (SELECT 1 FROM messages_corps_index i WHERE i.message_ref = m.id)),
-               (SELECT COUNT(*)::bigint FROM messages_corps_echecs e
-                 WHERE e.compte_id = c.id AND e.tentatives >= $3)
+               (c.secret_ref = 'oauth'), c.fournisseur
         FROM comptes_mail c
         LEFT JOIN LATERAL (
             SELECT MAX(k.cree_le) AS derniere FROM moteur_connexions k
@@ -495,7 +487,6 @@ pub async fn sante_boites(
     )
     .bind(claims.cabinet_id)
     .bind(claims.sub)
-    .bind(crate::indexation_corps::TENTATIVES_MAX)
     .fetch_all(&state.pool)
     .await
     .map_err(|_| ApiError::internal("Lecture de la santé des boîtes"))?;
@@ -511,9 +502,20 @@ pub async fn sante_boites(
     .await
     .map_err(|_| ApiError::internal("Lecture des envois en échec"))?;
 
+    // Une seule définition de « à venir », celle de l'indexation de fond : ni les messages d'une UIDVALIDITY périmée
+    // (attendent leur resynchronisation) ni les abandonnés ne comptent, sinon la progression ne finit jamais.
+    let mut progressions = Vec::with_capacity(lignes.len());
+    for l in &lignes {
+        progressions.push(
+            crate::indexation_corps::progression(&state.pool, l.0)
+                .await
+                .map_err(|_| ApiError::internal("Lecture de la santé des boîtes"))?,
+        );
+    }
     let comptes: Vec<SanteCompte> = lignes
         .into_iter()
-        .map(|l| {
+        .zip(progressions)
+        .map(|(l, p)| {
             let retard = (l.2 != "classement").then_some(l.5);
             let motifs = motifs_alerte(&l.2, &l.3, retard, l.8);
             SanteCompte {
@@ -530,9 +532,9 @@ pub async fn sante_boites(
                 motifs,
                 oauth: l.9,
                 fournisseur: if l.9 { l.10 } else { None },
-                corps_indexes: l.11,
-                corps_restants: (l.12 - l.13).max(0),
-                corps_abandonnes: l.13,
+                corps_indexes: p.indexes,
+                corps_restants: p.restants,
+                corps_abandonnes: p.abandonnes,
             }
         })
         .collect();

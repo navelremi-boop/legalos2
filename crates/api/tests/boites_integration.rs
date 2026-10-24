@@ -716,6 +716,33 @@ async fn scenario(url_base_jetable: String) {
     assert_eq!(l["erreurs_authentification"], json!(0));
     assert!(l["retard_secondes"].as_i64().expect("retard") < 60);
 
+    // Indexation de fond (D6) : le tableau de santé compte les messages « à venir » comme l'indexation elle-même. Ceux
+    // d'une UIDVALIDITY périmée attendent leur resynchronisation et ne sont pas comptés (sinon la progression ne finit
+    // jamais) ; essai négatif : une fois le curseur à la génération des messages, ils sont de nouveau « à venir ».
+    let restants = |sante: Value| -> i64 {
+        ligne(&sante, compte_a)["corps_restants"]
+            .as_i64()
+            .expect("corps_restants")
+    };
+    let a_venir = restants(sante(a.clone()).await);
+    assert!(a_venir > 0, "des messages sont à venir sans curseur");
+    sqlx::query("INSERT INTO releve_curseurs (compte_id, dossier_imap, uid_validity, dernier_uid) VALUES ($1, 'INBOX', 2, 100) ON CONFLICT (compte_id, dossier_imap) DO UPDATE SET uid_validity = 2")
+        .bind(compte_a)
+        .execute(&pool)
+        .await
+        .expect("curseur d'une autre génération");
+    assert_eq!(
+        restants(sante(a.clone()).await),
+        0,
+        "les messages d'une UIDVALIDITY périmée ne sont pas « à venir »"
+    );
+    sqlx::query("UPDATE releve_curseurs SET uid_validity = 1 WHERE compte_id = $1")
+        .bind(compte_a)
+        .execute(&pool)
+        .await
+        .expect("curseur à la génération des messages");
+    assert_eq!(restants(sante(a.clone()).await), a_venir);
+
     // Refus d'authentification : alerte, compte et motif.
     sqlx::query("INSERT INTO moteur_connexions (compte_id, issue) VALUES ($1, 'authentification')")
         .bind(compte_a)

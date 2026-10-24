@@ -971,6 +971,10 @@ async function main() {
     const reponse = await requete("/messagerie/sante", jetonA2);
     return (reponse.json?.comptes ?? []).find((c) => c.type_compte === "classement") ?? null;
   };
+  // La boîte du cabinet n'a pas de tâche de fond : elle est relevée à la demande. Sans relève, le curseur garde la
+  // UIDVALIDITY d'un GreenMail antérieur (conteneur recréé depuis) et les messages de cette génération restent « à venir ».
+  const relevee = await requete("/messagerie/classement/relever", jetonA2, "POST");
+  verifier("la boîte du cabinet est relevée avant la mesure de l'indexation", relevee.statut === 200, `statut ${relevee.statut}`);
   const debutIndexation = await santeCabinet();
   verifier("l'indexation de la boîte du cabinet est connue du tableau de santé", debutIndexation !== null);
   // L'attente croissante entre deux essais (2 min, 10 min, 1 h, 6 h) est prouvée par `indexation_corps_integration` ; ici on
