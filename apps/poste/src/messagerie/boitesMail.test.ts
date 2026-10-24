@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   boiteDuMessage,
+  compteDepartMessageNeuf,
   comptesEnvoi,
   compterNonLusReception,
   construireRail,
@@ -163,5 +164,29 @@ describe("comptes d'envoi", () => {
   it("libellé : la boîte partagée se reconnaît", () => {
     assert.equal(libelleCompteEnvoi(comptes[0] as CompteLocal), "j.marchal@cabinet.example");
     assert.equal(libelleCompteEnvoi(comptes[1] as CompteLocal), "contact@cabinet.example (boîte partagée)");
+  });
+});
+
+describe("compteDepartMessageNeuf", () => {
+  const partage2: CompteLocal = { id: "c3", adresse: "greffe@cabinet.example", type_compte: "partage" };
+  const dossierPerso = { genre: "dossier", boite: "perso", dossier: "reception" } as const;
+  const dossierPartage = { genre: "dossier", boite: "partagee", dossier: "reception" } as const;
+
+  it("depuis un dossier de Ma boîte, la boîte nominative", () => {
+    assert.equal(compteDepartMessageNeuf(dossierPerso, comptes, MOI), "c1");
+  });
+  it("depuis « À classer » ou la barre d'actions (aucune vue), la boîte nominative", () => {
+    assert.equal(compteDepartMessageNeuf({ genre: "a-classer" }, comptes, MOI), "c1");
+    assert.equal(compteDepartMessageNeuf(null, comptes, MOI), "c1");
+  });
+  it("une boîte partagée sélectionnée dans le rail, avec un seul compte partagé, part de ce compte", () => {
+    assert.equal(compteDepartMessageNeuf(dossierPartage, comptes, MOI), "c2");
+  });
+  it("essai négatif : plusieurs boîtes partagées, le rail ne désigne pas un compte, la boîte nominative part", () => {
+    assert.equal(compteDepartMessageNeuf(dossierPartage, [...comptes, partage2], MOI), "c1");
+  });
+  it("essai négatif : sans compte nominatif, aucun compte (le serveur désigne la boîte du cabinet), jamais celui d'un confrère", () => {
+    const autre: CompteLocal = { id: "c9", adresse: "autre@cabinet.example", type_compte: "nominatif", titulaire_id: "u-autre" };
+    assert.equal(compteDepartMessageNeuf(dossierPerso, [autre, comptes[1] as CompteLocal], MOI), null);
   });
 });

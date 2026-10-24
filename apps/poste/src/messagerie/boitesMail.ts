@@ -69,6 +69,26 @@ export function compteNominatifDuMessage(
 }
 
 /**
+ * Compte de départ d'un message neuf (consigne de l'architecte du 20/10/2026) : le compte sélectionné dans le rail de
+ * l'écran Mails quand la sélection désigne un seul compte (une boîte partagée qui n'a qu'un compte) ; sinon, depuis un
+ * dossier de « Ma boîte », la vue « À classer » ou la barre d'actions, la boîte nominative de l'utilisateur. Plusieurs
+ * boîtes partagées : le rail ne désigne pas un compte, la boîte nominative part par défaut. `null` : aucun compte
+ * nominatif synchronisé, le serveur désigne alors la boîte du cabinet.
+ */
+export function compteDepartMessageNeuf(
+  vue: { genre: "a-classer" } | { genre: "dossier"; boite: IdBoite; dossier: string } | null,
+  comptes: readonly CompteLocal[],
+  monId: string | null,
+): string | null {
+  if (vue !== null && vue.genre === "dossier" && vue.boite === "partagee") {
+    const partages = comptes.filter((compte) => compte.type_compte === "partage");
+    if (partages.length === 1) return partages[0]?.id ?? null;
+  }
+  const nominatif = comptesEnvoi(comptes, monId).find((compte) => compte.type_compte === "nominatif");
+  return nominatif?.id ?? null;
+}
+
+/**
  * Comptes depuis lesquels l'utilisateur peut écrire, tels que le poste les connaît : ses comptes nominatifs, puis les
  * boîtes partagées dont il est membre (les seuls comptes qui descendent sur le poste). La boîte du cabinet n'en fait
  * pas partie : le serveur la désigne quand le poste ne choisit aucun compte, et c'est le départ d'un message neuf.

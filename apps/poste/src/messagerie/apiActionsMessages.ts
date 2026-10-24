@@ -1,11 +1,14 @@
 import { appeler, type ResultatApi } from "@/messagerie/appelApi";
 import {
   cheminAction,
+  cheminDossiersImap,
   cheminRecherche,
   corpsAction,
   lireAction,
+  lireDossiersImap,
   lireRecherche,
   type ActionAppliquee,
+  type DossierImap,
   type GenreAction,
   type ResultatServeur,
 } from "@/messagerie/formesActionsMessages";
@@ -32,4 +35,9 @@ export function rechercherSurServeur(
   terme: string,
 ): Promise<ResultatApi<{ resultats: ResultatServeur[]; aSuivre: boolean }>> {
   return appeler(instanceUrl, "GET", cheminRecherche(terme), { delaiMs: 12_000, lire: lireRecherche });
+}
+
+/** Dossiers IMAP d'une boîte lisible par l'utilisateur, lus sur son serveur de messagerie : liste de « Déplacer ». */
+export function listerDossiersImap(instanceUrl: string, compteId: string): Promise<ResultatApi<DossierImap[]>> {
+  return appeler(instanceUrl, "GET", cheminDossiersImap(compteId), { delaiMs: 20_000, lire: lireDossiersImap });
 }

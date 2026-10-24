@@ -13,6 +13,7 @@ import {
 } from "@/messagerie/apiMessagerie";
 import {
   boiteDuMessage,
+  compteDepartMessageNeuf,
   compteNominatifDuMessage,
   comptesEnvoi,
   compterNonLusReception,
@@ -45,12 +46,15 @@ import {
   type GenreComposition,
   type SuggestionTempsMail,
 } from "@/messagerie/LectureMail";
-import { appliquerAction, rechercherSurServeur } from "@/messagerie/apiActionsMessages";
+import { appliquerAction, listerDossiersImap, rechercherSurServeur } from "@/messagerie/apiActionsMessages";
 import {
-  destinationsDeplacement,
+  compteDeplacement,
+  destinationsDepuisServeur,
+  destinationsLocales,
   fusionnerResultats,
   messageResultat,
   saisieRecherchable,
+  type DossierImap,
   type GenreAction,
   type ResultatServeur,
 } from "@/messagerie/formesActionsMessages";
@@ -155,6 +159,9 @@ export function EcranMails({
   const [reponseServeur, setReponseServeur] = useState<{ terme: string; ok: boolean; resultats: ResultatServeur[] } | null>(null);
   const [traitementEnCours, setTraitementEnCours] = useState<string | null>(null);
   const [resultatsTraitement, setResultatsTraitement] = useState<Record<string, { ok: boolean; texte: string }>>({});
+  /** Dossiers IMAP lus sur le serveur, par compte : la liste de « Déplacer ». Absent : les dossiers connus du poste. */
+  const [dossiersImapServeur, setDossiersImapServeur] = useState<Record<string, DossierImap[]>>({});
+  const dossiersImapDemandes = useRef<Set<string>>(new Set());
   const [selection, setSelection] = useState<string | null>(demonstration?.selectionInitiale ?? null);
   const [corpsLus, setCorpsLus] = useState<Record<string, string>>({});
   const [classesLocal, setClassesLocal] = useState<Record<string, string>>({});
@@ -345,6 +352,23 @@ export function EcranMails({
   const choisiEstBrouillon = choisi?.brouillon === true;
   const classeLocal = choisi === null ? undefined : classesLocal[choisi.id];
 
+  // Dossiers IMAP du compte du message choisi (« Déplacer »), lus une fois par compte sur le serveur de messagerie.
+  const compteDuDeplacement =
+    choisi === null || choisiEstBrouillon ? null : compteDeplacement(choisi, donnees.comptes, monId);
+  useEffect(() => {
+    if (compteDuDeplacement === null || enDemo) return;
+    if (dossiersImapDemandes.current.has(compteDuDeplacement)) return;
+    dossiersImapDemandes.current.add(compteDuDeplacement);
+    void listerDossiersImap(instanceUrl, compteDuDeplacement).then((resultat) => {
+      if (resultat.ok) {
+        setDossiersImapServeur((actuel) => ({ ...actuel, [compteDuDeplacement]: resultat.valeur }));
+      } else {
+        // Hors ligne ou serveur injoignable : on redemandera au prochain message, le poste propose ses dossiers connus.
+        dossiersImapDemandes.current.delete(compteDuDeplacement);
+      }
+    });
+  }, [compteDuDeplacement, enDemo, instanceUrl]);
+
   // Corps du message choisi : base locale, sinon l'API le récupère à la demande.
   useEffect(() => {
     if (choisiId === null || enDemo || choisiEstBrouillon) return;
@@ -498,6 +522,10 @@ export function EcranMails({
       if (serveur !== null && (genre === "reponse" || genre === "reponse_a_tous")) {
         etat = appliquerDepartServeur(etat, serveur);
       }
+      // Message neuf : le compte de départ est posé dans l'état lui-même (le sélecteur « De » et l'envoi le lisent), pas
+      // seulement dans la signature. Sans compte nominatif, rien n'est posé : le serveur désigne la boîte du cabinet.
+      const compteDepart = mail === undefined ? compteDepartMessageNeuf(vue, donnees.comptes, monId) : null;
+      if (genre === "nouveau" && compteDepart !== null) etat = { ...etat, compteId: compteDepart };
       setComposition({
         cle: crypto.randomUUID(),
         etat,
@@ -506,10 +534,14 @@ export function EcranMails({
         piecesDuMessage: message?.pieces.slice() ?? [],
         piecesInitiales: [],
         signatureActive: true,
-        compteConnu: serveur?.compteId ?? (mail === undefined ? null : compteNominatifDuMessage(mail, donnees.comptes, monId)),
+        compteConnu:
+          serveur?.compteId ??
+          // Message neuf : null, le compte de départ est dans l'état (choisir la boîte du cabinet le remet à null et la
+          // signature doit alors être celle du cabinet, pas celle du compte par défaut).
+          (mail === undefined ? null : compteNominatifDuMessage(mail, donnees.comptes, monId)),
       });
     },
-    [adressesDuCabinet, classesLocal, donnees.comptes, enDemo, instanceUrl, mailsTous, monId, texteDuMessage],
+    [adressesDuCabinet, classesLocal, donnees.comptes, enDemo, instanceUrl, mailsTous, monId, texteDuMessage, vue],
   );
 
   const ouvrirBrouillon = useCallback(
@@ -763,7 +795,10 @@ export function EcranMails({
                       lu: estLu(choisi),
                       enCours: traitementEnCours === choisi.id,
                       resultat: resultatsTraitement[choisi.id] ?? null,
-                      destinations: destinationsDeplacement(choisi, donnees.mails, monId),
+                      destinations:
+                        compteDuDeplacement !== null && dossiersImapServeur[compteDuDeplacement] !== undefined
+                          ? destinationsDepuisServeur(dossiersImapServeur[compteDuDeplacement], choisi)
+                          : destinationsLocales(choisi, donnees.mails, monId),
                       onAction: (genre, destination) => {
                         traiter(choisi.id, genre, destination);
                       },

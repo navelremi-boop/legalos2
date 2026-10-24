@@ -8,7 +8,7 @@ import { FormulaireConnexionBoite } from "@/messagerie/FormulaireConnexionBoite"
 import { libelleTypeCompte } from "@/messagerie/formesApiRedaction";
 import { verificationTerminee, type ChampsConnexion, type ModeConnexion } from "@/messagerie/formesConnexionBoite";
 import { libelleEtape, libelleFournisseur, type EtapeOAuth, type FournisseurOAuth } from "@/messagerie/formesOAuth";
-import { presenterSante, type SanteMessagerie } from "@/messagerie/formesSanteMessagerie";
+import { presenterIndexation, presenterSante, type SanteMessagerie } from "@/messagerie/formesSanteMessagerie";
 
 /**
  * Réglages, Messagerie, « Comptes » (maquette prototype-reglages) : chaque boîte avec son état de connexion, sa dernière
@@ -178,6 +178,7 @@ export function ComptesMessagerie({ instanceUrl, enLigne, demonstration }: Compt
         <div className="rg-mess__liste" data-testid="comptes-liste">
           {sante.comptes.map((compte) => {
             const presentation = presenterSante(compte);
+            const indexation = presenterIndexation(compte);
             const nominatif = compte.typeCompte === "nominatif" && enLigne && demonstration === undefined;
             // Une boîte OAuth n'a rien à modifier : seule sa reconnexion existe, quand le fournisseur a refusé le jeton.
             const modifiable = nominatif && (!compte.oauth || presentation.reconnecter);
@@ -201,6 +202,9 @@ export function ComptesMessagerie({ instanceUrl, enLigne, demonstration }: Compt
                       <span data-testid="compte-etat">{fr(presentation.titre)}</span>
                     </span>
                     <small data-testid="compte-detail">{fr(presentation.detail)}</small>
+                    {indexation === null ? null : (
+                      <small data-testid="compte-indexation">{fr(indexation)}</small>
+                    )}
                   </span>
                 </span>
                 {modifiable ? (

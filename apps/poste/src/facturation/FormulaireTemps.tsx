@@ -148,7 +148,7 @@ export function FormulaireTemps({
     });
     if (!cree.ok) {
       const texte = await cree.text();
-      if (texte.includes("Dossier introuvable") || cree.status === 400) {
+      if (texte.includes("Dossier introuvable") || cree.status === 400 || cree.status === 404) {
         setMessage(fr("Dossier introuvable — validation refusée."));
         return;
       }

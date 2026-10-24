@@ -1,5 +1,6 @@
-import { boiteDuMessage } from "@/messagerie/boitesMail";
-import type { MailLocal } from "@/messagerie/typesMails";
+import { boiteDuMessage, compteNominatifDuMessage } from "@/messagerie/boitesMail";
+import { dossierImap } from "@/messagerie/dossiersImap";
+import type { CompteLocal, MailLocal } from "@/messagerie/typesMails";
 
 /**
  * Actions sur les messages (lu, non lu, archiver, supprimer, déplacer) et recherche sur le serveur. Pures : le réseau est dans
@@ -66,9 +67,70 @@ export function messageResultat(genre: GenreAction, action: ActionAppliquee): { 
   return { ok: true, texte: "Demande enregistrée : le serveur la rejoue dès que la boîte répond." };
 }
 
+/** Dossier IMAP d'une boîte tel que l'API le décrit (`GET /messagerie/comptes/{id}/dossiers`). */
+export type DossierImap = {
+  /** Nom IMAP exact, présenté tel quel au serveur pour déplacer un message. */
+  nom: string;
+  /** Nom affiché : français pour un dossier spécial, sinon le chemin. */
+  libelle: string;
+  role: string | null;
+  /** Faux : le serveur le créera au premier déplacement. */
+  existe: boolean;
+};
+
+/** Destination proposée par « Déplacer » : le nom IMAP à envoyer et le libellé à montrer. */
+export type DestinationDeplacement = { nom: string; libelle: string };
+
+export function cheminDossiersImap(compteId: string): string {
+  return `/messagerie/comptes/${encodeURIComponent(compteId)}/dossiers`;
+}
+
+export function lireDossiersImap(json: unknown): DossierImap[] {
+  const liste = objet(json).dossiers;
+  if (!Array.isArray(liste)) return [];
+  return (liste as unknown[]).flatMap((element) => {
+    const ligne = objet(element);
+    const nom = texte(ligne.nom);
+    if (nom === "") return [];
+    const libelle = texte(ligne.libelle);
+    const role = texte(ligne.role);
+    return [{ nom, libelle: libelle === "" ? nom : libelle, role: role === "" ? null : role, existe: ligne.existe !== false }];
+  });
+}
+
 /**
- * Dossiers IMAP proposés pour « Déplacer » : ceux où la boîte de l'utilisateur a déjà des messages, la réception et
- * les archives, sans le dossier actuel du message. Le serveur crée au besoin un dossier qui n'existe pas encore.
+ * Compte dont le poste demande la liste des dossiers pour un message : sa boîte nominative si c'est un message de
+ * l'utilisateur, l'unique boîte partagée si le message vient d'une boîte partagée. `null` quand le poste ne peut pas
+ * désigner un compte (plusieurs boîtes partagées, message de la boîte de classement) : il propose alors ses dossiers
+ * locaux.
+ */
+export function compteDeplacement(
+  mail: Pick<MailLocal, "dossier_imap" | "titulaire_id">,
+  comptes: readonly CompteLocal[],
+  monId: string | null,
+): string | null {
+  const boite = boiteDuMessage(mail, monId);
+  if (boite === "perso") return compteNominatifDuMessage(mail, comptes, monId);
+  if (boite === "partagee") {
+    const partages = comptes.filter((compte) => compte.type_compte === "partage");
+    return partages.length === 1 ? (partages[0]?.id ?? null) : null;
+  }
+  return null;
+}
+
+/** Destinations d'après la liste du serveur : tous ses dossiers, dans son ordre, sans celui où le message se trouve. */
+export function destinationsDepuisServeur(
+  dossiers: readonly DossierImap[],
+  mail: Pick<MailLocal, "dossier_imap">,
+): DestinationDeplacement[] {
+  const actuel = (mail.dossier_imap ?? "") === "" ? "INBOX" : (mail.dossier_imap ?? "");
+  return dossiers.filter((dossier) => dossier.nom !== actuel).map((dossier) => ({ nom: dossier.nom, libelle: dossier.libelle }));
+}
+
+/**
+ * Dossiers IMAP proposés pour « Déplacer » quand le serveur ne répond pas : ceux où la boîte de l'utilisateur a déjà des
+ * messages, la réception et les archives, sans le dossier actuel du message. Le serveur crée au besoin un dossier qui
+ * n'existe pas encore.
  */
 export function destinationsDeplacement(
   mail: Pick<MailLocal, "dossier_imap" | "titulaire_id">,
@@ -85,6 +147,15 @@ export function destinationsDeplacement(
   }
   noms.delete(actuel);
   return [...noms].sort((a, b) => a.localeCompare(b, "fr"));
+}
+
+/** Les destinations locales avec le libellé français des noms connus. */
+export function destinationsLocales(
+  mail: Pick<MailLocal, "dossier_imap" | "titulaire_id">,
+  mails: readonly Pick<MailLocal, "dossier_imap" | "titulaire_id">[],
+  monId: string | null,
+): DestinationDeplacement[] {
+  return destinationsDeplacement(mail, mails, monId).map((nom) => ({ nom, libelle: dossierImap(nom).libelle }));
 }
 
 // ----- Recherche sur le serveur -----

@@ -14,7 +14,6 @@ import {
 } from "@tabler/icons-react";
 import { fr } from "@/lib/fr";
 import type { GenreAction } from "@/messagerie/formesActionsMessages";
-import { dossierImap } from "@/messagerie/dossiersImap";
 import {
   encartClassement,
   etiquetteDossier,
@@ -72,8 +71,8 @@ export type TraitementMail = {
   enCours: boolean;
   /** Dernier résultat à montrer sous les boutons. */
   resultat: { ok: boolean; texte: string } | null;
-  /** Noms IMAP des dossiers proposés pour « Déplacer ». */
-  destinations: readonly string[];
+  /** Dossiers proposés pour « Déplacer » : nom IMAP à envoyer, libellé à montrer. */
+  destinations: readonly { nom: string; libelle: string }[];
   onAction: (genre: GenreAction, destination?: string) => void;
 };
 
@@ -233,9 +232,9 @@ export function LectureMail({
             }}
           >
             <option value="">{fr("Déplacer vers…")}</option>
-            {traitement.destinations.map((nom) => (
-              <option key={nom} value={nom}>
-                {fr(dossierImap(nom).libelle)}
+            {traitement.destinations.map((destination) => (
+              <option key={destination.nom} value={destination.nom}>
+                {fr(destination.libelle)}
               </option>
             ))}
           </select>

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { dateEtHeure, dureeRelative, lireSante, presenterSante, type SanteCompte } from "./formesSanteMessagerie.ts";
+import { dateEtHeure, dureeRelative, lireSante, presenterIndexation, presenterSante, type SanteCompte } from "./formesSanteMessagerie.ts";
 
 function compte(extra: Partial<SanteCompte> = {}): SanteCompte {
   return {
@@ -17,6 +17,9 @@ function compte(extra: Partial<SanteCompte> = {}): SanteCompte {
     motifs: [],
     oauth: false,
     fournisseur: null,
+    corpsIndexes: 0,
+    corpsRestants: 0,
+    corpsAbandonnes: 0,
     ...extra,
   };
 }
@@ -155,5 +158,47 @@ describe("ce que l'écran dit d'une boîte", () => {
     const p = presenterSante(compte({ typeCompte: "classement", retardSecondes: null, derniereReleveLe: null, etatConnexion: "inconnu" }));
     assert.equal(p.titre, "Relevée à la demande");
     assert.equal(p.niveau, "ok");
+  });
+});
+
+describe("progression de l'indexation de fond", () => {
+  it("lit les trois compteurs du serveur, 0 quand ils manquent", () => {
+    const lue = lireSante({ comptes: [{ compte_id: "c", corps_indexes: 120, corps_restants: 30, corps_abandonnes: 2 }, { compte_id: "d" }] });
+    assert.deepEqual(
+      lue.comptes.map((c) => [c.corpsIndexes, c.corpsRestants, c.corpsAbandonnes]),
+      [[120, 30, 2], [0, 0, 0]],
+    );
+  });
+
+  it("rien à dire tant que rien n'a été indexé ni attendu", () => {
+    assert.equal(presenterIndexation(compte()), null);
+  });
+
+  it("en cours : indexés et restants", () => {
+    assert.equal(
+      presenterIndexation(compte({ corpsIndexes: 120, corpsRestants: 30 })),
+      "Recherche dans le texte des messages : 120 messages préparés, 30 à venir.",
+    );
+    assert.equal(
+      presenterIndexation(compte({ corpsIndexes: 1, corpsRestants: 5 })),
+      "Recherche dans le texte des messages : 1 message préparé, 5 à venir.",
+    );
+    assert.equal(
+      presenterIndexation(compte({ corpsIndexes: 0, corpsRestants: 1 })),
+      "Recherche dans le texte des messages : 0 message préparé, 1 à venir.",
+    );
+  });
+
+  it("terminée seulement quand il ne reste rien, avec les abandons dits", () => {
+    assert.equal(
+      presenterIndexation(compte({ corpsIndexes: 150 })),
+      "Recherche dans le texte des messages : tous les messages sont préparés (150).",
+    );
+    assert.match(presenterIndexation(compte({ corpsIndexes: 150, corpsAbandonnes: 2 })) ?? "", /2 messages illisibles ont été laissés de côté/u);
+    assert.match(presenterIndexation(compte({ corpsIndexes: 150, corpsAbandonnes: 1 })) ?? "", /1 message illisible a été laissé de côté/u);
+  });
+
+  it("essai négatif : il reste des messages, la recherche n'est jamais dite terminée", () => {
+    assert.doesNotMatch(presenterIndexation(compte({ corpsIndexes: 100, corpsRestants: 1 })) ?? "", /tous les messages/u);
   });
 });

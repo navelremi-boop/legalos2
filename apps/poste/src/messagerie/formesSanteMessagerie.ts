@@ -25,6 +25,10 @@ export type SanteCompte = {
   oauth: boolean;
   /** `microsoft`, `gmail`… pour une boîte OAuth ; `null` sinon. */
   fournisseur: string | null;
+  /** Indexation de fond des corps (recherche sur les messages jamais ouverts) : indexés, restants, abandonnés. */
+  corpsIndexes: number;
+  corpsRestants: number;
+  corpsAbandonnes: number;
 };
 
 export type SanteMessagerie = {
@@ -80,6 +84,9 @@ export function lireSante(json: unknown): SanteMessagerie {
           motifs: Array.isArray(ligne.motifs) ? (ligne.motifs as unknown[]).filter((m): m is string => typeof m === "string") : [],
           oauth: ligne.oauth === true,
           fournisseur: texteOuNul(ligne.fournisseur),
+          corpsIndexes: nombre(ligne.corps_indexes),
+          corpsRestants: nombre(ligne.corps_restants),
+          corpsAbandonnes: nombre(ligne.corps_abandonnes),
         },
       ];
     }),
@@ -122,6 +129,31 @@ export type PresentationSante = {
   /** Nom du fournisseur d'une boîte OAuth (« Microsoft 365 »), `null` pour une boîte à mot de passe. */
   fournisseur: string | null;
 };
+
+/** En français, 0 et 1 restent au singulier : « 0 message préparé », « 1 message préparé », « 2 messages préparés ». */
+function messagesPrepares(n: number): string {
+  return n >= 2 ? `${String(n)} messages préparés` : `${String(n)} message préparé`;
+}
+
+/**
+ * Progression de l'indexation de fond d'une boîte (critère J11 : « progression dans l'écran de santé »), `null` quand
+ * rien n'a encore été indexé ni attendu. Rien n'est affirmé que la donnée ne dise : « terminée » seulement quand il ne
+ * reste rien, avec les abandons dits.
+ */
+export function presenterIndexation(compte: Pick<SanteCompte, "corpsIndexes" | "corpsRestants" | "corpsAbandonnes">): string | null {
+  const { corpsIndexes: indexes, corpsRestants: restants, corpsAbandonnes: abandonnes } = compte;
+  if (indexes === 0 && restants === 0 && abandonnes === 0) return null;
+  const abandons =
+    abandonnes === 0
+      ? ""
+      : abandonnes === 1
+        ? " 1 message illisible a été laissé de côté."
+        : ` ${String(abandonnes)} messages illisibles ont été laissés de côté.`;
+  if (restants > 0) {
+    return `Recherche dans le texte des messages : ${messagesPrepares(indexes)}, ${String(restants)} à venir.${abandons}`;
+  }
+  return `Recherche dans le texte des messages : tous les messages sont préparés (${String(indexes)}).${abandons}`;
+}
 
 function envois(n: number): string {
   return n === 1 ? "1 envoi en échec" : `${String(n)} envois en échec`;

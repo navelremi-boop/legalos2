@@ -2,15 +2,21 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   cheminAction,
+  cheminDossiersImap,
   cheminRecherche,
+  compteDeplacement,
   corpsAction,
   destinationsDeplacement,
+  destinationsDepuisServeur,
+  destinationsLocales,
   fusionnerResultats,
   lireAction,
+  lireDossiersImap,
   lireRecherche,
   messageResultat,
   saisieRecherchable,
 } from "./formesActionsMessages.ts";
+import type { CompteLocal } from "./typesMails.ts";
 
 const MOI = "u-moi";
 
@@ -102,5 +108,76 @@ describe("recherche sur le serveur", () => {
       ["a", "b", "c"],
     );
     assert.deepEqual(fusionnerResultats([], []), []);
+  });
+});
+
+describe("liste des dossiers IMAP du serveur (Déplacer)", () => {
+  const reponse = {
+    dossiers: [
+      { nom: "INBOX", libelle: "Réception", role: "reception", existe: true },
+      { nom: "Archive", libelle: "Archives", role: "archives", existe: true },
+      { nom: "Trash", libelle: "Corbeille", role: "corbeille", existe: false },
+      { nom: "Clients/Suivi", libelle: "Clients/Suivi", role: null, existe: true },
+    ],
+  };
+
+  it("le chemin protège l'identifiant du compte", () => {
+    assert.equal(cheminDossiersImap("a/b"), "/messagerie/comptes/a%2Fb/dossiers");
+  });
+
+  it("la réponse de l'API est lue avec ses noms français et ses rôles", () => {
+    const liste = lireDossiersImap(reponse);
+    assert.equal(liste.length, 4);
+    assert.deepEqual(liste[1], { nom: "Archive", libelle: "Archives", role: "archives", existe: true });
+    assert.equal(liste[2]?.existe, false);
+    assert.equal(liste[3]?.role, null);
+  });
+
+  it("essai négatif : une réponse illisible ne donne aucun dossier, un dossier sans nom est ignoré", () => {
+    assert.deepEqual(lireDossiersImap(null), []);
+    assert.deepEqual(lireDossiersImap({ dossiers: "x" }), []);
+    assert.deepEqual(lireDossiersImap({ dossiers: [{ libelle: "Sans nom" }, { nom: "Suivi" }] }), [
+      { nom: "Suivi", libelle: "Suivi", role: null, existe: true },
+    ]);
+  });
+
+  it("« Déplacer » propose les dossiers du serveur, dans son ordre, sans le dossier où se trouve le message", () => {
+    const liste = lireDossiersImap(reponse);
+    const noms = (dossierImap: string | null) => destinationsDepuisServeur(liste, { dossier_imap: dossierImap }).map((d) => d.nom);
+    assert.deepEqual(noms("INBOX"), ["Archive", "Trash", "Clients/Suivi"]);
+    assert.deepEqual(noms(null), ["Archive", "Trash", "Clients/Suivi"]);
+    assert.deepEqual(noms("Clients/Suivi"), ["INBOX", "Archive", "Trash"]);
+    assert.equal(destinationsDepuisServeur(liste, { dossier_imap: "INBOX" })[0]?.libelle, "Archives");
+  });
+
+  it("essai négatif : le nom IMAP du serveur est envoyé tel quel, jamais son libellé français", () => {
+    const liste = lireDossiersImap(reponse);
+    const archive = destinationsDepuisServeur(liste, { dossier_imap: "INBOX" }).find((d) => d.libelle === "Archives");
+    assert.equal(archive?.nom, "Archive");
+    assert.notEqual(archive?.nom, "Archives");
+  });
+
+  it("sans réponse du serveur, les dossiers du poste restent proposés, avec leurs libellés français", () => {
+    const locales = destinationsLocales({ dossier_imap: "INBOX", titulaire_id: MOI }, [{ dossier_imap: "Suivi", titulaire_id: MOI }], MOI);
+    assert.deepEqual(locales.map((d) => d.nom), ["Archives", "Suivi"]);
+  });
+});
+
+describe("compte dont on demande les dossiers", () => {
+  const nominatif: CompteLocal = { id: "c1", adresse: "moi@cabinet.example", type_compte: "nominatif", titulaire_id: MOI };
+  const partage: CompteLocal = { id: "c2", adresse: "contact@cabinet.example", type_compte: "partage" };
+  const autrePartage: CompteLocal = { id: "c3", adresse: "greffe@cabinet.example", type_compte: "partage" };
+
+  it("message de l'utilisateur : sa boîte nominative", () => {
+    assert.equal(compteDeplacement({ dossier_imap: "INBOX", titulaire_id: MOI }, [nominatif, partage], MOI), "c1");
+  });
+  it("message d'une boîte partagée : l'unique boîte partagée", () => {
+    assert.equal(compteDeplacement({ dossier_imap: "INBOX", titulaire_id: null }, [nominatif, partage], MOI), "c2");
+  });
+  it("essai négatif : plusieurs boîtes partagées, le poste ne devine pas le compte", () => {
+    assert.equal(compteDeplacement({ dossier_imap: "INBOX", titulaire_id: null }, [nominatif, partage, autrePartage], MOI), null);
+  });
+  it("essai négatif : le message d'un confrère n'ouvre la liste d'aucun compte", () => {
+    assert.equal(compteDeplacement({ dossier_imap: "INBOX", titulaire_id: "u-autre" }, [nominatif, partage], MOI), null);
   });
 });
