@@ -86,3 +86,61 @@ fn dovecot_qresync_changedsince_du_modseq_connu() {
         seconde.commandes
     );
 }
+
+/// Lecture des corps de l'indexation de fond (`textes_sans_effet`) sur chacun des deux serveurs de test : un message
+/// déposé dans le dossier des brouillons est relu en lecture seule, son texte est rendu, le drapeau `\Seen` n'est pas
+/// posé par la lecture. Cas d'un UID absent : rendu sans texte, pas d'erreur.
+fn lire_un_corps_sans_effet(port: u16) {
+    let adresse: SocketAddr = format!("127.0.0.1:{port}").parse().unwrap();
+    exiger_ou_passer(adresse);
+    if !joignable(adresse) {
+        return;
+    }
+    let mut session = SessionActions::connecter(&compte(port)).expect("serveur");
+    let dossier = session
+        .dossier_brouillons()
+        .expect("dossier des brouillons");
+    let mot = format!("indexation{}", std::process::id());
+    let message = format!(
+        "From: a@example.com\r\nTo: b@example.com\r\nSubject: Indexation\r\nMessage-ID: <{mot}@example.com>\r\n\r\nCorps du message {mot} pour la lecture sans effet.\r\n"
+    );
+    session
+        .deposer_brouillon(
+            &dossier,
+            &format!("<{mot}@example.com>"),
+            message.as_bytes(),
+        )
+        .expect("dépôt");
+    let releve = session.synchroniser_dossier(&dossier, 0).expect("relève");
+    let uid = releve
+        .etats
+        .iter()
+        .map(|e| e.uid)
+        .max()
+        .expect("un message");
+    let lus = session
+        .textes_sans_effet(&dossier, releve.uid_validity, &[uid, uid + 1000])
+        .expect("lecture des corps");
+    assert!(lus.valide, "la UIDVALIDITY est celle du dossier");
+    let texte = lus.textes.get(&uid).expect("le texte du message déposé");
+    assert!(texte.contains(&mot), "texte lu : {texte}");
+    assert!(
+        !lus.textes.contains_key(&(uid + 1000)),
+        "un UID absent n'a pas de texte"
+    );
+    // Une UIDVALIDITY périmée n'est pas une erreur : rien n'est lu, `valide` est faux.
+    let perime = session
+        .textes_sans_effet(&dossier, releve.uid_validity.wrapping_add(1), &[uid])
+        .expect("lecture avec une UIDVALIDITY périmée");
+    assert!(!perime.valide && perime.textes.is_empty());
+}
+
+#[test]
+fn dovecot_textes_sans_effet_lisent_un_corps() {
+    lire_un_corps_sans_effet(1143);
+}
+
+#[test]
+fn greenmail_textes_sans_effet_lisent_un_corps() {
+    lire_un_corps_sans_effet(3143);
+}

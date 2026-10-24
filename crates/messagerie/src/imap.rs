@@ -72,6 +72,8 @@ pub struct TextesLus {
 
 /// Octets lus au plus par message pour l'indexation de fond.
 pub const OCTETS_MAX_INDEXATION: u32 = 1_048_576;
+/// Taille au-delà de laquelle le repli (lecture d'un message entier) n'est pas tenté.
+pub const OCTETS_MAX_REPLI_INDEXATION: u32 = 10 * 1_048_576;
 
 pub struct Session {
     client: ImapClientStd,
@@ -254,44 +256,22 @@ impl Session {
             .collect::<Vec<_>>()
             .join(",");
         let jeu: SequenceSet = texte_uids.parse().map_err(|_| ErreurMail::Protocole)?;
-        let items = MacroOrMessageDataItemNames::MessageDataItemNames(vec![
-            MessageDataItemName::Uid,
-            MessageDataItemName::BodyExt {
-                section: None,
-                partial: Some((
-                    0,
-                    NonZeroU32::new(OCTETS_MAX_INDEXATION).unwrap_or(NonZeroU32::MIN),
-                )),
-                peek: true,
-            },
-        ]);
-        let fetched = self
-            .client
-            .fetch(
-                jeu,
-                items,
-                ImapMessageFetchOptions {
-                    uid: true,
-                    modifiers: Vec::new(),
-                },
-            )
-            .map_err(|_| ErreurMail::Protocole)?;
-        let analyseur = MessageParser::default();
-        for (_cle, morceaux) in fetched {
-            let mut uid = None;
-            let mut octets = None;
-            for item in morceaux {
-                match item {
-                    MessageDataItem::Uid(valeur) => uid = Some(valeur.get()),
-                    MessageDataItem::BodyExt { data: valeur, .. } => {
-                        octets = Some(nstring_octets(&valeur));
-                    }
-                    _ => {}
+        let mut lus = self.corps_en_octets(jeu, true)?;
+        if lus.is_empty() {
+            // Repli : GreenMail 2.x répond à un FETCH partiel par `BODY[]<0>{n}`, sans l'espace que la RFC 3501 impose avant
+            // le littéral, et le décodeur strict écarte la réponse : rien n'est jamais lu et toute la boîte restait « à
+            // venir ». On relit alors chaque message en entier (`BODY.PEEK[]`, sans fragment, forme que ce serveur écrit
+            // correctement), un par un, sous un plafond de taille mesuré d'abord par `RFC822.SIZE`.
+            for uid in uids {
+                match self.taille_message(*uid)? {
+                    Some(taille) if taille <= OCTETS_MAX_REPLI_INDEXATION => {}
+                    _ => continue,
                 }
+                lus.extend(self.corps_en_octets(sequence_un(*uid)?, false)?);
             }
-            let (Some(uid), Some(octets)) = (uid, octets) else {
-                continue;
-            };
+        }
+        let analyseur = MessageParser::default();
+        for (uid, octets) in lus {
             let analyse = analyseur.parse(&octets);
             let texte = analyse
                 .as_ref()
@@ -309,6 +289,87 @@ impl Session {
             resultat.textes.insert(uid, texte);
         }
         Ok(resultat)
+    }
+
+    /// Corps (`BODY.PEEK[]`, jamais de `\Seen`) des UID du jeu : (UID, octets). `partiel` : seuls les
+    /// `OCTETS_MAX_INDEXATION` premiers octets de chaque message.
+    fn corps_en_octets(
+        &mut self,
+        jeu: SequenceSet,
+        partiel: bool,
+    ) -> Result<Vec<(u32, Vec<u8>)>, ErreurMail> {
+        let partial = if partiel {
+            Some((
+                0,
+                NonZeroU32::new(OCTETS_MAX_INDEXATION).unwrap_or(NonZeroU32::MIN),
+            ))
+        } else {
+            None
+        };
+        let items = MacroOrMessageDataItemNames::MessageDataItemNames(vec![
+            MessageDataItemName::Uid,
+            MessageDataItemName::BodyExt {
+                section: None,
+                partial,
+                peek: true,
+            },
+        ]);
+        let fetched = self
+            .client
+            .fetch(
+                jeu,
+                items,
+                ImapMessageFetchOptions {
+                    uid: true,
+                    modifiers: Vec::new(),
+                },
+            )
+            .map_err(|_| ErreurMail::Protocole)?;
+        let mut sortie = Vec::new();
+        for (_cle, morceaux) in fetched {
+            let mut uid = None;
+            let mut octets = None;
+            for item in morceaux {
+                match item {
+                    MessageDataItem::Uid(valeur) => uid = Some(valeur.get()),
+                    MessageDataItem::BodyExt { data: valeur, .. } => {
+                        octets = Some(nstring_octets(&valeur));
+                    }
+                    _ => {}
+                }
+            }
+            if let (Some(uid), Some(octets)) = (uid, octets) {
+                sortie.push((uid, octets));
+            }
+        }
+        Ok(sortie)
+    }
+
+    /// Taille (`RFC822.SIZE`) d'un message, `None` s'il n'existe plus.
+    fn taille_message(&mut self, uid: u32) -> Result<Option<u32>, ErreurMail> {
+        let items = MacroOrMessageDataItemNames::MessageDataItemNames(vec![
+            MessageDataItemName::Uid,
+            MessageDataItemName::Rfc822Size,
+        ]);
+        let fetched = self
+            .client
+            .fetch(
+                sequence_un(uid)?,
+                items,
+                ImapMessageFetchOptions {
+                    uid: true,
+                    modifiers: Vec::new(),
+                },
+            )
+            .map_err(|_| ErreurMail::Protocole)?;
+        for (_cle, morceaux) in fetched {
+            for item in morceaux {
+                if let MessageDataItem::Rfc822Size(taille) = item {
+                    return Ok(Some(taille));
+                }
+            }
+        }
+        Ok(None)
     }
 
     /// Compte les en-têtes par paquets. `qresync` active QRESYNC et `CHANGEDSINCE 1`.
