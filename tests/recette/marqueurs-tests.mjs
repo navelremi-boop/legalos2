@@ -23,7 +23,9 @@ const EXTENSIONS = /\.(rs|ts|tsx|js|jsx|mjs|cjs)$/u;
 const MOTIFS = [
   { nom: "#[ignore]", re: /#\[\s*ignore\b/u },
   { nom: ".skip / .only", re: /\b(?:it|test|describe|context|suite)\s*\.\s*(?:skip|only)\b/u },
-  { nom: "méthode .skip( / .only(", re: /\.\s*(?:skip|only)\s*\(/u },
+  // `t.skip("raison")`, `.only()` : jamais `.skip(1)` ou `.skip(n)`, l'itérateur du langage (CI du 24/10/2026 : faux positif
+  // sur regle_404_403.rs).
+  { nom: "méthode .skip(…) / .only(…) d'un test", re: /\.\s*(?:skip|only)\s*\(\s*(?:["'`]|\))/u },
   { nom: "xit / xdescribe / xtest / fit / fdescribe", re: /\b(?:xit|xdescribe|xtest|fit|fdescribe)\s*\(/u },
 ];
 
@@ -80,6 +82,7 @@ function essaisNegatifs() {
       "d.test.ts": 'xit("x", () => {});\n',
       "e.mjs": 'test.skip("x", () => {});\n',
       "f.test.ts": 'suite.test("x", () => {}).skip();\n',
+      "g.test.ts": 't.skip("raison");\n',
     };
     mkdirSync(join(faux, "sales"));
     for (const [nom, texte] of Object.entries(sales)) writeFileSync(join(faux, "sales", nom), texte, "utf8");
@@ -95,9 +98,10 @@ function essaisNegatifs() {
       "utf8",
     );
     writeFileSync(join(faux, "propres", "ok.test.ts"), 'it("passe", () => { const only = 1; expect(only).toBe(1); });\n', "utf8");
+    writeFileSync(join(faux, "propres", "iterateur.rs"), 'fn f(m: &str) -> Option<&str> { m.split("x").skip(1).next() }\n', "utf8");
     const propre = analyser(join(faux, "propres"), fichiersDuDossier(join(faux, "propres")));
     if (propre.refus.length !== 0) fail(`contrôle positif : faux positif ${propre.refus.join(", ")}`);
-    if (propre.lus !== 2) fail(`contrôle positif : ${propre.lus} fichiers lus au lieu de 2`);
+    if (propre.lus !== 3) fail(`contrôle positif : ${propre.lus} fichiers lus au lieu de 3`);
     console.log(`marqueurs-tests: essais négatifs ${Object.keys(sales).length}/${Object.keys(sales).length} détectés, contrôle positif propre`);
   } finally {
     rmSync(faux, { recursive: true, force: true });
