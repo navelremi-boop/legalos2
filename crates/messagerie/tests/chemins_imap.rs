@@ -88,8 +88,9 @@ fn dovecot_qresync_changedsince_du_modseq_connu() {
 }
 
 /// Lecture des corps de l'indexation de fond (`textes_sans_effet`) sur chacun des deux serveurs de test : un message
-/// déposé dans le dossier des brouillons est relu en lecture seule, son texte est rendu, le drapeau `\Seen` n'est pas
-/// posé par la lecture. Cas d'un UID absent : rendu sans texte, pas d'erreur.
+/// déposé dans le dossier des brouillons est relu, son texte est rendu. GreenMail 2.x écrit `BODY[]<0>{n}` sans espace :
+/// la lecture partielle ne rend rien et le repli par message entier le lit. Cas d'un UID absent : rendu sans texte, pas
+/// d'erreur ; UIDVALIDITY périmée : rien n'est lu, sans erreur.
 fn lire_un_corps_sans_effet(port: u16) {
     let adresse: SocketAddr = format!("127.0.0.1:{port}").parse().unwrap();
     exiger_ou_passer(adresse);
