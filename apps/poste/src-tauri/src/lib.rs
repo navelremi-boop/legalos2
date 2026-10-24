@@ -1,6 +1,7 @@
 // Feature `test-webdriver` : WebDriver embarqué réservé aux builds CI (§ 22-tauri).
 
 mod document_cache;
+mod journal_erreurs;
 mod oauth_boucle;
 mod powersync_connect;
 mod trousseau;
@@ -31,13 +32,33 @@ pub fn run() {
             document_cache::arreter_surveillance_document,
             oauth_boucle::oauth_ecouter_bouclage,
             oauth_boucle::oauth_attendre_retour,
-            oauth_boucle::oauth_annuler_bouclage
-        ]);
+            oauth_boucle::oauth_annuler_bouclage,
+            journal_erreurs::journaliser_erreur_js
+        ])
+        // Journal d'erreurs du poste (D4) : répertoire de données de l'app, démarré avant toute fenêtre pour que
+        // l'arrêt d'une session soit consigné même si l'interface ne charge jamais.
+        .setup(|app| {
+            use tauri::Manager;
+            let dossier = app.path().app_data_dir()?.join("journal-erreurs");
+            let journal = std::sync::Arc::new(journal_erreurs::Journal::nouveau(dossier));
+            journal_erreurs::demarrer(&journal);
+            app.manage(journal);
+            Ok(())
+        });
 
     #[cfg(feature = "test-webdriver")]
     let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
 
+    // La sortie normale retire le marqueur de session : sans elle, la session est tenue pour morte (`fin_anormale`).
     builder
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, evenement| {
+            if let tauri::RunEvent::Exit = evenement {
+                use tauri::Manager;
+                if let Some(journal) = app.try_state::<std::sync::Arc<journal_erreurs::Journal>>() {
+                    journal.terminer_session();
+                }
+            }
+        });
 }

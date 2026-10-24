@@ -3,7 +3,7 @@
  * Ne journalise aucun secret.
  */
 import { spawn, spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,6 +27,25 @@ export function racineInstance() {
 
 export function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Dernières lignes du journal d'erreurs du poste (D4, consigne de l'architecte du 24/10/2026) : panics, erreurs JavaScript
+ * non capturées, sessions dont le processus a disparu sans sortie normale. Lues dans le répertoire de données, sans passer
+ * par l'app, qui peut avoir disparu. Les trois fichiers de rotation, du plus ancien au plus récent.
+ */
+export function lireJournalErreursPoste(n = 200) {
+  const roaming = process.env.APPDATA ?? join(homedir(), "AppData", "Roaming");
+  const dossier = join(roaming, "fr.legalos.poste", "journal-erreurs");
+  const lignes = [];
+  for (const nom of ["poste.log.2", "poste.log.1", "poste.log"]) {
+    try {
+      lignes.push(...readFileSync(join(dossier, nom), "utf8").split(/\r?\n/u).filter((l) => l !== ""));
+    } catch {
+      /* fichier absent : pas encore de rotation, ou pas de journal */
+    }
+  }
+  return lignes.slice(-n);
 }
 
 export function sqlServeur(requete) {

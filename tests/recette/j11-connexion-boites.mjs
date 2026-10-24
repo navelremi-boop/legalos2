@@ -31,7 +31,7 @@ import { demarrerBancOauth, portRepond } from "./lib/banc-oauth-poste.mjs";
 import { demoAccessToken, demoEmail, demoPassword, totpSecretB32 } from "./lib/demo-auth.mjs";
 import { creerClientImap } from "./lib/imap-controle.mjs";
 import { MOT_IMAP_TEST, conteneur, connecterAuReseauApi } from "./lib/moteur-mail.mjs";
-import { creerSession, racineInstance, sleep, sqlServeur } from "./lib/poste-session.mjs";
+import { creerSession, lireJournalErreursPoste, racineInstance, sleep, sqlServeur } from "./lib/poste-session.mjs";
 import { autoriserDansLeNavigateur } from "./lib/simulateur-oauth.mjs";
 import { creerUi, lit, norm } from "./lib/ui-mails.mjs";
 
@@ -42,6 +42,8 @@ const { api, fail, ok, resetPostes, stopApp, ouvrirPoste, fermer } = session;
 
 const marque = String(Date.now()).slice(-6);
 let send;
+/** Jeton de la session de la recette, gardé pour joindre l'état de santé de l'API à un échec (D4). */
+let jetonDiagnostic = null;
 const ui = creerUi({ getSend: () => send, fail, dossierCaptures });
 const { js, cliquer, texteDe, present, compter, desactive, sqliteLocal, saisir, attendre, verifier, essaiNegatif, capturer } = ui;
 
@@ -110,6 +112,7 @@ async function main() {
   await session.assurerInstance();
   const dovecot = await demarrerImapTest();
   const jeton = await demoAccessToken(api, `j11-connexion-${marque}`);
+  jetonDiagnostic = jeton;
   const demoId = await sqlServeur(`SELECT id FROM utilisateurs WHERE email = ${lit(demoEmail)}`);
   if (!demoId) fail("utilisateur démo absent");
   const cabinetId = await sqlServeur(`SELECT cabinet_id FROM utilisateurs WHERE id = '${demoId}'`);
@@ -513,10 +516,41 @@ async function main() {
   ok("OK");
 }
 
+/**
+ * Consigne de l'architecte du 24/10/2026 (D4) : en cas d'échec ou d'arrêt du poste, la recette joint les 200 dernières
+ * lignes du journal d'erreurs du poste (panics, erreurs JavaScript non capturées, sessions disparues) et l'état de santé
+ * des boîtes lu par l'API. Aucune exception ne sort d'ici : un diagnostic qui échoue ne masque pas l'échec d'origine.
+ */
+async function joindreDiagnostic() {
+  try {
+    const lignes = lireJournalErreursPoste(200);
+    console.error(`j11-connexion: journal d'erreurs du poste (${lignes.length} dernière(s) ligne(s)) :`);
+    for (const ligne of lignes) console.error(`  ${ligne}`);
+    if (lignes.length === 0) console.error("  (aucune ligne : le poste n'a rien consigné, ou le journal est absent)");
+  } catch (err) {
+    console.error(`j11-connexion: journal d'erreurs du poste illisible : ${String(err instanceof Error ? err.message : err).slice(0, 200)}`);
+  }
+  try {
+    if (jetonDiagnostic === null) {
+      console.error("j11-connexion: état de santé de l'API non lu : la connexion de la recette n'a pas eu lieu.");
+      return;
+    }
+    const reponse = await fetch(`${api}/messagerie/sante`, {
+      headers: { authorization: `Bearer ${jetonDiagnostic}` },
+      signal: AbortSignal.timeout(15_000),
+    });
+    const texte = await reponse.text();
+    console.error(`j11-connexion: état de santé lu par l'API (${reponse.status}) : ${texte.slice(0, 1500)}`);
+  } catch (err) {
+    console.error(`j11-connexion: état de santé de l'API non lu : ${String(err instanceof Error ? err.message : err).slice(0, 200)}`);
+  }
+}
+
 main()
-  .catch((err) => {
+  .catch(async (err) => {
     console.error(`j11-connexion: ${err instanceof Error ? err.message : String(err)}`);
     if (err instanceof Error && err.stack) console.error(err.stack.split("\n").slice(1, 5).join("\n"));
+    await joindreDiagnostic();
     process.exitCode = 1;
   })
   .finally(() => {
