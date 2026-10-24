@@ -111,3 +111,16 @@ La CI (run 39840437726 sur `049ac20`) a échoué à `cargo deny check` sur le wo
 | RUSTSEC-2026-0383 | `webpki-root-certs` | 1.0.9 | 1.0.10 | `rustls-platform-verifier` 0.7.1 → `pimalaya-stream` |
 
 Correctif : `cargo update -p rustls-webpki` et `cargo update -p webpki-root-certs`, sur le workspace racine et sur celui du poste (mêmes versions dans les deux verrous). Aucune exception ajoutée. Après : `cargo deny check` exit 0 (advisories, bans, licenses, sources ok) sur les deux workspaces.
+
+## Constat du 24 octobre 2026 : avis RUSTSEC-2026-0385 et RUSTSEC-2026-0386
+
+La CI (run 40082268071 sur `39bab73`) a échoué de nouveau à `cargo deny check` sur le workspace racine : deux avis publiés depuis le passage du 22/10.
+
+| Avis | Crate | Version avant | Version après | Chemin |
+|---|---|---|---|---|
+| RUSTSEC-2026-0385 (comparaisons `u128` et masques non constants dans le temps) | `ctutils` | 0.4.2 | 0.4.5 | dépendance de la chaîne de chiffrement du workspace racine (absente du workspace du poste) |
+| RUSTSEC-2026-0386 (`AsyncFd::new` viole la sûreté des E/S) | `tokio` | 1.53.1 | 1.54.1 | `axum`, `legalos-api`, `legalos-messagerie` ; workspace racine et workspace du poste |
+
+Correctif : `cargo update -p ctutils` et `cargo update -p tokio` (racine), `cargo update -p tokio` (poste). Aucune exception ajoutée. Après : `cargo deny check` exit 0 (advisories, bans, licenses, sources ok) sur les deux workspaces. `tokio` passe d'une version mineure (1.53 → 1.54) : `cargo test --workspace` repassé en entier.
+
+Constat sur le processus : la base d'avis évolue entre deux passages ; un `cargo deny check` local vert ne vaut que pour l'heure de sa lecture. La CI le relit à chaque poussée, ce qui est le contrôle voulu.

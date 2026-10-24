@@ -58,7 +58,7 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 | Dovecot (second serveur IMAP de test, chemin QRESYNC) | **dovecot/dovecot:2.3.21.1** | https://hub.docker.com/r/dovecot/dovecot — `instance/imap-test/` |
 | Axum | **0.8.9** | https://crates.io/crates/axum |
 | sqlx | **0.8.5** | https://crates.io/crates/sqlx |
-| Tokio | **1.44.2** | https://crates.io/crates/tokio |
+| Tokio | **1.44.2** (borne basse du manifeste ; le verrou est à **1.54.1** depuis le 24/10/2026, avis RUSTSEC-2026-0386) | https://crates.io/crates/tokio |
 | utoipa | **6.0.0** | https://crates.io/crates/utoipa — vérifié le 2026-10-20 (`cargo info`) ; exigé par `utoipa-swagger-ui` 10, qui utilise `zip` 9 (avis RUSTSEC-2026-0367 à 0369 sur `zip` < 9). `cargo check` du crate API sans autre changement de code |
 | utoipa-swagger-ui | **10.0.2** | https://crates.io/crates/utoipa-swagger-ui — vérifié le 2026-10-20 ; feature `axum` |
 | argon2 | **0.6.0** | https://crates.io/crates/argon2 |
