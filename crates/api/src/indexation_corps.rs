@@ -59,9 +59,13 @@ pub fn demarrer(pool: PgPool, cle: [u8; 32], classement: Option<ParametresCompte
 enum Pause {
     /// Identifiants refusés par le serveur : on laisse la boîte tranquille longtemps.
     Refusee,
-    /// Serveur injoignable ou en erreur passagère.
-    Injoignable,
+    /// Serveur injoignable ou en erreur passagère ; le code dit où (base, paramètres, connexion, lecture, délai).
+    Injoignable(&'static str),
 }
+
+/// Durée au-delà de laquelle le traitement d'une boîte est abandonné pour ce tour : une boîte dont le serveur ne répond
+/// pas ne doit pas figer l'indexation de toutes les autres (la boucle les traite l'une après l'autre).
+const DELAI_PAR_BOITE: Duration = Duration::from_secs(180);
 
 async fn boucle(pool: PgPool, cle: [u8; 32], classement: Option<ParametresCompte>) {
     let mut en_pause: HashMap<Uuid, Instant> = HashMap::new();
@@ -77,14 +81,21 @@ async fn boucle(pool: PgPool, cle: [u8; 32], classement: Option<ParametresCompte
                 {
                     continue;
                 }
-                match indexer_un_lot(&pool, &cle, classement.as_ref(), compte_id, &type_compte)
-                    .await
-                {
+                let lot = tokio::time::timeout(
+                    DELAI_PAR_BOITE,
+                    indexer_un_lot(&pool, &cle, classement.as_ref(), compte_id, &type_compte),
+                )
+                .await
+                .unwrap_or(Err(Pause::Injoignable("delai")));
+                match lot {
                     Ok(lus) => travail |= lus > 0,
                     Err(Pause::Refusee) => {
+                        // Journal : identifiant technique de la boîte, jamais d'adresse ni de contenu.
+                        tracing::warn!(compte = %compte_id, "indexation des corps : boîte laissée de côté, identifiants refusés");
                         en_pause.insert(compte_id, Instant::now() + PAUSE_BOITE_REFUSEE);
                     }
-                    Err(Pause::Injoignable) => {
+                    Err(Pause::Injoignable(ou)) => {
+                        tracing::warn!(compte = %compte_id, ou, "indexation des corps : boîte laissée de côté, serveur injoignable");
                         en_pause.insert(compte_id, Instant::now() + PAUSE_BOITE_INJOIGNABLE);
                     }
                 }
@@ -189,7 +200,7 @@ async fn indexer_un_lot(
 ) -> Result<usize, Pause> {
     let lignes: Vec<LigneAIndexer> = messages_a_indexer(pool, compte_id, LOT)
         .await
-        .map_err(|_| Pause::Injoignable)?;
+        .map_err(|_| Pause::Injoignable("base"))?;
     if lignes.is_empty() {
         return Ok(0);
     }
@@ -199,7 +210,7 @@ async fn indexer_un_lot(
             if erreur.status() == axum::http::StatusCode::CONFLICT {
                 Pause::Refusee
             } else {
-                Pause::Injoignable
+                Pause::Injoignable("parametres")
             }
         })?;
 
@@ -234,10 +245,10 @@ async fn indexer_un_lot(
         Ok::<_, ErreurMail>(sortie)
     })
     .await
-    .map_err(|_| Pause::Injoignable)?
+    .map_err(|_| Pause::Injoignable("lecture"))?
     .map_err(|erreur| match erreur {
         ErreurMail::Authentification => Pause::Refusee,
-        _ => Pause::Injoignable,
+        _ => Pause::Injoignable("connexion"),
     })?;
 
     let mut traites = 0;

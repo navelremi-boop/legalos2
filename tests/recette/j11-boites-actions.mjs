@@ -964,6 +964,46 @@ async function main() {
   verifier("mesure : mot rare en moins de 500 ms", rare.mediane < 500);
   verifier("mesure : mot courant (page de 25 sur 50 000 candidats) en moins de 2 000 ms", courant.mediane < 2000 && adresse.mediane < 2000 && absent.mediane < 500 && tiers.mediane < 500);
 
+  // D6 (consigne de l'architecte du 24/10/2026) : l'indexation de fond finit par « terminée » sur la boîte GreenMail du
+  // cabinet (plus rien « à venir »). Les messages d'une UIDVALIDITY périmée ne sont pas comptés, les illisibles sont
+  // abandonnés après cinq essais : la progression ne reste plus bloquée à jamais sur « N à venir ».
+  const santeCabinet = async () => {
+    const reponse = await requete("/messagerie/sante", jetonA2);
+    return (reponse.json?.comptes ?? []).find((c) => c.type_compte === "classement") ?? null;
+  };
+  const debutIndexation = await santeCabinet();
+  verifier("l'indexation de la boîte du cabinet est connue du tableau de santé", debutIndexation !== null);
+  // L'attente croissante entre deux essais (2 min, 10 min, 1 h, 6 h) est prouvée par `indexation_corps_integration` ; ici on
+  // fait « écouler » l'attente des messages que d'autres recettes ont supprimés ou déplacés de la boîte (ils échouent à
+  // chaque essai) pour constater que la progression finit, au lieu d'attendre des heures. Les messages encore lisibles
+  // ne sont pas touchés : ils s'indexent à leur tour.
+  let dernierRappel = 0;
+  const terminee = await attendre(
+    "l'indexation de fond de la boîte du cabinet finit (plus rien à venir)",
+    async () => {
+      if (Date.now() - dernierRappel > 8_000) {
+        dernierRappel = Date.now();
+        await sql(
+          `UPDATE messages_corps_echecs SET prochaine_le = NOW() WHERE tentatives < ${5} AND compte_id = '${debutIndexation.compte_id}'`,
+        );
+      }
+      const etat = await santeCabinet();
+      return etat !== null && etat.corps_restants === 0 ? etat : null;
+    },
+    900_000,
+  );
+  verifier(
+    "la boîte du cabinet : des messages indexés, plus rien à venir",
+    terminee.corps_indexes > 0 && terminee.corps_restants === 0,
+    JSON.stringify({ i: terminee.corps_indexes, r: terminee.corps_restants, a: terminee.corps_abandonnes }),
+  );
+  essaiNegatif(
+    "la progression de la boîte du cabinet reste « à venir »",
+    "elle est terminée",
+    () => terminee.corps_restants > 0,
+  );
+  ok(`indexation de fond terminée sur la boîte du cabinet : ${terminee.corps_indexes} indexés, ${terminee.corps_abandonnes} abandonnés`);
+
   console.log("j11-boites-actions: OK");
 }
 
