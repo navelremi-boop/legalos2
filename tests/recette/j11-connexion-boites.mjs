@@ -33,6 +33,7 @@ import { creerClientImap } from "./lib/imap-controle.mjs";
 import { MOT_IMAP_TEST, conteneur, connecterAuReseauApi } from "./lib/moteur-mail.mjs";
 import { creerSession, diagnosticProcessusPoste, lireJournalErreursPoste, racineInstance, sleep, sqlServeur } from "./lib/poste-session.mjs";
 import { autoriserDansLeNavigateur } from "./lib/simulateur-oauth.mjs";
+import { PLAFOND_CONNEXIONS, demarrerSondeConnexions } from "./lib/sonde-connexions.mjs";
 import { creerUi, lit, norm } from "./lib/ui-mails.mjs";
 
 const racine = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -46,6 +47,8 @@ let send;
 let jetonDiagnostic = null;
 /** État du processus du poste relevé à l'échec, avant son arrêt (D4). */
 let etatPosteAvantArret = null;
+/** Sonde `doveadm who` en cours : arrêtée en tout cas à la fin de la recette. */
+let sondeConnexions = null;
 const ui = creerUi({ getSend: () => send, fail, dossierCaptures });
 const { js, cliquer, texteDe, present, compter, desactive, sqliteLocal, saisir, attendre, verifier, essaiNegatif, capturer } = ui;
 
@@ -113,6 +116,10 @@ async function demarrerImapTest() {
 async function main() {
   await session.assurerInstance();
   const dovecot = await demarrerImapTest();
+  // Critère de J11 (consigne du 26/10/2026) : les connexions simultanées par boîte, relevées côté serveur (`doveadm who`),
+  // ne dépassent jamais le plafond du moteur. La sonde tourne pendant toute la recette.
+  const sonde = demarrerSondeConnexions({ conteneurs: [dovecot, "legalos-j11-dovecot-oauth-poste"] });
+  sondeConnexions = sonde;
   const jeton = await demoAccessToken(api, `j11-connexion-${marque}`);
   jetonDiagnostic = jeton;
   const demoId = await sqlServeur(`SELECT id FROM utilisateurs WHERE email = ${lit(demoEmail)}`);
@@ -498,6 +505,12 @@ async function main() {
     const jetonsEnBase = await sqlServeur(`SELECT string_agg(coalesce(jeton_rafraichissement_chiffre, '') || coalesce(jeton_acces_chiffre, ''), '|') FROM comptes_mail WHERE ${WHERE_COMPTES}`);
     verifier("les jetons OAuth sont chiffrés sur le serveur (contrôle positif : ils y sont)", jetonsEnBase.length > 0 && !jetonsEtCodes.some((s) => jetonsEnBase.includes(s)));
     ok("aucun identifiant ni jeton sur le poste (page, stockage, base locale), secrets et jetons chiffrés au serveur");
+    // Connexions simultanées par boîte, côté serveur : jamais au-dessus du plafond du moteur.
+    const releve = await sonde.arreter();
+    sondeConnexions = null;
+    ok(`connexions simultanées par boîte, relevées par doveadm who (${releve.echantillons} échantillons) : maximum ${releve.maximum.nombre}${releve.maximum.utilisateur === "" ? "" : ` (utilisateur ${releve.maximum.utilisateur})`}, plafond ${PLAFOND_CONNEXIONS}`);
+    verifier("la sonde du serveur a relevé des connexions (sinon la mesure ne prouve rien)", releve.echantillons > 0 && releve.maximum.nombre > 0, JSON.stringify(releve));
+    verifier(`aucune boîte ne dépasse ${PLAFOND_CONNEXIONS} connexions simultanées`, releve.maximum.nombre <= PLAFOND_CONNEXIONS, JSON.stringify(releve.maximum));
     send = null;
     poste.page.ws.close();
   } catch (err) {
@@ -506,6 +519,7 @@ async function main() {
     etatPosteAvantArret.push(`page : ${await etatPage()}`);
     throw err;
   } finally {
+    if (sondeConnexions !== null) await sondeConnexions.arreter();
     if (poste) await stopApp(poste.child);
     if (banc) {
       try {

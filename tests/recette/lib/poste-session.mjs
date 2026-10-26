@@ -640,6 +640,11 @@ export function creerSession(etiquette) {
           });
           echec = new EchecLancement(`${err.message} — ${diag.texte}`, { signatureRootVide: diag.signature });
         }
+        // Un lancement qui échoue avant tout `fail` (page muette à la connexion, application absente) laisse son état
+        // au poste : mort (code de sortie), figé ou vivant. À relever avant de l'arrêter.
+        console.error(`${etiquette}: échec du lancement du poste : ${String(err instanceof Error ? err.message : err).slice(0, 200)}`);
+        joindreEtatPage();
+        releverEtatPoste();
         try {
           page?.ws.close();
         } catch {
