@@ -175,8 +175,23 @@ export function creerSession(etiquette) {
       }
     }
   }
+  /** Postes lancés par cette session et dont l'état a déjà été relevé à un échec (D4). */
+  const postesLances = [];
+  const postesReleves = new WeakSet();
+  /**
+   * À tout échec, avant que l'appelant n'arrête le poste : son état (mort de `STATUS_HEAP_CORRUPTION`, figé, vivant).
+   * Sans cela, un poste mort passe pour un « délai dépassé » de l'interface.
+   */
+  function releverEtatPoste() {
+    const poste = postesLances.at(-1);
+    if (!poste || postesReleves.has(poste)) return;
+    postesReleves.add(poste);
+    console.error(`${etiquette}: état du poste à l'instant de l'échec :`);
+    for (const ligne of diagnosticProcessusPoste(poste)) console.error(`  ${ligne}`);
+  }
   function fail(message) {
     console.error(`${etiquette}: FAIL — ${message}`);
+    releverEtatPoste();
     throw new Error(message);
   }
   function ok(message) {
@@ -270,6 +285,7 @@ export function creerSession(etiquette) {
     child.stdout.on("data", onData);
     child.stderr.on("data", onData);
     child.port = port;
+    postesLances.push(child);
     child.logTail = () => log.slice(-2_000);
     child.logVite = (n = 3_000) =>
       log
