@@ -69,10 +69,18 @@ export function creerRelanceUnique({ journal = console.log, etiquette = "recette
 export function creerCollecteur() {
   const erreurs = [];
   const requetes = new Map();
+  /** Console de la WebView (tous niveaux), les 60 dernières entrées, jointe à tout échec (D12). */
+  const console_ = [];
   return {
     erreurs,
+    console: console_,
     /** À appeler pour chaque message CDP sans `id`. */
     traiter(msg) {
+      if (msg.method === "Runtime.consoleAPICalled") {
+        const texte = (msg.params.args ?? []).map((a) => a.value ?? a.description ?? "?").join(" ");
+        console_.push(`${msg.params.type}: ${texte}`.slice(0, 240));
+        if (console_.length > 60) console_.shift();
+      }
       if (msg.method === "Runtime.exceptionThrown") {
         const d = msg.params?.exceptionDetails;
         erreurs.push(`exception: ${d?.exception?.description ?? d?.text ?? "?"}`.slice(0, 400));
@@ -101,11 +109,11 @@ export function creerCollecteur() {
   };
 }
 
-/** Active les domaines CDP dont le collecteur a besoin. */
-export async function activerDiagnostic(send) {
+/** Active les domaines CDP dont le collecteur a besoin. `complet: false` : seulement la console et le journal. */
+export async function activerDiagnostic(send, { complet = true } = {}) {
   await send("Runtime.enable");
   await send("Log.enable");
-  await send("Network.enable");
+  if (complet) await send("Network.enable");
 }
 
 function sleep(ms) {

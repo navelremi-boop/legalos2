@@ -145,4 +145,21 @@ await verifieAsync("aucun échec : aucune relance", async () => {
   assert.equal(r.relances, 0);
 });
 
+// D12 : la console de la WebView (tous niveaux) est gardée, bornée à 60 entrées, pour être jointe à tout échec.
+verifie("la console de la WebView est enregistrée, tous niveaux, bornée à 60 entrées", () => {
+  const c = creerCollecteur();
+  c.traiter({ method: "Runtime.consoleAPICalled", params: { type: "log", args: [{ value: "bonjour" }] } });
+  c.traiter({ method: "Runtime.consoleAPICalled", params: { type: "warning", args: [{ value: "attention" }, { description: "détail" }] } });
+  assert.deepEqual(c.console, ["log: bonjour", "warning: attention détail"]);
+  for (let i = 0; i < 100; i += 1) {
+    c.traiter({ method: "Runtime.consoleAPICalled", params: { type: "log", args: [{ value: String(i) }] } });
+  }
+  assert.equal(c.console.length, 60);
+  assert.equal(c.console.at(-1), "log: 99");
+  // Essai négatif : un événement qui n'est pas la console n'y entre pas, et une entrée trop longue est tronquée.
+  c.traiter({ method: "Network.responseReceived", params: { response: { status: 200, url: "x" } } });
+  c.traiter({ method: "Runtime.consoleAPICalled", params: { type: "log", args: [{ value: "x".repeat(1000) }] } });
+  assert.equal(c.console.length, 60);
+  assert.ok(c.console.at(-1).length <= 240);
+});
 console.log(`lancement-relance: OK — ${verifications} vérifications (signature, collecteur, relance unique, essais négatifs)`);

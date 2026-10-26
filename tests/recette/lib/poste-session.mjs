@@ -207,8 +207,49 @@ export function creerSession(etiquette) {
     console.error(`${etiquette}: état du poste à l'instant de l'échec :`);
     for (const ligne of diagnosticProcessusPoste(poste)) console.error(`  ${ligne}`);
   }
+  /** Page CDP la plus récente de la session : sa console et sa capture sont jointes à tout échec. */
+  let pageCourante = null;
+  const pagesCapturees = new WeakSet();
+  /**
+   * D12 (consigne de l'architecte du 26/10/2026) : à toute attente dépassée ou tout échec d'une recette du poste,
+   * la console de la WebView, le journal du poste et une capture d'écran. Les deux premiers sont écrits tout de suite ;
+   * la capture part sans attendre et finit pendant l'arrêt du poste (fichier du dossier temporaire, hors dépôt).
+   */
+  function joindreEtatPage() {
+    const page = pageCourante;
+    if (!page || pagesCapturees.has(page.send)) return;
+    pagesCapturees.add(page.send);
+    const console_ = page.collecteur?.console ?? [];
+    console.error(`${etiquette}: console de la WebView à l'échec (${console_.length} entrée(s)) :`);
+    for (const ligne of console_.slice(-40)) console.error(`  ${ligne}`);
+    const erreurs = page.collecteur?.erreurs ?? [];
+    if (erreurs.length > 0) {
+      console.error(`${etiquette}: erreurs JavaScript et réseau vues par la page :`);
+      for (const ligne of erreurs) console.error(`  ${ligne}`);
+    }
+    try {
+      const journal = lireJournalErreursPoste(30);
+      console.error(`${etiquette}: journal du poste (${journal.length} dernière(s) ligne(s)) :`);
+      for (const ligne of journal) console.error(`  ${ligne}`);
+    } catch {
+      /* journal absent */
+    }
+    const chemin = join(tmpdir(), `legalos-echec-${etiquette}-${Date.now()}.png`);
+    void Promise.race([page.send("Page.captureScreenshot", { format: "png" }), sleep(10_000).then(() => null)])
+      .then((reponse) => {
+        const donnees = reponse?.result?.data;
+        if (donnees) {
+          writeFileSync(chemin, Buffer.from(donnees, "base64"));
+          console.error(`${etiquette}: capture d'écran à l'échec : ${chemin}`);
+        } else {
+          console.error(`${etiquette}: capture d'écran à l'échec impossible (page muette)`);
+        }
+      })
+      .catch(() => {});
+  }
   function fail(message) {
     console.error(`${etiquette}: FAIL — ${message}`);
+    joindreEtatPage();
     releverEtatPoste();
     throw new Error(message);
   }
@@ -368,7 +409,9 @@ export function creerSession(etiquette) {
     let seq = 0;
     const pending = new Map();
     sockets.push(ws);
-    const collecteur = diagnostic ? creerCollecteur() : null;
+    // Le collecteur existe toujours : la console de la WebView est jointe à tout échec (D12). Sans `diagnostic`, seuls la
+    // console et le journal du navigateur sont activés (pas le réseau).
+    const collecteur = creerCollecteur();
     ws.addEventListener("message", (event) => {
       const msg = JSON.parse(String(event.data));
       const done = pending.get(msg.id);
@@ -385,10 +428,9 @@ export function creerSession(etiquette) {
         pending.set(id, resolve);
         ws.send(JSON.stringify({ id, method, params }));
       });
-    if (collecteur) {
-      send.collecteur = collecteur;
-      await activerDiagnostic(send);
-    }
+    send.collecteur = collecteur;
+    await activerDiagnostic(send, { complet: diagnostic });
+    pageCourante = { send, collecteur };
     return { ws, send };
   }
 
