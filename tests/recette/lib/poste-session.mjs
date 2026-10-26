@@ -75,6 +75,24 @@ export function diagnosticProcessusPoste(child) {
       const r = spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", timeout: 30_000, windowsHide: true });
       for (const l of String(r.stdout ?? "").split(/\r?\n/u)) if (l.trim() !== "") lignes.push(l.trim());
     }
+    // Poste vivant mais muet : piles d'appels de tous ses fils (débogueur Windows, attache sans interruption). Uniquement
+    // des noms de modules et de fonctions : jamais la mémoire du processus. Facultatif : `LEGALOS_CDB` ou l'emplacement
+    // usuel du kit de débogage ; absent, rien n'est tenté.
+    if (process.platform === "win32") {
+      const cdb = process.env.LEGALOS_CDB ?? "C:\\Program Files (x86)\\Windows Kits\\10\\Debuggers\\x64\\cdb.exe";
+      const vivants = lignes.map((l) => /^processus (\d+) : répond=/u.exec(l)?.[1]).filter(Boolean);
+      for (const pid of vivants.slice(0, 1)) {
+        if (!existsSync(cdb)) break;
+        const symboles = `srv*${join(tmpdir(), "legalos-symboles")}*https://msdl.microsoft.com/download/symbols`;
+        const r = spawnSync(cdb, ["-pv", "-p", String(pid), "-y", symboles, "-c", "~*kn 30;q"], { encoding: "utf8", timeout: 240_000, windowsHide: true });
+        const piles = String(r.stdout ?? "")
+          .split(/\r?\n/u)
+          .filter((l) => /!|\bId:\s/u.test(l))
+          .slice(0, 400);
+        lignes.push(`piles d'appels du processus ${pid} (${piles.length} lignes) :`);
+        for (const l of piles) lignes.push(`  ${l.trim().slice(0, 200)}`);
+      }
+    }
     const sortie = typeof child.logTail === "function" ? child.logTail().replace(/\x1b\[[0-9;]*m/g, "").trim() : "";
     lignes.push(`fin de la sortie du poste : ${sortie === "" ? "(vide)" : sortie.split(/\r?\n/u).slice(-12).join(" ⏎ ").slice(-1_200)}`);
   } catch (err) {

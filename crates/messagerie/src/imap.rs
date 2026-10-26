@@ -2,11 +2,12 @@
 
 use std::num::NonZeroU32;
 
-use io_imap::client::{ImapClient, ImapClientStd};
+use io_imap::client::{ImapClient, ImapClientError, ImapClientStd};
 use io_imap::has_imap_capability;
 use io_imap::rfc3501::append::ImapMessageAppendOptions;
 use io_imap::rfc3501::copy::ImapMessageCopyOptions;
 use io_imap::rfc3501::fetch::ImapMessageFetchOptions;
+use io_imap::rfc3501::login::ImapLoginError;
 use io_imap::rfc3501::search::ImapMessageSearchOptions;
 use io_imap::rfc3501::store::ImapMessageStoreOptions;
 use io_imap::rfc6851::r#move::ImapMessageMoveOptions;
@@ -75,6 +76,42 @@ pub const OCTETS_MAX_INDEXATION: u32 = 1_048_576;
 /// Taille au-delà de laquelle le repli (lecture d'un message entier) n'est pas tenté.
 pub const OCTETS_MAX_REPLI_INDEXATION: u32 = 10 * 1_048_576;
 
+/// Classe l'échec d'un LOGIN : seul un refus du serveur pour cause d'identifiants est une `Authentification`
+/// (elle arrête les tentatives et affiche « Reconnecter »). Un serveur qui répond « trop de connexions » ou
+/// « indisponible » (Dovecot : `NO [UNAVAILABLE] Maximum number of connections from user+IP exceeded`), une coupure,
+/// une réponse illisible ou un BYE sont des `Connexion` : la tentative sera reprise plus tard, sans rien demander à
+/// l'utilisateur. `io-imap` ne rend que le texte du refus, sans son code : le texte est donc examiné.
+fn classer_echec_login(erreur: &ImapClientError) -> ErreurMail {
+    match erreur {
+        ImapClientError::Login(ImapLoginError::No(texte)) => {
+            if refus_transitoire(texte) {
+                ErreurMail::Connexion
+            } else {
+                ErreurMail::Authentification
+            }
+        }
+        ImapClientError::Login(ImapLoginError::Bad(_)) => ErreurMail::Protocole,
+        _ => ErreurMail::Connexion,
+    }
+}
+
+/// Texte d'un refus qui ne dit rien des identifiants : limite de connexions, indisponibilité passagère.
+fn refus_transitoire(texte: &str) -> bool {
+    const MARQUES: [&str; 9] = [
+        "maximum number of connections",
+        "too many",
+        "temporar",
+        "try again",
+        "unavailable",
+        "overload",
+        "busy",
+        "rate limit",
+        "service not available",
+    ];
+    let texte = texte.to_ascii_lowercase();
+    MARQUES.iter().any(|marque| texte.contains(marque))
+}
+
 pub struct Session {
     client: ImapClientStd,
 }
@@ -113,7 +150,7 @@ impl Session {
                 &parametres.mot_de_passe,
                 Default::default(),
             )
-            .map_err(|_| ErreurMail::Authentification)?;
+            .map_err(|erreur| classer_echec_login(&erreur))?;
         Ok(Self { client })
     }
 
@@ -1984,7 +2021,10 @@ fn ancrage_imap_codec() -> usize {
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
-    use super::{a_partie_calendrier, noms_pieces};
+    use super::{a_partie_calendrier, classer_echec_login, noms_pieces};
+    use crate::ErreurMail;
+    use io_imap::client::ImapClientError;
+    use io_imap::rfc3501::login::ImapLoginError;
     use io_imap::types::body::{
         BasicFields, Body, BodyStructure, Disposition, SinglePartExtensionData, SpecificFields,
     };
@@ -2230,5 +2270,68 @@ mod tests {
         let extrait = super::extrait_depuis(entete, Some(corps), &analyseur);
         assert!(extrait.contains("convocation fictive"));
         assert!(super::extrait_depuis(entete, None, &analyseur).is_empty());
+    }
+
+    fn refus(texte: &str) -> ImapClientError {
+        ImapClientError::Login(ImapLoginError::No(texte.to_owned()))
+    }
+
+    /// Texte relevé chez Dovecot 2.3 quand dix connexions du même utilisateur sont ouvertes : le onzième LOGIN reçoit
+    /// `NO [UNAVAILABLE] Maximum number of connections from user+IP exceeded (mail_max_userip_connections=10)`. Pris
+    /// pour un refus d'identifiants, il marquait une boîte au bon mot de passe « Identifiants refusés » et suspendait
+    /// ses tentatives (J11, D4 : échecs de `j11-connexion-boites`).
+    #[test]
+    fn une_limite_de_connexions_n_est_pas_un_refus_d_identifiants() {
+        let limite = refus(
+            "Maximum number of connections from user+IP exceeded (mail_max_userip_connections=10)",
+        );
+        assert!(matches!(
+            classer_echec_login(&limite),
+            ErreurMail::Connexion
+        ));
+        for transitoire in [
+            "Temporary authentication failure.",
+            "Too many simultaneous connections. (Failure)",
+            "Service not available, try again later",
+        ] {
+            assert!(
+                matches!(
+                    classer_echec_login(&refus(transitoire)),
+                    ErreurMail::Connexion
+                ),
+                "{transitoire}"
+            );
+        }
+    }
+
+    /// Essai négatif : les vrais refus d'identifiants restent des refus (sinon la boîte à mauvais mot de passe ne
+    /// serait jamais signalée).
+    #[test]
+    fn un_refus_d_identifiants_reste_une_authentification() {
+        for reel in [
+            "Authentication failed.",
+            "Invalid credentials (Failure)",
+            "LOGIN failed.",
+            "[AUTHENTICATIONFAILED] Invalid credentials",
+        ] {
+            assert!(
+                matches!(
+                    classer_echec_login(&refus(reel)),
+                    ErreurMail::Authentification
+                ),
+                "{reel}"
+            );
+        }
+    }
+
+    #[test]
+    fn une_coupure_ou_un_bye_n_est_pas_un_refus_d_identifiants() {
+        let bye = ImapClientError::Login(ImapLoginError::Bye("Disconnected".to_owned()));
+        assert!(matches!(classer_echec_login(&bye), ErreurMail::Connexion));
+        let sans_reponse = ImapClientError::Login(ImapLoginError::MissingTagged);
+        assert!(matches!(
+            classer_echec_login(&sans_reponse),
+            ErreurMail::Connexion
+        ));
     }
 }
