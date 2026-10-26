@@ -12,6 +12,7 @@ secrets/
 
 # Arrêt d'urgence local de la mission, et compteur de relances (§ 4.7)
 .mission/STOP
+.mission/agent-actif
 .mission/relances.json
 .mission/derniere-commande
 

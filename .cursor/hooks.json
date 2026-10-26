@@ -2,7 +2,7 @@
   "version": 1,
   "hooks": {
     "stop": [
-      { "command": "node .cursor/hooks/continuer.mjs", "loop_limit": 50, "timeout": 30 }
+      { "command": "node .cursor/hooks/continuer.mjs", "loop_limit": 10, "timeout": 30 }
     ],
     "afterShellExecution": [
       { "command": "node .cursor/hooks/apres-commande.mjs", "timeout": 10 }

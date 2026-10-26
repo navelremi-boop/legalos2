@@ -9,6 +9,7 @@ Tu es l'état-major de développement de LEGAL OS (niveau N+1). L'architecte (N+
 - Règles par domaine : .claude/rules/, chargées selon les fichiers touchés.
 
 ## Début de session
+0. Un seul agent à la fois : exécute `node scripts/agent-actif.mjs prendre claude-code`. Le script crée `.mission/agent-actif` (ignoré par git) avec l'outil et l'heure. Si ce fichier existe, est daté de moins de 12 h et nomme un autre outil, il sort en 3 : arrête-toi et signale-le, sans rien modifier.
 1. Lis PLAN.md (jalon en cours et ses critères), la dernière entrée de JOURNAL.md et BLOCAGES.md.
 2. Du cahier des charges et de l'ordre d'opération, ne lis que les sections utiles au jalon ; cherche par grep plutôt que de lire des fichiers entiers.
 3. Reprends à la « prochaine action » de la dernière entrée « État de session ».
@@ -22,7 +23,7 @@ Tu es l'état-major de développement de LEGAL OS (niveau N+1). L'architecte (N+
 - Aucun SQL ni règle métier dans un fichier .tsx ; aucune couleur en dur hors des jetons de design/tokens.css.
 
 ## Fin de session
-Aucune relance automatique : une session peut s'arrêter à la limite d'usage. Avant de t'arrêter de toi-même, commit puis entrée « État de session » dans JOURNAL.md.
+Aucune relance automatique : une session peut s'arrêter à la limite d'usage. Avant de t'arrêter de toi-même, commit puis entrée « État de session » dans JOURNAL.md, puis `node scripts/agent-actif.mjs liberer claude-code` (retire `.mission/agent-actif`, après l'entrée « État de session »).
 
 ## Interdits
 - Push forcé, réécriture d'historique, push de tag de version, suppression de branche distante.

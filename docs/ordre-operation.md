@@ -208,6 +208,10 @@ Tant que ce n'est pas le cas : ne jamais conclure, ne jamais demander « voulez-
 
 **Outils.** Claude Code est l'outil principal ; Cursor reste en réserve et fonctionnel (`.cursor/`). Une seule implémentation des gardes (`.cursor/hooks/`, qui reconnaît le format d'entrée de chaque outil), des règles identiques des deux côtés (`.cursor/rules/` et `.claude/rules/`, contrôle `tests/recette/regles-synchronisees.mjs`), des sous-agents portés (`.cursor/agents/` et `.claude/agents/`). Ce qui n'existe que sous Cursor (hook de relance, arrêt pour attendre, fichier `.mission/STOP`) vit dans `.cursor/rules/01-cursor.mdc` ; Claude Code n'a aucun hook d'arrêt et aucune relance automatique.
 
+*Remise en service de Cursor, sur consigne de l'architecte du 24/10/2026.* Les sous-agents de `.cursor/agents/` portent les mêmes corps que ceux de `.claude/agents/` (en-têtes au format de Cursor ; `Explore` sans équivalent, Cursor explorant lui-même) ; `.cursor/rules/02-claude-md.mdc` fait appliquer `CLAUDE.md` sous Cursor, `01-cursor.mdc` primant pour la relance et le fichier `.mission/STOP` ; `loop_limit` du hook de relance vaut 10. Le contrôle `tests/recette/regles-synchronisees.mjs` (CI) compare le corps de chaque règle et de chaque sous-agent avec son jumeau, `01-cursor` et `02-claude-md` étant exemptés.
+
+**Un seul agent à la fois.** À son début de session, l'agent exécute `node scripts/agent-actif.mjs prendre <outil>` (`claude-code` ou `cursor`) : le script crée `.mission/agent-actif` (ignoré par git), qui contient l'outil et l'heure. À sa fin de session, après son entrée « État de session » de `JOURNAL.md`, il exécute `node scripts/agent-actif.mjs liberer <outil>`, qui retire le fichier. Si le fichier existe, est daté de moins de 12 h et nomme un autre outil, le script sort en 3 : l'agent s'arrête et le signale, sans rien modifier. Un fichier de 12 h ou plus, ou illisible, ne bloque pas. Contrôle : `tests/recette/agent-actif.mjs` (CI).
+
 **Niveaux.**
 
 | Niveau | Qui | Modèle | Rôle |

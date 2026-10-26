@@ -1,0 +1,8 @@
+---
+description: CLAUDE.md s'applique aussi sous Cursor ; 01-cursor.mdc prime pour la relance et le fichier STOP
+alwaysApply: true
+---
+
+# CLAUDE.md sous Cursor
+
+CLAUDE.md s'applique aussi sous Cursor : sections Autorité et état, Début de session, Pendant la session, Interdits. Pour la relance et le fichier STOP, 01-cursor.mdc prime.
