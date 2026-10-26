@@ -24,6 +24,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { demoAccessToken, demoEmail, demoPassword, totpSecretB32 } from "./lib/demo-auth.mjs";
 import { creerSession, sleep, sqlServeur } from "./lib/poste-session.mjs";
+import { retirerBoitesSansEchec } from "./lib/retirer-boites.mjs";
 
 const racine = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const dossierCaptures = join(racine, "design", "captures", "j11-mails");
@@ -691,6 +692,8 @@ async function main() {
     page.ws.close();
   } finally {
     await stopApp(child);
+    // La boîte nominative de la recette ne reste pas dans l'instance (consigne du 26/10/2026), même en cas d'échec.
+    await retirerBoitesSansEchec("j11-mails", sqlServeur, [adressePerso]);
   }
   ok("OK");
 }

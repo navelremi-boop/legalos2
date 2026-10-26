@@ -10,6 +10,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { demoAccessToken, demoEmail, demoPassword, totpSecretB32 } from "./lib/demo-auth.mjs";
 import { creerSession, sleep, sqliteLocal, sqlServeur } from "./lib/poste-session.mjs";
+import { retirerBoitesSansEchec } from "./lib/retirer-boites.mjs";
 
 const session = creerSession("s7-poste");
 const {
@@ -300,4 +301,8 @@ main()
   .catch((err) => {
     fail(err instanceof Error ? err.message : err);
   })
-  .finally(() => fermer());
+  .finally(async () => {
+    // Les boîtes nominatives de la recette ne restent pas dans l'instance (consigne du 26/10/2026), même en cas d'échec.
+    await retirerBoitesSansEchec("s7-poste", sqlServeur, [adresseDemo, adresseCollab]);
+    fermer();
+  });
