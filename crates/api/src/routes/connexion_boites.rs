@@ -125,7 +125,7 @@ pub async fn modifier_connexion(
         SET hote = $2, port = $3, utilisateur = $4, tls = $5, secret_chiffre = $6, secret_ref = 'chiffre',
             smtp_hote = $7, smtp_port = $8, smtp_utilisateur = $9, smtp_secret_chiffre = $10, repondre_a = $11,
             smtp_chiffrement = $12,
-            etat_connexion = 'inconnu', empreinte_refus = NULL
+            etat_connexion = 'inconnu', empreinte_refus = NULL, serveur_indisponible = FALSE
         WHERE id = $1
         "#,
     )

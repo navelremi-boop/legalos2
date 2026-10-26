@@ -465,7 +465,9 @@ pub async fn sante_boites(
     // `authentification`, `connexion`) ; l'état de connexion est celui de `comptes_mail`.
     let lignes: Vec<LigneSante> = sqlx::query_as(
         r#"
-        SELECT c.id, c.adresse, c.type_compte, c.etat_connexion,
+        SELECT c.id, c.adresse, c.type_compte,
+               CASE WHEN c.serveur_indisponible AND c.etat_connexion <> 'identifiants_refuses'
+                    THEN 'indisponible' ELSE c.etat_connexion END,
                to_char(rel.derniere AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
                EXTRACT(EPOCH FROM (NOW() - COALESCE(rel.derniere, c.cree_le)))::bigint,
                (SELECT COUNT(*)::bigint FROM moteur_connexions k

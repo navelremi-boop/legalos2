@@ -770,6 +770,38 @@ async fn scenario(url_base_jetable: String) {
         "l'alerte de A est celle de B"
     );
 
+    // Serveur indisponible (consigne du 26/10/2026) : état et motif à part, jamais « identifiants refusés » ; un refus
+    // d'identifiants reste dit tel quel même si l'indicateur est posé.
+    sqlx::query("UPDATE comptes_mail SET serveur_indisponible = TRUE WHERE id = $1")
+        .bind(compte_a)
+        .execute(&pool)
+        .await
+        .expect("indicateur");
+    let l = ligne(&sante(a.clone()).await, compte_a).clone();
+    assert_eq!(l["etat_connexion"], json!("identifiants_refuses"));
+    assert_eq!(l["motifs"], json!(["identifiants_refuses"]));
+    sqlx::query("UPDATE comptes_mail SET etat_connexion = 'connecte' WHERE id = $1")
+        .bind(compte_a)
+        .execute(&pool)
+        .await
+        .expect("état connecté");
+    let l = ligne(&sante(a.clone()).await, compte_a).clone();
+    assert_eq!(l["etat_connexion"], json!("indisponible"));
+    assert_eq!(l["motifs"], json!(["serveur_indisponible"]));
+    assert_eq!(l["alerte"], json!(true));
+    sqlx::query("UPDATE comptes_mail SET serveur_indisponible = FALSE WHERE id = $1")
+        .bind(compte_a)
+        .execute(&pool)
+        .await
+        .expect("indicateur retiré");
+    let l = ligne(&sante(a.clone()).await, compte_a).clone();
+    assert_eq!(l["etat_connexion"], json!("connecte"));
+    sqlx::query("UPDATE comptes_mail SET etat_connexion = 'identifiants_refuses' WHERE id = $1")
+        .bind(compte_a)
+        .execute(&pool)
+        .await
+        .expect("état refusé rétabli");
+
     // Retard : dernière relève trop ancienne (partagée), puis récente.
     sqlx::query("INSERT INTO moteur_connexions (compte_id, issue, cree_le) VALUES ($1, 'ok', NOW() - INTERVAL '40 minutes')")
         .bind(partagee)

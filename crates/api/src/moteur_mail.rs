@@ -392,8 +392,8 @@ fn tourner(handle: tokio::runtime::Handle, pool: PgPool, cle: [u8; 32], compte: 
 
 /// Passe la boîte à « serveur indisponible » une fois le seuil d'échecs de connexion atteint.
 fn signaler_panne(handle: &tokio::runtime::Handle, pool: &PgPool, compte: Uuid, echecs: u32) {
-    if let Some(etat) = etat_apres_echecs_de_connexion(echecs) {
-        let _ = handle.block_on(marquer_etat(pool, compte, etat, None));
+    if etat_apres_echecs_de_connexion(echecs).is_some() {
+        let _ = handle.block_on(marquer_indisponible(pool, compte));
     }
 }
 
@@ -546,10 +546,22 @@ async fn marquer_etat(
     etat: &str,
     empreinte: Option<&str>,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query("UPDATE comptes_mail SET etat_connexion = $2, empreinte_refus = $3 WHERE id = $1")
+    sqlx::query(
+        "UPDATE comptes_mail SET etat_connexion = $2, empreinte_refus = $3, serveur_indisponible = FALSE WHERE id = $1",
+    )
         .bind(compte)
         .bind(etat)
         .bind(empreinte)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+/// Pose l'indicateur « serveur indisponible » (consigne du 26/10/2026) : la boîte reste dans son état de connexion, le
+/// tableau de santé en tire « serveur indisponible ». Retiré par `marquer_etat` à la première relève réussie.
+async fn marquer_indisponible(pool: &PgPool, compte: Uuid) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE comptes_mail SET serveur_indisponible = TRUE WHERE id = $1")
+        .bind(compte)
         .execute(pool)
         .await?;
     Ok(())

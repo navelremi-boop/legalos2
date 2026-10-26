@@ -594,7 +594,7 @@ pub async fn echange(
                     jeton_expire_le = NOW() + ($4::bigint * INTERVAL '1 second'),
                     fournisseur = $5, jeton_url = $6,
                     oauth_generation = oauth_generation + 1,
-                    etat_connexion = 'inconnu', empreinte_refus = NULL
+                    etat_connexion = 'inconnu', empreinte_refus = NULL, serveur_indisponible = FALSE
                 WHERE id = $1
                 "#,
             )
