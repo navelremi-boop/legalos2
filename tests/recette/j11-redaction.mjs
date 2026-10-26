@@ -34,6 +34,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { demoAccessToken, demoEmail, demoPassword, totpSecretB32 } from "./lib/demo-auth.mjs";
 import { conteneur } from "./lib/moteur-mail.mjs";
+import { retirerBoitesSansEchec } from "./lib/retirer-boites.mjs";
 import { creerSession, racineInstance, sleep, sqlServeur } from "./lib/poste-session.mjs";
 
 const racine = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -275,6 +276,9 @@ const DEFAUTS = /<script|<img|<style|mso-|MsoNormal|onclick|distant\.example|sui
 // Scénario
 // ---------------------------------------------------------------------------------------------
 
+/** Boîtes créées par la recette, retirées en toute fin (même si le lancement du poste échoue avant le `try` de `main`). */
+const adressesARetirer = [];
+
 async function main() {
   await session.assurerInstance();
   let jeton = await demoAccessToken(api, `j11-redaction-${marque}`);
@@ -294,6 +298,7 @@ async function main() {
     restreint: false,
   });
   const adressePerso = `j11.redac.${marque}@cabinet.example`;
+  adressesARetirer.push(adressePerso);
   await sqlServeur(
     `INSERT INTO comptes_mail (id, cabinet_id, type_compte, titulaire_id, adresse, secret_ref)
      VALUES ('${randomUUID()}', '${cabinet}', 'nominatif', '${demoId}', ${lit(adressePerso)}, 'srv:j11-redaction')`,
@@ -1124,28 +1129,6 @@ async function main() {
   } finally {
     if (posteB) await stopApp(posteB.child);
     await stopApp(child);
-    // La boîte nominative de la recette ne reste pas dans l'instance : elle alourdirait les connexions de `capa` des
-    // recettes suivantes (limite de dix connexions par utilisateur chez Dovecot).
-    try {
-      const ids = `SELECT id FROM comptes_mail WHERE adresse = ${lit(adressePerso)}`;
-      for (const requete of [
-        `DELETE FROM oauth_etats WHERE adresse = ${lit(adressePerso)}`,
-        `DELETE FROM actions_messages WHERE compte_id IN (${ids})`,
-        `DELETE FROM file_envoi WHERE compte_id IN (${ids})`,
-        `DELETE FROM releve_curseurs WHERE compte_id IN (${ids})`,
-        `DELETE FROM moteur_connexions WHERE compte_id IN (${ids})`,
-        `DELETE FROM membres_boite_partagee WHERE compte_id IN (${ids})`,
-        `DELETE FROM signatures_messagerie WHERE compte_id IN (${ids})`,
-        `DELETE FROM brouillons_message WHERE compte_id IN (${ids})`,
-        `DELETE FROM invitations_agenda WHERE compte_id IN (${ids})`,
-        `DELETE FROM messages WHERE compte_id IN (${ids})`,
-        `DELETE FROM comptes_mail WHERE adresse = ${lit(adressePerso)}`,
-      ]) {
-        await sqlServeur(requete);
-      }
-    } catch (err) {
-      console.error(`j11-redaction: nettoyage de la boîte de la recette impossible : ${String(err instanceof Error ? err.message : err).slice(0, 200)}`);
-    }
   }
   ok("OK");
   void creeA;
@@ -1157,6 +1140,8 @@ main()
     if (err instanceof Error && err.stack) console.error(err.stack.split("\n").slice(1, 6).join("\n"));
     process.exitCode = 1;
   })
-  .finally(() => {
+  .finally(async () => {
+    // Les boîtes de la recette ne restent pas dans l'instance (consigne du 26/10/2026), même en cas d'échec.
+    await retirerBoitesSansEchec("j11-redaction", sqlServeur, adressesARetirer);
     fermer();
   });

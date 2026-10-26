@@ -146,6 +146,9 @@ async function capturer(nom, theme) {
   await send("Emulation.clearDeviceMetricsOverride");
 }
 
+/** Boîtes créées par la recette, retirées en toute fin (même si le lancement du poste échoue avant le `try` de `main`). */
+const adressesARetirer = [];
+
 async function main() {
   await session.assurerInstance();
   const jeton = await demoAccessToken(api, `j11-mails-${marque}`);
@@ -179,6 +182,7 @@ async function main() {
 
   const comptePerso = randomUUID();
   const adressePerso = `j11.perso.${marque}@cabinet.example`;
+  adressesARetirer.push(adressePerso);
   await sqlServeur(
     `INSERT INTO comptes_mail (id, cabinet_id, type_compte, titulaire_id, adresse, secret_ref)
      VALUES ('${comptePerso}', '${cabinet}', 'nominatif', '${demoId}', ${lit(adressePerso)}, 'srv:j11-mails')`,
@@ -692,8 +696,6 @@ async function main() {
     page.ws.close();
   } finally {
     await stopApp(child);
-    // La boîte nominative de la recette ne reste pas dans l'instance (consigne du 26/10/2026), même en cas d'échec.
-    await retirerBoitesSansEchec("j11-mails", sqlServeur, [adressePerso]);
   }
   ok("OK");
 }
@@ -703,6 +705,8 @@ main()
     console.error(`j11-mails: ${err instanceof Error ? err.message : String(err)}`);
     process.exitCode = 1;
   })
-  .finally(() => {
+  .finally(async () => {
+    // Les boîtes de la recette ne restent pas dans l'instance (consigne du 26/10/2026), même en cas d'échec.
+    await retirerBoitesSansEchec("j11-mails", sqlServeur, adressesARetirer);
     fermer();
   });
