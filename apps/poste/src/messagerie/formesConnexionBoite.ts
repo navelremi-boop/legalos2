@@ -1,3 +1,4 @@
+import type { CorpsRequete } from "@/api/contrat";
 import type { RequeteApi } from "@/messagerie/formesApiRedaction";
 
 /**
@@ -90,8 +91,8 @@ export function problemeConnexion(champs: ChampsConnexion, mode: ModeConnexion):
   return null;
 }
 
-function corpsReglages(champs: ChampsConnexion): Record<string, unknown> {
-  const corps: Record<string, unknown> = {
+function corpsReglages(champs: ChampsConnexion): CorpsRequete<"ModifierConnexion"> {
+  const corps: CorpsRequete<"ModifierConnexion"> = {
     hote: propre(champs.hote),
     port: portValide(propre(champs.port)) ?? 993,
     utilisateur: propre(champs.utilisateur),
@@ -111,7 +112,7 @@ function corpsReglages(champs: ChampsConnexion): Record<string, unknown> {
 }
 
 export function requeteAjouterBoite(id: string, champs: ChampsConnexion): RequeteApi {
-  return { methode: "POST", chemin: "/messagerie/comptes", corps: { id, adresse: propre(champs.adresse), ...corpsReglages(champs) } };
+  return { methode: "POST", chemin: "/messagerie/comptes", corps: { id, adresse: propre(champs.adresse), ...corpsReglages(champs) } satisfies CorpsRequete<"CreerCompte"> };
 }
 
 export function requeteReconnecterBoite(compteId: string, champs: ChampsConnexion): RequeteApi {

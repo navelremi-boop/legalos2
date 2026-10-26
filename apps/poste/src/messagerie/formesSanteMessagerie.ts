@@ -1,3 +1,4 @@
+import type { Recu } from "@/api/contrat";
 import { libelleFournisseur } from "@/messagerie/formesOAuth";
 import { muralMail } from "@/messagerie/listeMails";
 
@@ -62,11 +63,11 @@ export function requeteSante(): { methode: "GET"; chemin: string } {
 }
 
 export function lireSante(json: unknown): SanteMessagerie {
-  const racine = objet(json);
+  const racine = objet(json) as Recu<"Sante">;
   const liste = Array.isArray(racine.comptes) ? (racine.comptes as unknown[]) : [];
   return {
     comptes: liste.flatMap((element) => {
-      const ligne = objet(element);
+      const ligne = objet(element) as Recu<"SanteCompte">;
       const compteId = texte(ligne.compte_id);
       if (compteId === "") return [];
       return [

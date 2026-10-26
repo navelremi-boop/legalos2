@@ -1,3 +1,4 @@
+import type { CorpsRequete, Recu } from "@/api/contrat";
 import { boiteDuMessage, compteNominatifDuMessage } from "@/messagerie/boitesMail";
 import { dossierImap } from "@/messagerie/dossiersImap";
 import type { CompteLocal, MailLocal } from "@/messagerie/typesMails";
@@ -32,14 +33,14 @@ export function cheminAction(messageId: string): string {
 }
 
 /** Corps de la demande ; la clé d'idempotence rend un rejeu sans effet (réseau coupé après l'envoi). */
-export function corpsAction(genre: GenreAction, cle: string, destination?: string): Record<string, unknown> {
+export function corpsAction(genre: GenreAction, cle: string, destination?: string): CorpsRequete<"CreerActionRequest"> {
   return destination === undefined
     ? { genre, idempotence_cle: cle }
     : { genre, destination, idempotence_cle: cle };
 }
 
 export function lireAction(json: unknown): ActionAppliquee {
-  const ligne = objet(json);
+  const ligne = objet(json) as Recu<"ActionMessageResponse">;
   return {
     id: texte(ligne.id),
     etat: texte(ligne.etat),
@@ -86,10 +87,10 @@ export function cheminDossiersImap(compteId: string): string {
 }
 
 export function lireDossiersImap(json: unknown): DossierImap[] {
-  const liste = objet(json).dossiers;
+  const liste = (objet(json) as Recu<"DossiersImapResponse">).dossiers;
   if (!Array.isArray(liste)) return [];
   return (liste as unknown[]).flatMap((element) => {
-    const ligne = objet(element);
+    const ligne = objet(element) as Recu<"DossierImapResponse">;
     const nom = texte(ligne.nom);
     if (nom === "") return [];
     const libelle = texte(ligne.libelle);
@@ -171,11 +172,11 @@ export function cheminRecherche(terme: string, limite = 50): string {
 }
 
 export function lireRecherche(json: unknown): { resultats: ResultatServeur[]; aSuivre: boolean } {
-  const racine = objet(json);
+  const racine = objet(json) as Recu<"RechercheResponse">;
   const liste = Array.isArray(racine.resultats) ? (racine.resultats as unknown[]) : [];
   return {
     resultats: liste.flatMap((element) => {
-      const ligne = objet(element);
+      const ligne = objet(element) as Recu<"MessageTrouve">;
       const id = texte(ligne.id);
       return id === "" ? [] : [{ id, objet: texte(ligne.objet), dossierImap: texte(ligne.dossier_imap) }];
     }),

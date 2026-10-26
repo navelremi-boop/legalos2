@@ -20,6 +20,7 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 | tauri-plugin-powersync | **0.1.0** | https://crates.io/crates/tauri-plugin-powersync — vérifié le 2026-10-04 ; publié le 2026-10-01 ; dépend de `powersync` ^0.1.0 et `reqwest` ^0.13 (plus de `http-client`) |
 | tauri-plugin-notification | **2.5.0** | https://crates.io/crates/tauri-plugin-notification — vérifié le 2026-09-29 ; stable 2.x, pas la 3.0 alpha |
 | tauri-plugin-wdio-webdriver | **1.4.0** | https://crates.io/crates/tauri-plugin-wdio-webdriver — vérifié le 2026-10-04 ; licence MIT ; WebDriver embarqué, feature `test-webdriver` seulement. Copie dans `patches/` : `webview2-com` 0.39 pour compiler avec Tauri 2.12. |
+| openapi-typescript | **7.13.0** (exacte, dépendance de développement) | https://openapi-ts.dev/introduction et https://www.npmjs.com/package/openapi-typescript — vérifié le 2026-10-26 (`npm view`, dist-tag `latest` 7.13.0) ; licence MIT ; pair TypeScript ^5 (5.8.3 figé ici). Génère `apps/poste/src/api/schema.d.ts` depuis `crates/api/openapi.json` (`pnpm --filter @legal-os/poste gen:api`) ; consigne D9 de l'architecte du 24/10/2026 |
 | @wdio/tauri-service | **1.4.0** | https://www.npmjs.com/package/@wdio/tauri-service — vérifié npm le 2026-10-04 ; licence MIT ; `driverProvider: embedded` |
 | webdriverio | **9.30.1** | https://www.npmjs.com/package/webdriverio — version exigée par `@wdio/tauri-service` 1.4.0 |
 | @tauri-apps/plugin-notification | **2.5.0** | https://www.npmjs.com/package/@tauri-apps/plugin-notification — vérifié npm le 2026-09-29 |

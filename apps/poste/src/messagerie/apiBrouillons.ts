@@ -1,3 +1,4 @@
+import type { CorpsRequete, Recu } from "@/api/contrat";
 import { lireSaisie, type Destinataire } from "@/messagerie/adressesRedaction";
 import { appeler, type ResultatApi } from "@/messagerie/appelApi";
 import { texteDeLaCitationServeur } from "@/messagerie/citation";
@@ -32,7 +33,7 @@ export async function suggererDestinataires(
       const suggestions: Suggestion[] = [];
       for (const element of json as unknown[]) {
         if (typeof element !== "object" || element === null) continue;
-        const ligne = element as Record<string, unknown>;
+        const ligne = element as Recu<"DestinataireSuggere">;
         if (typeof ligne.adresse !== "string" || ligne.adresse === "") continue;
         suggestions.push({
           adresse: ligne.adresse,
@@ -106,7 +107,7 @@ export function envoyerBrouillon(instanceUrl: string, brouillonId: string): Prom
   return appeler(instanceUrl, "POST", `/messagerie/brouillons/${brouillonId}/envoyer`, {
     delaiMs: DELAI_PIECE_MS,
     lire: (json) => {
-      const ligne = (typeof json === "object" && json !== null ? json : {}) as Record<string, unknown>;
+      const ligne = (typeof json === "object" && json !== null ? json : {}) as Recu<"FileEnvoiResponse">;
       return {
         id: typeof ligne.id === "string" ? ligne.id : brouillonId,
         etat: typeof ligne.etat === "string" ? ligne.etat : "",
@@ -120,7 +121,7 @@ export function traiterEnvoi(instanceUrl: string, envoiId: string): Promise<Resu
   return appeler(instanceUrl, "POST", `/messagerie/file-envoi/${envoiId}/traiter`, {
     delaiMs: DELAI_PIECE_MS,
     lire: (json) => {
-      const ligne = (typeof json === "object" && json !== null ? json : {}) as Record<string, unknown>;
+      const ligne = (typeof json === "object" && json !== null ? json : {}) as Recu<"FileEnvoiResponse">;
       return {
         id: typeof ligne.id === "string" ? ligne.id : envoiId,
         etat: typeof ligne.etat === "string" ? ligne.etat : "",
@@ -155,11 +156,11 @@ export function composerDepartServeur(
   messageId: string,
 ): Promise<ResultatApi<DepartServeur>> {
   return appeler(instanceUrl, "POST", "/messagerie/composition", {
-    corps: JSON.stringify({ genre, message_id: messageId }),
+    corps: JSON.stringify({ genre, message_id: messageId } satisfies CorpsRequete<"CompositionRequest">),
     typeContenu: "application/json",
     delaiMs: 6_000,
     lire: (json) => {
-      const ligne = (typeof json === "object" && json !== null ? json : {}) as Record<string, unknown>;
+      const ligne = (typeof json === "object" && json !== null ? json : {}) as Recu<"CompositionResponse">;
       const enReponseA = typeof ligne.en_reponse_a === "string" && ligne.en_reponse_a.trim() !== "" ? ligne.en_reponse_a : null;
       return {
         a: lireSaisie(textes(ligne.a).join("\n")).destinataires,

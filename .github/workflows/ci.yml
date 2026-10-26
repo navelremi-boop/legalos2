@@ -64,6 +64,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @legal-os/poste typecheck
       - run: pnpm --filter @legal-os/poste lint:ci
+      - run: node --import ./tests/recette/lib/enregistrer-alias.mjs --test "apps/poste/src/**/*.test.ts"
+      - run: node tests/recette/types-api-a-jour.mjs
       - run: pnpm --filter @legal-os/poste build
       - run: node tests/recette/chrono-demo-absent.mjs
       - run: node tests/recette/j0.mjs

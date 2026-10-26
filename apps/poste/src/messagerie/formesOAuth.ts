@@ -1,3 +1,4 @@
+import type { CorpsRequete, Recu } from "@/api/contrat";
 import type { RequeteApi } from "@/messagerie/formesApiRedaction";
 
 /**
@@ -39,11 +40,11 @@ function objet(json: unknown): Record<string, unknown> {
  * un doublon aussi ; le libellé est celui du poste, pas un texte venu du réseau. Réponse illisible : liste vide.
  */
 export function lireFournisseurs(json: unknown): FournisseurOAuth[] {
-  const liste = objet(json).fournisseurs;
+  const liste = (objet(json) as Recu<"Fournisseurs">).fournisseurs;
   if (!Array.isArray(liste)) return [];
   const ids = new Set<string>();
   for (const element of liste as unknown[]) {
-    const id = objet(element).id;
+    const id = (objet(element) as Recu<"FournisseurDisponible">).id;
     if (typeof id === "string" && (FOURNISSEURS_PROPOSES as readonly string[]).includes(id)) ids.add(id);
   }
   return FOURNISSEURS_PROPOSES.filter((id) => ids.has(id)).map((id) => ({ id, libelle: libelleFournisseur(id) }));
@@ -70,10 +71,12 @@ export function requeteDebut(demande: DemandeDebut): RequeteApi {
     chemin: "/messagerie/oauth/debut",
     corps: {
       ...(demande.supplement ?? {}),
-      id: demande.id,
-      adresse: demande.adresse.trim(),
-      fournisseur: demande.fournisseur,
-      redirection: demande.redirection,
+      ...({
+        id: demande.id,
+        adresse: demande.adresse.trim(),
+        fournisseur: demande.fournisseur,
+        redirection: demande.redirection,
+      } satisfies CorpsRequete<"DemandeDebut">),
     },
   };
 }
@@ -81,7 +84,7 @@ export function requeteDebut(demande: DemandeDebut): RequeteApi {
 export type DebutOAuth = { state: string; url: string };
 
 export function lireDebut(json: unknown): DebutOAuth | null {
-  const racine = objet(json);
+  const racine = objet(json) as Recu<"Autorisation">;
   const { state, url } = racine;
   if (typeof state !== "string" || state === "" || typeof url !== "string" || url === "") return null;
   return { state, url };
@@ -103,13 +106,13 @@ export function adresseAutorisationOuvrable(adresse: string, autoriserHttp: bool
 }
 
 export function requeteEchange(state: string, code: string): RequeteApi {
-  return { methode: "POST", chemin: "/messagerie/oauth/echange", corps: { state, code } };
+  return { methode: "POST", chemin: "/messagerie/oauth/echange", corps: { state, code } satisfies CorpsRequete<"EchangeCode"> };
 }
 
 export type EchangeOAuth = { id: string; adresse: string; fournisseur: string; reconnexion: boolean };
 
 export function lireEchange(json: unknown): EchangeOAuth | null {
-  const racine = objet(json);
+  const racine = objet(json) as Recu<"CompteOAuth">;
   if (typeof racine.id !== "string" || racine.id === "") return null;
   return {
     id: racine.id,

@@ -1,3 +1,4 @@
+import type { CorpsRequete, Recu } from "@/api/contrat";
 import { apiUrl } from "@/lib/auth/client";
 import { loadSessionTokens } from "@/lib/session/storage";
 import { messageErreurHttp } from "@/messagerie/erreursHttp";
@@ -60,7 +61,7 @@ export async function lireFileEnvoi(instanceUrl: string): Promise<LigneEnvoi[]> 
     const lignes: LigneEnvoi[] = [];
     for (const ligne of json as unknown[]) {
       if (typeof ligne !== "object" || ligne === null) continue;
-      const row = ligne as Record<string, unknown>;
+      const row = ligne as Recu<"FileEnvoiResponse">;
       if (typeof row.id !== "string" || typeof row.etat !== "string") continue;
       lignes.push({
         id: row.id,
@@ -87,7 +88,7 @@ export async function lireCorpsMessage(instanceUrl: string, id: string): Promise
     if (!reponse.ok) return "";
     const json = await lireJsonSansEchec(reponse);
     if (typeof json !== "object" || json === null) return "";
-    const texte = (json as { texte?: unknown }).texte;
+    const texte = (json as Recu<"CorpsMessage">).texte;
     return typeof texte === "string" ? texte : "";
   } catch {
     return "";
@@ -100,7 +101,7 @@ export function classerMessage(
   messageId: string,
   dossierId: string,
 ): Promise<ResultatAction> {
-  return poster(instanceUrl, `/messagerie/messages/${messageId}/classer`, { dossier_id: dossierId });
+  return poster(instanceUrl, `/messagerie/messages/${messageId}/classer`, { dossier_id: dossierId } satisfies CorpsRequete<"ClasserCorps">);
 }
 
 export function annulerEnvoi(instanceUrl: string, envoiId: string): Promise<ResultatAction> {

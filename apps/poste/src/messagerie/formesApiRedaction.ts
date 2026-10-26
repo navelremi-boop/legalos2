@@ -1,3 +1,4 @@
+import type { CorpsRequete, Recu } from "@/api/contrat";
 import { paragraphesHtml } from "@/messagerie/citation";
 import type { ModeleMessage } from "@/messagerie/corpsRedaction";
 
@@ -50,7 +51,7 @@ export function requeteComptes(): RequeteApi {
 export function lireComptes(json: unknown): CompteMessagerie[] {
   if (!Array.isArray(json)) return [];
   return (json as unknown[]).flatMap((element) => {
-    const ligne = objet(element);
+    const ligne = objet(element) as Recu<"CompteResume">;
     const id = texte(ligne.id);
     if (id === "") return [];
     return [{ id, adresse: texte(ligne.adresse), typeCompte: texte(ligne.type_compte) }];
@@ -72,12 +73,12 @@ export function requeteLireSignature(compteId: string): RequeteApi {
 }
 
 export function requeteEcrireSignature(compteId: string, html: string): RequeteApi {
-  return { methode: "PUT", chemin: `/messagerie/comptes/${compteId}/signature`, corps: { html } };
+  return { methode: "PUT", chemin: `/messagerie/comptes/${compteId}/signature`, corps: { html } satisfies CorpsRequete<"EcrireSignatureRequest"> };
 }
 
 /** Réponse de la signature : le HTML, ou à défaut le texte (une signature écrite sans mise en forme) mis en paragraphes. */
 export function lireSignature(json: unknown, compteIdDemande: string): SignatureCompte {
-  const ligne = objet(json);
+  const ligne = objet(json) as Recu<"SignatureResponse">;
   const html = texte(ligne.html).trim();
   const brut = texte(ligne.texte).trim();
   return {
@@ -94,12 +95,12 @@ export function requeteCompteDeComposition(genre: "nouveau" | "reponse" | "repon
   return {
     methode: "POST",
     chemin: "/messagerie/composition",
-    corps: messageId === null ? { genre } : { genre, message_id: messageId },
+    corps: messageId === null ? ({ genre } satisfies CorpsRequete<"CompositionRequest">) : ({ genre, message_id: messageId } satisfies CorpsRequete<"CompositionRequest">),
   };
 }
 
 export function lireCompteDeComposition(json: unknown): string | null {
-  const id = texte(objet(json).compte_id);
+  const id = texte((objet(json) as Recu<"CompositionResponse">).compte_id);
   return id === "" ? null : id;
 }
 
@@ -130,12 +131,12 @@ export function requeteCreerModele(id: string, champs: ChampsModele, ordre = 0):
   return {
     methode: "POST",
     chemin: "/messagerie/modeles",
-    corps: { id, nom: champs.nom, objet: champs.objet, corps_html: champs.corpsHtml, ordre },
+    corps: { id, nom: champs.nom, objet: champs.objet, corps_html: champs.corpsHtml, ordre } satisfies CorpsRequete<"CreerModeleRequest">,
   };
 }
 
 export function requeteModifierModele(id: string, champs: Partial<ChampsModele>): RequeteApi {
-  const corps: Record<string, unknown> = {};
+  const corps: CorpsRequete<"PatchModeleRequest"> = {};
   if (champs.nom !== undefined) corps.nom = champs.nom;
   if (champs.objet !== undefined) corps.objet = champs.objet;
   if (champs.corpsHtml !== undefined) corps.corps_html = champs.corpsHtml;
@@ -147,7 +148,7 @@ export function requeteSupprimerModele(id: string): RequeteApi {
 }
 
 export function lireModele(json: unknown): ModeleMessage | null {
-  const ligne = objet(json);
+  const ligne = objet(json) as Recu<"ModeleResponse">;
   const id = texte(ligne.id);
   if (id === "") return null;
   return { id, nom: texte(ligne.nom), objet: texte(ligne.objet), corpsHtml: texte(ligne.corps_html) };

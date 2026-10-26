@@ -10,7 +10,9 @@
     "tauri": "tauri",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "lint:ci": "eslint . --max-warnings 0"
+    "lint:ci": "eslint . --max-warnings 0",
+    "gen:api": "openapi-typescript ../../crates/api/openapi.json -o src/api/schema.d.ts",
+    "gen:api:verifier": "node ../../tests/recette/types-api-a-jour.mjs"
   },
   "dependencies": {
     "@powersync/common": "2.0.0",
@@ -45,6 +47,7 @@
     "eslint": "^9.39.0",
     "eslint-plugin-react-hooks": "^7.0.0",
     "globals": "^16.4.0",
+    "openapi-typescript": "7.13.0",
     "tailwindcss": "^4.1.0",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.46.0",
