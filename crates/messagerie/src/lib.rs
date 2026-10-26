@@ -11,6 +11,7 @@ mod html;
 mod imap;
 mod invitation;
 mod moteur;
+mod plafond;
 mod redaction;
 mod smtp;
 
@@ -38,6 +39,10 @@ pub use invitation::{
     FUSEAU_FLOTTANT,
 };
 pub use moteur::{diff_repli, ecarter_supprimes, Changement, RapportMoteur};
+pub use plafond::{
+    acquerir, cle_boite, connexions_ouvertes, regler_plafond, Permis, ATTENTE_MAX,
+    PLAFOND_PAR_DEFAUT,
+};
 pub use redaction::{
     adresse_et_nom, champ_en_tete_valide, construire_message, construire_message_brouillon,
     construire_message_compose, construire_message_sortant, destinataires_redaction,
@@ -108,6 +113,13 @@ pub trait FournisseurMail {
 /// Session d'actions (connexion distincte de la veille).
 pub struct SessionActions {
     interne: imap::Session,
+}
+
+/// Une session d'actions se ferme par `LOGOUT` : la place est rendue au serveur tout de suite.
+impl Drop for SessionActions {
+    fn drop(&mut self) {
+        self.interne.deconnecter();
+    }
 }
 
 impl SessionActions {

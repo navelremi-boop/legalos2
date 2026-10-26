@@ -36,6 +36,7 @@ use pimalaya_stream::tls::Tls;
 use url::Url;
 
 use crate::chemin::Capacites;
+use crate::plafond::{self, Permis};
 use crate::ErreurMail;
 use crate::ParametresCompte;
 
@@ -200,6 +201,8 @@ fn refus_transitoire(texte: &str) -> bool {
 }
 pub struct Session {
     client: ImapClientStd,
+    /// Place tenue sur le plafond de connexions de la boîte (`plafond.rs`), rendue à la fermeture.
+    permis: Option<Permis>,
 }
 
 pub struct EtatExamen {
@@ -217,6 +220,12 @@ impl Session {
                 jeton,
             );
         }
+        // Le plafond d'abord : au-delà, la demande attend une place au lieu d'ouvrir une connexion que le serveur refuserait.
+        let permis = plafond::acquerir(&plafond::cle_boite(
+            &parametres.hote,
+            parametres.port,
+            &parametres.utilisateur,
+        ))?;
         let scheme = if parametres.tls { "imaps" } else { "imap" };
         let url = Url::parse(&format!(
             "{scheme}://{}:{}",
@@ -234,7 +243,10 @@ impl Session {
             // Des identifiants qu'IMAP ne peut pas écrire (NUL, CR, LF) ne sont jamais acceptés par un serveur.
             .map_err(|_| ErreurMail::Authentification)?;
         match client.run(login) {
-            Ok(IssueLogin::Accepte) => Ok(Self { client }),
+            Ok(IssueLogin::Accepte) => Ok(Self {
+                client,
+                permis: Some(permis),
+            }),
             Ok(IssueLogin::Refuse { code, texte }) => Err(classer_refus(code.as_deref(), &texte)),
             Ok(IssueLogin::Mauvaise) => Err(ErreurMail::Protocole),
             Ok(IssueLogin::Bye) | Err(_) => Err(ErreurMail::Connexion),
@@ -249,6 +261,7 @@ impl Session {
         utilisateur: &str,
         jeton_acces: &str,
     ) -> Result<Self, ErreurMail> {
+        let permis = plafond::acquerir(&plafond::cle_boite(hote, port, utilisateur))?;
         let scheme = if tls { "imaps" } else { "imap" };
         let url =
             Url::parse(&format!("{scheme}://{hote}:{port}")).map_err(|_| ErreurMail::Connexion)?;
@@ -264,7 +277,10 @@ impl Session {
         client
             .auth_xoauth2(utilisateur, jeton_acces, Default::default())
             .map_err(|_| ErreurMail::Authentification)?;
-        Ok(Self { client })
+        Ok(Self {
+            client,
+            permis: Some(permis),
+        })
     }
 
     pub fn capacites(&mut self) -> Result<Capacites, ErreurMail> {
@@ -298,6 +314,17 @@ impl Session {
     }
 
     /// Arme `ImapMailboxWatch` (EXAMINE, lecture seule) et consomme la session.
+    /// Ferme la session par `LOGOUT` (le serveur libère sa place tout de suite, sans attendre l'expiration de la
+    /// connexion coupée). Au mieux : une réponse qui tarde plus de trois secondes, ou une connexion déjà morte, ne
+    /// retient personne ; la place du plafond est rendue dans tous les cas, à la libération de la session.
+    pub fn deconnecter(&mut self) {
+        let _ = self
+            .client
+            .stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(3)));
+        let _ = self.client.logout();
+    }
+
     pub fn armer_veille(mut self) -> Result<FluxVeille, ErreurMail> {
         let caps = self
             .client
@@ -308,7 +335,10 @@ impl Session {
             .client
             .watch_mailbox(boite, &caps, Default::default())
             .map_err(|_| ErreurMail::Protocole)?;
-        Ok(FluxVeille { _flux: flux })
+        Ok(FluxVeille {
+            _flux: flux,
+            _permis: self.permis.take(),
+        })
     }
 
     pub fn marquer_lu(&mut self, dossier: &str, uid: u32, lu: bool) -> Result<(), ErreurMail> {
@@ -1069,6 +1099,8 @@ pub(crate) fn choisir_dossier_envoyes(dossiers: &[DossierListe]) -> String {
 /// Flux de veille. Le type io-imap reste dans ce module.
 pub struct FluxVeille {
     _flux: io_imap::client::ImapMailboxWatchStream,
+    /// La veille tient sa place sur le plafond tant qu'elle est armée (IDLE sur la seule boîte de réception).
+    _permis: Option<Permis>,
 }
 
 impl FluxVeille {

@@ -6,9 +6,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use legalos_messagerie::{
-    borner_date_entete, diff_repli, ecarter_supprimes, invitation_du_message, Changement,
-    EnteteRecu, ErreurMail, EtatUid, FournisseurMail, InvitationLue, ParametresCompte,
-    ReleveDossier, SessionActions, VeilleReception,
+    borner_date_entete, cle_boite, diff_repli, ecarter_supprimes, invitation_du_message,
+    regler_plafond, Changement, EnteteRecu, ErreurMail, EtatUid, FournisseurMail, InvitationLue,
+    ParametresCompte, ReleveDossier, SessionActions, VeilleReception, PLAFOND_PAR_DEFAUT,
 };
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -152,13 +152,14 @@ async fn charger(pool: &PgPool, cle: &[u8; 32]) -> Result<Vec<CompteMoteur>, sql
             String,
             Option<Uuid>,
             bool,
+            i32,
         ),
     >(
         r#"
         SELECT id, cabinet_id, hote, port, utilisateur, tls,
                COALESCE(secret_chiffre, 'oauth:' || oauth_generation::text), etat_connexion,
                CASE WHEN type_compte = 'nominatif' THEN titulaire_id END,
-               (secret_ref = 'oauth')
+               (secret_ref = 'oauth'), max_connexions
         FROM comptes_mail
         WHERE hote IS NOT NULL AND port IS NOT NULL AND utilisateur IS NOT NULL
           AND (secret_chiffre IS NOT NULL OR secret_ref = 'oauth')
@@ -188,6 +189,11 @@ async fn charger(pool: &PgPool, cle: &[u8; 32]) -> Result<Vec<CompteMoteur>, sql
             mot_de_passe
         };
         let empreinte = format!("{}|{}|{}|{}", row.2, row.3, row.4, row.6);
+        // Plafond de connexions de la boîte (réglable par compte), appliqué à son identité vue du serveur.
+        regler_plafond(
+            &cle_boite(&row.2, u16::try_from(row.3).unwrap_or(143), &row.4),
+            u32::try_from(row.10).unwrap_or(PLAFOND_PAR_DEFAUT),
+        );
         comptes.push(CompteMoteur {
             id: row.0,
             cabinet_id: row.1,
