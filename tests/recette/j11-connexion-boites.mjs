@@ -503,6 +503,7 @@ async function main() {
   } catch (err) {
     // Avant que `finally` ne tue le poste : son état au moment de l'échec (D4).
     etatPosteAvantArret = diagnosticProcessusPoste(poste?.child);
+    etatPosteAvantArret.push(`page : ${await etatPage()}`);
     throw err;
   } finally {
     if (poste) await stopApp(poste.child);
@@ -520,6 +521,25 @@ async function main() {
     }
   }
   ok("OK");
+}
+
+/**
+ * État technique de la page au moment d'un échec : route, nombre de lignes de santé, identifiants techniques
+ * (`data-testid`) présents. Aucun texte affiché. Borné à 10 s : une page figée est un résultat, pas un blocage.
+ */
+async function etatPage() {
+  if (!send) return "pas de connexion au protocole de débogage";
+  try {
+    const lu = await Promise.race([
+      js(
+        `JSON.stringify({ route: location.pathname + location.hash.split("?")[0], lignesSante: document.querySelectorAll("[data-testid=compte-sante]").length, testids: [...new Set([...document.querySelectorAll("[data-testid]")].map((e) => e.getAttribute("data-testid")))].slice(0, 40) })`,
+      ),
+      sleep(10_000).then(() => "aucune réponse en 10 s (page figée ?)"),
+    ]);
+    return String(lu).slice(0, 1_200);
+  } catch (err) {
+    return `illisible : ${String(err instanceof Error ? err.message : err).slice(0, 200)}`;
+  }
 }
 
 /**
