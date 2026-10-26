@@ -118,7 +118,10 @@ async function main() {
   const dovecot = await demarrerImapTest();
   // Critère de J11 (consigne du 26/10/2026) : les connexions simultanées par boîte, relevées côté serveur (`doveadm who`),
   // ne dépassent jamais le plafond du moteur. La sonde tourne pendant toute la recette.
-  const sonde = demarrerSondeConnexions({ conteneurs: [dovecot, "legalos-j11-dovecot-oauth-poste"] });
+  const sonde = demarrerSondeConnexions({
+    conteneurs: [dovecot, "legalos-j11-dovecot-oauth-poste"],
+    intervalleMs: Number(process.env.LEGALOS_SONDE_MS ?? "4000"),
+  });
   sondeConnexions = sonde;
   const jeton = await demoAccessToken(api, `j11-connexion-${marque}`);
   jetonDiagnostic = jeton;
@@ -519,7 +522,10 @@ async function main() {
     etatPosteAvantArret.push(`page : ${await etatPage()}`);
     throw err;
   } finally {
-    if (sondeConnexions !== null) await sondeConnexions.arreter();
+    if (sondeConnexions !== null) {
+      const releve = await sondeConnexions.arreter();
+      console.error(`j11-connexion: connexions simultanées relevées avant l'arrêt : maximum ${releve.maximum.nombre} (${releve.echantillons} échantillons)`);
+    }
     if (poste) await stopApp(poste.child);
     if (banc) {
       try {
