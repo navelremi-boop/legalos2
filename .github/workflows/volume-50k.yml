@@ -1,0 +1,55 @@
+name: Volume 50 000 messages
+
+# D11 (consigne de l'architecte du 24/10/2026) : la mesure de 50 000 messages (relève par QRESYNC et par repli,
+# boîte du cabinet contre Dovecot) n'est pas dans la CI de chaque push : trop longue. Elle tourne chaque semaine
+# et à la demande ; sa durée et ses temps de relève sont écrits dans le résumé du run (étape « Mesure »).
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: volume-50k
+  cancel-in-progress: false
+
+jobs:
+  volume-50k:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      - uses: Swatinem/rust-cache@82a92a6e8fbeee089604da2575dc567ae9ddeaab # v2.7.5
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: "24"
+      - name: Préparer .env pour compose
+        run: cp .env.development.example .env
+      - name: Instance (docker compose)
+        run: docker compose -f instance/docker-compose.yml --env-file .env up -d --wait
+      - name: Banc IMAP de test (Dovecot)
+        run: docker compose -f instance/imap-test/docker-compose.yml up -d --wait
+      - name: Données de démonstration
+        run: cargo xtask demo
+      - name: Mesure
+        shell: bash
+        run: |
+          debut=$(date +%s)
+          node tests/recette/s7-synchro.mjs 2>&1 | tee "$RUNNER_TEMP/s7-synchro.log"
+          fin=$(date +%s)
+          {
+            echo "## Mesure de 50 000 messages"
+            echo
+            echo "Durée de la recette : $((fin - debut)) s"
+            echo
+            echo '```'
+            grep -E "^s7-synchro: OK" "$RUNNER_TEMP/s7-synchro.log" || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Journaux de l'instance si échec
+        if: failure()
+        run: docker compose -f instance/docker-compose.yml --env-file .env logs --no-color --tail 200
