@@ -82,6 +82,7 @@ jobs:
       - run: node tests/recette/suppressions-temp.mjs
       - run: node tests/recette/lancement-relance.mjs
       - run: node tests/recette/recettes-nettoient-leurs-boites.mjs
+      - run: node tests/recette/sonde-connexions.mjs
       - run: node tests/recette/marqueurs-tests.mjs
       - run: node tests/recette/workflows-valides.mjs
       - run: node tests/recette/build-distribue.mjs
