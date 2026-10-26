@@ -1124,6 +1124,28 @@ async function main() {
   } finally {
     if (posteB) await stopApp(posteB.child);
     await stopApp(child);
+    // La boîte nominative de la recette ne reste pas dans l'instance : elle alourdirait les connexions de `capa` des
+    // recettes suivantes (limite de dix connexions par utilisateur chez Dovecot).
+    try {
+      const ids = `SELECT id FROM comptes_mail WHERE adresse = ${lit(adressePerso)}`;
+      for (const requete of [
+        `DELETE FROM oauth_etats WHERE adresse = ${lit(adressePerso)}`,
+        `DELETE FROM actions_messages WHERE compte_id IN (${ids})`,
+        `DELETE FROM file_envoi WHERE compte_id IN (${ids})`,
+        `DELETE FROM releve_curseurs WHERE compte_id IN (${ids})`,
+        `DELETE FROM moteur_connexions WHERE compte_id IN (${ids})`,
+        `DELETE FROM membres_boite_partagee WHERE compte_id IN (${ids})`,
+        `DELETE FROM signatures_messagerie WHERE compte_id IN (${ids})`,
+        `DELETE FROM brouillons_message WHERE compte_id IN (${ids})`,
+        `DELETE FROM invitations_agenda WHERE compte_id IN (${ids})`,
+        `DELETE FROM messages WHERE compte_id IN (${ids})`,
+        `DELETE FROM comptes_mail WHERE adresse = ${lit(adressePerso)}`,
+      ]) {
+        await sqlServeur(requete);
+      }
+    } catch (err) {
+      console.error(`j11-redaction: nettoyage de la boîte de la recette impossible : ${String(err instanceof Error ? err.message : err).slice(0, 200)}`);
+    }
   }
   ok("OK");
   void creeA;
