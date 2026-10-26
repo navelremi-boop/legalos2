@@ -123,7 +123,7 @@ export function requeteReconnecterBoite(compteId: string, champs: ChampsConnexio
   };
 }
 
-/** Le serveur peut relever une boîte : sa santé dit « connectée » ou « identifiants refusés » (jamais « inconnu »). */
+/** Le serveur peut relever une boîte : sa santé dit « connectée » ou « identifiants refusés » (ou « serveur indisponible » ; jamais « inconnu »). */
 export function verificationTerminee(etatConnexion: string): boolean {
-  return etatConnexion === "connecte" || etatConnexion === "identifiants_refuses";
+  return etatConnexion === "connecte" || etatConnexion === "identifiants_refuses" || etatConnexion === "indisponible";
 }

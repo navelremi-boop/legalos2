@@ -38,6 +38,17 @@ pub const RENOUVELLEMENT_IDLE_SECS: u64 = 28 * 60;
 /// Relève sans réveil, et photographie complète, au plus une fois par cycle.
 pub const RELEVE_SANS_REVEIL_SECS: u64 = 10 * 60;
 
+/// Nombre d'échecs de connexion consécutifs à partir duquel l'écran dit « serveur indisponible » (délais de 2, 4 puis
+/// 8 s écoulés). Une panne plus courte reste invisible ; la tentative suivante a lieu après `delai_echec`, plafonné.
+pub const SEUIL_SERVEUR_INDISPONIBLE: u32 = 4;
+
+/// État de connexion à afficher après `echecs` échecs de connexion consécutifs (pas d'échec d'identifiants : ceux-là
+/// suspendent les tentatives et ne passent pas ici). `None` : l'état précédent est conservé.
+#[must_use]
+pub fn etat_apres_echecs_de_connexion(echecs: u32) -> Option<&'static str> {
+    (echecs >= SEUIL_SERVEUR_INDISPONIBLE).then_some("indisponible")
+}
+
 pub fn delai_echec(echecs: u32) -> Duration {
     let pas = u64::from(echecs.min(9));
     Duration::from_secs((1_u64 << pas).min(RELEVE_SANS_REVEIL_SECS))
@@ -288,6 +299,7 @@ fn tourner(handle: tokio::runtime::Handle, pool: PgPool, cle: [u8; 32], compte: 
                     veille_en_echec = true;
                     let _ = handle.block_on(noter(&pool, compte.id, "connexion"));
                     echecs = echecs.saturating_add(1);
+                    signaler_panne(&handle, &pool, compte.id, echecs);
                 }
             }
         }
@@ -341,6 +353,7 @@ fn tourner(handle: tokio::runtime::Handle, pool: PgPool, cle: [u8; 32], compte: 
                 Err(_) => {
                     let _ = handle.block_on(noter(&pool, compte.id, "connexion"));
                     echecs = echecs.saturating_add(1);
+                    signaler_panne(&handle, &pool, compte.id, echecs);
                     std::thread::sleep(delai_echec(echecs));
                     continue;
                 }
@@ -368,6 +381,13 @@ fn tourner(handle: tokio::runtime::Handle, pool: PgPool, cle: [u8; 32], compte: 
             Some(false) => {}
             None => veille = None,
         }
+    }
+}
+
+/// Passe la boîte à « serveur indisponible » une fois le seuil d'échecs de connexion atteint.
+fn signaler_panne(handle: &tokio::runtime::Handle, pool: &PgPool, compte: Uuid, echecs: u32) {
+    if let Some(etat) = etat_apres_echecs_de_connexion(echecs) {
+        let _ = handle.block_on(marquer_etat(pool, compte, etat, None));
     }
 }
 
@@ -1097,8 +1117,8 @@ pub fn chiffrer_mot_de_passe(mot_de_passe: &str, cle: &[u8; 32]) -> Result<Strin
 #[cfg(test)]
 mod tests {
     use super::{
-        arrivee_notifiable, delai_echec, texte_destinataires, RELEVE_SANS_REVEIL_SECS,
-        RENOUVELLEMENT_IDLE_SECS,
+        arrivee_notifiable, delai_echec, etat_apres_echecs_de_connexion, texte_destinataires,
+        RELEVE_SANS_REVEIL_SECS, RENOUVELLEMENT_IDLE_SECS, SEUIL_SERVEUR_INDISPONIBLE,
     };
     use legalos_messagerie::EnteteRecu;
 
@@ -1120,6 +1140,42 @@ mod tests {
             "un@example.com, deux@example.com"
         );
         assert_eq!(texte_destinataires(None), "");
+    }
+
+    /// Panne du serveur de messagerie (limite de connexions, coupure) : délais croissants avec un plafond, puis
+    /// « serveur indisponible » au seuil, jamais « identifiants refusés » (consigne de l'architecte du 26/10/2026).
+    #[test]
+    fn une_panne_du_serveur_est_retentee_avec_un_delai_croissant_puis_dite_indisponible() {
+        let delais: Vec<u64> = (1..=14).map(|n| delai_echec(n).as_secs()).collect();
+        assert!(
+            delais.windows(2).all(|paire| paire[0] <= paire[1]),
+            "{delais:?}"
+        );
+        assert!(delais[0] < delais[3], "les délais croissent : {delais:?}");
+        assert_eq!(
+            delais.last().copied(),
+            Some(512),
+            "plafond atteint à 512 s : {delais:?}"
+        );
+        assert!(
+            delais.iter().all(|d| *d <= RELEVE_SANS_REVEIL_SECS),
+            "{delais:?}"
+        );
+        for echecs in 0..SEUIL_SERVEUR_INDISPONIBLE {
+            assert_eq!(
+                etat_apres_echecs_de_connexion(echecs),
+                None,
+                "{echecs} échec(s) : rien à dire encore"
+            );
+        }
+        for echecs in [SEUIL_SERVEUR_INDISPONIBLE, 5, 50, u32::MAX] {
+            assert_eq!(etat_apres_echecs_de_connexion(echecs), Some("indisponible"));
+        }
+        // Essai négatif : l'état d'une panne n'est jamais celui d'un refus d'identifiants.
+        assert_ne!(
+            etat_apres_echecs_de_connexion(u32::MAX),
+            Some("identifiants_refuses")
+        );
     }
 
     #[test]

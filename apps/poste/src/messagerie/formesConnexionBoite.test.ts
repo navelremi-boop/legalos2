@@ -106,6 +106,7 @@ describe("autres règles", () => {
   it("la vérification se termine sur connectée ou refusée, jamais sur inconnue", () => {
     assert.equal(verificationTerminee("connecte"), true);
     assert.equal(verificationTerminee("identifiants_refuses"), true);
+    assert.equal(verificationTerminee("indisponible"), true);
     assert.equal(verificationTerminee("inconnu"), false);
     assert.equal(verificationTerminee(""), false);
   });

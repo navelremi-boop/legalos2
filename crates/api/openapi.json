@@ -8923,7 +8923,7 @@
             "items": {
               "type": "string"
             },
-            "description": "`identifiants_refuses`, `retard`, `envoi_en_echec`."
+            "description": "`identifiants_refuses`, `serveur_indisponible`, `retard`, `envoi_en_echec`."
           },
           "oauth": {
             "type": "boolean",

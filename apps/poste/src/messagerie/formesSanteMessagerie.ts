@@ -12,7 +12,7 @@ export type SanteCompte = {
   adresse: string;
   /** `nominatif`, `partage` ou `classement`. */
   typeCompte: string;
-  /** `connecte`, `identifiants_refuses` ou `inconnu`. */
+  /** `connecte`, `identifiants_refuses`, `indisponible` (le serveur de messagerie ne répond pas) ou `inconnu`. */
   etatConnexion: string;
   derniereReleveLe: string | null;
   /** Secondes depuis la dernière relève réussie ; `null` pour la boîte du cabinet (relevée à la demande). */
@@ -180,6 +180,15 @@ function presenterEtat(compte: SanteCompte): EtatPresente {
       titre: "Identifiants refusés",
       detail: `${depuis === "" ? "" : `Depuis ${depuis}. `}Les tentatives sont suspendues.${compte.oauth ? " L'autorisation est à renouveler." : ""}`,
       reconnecter: true,
+    };
+  }
+  if (compte.motifs.includes("serveur_indisponible") || compte.etatConnexion === "indisponible") {
+    // Une panne du serveur de messagerie ne dit rien des identifiants : jamais « refusés », rien à reconnecter.
+    return {
+      niveau: "alerte",
+      titre: "Serveur indisponible",
+      detail: `Le serveur de messagerie ne répond pas. Nouvelle tentative automatique, rien à faire de votre côté.${compte.envoisEnEchec === 0 ? "" : ` ${envois(compte.envoisEnEchec)}.`}`,
+      reconnecter: false,
     };
   }
   if (compte.motifs.includes("retard")) {

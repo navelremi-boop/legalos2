@@ -384,7 +384,7 @@ pub struct SanteCompte {
     /// Envois de l'utilisateur restés en échec dans la file, sur ce compte.
     pub envois_en_echec: i64,
     pub alerte: bool,
-    /// `identifiants_refuses`, `retard`, `envoi_en_echec`.
+    /// `identifiants_refuses`, `serveur_indisponible`, `retard`, `envoi_en_echec`.
     pub motifs: Vec<String>,
     /// Boîte connectée par OAuth (Microsoft 365, Gmail) : « Reconnecter » repasse par le fournisseur, pas par un
     /// formulaire de mot de passe. Aucun jeton ne sort ici.
@@ -434,6 +434,10 @@ pub fn motifs_alerte(
     let mut motifs = Vec::new();
     if etat_connexion == "identifiants_refuses" {
         motifs.push("identifiants_refuses".to_owned());
+    }
+    // Panne du serveur de messagerie depuis plusieurs tentatives : jamais présentée comme un refus d'identifiants.
+    if etat_connexion == "indisponible" {
+        motifs.push("serveur_indisponible".to_owned());
     }
     if type_compte != "classement" && retard_secondes.is_some_and(|s| s > SEUIL_RETARD_SECS) {
         motifs.push("retard".to_owned());
@@ -562,6 +566,13 @@ mod tests {
             motifs_alerte("nominatif", "identifiants_refuses", Some(30), 0),
             ["identifiants_refuses"]
         );
+    }
+
+    #[test]
+    fn serveur_indisponible_donne_son_propre_motif_et_jamais_celui_des_identifiants() {
+        let motifs = motifs_alerte("nominatif", "indisponible", Some(30), 0);
+        assert_eq!(motifs, ["serveur_indisponible"]);
+        assert!(!motifs.contains(&"identifiants_refuses".to_owned()));
     }
 
     #[test]

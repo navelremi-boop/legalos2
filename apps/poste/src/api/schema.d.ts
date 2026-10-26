@@ -2400,7 +2400,7 @@ export interface components {
             etat_connexion: string;
             /** @description `microsoft` ou `gmail` pour une boîte OAuth. */
             fournisseur?: string | null;
-            /** @description `identifiants_refuses`, `retard`, `envoi_en_echec`. */
+            /** @description `identifiants_refuses`, `serveur_indisponible`, `retard`, `envoi_en_echec`. */
             motifs: string[];
             /**
              * @description Boîte connectée par OAuth (Microsoft 365, Gmail) : « Reconnecter » repasse par le fournisseur, pas par un

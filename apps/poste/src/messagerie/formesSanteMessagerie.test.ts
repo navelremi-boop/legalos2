@@ -92,6 +92,20 @@ describe("durées et dates", () => {
 });
 
 describe("ce que l'écran dit d'une boîte", () => {
+  it("une panne du serveur est dite « serveur indisponible », jamais « identifiants refusés », sans bouton de reconnexion", () => {
+    const p = presenterSante(compte({ etatConnexion: "indisponible", motifs: ["serveur_indisponible"], alerte: true }));
+    assert.equal(p.titre, "Serveur indisponible");
+    assert.equal(p.niveau, "alerte");
+    assert.equal(p.reconnecter, false);
+    assert.match(p.detail, /Nouvelle tentative automatique/u);
+    // Essai négatif : ni le titre ni le détail ne parlent d'identifiants refusés ni de tentatives suspendues.
+    assert.doesNotMatch(`${p.titre} ${p.detail}`, /refus|suspendu/iu);
+    // Un refus d'identifiants garde son propre texte et son bouton.
+    const refus = presenterSante(compte({ etatConnexion: "identifiants_refuses", motifs: ["identifiants_refuses"] }));
+    assert.equal(refus.titre, "Identifiants refusés");
+    assert.equal(refus.reconnecter, true);
+  });
+
   it("boîte saine", () => {
     const p = presenterSante(compte());
     assert.deepEqual(p, { niveau: "ok", titre: "Connectée", detail: "Relevée il y a 1 min, aucun envoi en échec.", reconnecter: false, fournisseur: null });
