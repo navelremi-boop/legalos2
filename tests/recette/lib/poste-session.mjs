@@ -48,6 +48,41 @@ export function lireJournalErreursPoste(n = 200) {
   return lignes.slice(-n);
 }
 
+/**
+ * État du poste à l'instant d'un échec (D4) : le lanceur (code de sortie), le processus `legal-os-poste` (présent ? répond ?
+ * fils d'exécution, temps de processeur sur 2 s : un processus vivant et inactif n'est pas un processus qui tourne en
+ * boucle), l'écoute du port de débogage et la fin de la sortie standard du poste. À appeler AVANT `stopApp`, qui tue le
+ * processus. N'écrit ni ne lit aucun contenu de l'app. Ne lève jamais.
+ */
+export function diagnosticProcessusPoste(child) {
+  const lignes = [];
+  try {
+    if (!child) return ["aucun poste lancé"];
+    const lanceur =
+      child.exitCode !== null ? `terminé, code ${child.exitCode}` : child.signalCode ? `signal ${child.signalCode}` : "encore actif";
+    lignes.push(`lanceur (pid ${child.pid}) : ${lanceur}`);
+    if (process.platform === "win32") {
+      const script = [
+        "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8",
+        "$p=@(Get-Process -Name 'legal-os-poste*' -ErrorAction SilentlyContinue)",
+        "if($p.Count -eq 0){ 'aucun processus legal-os-poste' } else {",
+        "$c=@{}; $p | ForEach-Object { $c[$_.Id]=$_.CPU }; Start-Sleep 2",
+        "$p | ForEach-Object { $q=Get-Process -Id $_.Id -ErrorAction SilentlyContinue;",
+        "if($q){ 'processus ' + $q.Id + ' : répond=' + $q.Responding + ' fils=' + $q.Threads.Count + ' processeur=+' + [math]::Round($q.CPU-$c[$q.Id],2) + ' s en 2 s, mémoire=' + [int]($q.WorkingSet64/1MB) + ' Mo' } else { 'processus ' + $_.Id + ' : disparu pendant la mesure' } } }",
+        "'webviews : ' + @(Get-Process -Name msedgewebview2 -ErrorAction SilentlyContinue).Count",
+        `$e=Get-NetTCPConnection -LocalPort ${Number(child.port) || 0} -State Listen -ErrorAction SilentlyContinue; if($e){ 'port ${Number(child.port) || 0} : écouté par le processus ' + $e[0].OwningProcess } else { 'port ${Number(child.port) || 0} : personne n''écoute' }`,
+      ].join("; ");
+      const r = spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", timeout: 30_000, windowsHide: true });
+      for (const l of String(r.stdout ?? "").split(/\r?\n/u)) if (l.trim() !== "") lignes.push(l.trim());
+    }
+    const sortie = typeof child.logTail === "function" ? child.logTail().replace(/\x1b\[[0-9;]*m/g, "").trim() : "";
+    lignes.push(`fin de la sortie du poste : ${sortie === "" ? "(vide)" : sortie.split(/\r?\n/u).slice(-12).join(" ⏎ ").slice(-1_200)}`);
+  } catch (err) {
+    lignes.push(`diagnostic du processus impossible : ${String(err instanceof Error ? err.message : err).slice(0, 200)}`);
+  }
+  return lignes;
+}
+
 export function sqlServeur(requete) {
   return new Promise((resolve, reject) => {
     const child = spawn(

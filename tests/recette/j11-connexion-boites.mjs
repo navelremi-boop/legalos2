@@ -31,7 +31,7 @@ import { demarrerBancOauth, portRepond } from "./lib/banc-oauth-poste.mjs";
 import { demoAccessToken, demoEmail, demoPassword, totpSecretB32 } from "./lib/demo-auth.mjs";
 import { creerClientImap } from "./lib/imap-controle.mjs";
 import { MOT_IMAP_TEST, conteneur, connecterAuReseauApi } from "./lib/moteur-mail.mjs";
-import { creerSession, lireJournalErreursPoste, racineInstance, sleep, sqlServeur } from "./lib/poste-session.mjs";
+import { creerSession, diagnosticProcessusPoste, lireJournalErreursPoste, racineInstance, sleep, sqlServeur } from "./lib/poste-session.mjs";
 import { autoriserDansLeNavigateur } from "./lib/simulateur-oauth.mjs";
 import { creerUi, lit, norm } from "./lib/ui-mails.mjs";
 
@@ -44,6 +44,8 @@ const marque = String(Date.now()).slice(-6);
 let send;
 /** Jeton de la session de la recette, gardé pour joindre l'état de santé de l'API à un échec (D4). */
 let jetonDiagnostic = null;
+/** État du processus du poste relevé à l'échec, avant son arrêt (D4). */
+let etatPosteAvantArret = null;
 const ui = creerUi({ getSend: () => send, fail, dossierCaptures });
 const { js, cliquer, texteDe, present, compter, desactive, sqliteLocal, saisir, attendre, verifier, essaiNegatif, capturer } = ui;
 
@@ -498,6 +500,10 @@ async function main() {
     ok("aucun identifiant ni jeton sur le poste (page, stockage, base locale), secrets et jetons chiffrés au serveur");
     send = null;
     poste.page.ws.close();
+  } catch (err) {
+    // Avant que `finally` ne tue le poste : son état au moment de l'échec (D4).
+    etatPosteAvantArret = diagnosticProcessusPoste(poste?.child);
+    throw err;
   } finally {
     if (poste) await stopApp(poste.child);
     if (banc) {
@@ -522,6 +528,10 @@ async function main() {
  * des boîtes lu par l'API. Aucune exception ne sort d'ici : un diagnostic qui échoue ne masque pas l'échec d'origine.
  */
 async function joindreDiagnostic() {
+  if (etatPosteAvantArret !== null) {
+    console.error("j11-connexion: état du poste à l'instant de l'échec, avant son arrêt :");
+    for (const ligne of etatPosteAvantArret) console.error(`  ${ligne}`);
+  }
   try {
     const lignes = lireJournalErreursPoste(200);
     console.error(`j11-connexion: journal d'erreurs du poste (${lignes.length} dernière(s) ligne(s)) :`);
