@@ -1034,7 +1034,7 @@ pub async fn retirer_piece(
     tag = "messagerie",
     security(("bearer_auth" = [])),
     responses(
-        (status = 200, description = "Ligne de la file d'envoi (état brouillon), comme à la création d'un envoi"),
+        (status = 200, description = "Ligne de la file d'envoi (état brouillon), comme à la création d'un envoi", body = FileEnvoiResponse),
         (status = 400, description = "Aucun destinataire, adresses ou en-têtes invalides", body = crate::error::ApiErrorBody),
         (status = 404, description = "Brouillon introuvable ou d'un autre auteur", body = crate::error::ApiErrorBody),
         (status = 409, description = "Identifiant de message déjà utilisé", body = crate::error::ApiErrorBody),
