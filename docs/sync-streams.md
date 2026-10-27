@@ -104,7 +104,7 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 | `messages_restreints` | `messages` JOIN `groupe_acces_membres` (`auth.user_id()`) — un bucket par groupe, pas par dossier ; `texte_brut` copié |
 | `messages_a_classer` | boîte de classement (`dossier_id` nul, `titulaire_id` nul), un bucket par cabinet |
 | `messages_nominatifs` | messages du titulaire (`titulaire_id = auth.user_id()`), sans secret — un bucket par titulaire, pas par dossier |
-| `comptes_nominatifs` | `comptes_mail` nominatif du titulaire (`titulaire_id = auth.user_id()`), sans `secret_ref` — un bucket par titulaire, pas par dossier |
+| `comptes_nominatifs` | `comptes_mail` nominatif du titulaire (`titulaire_id = auth.user_id()`), sans `secret_ref` ni `etat_connexion` — un bucket par titulaire, pas par dossier. L'état de connexion, la dernière relève, la progression d'indexation et les compteurs se lisent par `GET /messagerie/sante`, pas par la synchronisation |
 | `invitations_titulaire` | `invitations_agenda` du titulaire (`titulaire_id = auth.user_id()`) — un bucket par titulaire, pas par dossier ; absente chez un autre collaborateur |
 | `brouillons_titulaire` | `brouillons_message` de l'auteur (`auteur_id = auth.user_id()`) et du cabinet du jeton, sans jointure — un bucket par auteur, pas par dossier. Colonnes utiles au poste seulement : ni `imap_etat`, ni `imap_maj_le`, ni `expediteur`, jamais de contenu binaire. Un brouillon supprimé ou envoyé (`imap_etat = 'a_retirer'`, colonne filtrée et non envoyée) quitte le flux aussitôt, même si sa copie IMAP reste à retirer |
 

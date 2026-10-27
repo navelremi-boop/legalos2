@@ -173,12 +173,14 @@ export function construireRail(
   comptes: readonly CompteLocal[],
   mails: readonly MailLocal[],
   monId: string | null,
+  /** Comptes dont `GET /messagerie/sante` dit « identifiants refusés ». Pas la base locale : l'état change sans cesse. */
+  comptesRefuses: ReadonlySet<string> = new Set(),
 ): BoiteRail[] {
   const rail: BoiteRail[] = [];
   const adresse = (compte: CompteLocal): AdresseRail => ({
     id: compte.id,
     adresse: compte.adresse,
-    identifiantsRefuses: compte.etat_connexion === "identifiants_refuses",
+    identifiantsRefuses: comptesRefuses.has(compte.id),
   });
 
   const nominatifs = comptes.filter((compte) => compte.type_compte === "nominatif");

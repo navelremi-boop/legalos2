@@ -252,6 +252,9 @@ if (!/titulaire_id::text\s*=\s*auth\.user_id\(\)/.test(comptes)) {
   fail("comptes_nominatifs : titulaire = auth.user_id() requis");
 }
 if (/secret_ref/.test(comptes)) fail("comptes_nominatifs : secret_ref interdit");
+if (/etat_connexion|derniere_releve|serveur_indisponible|corps_indexes|empreinte_refus/.test(comptes)) {
+  fail("comptes_nominatifs : état technique interdit dans le flux (GET /messagerie/sante)");
+}
 
 for (const nom of ["messages_publics", "messages_restreints", "messages_a_classer", "messages_nominatifs", "messages_boites_partagees"]) {
   if (!/texte_brut/.test(blocFlux(nom))) fail(`${nom} : texte_brut requis`);
@@ -283,6 +286,9 @@ if (!/membres_boite_partagee\.utilisateur_texte\s*=\s*auth\.user_id\(\)/.test(co
   fail("comptes_partages : membre = auth.user_id() requis");
 }
 if (/secret|hote|empreinte_refus/.test(comptesPartages)) fail("comptes_partages : identifiant de serveur interdit");
+if (/etat_connexion|derniere_releve|serveur_indisponible|corps_indexes/.test(comptesPartages)) {
+  fail("comptes_partages : état technique interdit dans le flux (GET /messagerie/sante)");
+}
 for (const nom of ["messages_publics", "messages_restreints", "messages_a_classer", "messages_nominatifs", "messages_boites_partagees"]) {
   if (!/messages\.arrivee_seq, messages\.arrivee_notifiable/.test(blocFlux(nom))) {
     fail(`${nom} : colonnes d'arrivée (notification de bureau) requises`);

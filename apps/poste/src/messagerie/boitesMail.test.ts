@@ -116,11 +116,7 @@ describe("construireRail", () => {
   });
 
   it("signale des identifiants refusés", () => {
-    const refus = construireRail(
-      [{ ...(comptes[0] as CompteLocal), etat_connexion: "identifiants_refuses" }],
-      [],
-      MOI,
-    );
+    const refus = construireRail([comptes[0] as CompteLocal], [], MOI, new Set([comptes[0]?.id ?? ""]));
     assert.equal(refus[0]?.adresses[0]?.identifiantsRefuses, true);
     assert.equal(rail[0]?.adresses[0]?.identifiantsRefuses, false);
   });

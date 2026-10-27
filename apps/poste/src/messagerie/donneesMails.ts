@@ -21,7 +21,7 @@ export type DonneesMails = {
 export async function lireDonneesMails(database: CommonPowerSyncDatabase): Promise<DonneesMails> {
   const [comptes, mails, dossiers, invitations, brouillons] = await Promise.all([
     database.getAll<CompteLocal>(
-      "SELECT id, adresse, type_compte, titulaire_id, etat_connexion FROM comptes_mail ORDER BY adresse",
+      "SELECT id, adresse, type_compte, titulaire_id FROM comptes_mail ORDER BY adresse",
     ),
     database.getAll<MailLocal>(
       `SELECT id, message_id, objet, expediteur, destinataires_texte, pieces_texte, extrait_texte,

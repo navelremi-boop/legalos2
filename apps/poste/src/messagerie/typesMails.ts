@@ -7,7 +7,6 @@ export type CompteLocal = {
   adresse: string;
   type_compte: string;
   titulaire_id?: string | null;
-  etat_connexion?: string | null;
 };
 
 export type DossierLocal = {

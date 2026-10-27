@@ -37,6 +37,7 @@ import { lirePiecesBrouillon, type PieceBrouillon } from "@/messagerie/piecesRed
 import type { GenreRedaction, MessageCite } from "@/messagerie/citation";
 import { VoletRedaction } from "@/messagerie/VoletRedaction";
 import { lireDonneesMails, lireTexteStocke, type DonneesMails } from "@/messagerie/donneesMails";
+import { lireSanteMessagerie } from "@/messagerie/apiSanteMessagerie";
 import { invitationDuMessage, reponseEnvoyee } from "@/messagerie/invitations";
 import { dossierImap } from "@/messagerie/dossiersImap";
 import { suiteDuMail } from "@/messagerie/journalMails";
@@ -150,6 +151,8 @@ export function EcranMails({
   demonstration,
 }: EcranMailsProps) {
   const [donneesSync, setDonneesSync] = useState<DonneesMails>(DONNEES_VIDES);
+  /** Identifiants refusés, lus sur `GET /messagerie/sante` : ça ne descend pas par la synchronisation. */
+  const [comptesRefuses, setComptesRefuses] = useState<ReadonlySet<string>>(() => new Set());
   const [fileSync, setFileSync] = useState<LigneEnvoi[]>([]);
   const [maintenantSync, setMaintenantSync] = useState(() => new Date());
   const [vueChoisie, setVueChoisie] = useState<VueMails | null>(null);
@@ -218,6 +221,29 @@ export function EcranMails({
     return () => {
       stop = true;
       window.clearInterval(timer);
+    };
+  }, [instanceUrl, enDemo]);
+
+  useEffect(() => {
+    if (enDemo) return;
+    let annule = false;
+    const charger = () => {
+      void lireSanteMessagerie(instanceUrl).then((resultat) => {
+        if (annule || !resultat.ok) return;
+        setComptesRefuses(
+          new Set(
+            resultat.valeur.comptes
+              .filter((compte) => compte.etatConnexion === "identifiants_refuses")
+              .map((compte) => compte.compteId),
+          ),
+        );
+      });
+    };
+    charger();
+    const minuterie = window.setInterval(charger, 30_000);
+    return () => {
+      annule = true;
+      window.clearInterval(minuterie);
     };
   }, [instanceUrl, enDemo]);
 
@@ -301,8 +327,8 @@ export function EcranMails({
     return table;
   }, [donnees.dossiers]);
   const rail = useMemo(
-    () => construireRail(donnees.comptes, mailsTous, monId),
-    [donnees.comptes, mailsTous, monId],
+    () => construireRail(donnees.comptes, mailsTous, monId, comptesRefuses),
+    [donnees.comptes, mailsTous, monId, comptesRefuses],
   );
   const aClasser = compterAClasser(donnees.mails, classesDeja);
   const nonLus = compterNonLusReception(donnees.mails, monId);

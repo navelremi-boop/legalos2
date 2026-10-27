@@ -284,7 +284,6 @@ const comptesMail = new Table(
     type_compte: column.text,
     titulaire_id: column.text,
     adresse: column.text,
-    etat_connexion: column.text,
     revision: column.integer,
     cree_le: column.text,
   },

@@ -278,7 +278,7 @@ streams:
   comptes_nominatifs:
     auto_subscribe: true
     query: |
-      SELECT id, cabinet_id, type_compte, titulaire_id, adresse, etat_connexion, revision, cree_le::text AS cree_le
+      SELECT id, cabinet_id, type_compte, titulaire_id, adresse, revision, cree_le::text AS cree_le
       FROM comptes_mail
       WHERE type_compte = 'nominatif'
         AND titulaire_id::text = auth.user_id()
@@ -287,7 +287,7 @@ streams:
   comptes_partages:
     auto_subscribe: true
     query: |
-      SELECT comptes_mail.id, comptes_mail.cabinet_id, comptes_mail.type_compte, comptes_mail.titulaire_id, comptes_mail.adresse, comptes_mail.etat_connexion, comptes_mail.revision, comptes_mail.cree_le::text AS cree_le
+      SELECT comptes_mail.id, comptes_mail.cabinet_id, comptes_mail.type_compte, comptes_mail.titulaire_id, comptes_mail.adresse, comptes_mail.revision, comptes_mail.cree_le::text AS cree_le
       FROM comptes_mail
       INNER JOIN membres_boite_partagee ON comptes_mail.id = membres_boite_partagee.compte_id
       WHERE membres_boite_partagee.utilisateur_texte = auth.user_id()
