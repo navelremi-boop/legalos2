@@ -582,9 +582,11 @@ Transmise par le commandement.
 
 2026-10-27 — Série officielle interrompue à la passe 5. Passes 1 à 4 vertes (304 s avec la construction, puis 149 s, 164 s, 143 s), aucun `0xC0000374`. Passe 5 : le poste meurt pendant l'attente « la boîte révoquée passe à Identifiants refusés » (CDP sans réponse 60 s, page muette). Code de sortie du lanceur `3221226356` = `0xC0000374 STATUS_HEAP_CORRUPTION`. Aucun processus `legal-os-poste` ensuite. Dossier `C:\Users\PC\CrashDumps\legal-os-poste` : 0 cliché, donc pas de pile nouvelle. `doveadm who` : maximum 3. D4 est déclenché : la cause n'est pas établie au-delà de la catégorie déjà connue (corruption du tas, dette avant J15). La série n'est pas rejouée pour faire passer le chiffre.
 
-**Prochaine action.** D4 : sans cliché, la pile du plantage de la passe 5 n'est pas lisible. La série officielle reste incomplète (4 vertes, 1 crash). Attendre un cliché ou la décision de l'architecte avant de relancer les 10 passes.
+**Prochaine action.** La collecte WER n'écrit pas de cliché (26/10 et aujourd'hui). Prendre la pile sous `cdb` (`LEGALOS_CDB_LANCE=1`, `-hd`, au plus 6 passes, arrêt à la première pile). La série officielle des 10 passes n'est pas relancée avant cette pile.
 
-2026-10-27 — Pas de rapport d'erreur Windows (événements 1000/1001) pour ce plantage, et toujours 0 cliché. Diagnostic à part de la série officielle : `LEGALOS_CDB_LANCE=1` démarre le binaire construit sous cdb (`-hd`, tas ordinaire) et, sur `0xC0000374`, écrit la pile. Le code de sortie `3221226356` est maintenant nommé dans le relevé.
+2026-10-27 — Pas de rapport d'erreur Windows (événements 1000/1001) pour ce plantage, et toujours 0 cliché. Diagnostic à part de la série officielle : `LEGALOS_CDB_LANCE=1` démarre le binaire construit sous cdb (`-hd`, tas ordinaire) et, sur `0xC0000374`, écrit la pile. Le code de sortie `3221226356` est maintenant nommé dans le relevé. Une passe sous cdb n'a pas reproduit le crash : le poste était vivant, l'assertion « même boîte, connexion suivante » a échoué. La boucle a été arrêtée. Pas de pile nouvelle.
+
+**Prochaine action.** D4 toujours ouvert : la série officielle est 4 vertes et 1 `0xC0000374` sans cliché. Ne pas relancer les 10 passes pour faire passer le chiffre.
 
 2026-10-27 — Série officielle lancée (13 h 32 UTC) : 10 passes consécutives de `node tests/recette/j11-connexion-boites.mjs --build`, arrêt au premier échec, journaux dans le dossier temporaire de la session. Pas de redémarrage de Docker entre les passes : le poste est le binaire construit, sans Vite. Passe 1 : exit 0 en 304 s, heap=0, 0 relance, `doveadm who` maximum 2 (plafond 5), 0 cliché dans `C:\Users\PC\CrashDumps\legal-os-poste`. La compilation du poste (2 min 42 s) est comprise dans ces 304 s.
 
