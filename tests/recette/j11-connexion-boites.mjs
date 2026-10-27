@@ -192,10 +192,12 @@ async function main() {
   await attendre("le moteur a essayé la boîte au bon mot de passe", () => etatServeur(compteBon), (v) => v === "connecte", 120_000);
   await attendre("le moteur a essayé la boîte au mauvais mot de passe", () => etatServeur(compteRefuse), (v) => v === "identifiants_refuses", 120_000);
 
-  resetPostes(["jcnx"]);
   let poste = null;
   let banc = null;
   try {
+    // Dans le `try` : un échec ici (base locale tenue par un autre poste) doit quand même arrêter la sonde.
+    // Sinon son minuteur garde le processus en vie, et la passe ne se termine pas.
+    resetPostes(["jcnx"]);
     console.log("j11-connexion: banc OAuth : fournisseur simulé (jetons de 100 s), relais SMTP XOAUTH2, Dovecot XOAUTH2");
     banc = await demarrerBancOauth({ fail });
     poste = await ouvrirPoste("jcnx", 9371, {
