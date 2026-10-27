@@ -179,9 +179,14 @@ fn greenmail_textes_sans_effet_dans_inbox_avec_des_uid_absents() {
         "le message présent est lu malgré les UID absents : {:?}",
         lus.textes.keys().collect::<Vec<_>>()
     );
-    // Que des UID absents : rien à lire, aucune erreur.
+    // Que des UID absents : rien à lire, aucune erreur. Des UID très au-dessus du dernier, jamais « 2 » ou « 4 » : les autres
+    // tests du banc déposent en parallèle dans la même boîte (et GreenMail garde ses messages d'un passage à l'autre).
     let vides = session
-        .textes_sans_effet("INBOX", releve.uid_validity, &[2, 4, uid + 50])
+        .textes_sans_effet(
+            "INBOX",
+            releve.uid_validity,
+            &[uid + 50, uid + 51, uid + 1000],
+        )
         .expect("que des UID absents");
     assert!(vides.valide && vides.textes.is_empty());
 }

@@ -11,10 +11,14 @@
 use std::net::TcpStream;
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
 use legalos_messagerie::{ErreurMail, ParametresCompte, SessionActions};
+
+/// Les deux tests partagent un serveur à deux connexions : un seul à la fois (démarrage du conteneur et places).
+static BANC: Mutex<()> = Mutex::new(());
 
 const PORT: u16 = 24_147;
 const NOM: &str = "legalos-j11-dovecot-limite";
@@ -97,6 +101,7 @@ fn connecter_avec_reprise(mot_de_passe: &str) -> Result<SessionActions, ErreurMa
 
 #[test]
 fn la_limite_de_connexions_n_est_pas_un_refus_d_identifiants() {
+    let _banc = BANC.lock().unwrap_or_else(|erreur| erreur.into_inner());
     assurer_dovecot();
     let _premiere = connecter_avec_reprise("MotDePasseCapa123!").expect("première connexion");
     let _seconde = connecter_avec_reprise("MotDePasseCapa123!").expect("seconde connexion");
@@ -115,6 +120,7 @@ fn la_limite_de_connexions_n_est_pas_un_refus_d_identifiants() {
 /// connexion aux bons identifiants réussit de nouveau.
 #[test]
 fn un_mauvais_mot_de_passe_reste_un_refus_et_la_place_liberee_sert() {
+    let _banc = BANC.lock().unwrap_or_else(|erreur| erreur.into_inner());
     assurer_dovecot();
     // Les deux tests partagent le serveur : on attend qu'il n'y ait pas plus d'une connexion tenue par l'autre test.
     let mut refus = None;
