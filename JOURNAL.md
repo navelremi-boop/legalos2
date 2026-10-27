@@ -695,3 +695,7 @@ Un seul client par processus. Le JavaScript n'ouvre qu'une base (`getPowerSyncDa
 Pas de pré-série. Pas de nouveau banc de révocation. Pas de tas de pages ni d'Application Verifier. Suite : compilation du poste, puis la série officielle de 10 passes de `j11-connexion-boites --build`, filet `cdb` déjà attaché par la recette, une ligne par passe.
 
 **Prochaine action.** Compiler le poste avec `powersync_core` 0.5.4, puis lancer la série officielle. J11 n'est pas coché.
+
+2026-10-27 — `cargo check` du poste, `CARGO_TARGET_DIR=target-recette`, `powersync_core` 0.5.4 : exit 0 en 19 s. Série officielle lancée : 10 passes de `j11-connexion-boites.mjs --build`, une ligne par passe (numéro, durée, code, cliché). Un `0xC0000374` ne compte pas parmi les 10 vertes. Un autre échec arrête la série.
+
+**Prochaine action.** Attendre la série. J11 n'est pas coché.
