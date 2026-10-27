@@ -616,6 +616,14 @@ Inventaire du natif pendant l'attente « Identifiants refusés », avant le clic
 
 **Prochaine action.** Banc de 50 répétitions de cette étape sur le binaire de la série : 25 fenêtre visible, 25 fenêtre réduite.
 
+2026-10-27 — Banc de révocation, 50 itérations, poste construit de la série (binaire de 15 h 02), filet par attache. `node tests/recette/j11-revocation-oauth.mjs` exit 0, environ 112 min. Compte technique `714feab2-a5e7-4c84-ac94-4e7952a9ebb8`.
+
+Itérations 1 à 25, fenêtre visible : sortie vivant, aucun cliché, session `connecte`, étape complète (34 à 37 s). Itérations 26 et 27, fenêtre réduite : même résultat. Itération 28, fenêtre réduite : l'écran reste « Connectée » pendant 180 s, le serveur est déjà `identifiants_refuses`, processus vivant, aucun cliché. Itérations 29 à 50 : relance, la ligne de la boîte n'apparaît pas en 120 s, le serveur reste `identifiants_refuses`, processus vivant, aucun cliché.
+
+Aucun `0xC0000374`. Aucun cliché dans `C:\Users\PC\CrashDumps\legal-os-poste`. Il n'y a donc pas de pile nouvelle à analyser. Le banc exclut qu'il suffise, sur ce binaire, de répéter cette seule étape (fenêtre visible ou réduite) pour reproduire le crash. L'outil suivant est à l'architecte (point 4 de la consigne). La série officielle n'est pas rejouée. D4 reste ouvert : J11 ne se coche pas.
+
+**Prochaine action.** D4 ouvert, sans cliché nouveau. L'architecte choisit l'outil suivant. Ne pas relancer les 10 passes pour le chiffre.
+
 2026-10-27 — Passe de diagnostic sous `cdb` lancée à 13 h 56 UTC : timeout à 1 800 s, aucune pile (`crash=-1`, le débogueur n'a pas démarré). Cause : `resetPostes` a échoué (`EPERM` sur `legalos-powersync-jcnx.db`, base tenue par un autre poste) avant le `try` qui arrête la sonde `doveadm`. Le minuteur de la sonde a gardé le processus jusqu'au délai. Corrigé : `resetPostes` est dans ce `try`. Le banc de révocation déjà attaché à `cdb` n'est pas relancé.
 
 2026-10-27 — Banc de révocation en cours (`node tests/recette/j11-revocation-oauth.mjs`, démarré 14 h 26 UTC, binaire de la série, filet `cdb` par attache). Itérations 1 à 4 : fenêtre visible, poste vivant, aucun cliché, état `connecte`, 34 à 37 s. La suite est surveillée ; un cliché ou une mort du poste interrompt l'attente pour l'analyse.
