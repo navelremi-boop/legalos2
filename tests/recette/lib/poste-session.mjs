@@ -277,7 +277,7 @@ export function creerSession(etiquette) {
             break;
           } catch (err) {
             if (essai === 7) throw err;
-            spawnSync("taskkill", ["/IM", "legal-os-poste.exe", "/T", "/F"], { stdio: "ignore" });
+            spawnSync("taskkill", ["/F", "/FI", "IMAGENAME eq legal-os-poste*"], { stdio: "ignore" });
             Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 400);
           }
         }
