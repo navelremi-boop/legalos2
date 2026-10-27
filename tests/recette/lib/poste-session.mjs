@@ -307,9 +307,9 @@ export function creerSession(etiquette) {
     const cliche = join(DOSSIER_CLICHES_POSTE, `legal-os-poste-${pid}-${Date.now()}.dmp`).replaceAll("\\", "/");
     const journal = join(tmpdir(), `cdb-filet-${pid}.log`);
     const symboles = dirname(cheminBinairePoste());
-    // `c0000374` est précédé d'un `int 3` dans RtlReportCriticalFailure. Sans reprise automatique,
-    // cdb s'y arrête, la page gèle, et la recette tue le débogueur avant le cliché (code 0xC0000354).
-    const commande = `.echo CDB_ATTACHE; sxe -c "g" 80000003; sxe -c ".echo CRASH_C0000374; .dump /ma ${cliche}; ~*kn 80; lmv; !heap -s; q" c0000374; g`;
+    // `c0000374` est précédé d'un `int 3`. `sxi bpe` laisse passer ces interruptions ; l'exception,
+    // elle, écrit le cliché. Un `g` dans la commande d'interruption fait quitter le débogueur (0xC0000354).
+    const commande = `.echo CDB_ATTACHE; sxi bpe; sxe -c ".echo CRASH_C0000374; .dump /ma ${cliche}; ~*kn 80; lmv; !heap -s; q" c0000374; g`;
     const filet = spawn(cdb, ["-p", String(pid), "-logo", journal, "-y", symboles, "-c", commande], {
       stdio: "ignore",
       windowsHide: true,
