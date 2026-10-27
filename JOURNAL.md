@@ -569,3 +569,7 @@ Transmise par le commandement.
 2026-10-27 — États techniques hors du seau. `etat_connexion` est retiré des flux `comptes_nominatifs` et `comptes_partages`, et du schéma local. Le poste le lit par `GET /messagerie/sante` (déjà la route du tableau de santé) ; le rail des mails s'en sert pour « identifiants refusés », rafraîchi toutes les 30 s. `cargo test -p legalos-api etats_techniques_hors_synchro` : 1 passed. `node tests/recette/s5-sync-streams.mjs` exit 0. `tsc` exit 0.
 
 **Prochaine action.** Compactage des seaux par l'instance, selon la procédure de PowerSync figée dans `docs/versions.md` — `cargo test -p legalos-api compactage_seaux`.
+
+2026-10-27 — Compactage planifié. Procédure relue le jour (https://docs.powersync.com/maintenance-ops/compacting-buckets) : image 1.26.1, commande `compact` sur tous les seaux, toutes les heures (stockage version 4). La défragmentation n'y figure pas : elle réécrit les lignes sources et force les postes déjà synchronisés à tout retélécharger. Service `powersync-compact` dans `instance/docker-compose.yml`. `cargo test -p legalos-api compactage_seaux` : 1 passed. `docker compose config --services` liste `powersync-compact`.
+
+**Prochaine action.** Chaque passe de recette n'ajoute au seau qu'au plus 3 opérations par ligne créée, modifiée ou supprimée, et un poste déjà synchronisé ouvre la coque sur ses données locales — `node tests/recette/seau-powersync.mjs`.
