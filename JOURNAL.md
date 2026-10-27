@@ -727,6 +727,14 @@ Série officielle relue (dix passes, exit 0, filet cdb, aucun cliché nouveau). 
 
 **Prochaine action.** Relancer la série officielle de 10 passes, puis le contrôleur. J11 n'est pas coché.
 
+2026-10-27 — `git push origin main` refusé par `pre-push-check` (sortie 2). La plage non poussée touche le jeu protégé : `.cursor/hooks.json`, `.github/workflows/ci.yml`, `.github/workflows/volume-50k.yml`, `CLAUDE.md`, `tests/recette/regles-synchronisees.mjs`. Le commandement relit et pousse. Pas de contournement.
+
+Deux lancements de la série officielle se sont croisés (port 18766 déjà pris, un processus `j11-connexion-boites --build` tué). Aucune des deux n'est la série : `1 167s 4294967295 oui` puis `2 175s 1 non` (`le serveur la dit connectée`) ; l'autre s'arrête sur `listen EADDRINUSE`. Une passe isolée ensuite, machine libre : échec `cdp sans réponse en 60 s (Page.captureScreenshot)` après « choix du mode », code de sortie 4294967295. La série des dix passes n'est pas verte.
+
+Une série est déjà en cours depuis 18 h 39 UTC (`j11-serie-officielle.mjs`, une seule). Je n'en lance pas une deuxième.
+
+**Prochaine action.** Laisser finir cette série. Le commandement pousse `main` (revue du jeu protégé). J11 n'est pas coché.
+
 2026-10-27 — Série officielle relancée après le correctif des pièces (`4fe0e50`). Passe 1 : 167 s, code `4294967295`, cliché oui. Processus `legal-os-poste-29532`, debout depuis 34 s. Exception `c0000374` sur le fil `tokio-rt-worker` (`1524`). Détection dans `RtlpCoalesceFreeBlocks` / `RtlFreeHeap`, en détruisant un `BTreeMap<String, BucketProgress>` de `SyncDownloadProgress`, appelé par `DownloadSyncStatus::applied_checkpoint` ← `StreamingSyncIteration::handle_checkpoint_applied` ← `apply_transition` ← `handle_event` ← `SyncClient::push_event` ← `register::control` ← `sqlite3VdbeExec` / `sqlite3_step` (`powersync_core` 0.5.4). Même composant que le cliché `22536` (0.5.3, `OwnedBucketChecksum`). L'enquête s'arrête. D4 est satisfait par cette identification. Le défaut bloque J14. Signalement prêt : `docs/signalements/powersync-native-c0000374.md`. La passe ne compte pas parmi les 10 vertes. La série continue.
 
 **Prochaine action.** Finir les 10 passes vertes hors ce crash. J11 n'est pas coché.
