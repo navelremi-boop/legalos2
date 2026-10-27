@@ -58,7 +58,7 @@ The same scenario on powersync_core 0.5.3 (dump of 2026-10-27 17:49, thread `tok
 Same end-to-end scenario (connect mailboxes, including an OAuth mailbox, against a local PowerSync instance, debug build):
 
 - powersync_core 0.5.3: the crash showed up on pass 5 of an official run (passes 1–4 clean) and again on pass 5 of a later capture run (passes 1–4 clean). It did not show on a 50-iteration bench that only repeated the OAuth revocation step.
-- powersync_core 0.5.4: the first pass of the same official scenario died at 34 s of process uptime, after the OAuth mailbox reached "connected", during sync. The series was still running when this report was written, so the 0.5.4 rate is "at least the first pass", not a measured percentage.
+- powersync_core 0.5.4: one run of 15 passes of the same scenario produced 5 crashes (passes 3, 6, 10, 11 and 13) and 10 clean passes. An earlier attempt crashed on its first pass (process uptime 34 s). Every crash is `0xC0000374` on `tokio-rt-worker`, inside `StreamingSyncIteration::apply_transition`, called from `powersync::sync::download::download_loop` through `sqlite3_step`. The freed object is either `OwnedBucketChecksum` or `BucketProgress`.
 
 ### Scenario
 

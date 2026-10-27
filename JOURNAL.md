@@ -746,3 +746,25 @@ Une série est déjà en cours depuis 18 h 39 UTC (`j11-serie-officielle.mjs`, u
 2026-10-27 — Relance immédiate arrêtée en 36 s : `EADDRINUSE` sur `0.0.0.0:18766`. Un `node tests/recette/j11-connexion-boites.mjs --build` (pid 26120) tenait encore le port après la passe 2. Processus arrêté. Port libre. Série relancée.
 
 **Prochaine action.** Série officielle en cours. J11 n'est pas coché.
+
+2026-10-27 — Série officielle après `6a0713c`. Quinze passes, dix vertes, cinq tuées par le crash identifié. Ces cinq ne comptent pas. Piles : fil `tokio-rt-worker`, `c0000374`, `RtlFreeHeap`, `StreamingSyncIteration::apply_transition`, `download_loop`, `sqlite3_step`.
+
+1 145s 0 non
+2 150s 0 non
+3 182s 1 oui — cliché `legal-os-poste-23260`, libération d'`OwnedBucketChecksum`
+4 154s 0 non
+5 155s 0 non
+6 305s 1 oui — cliché `legal-os-poste-30816`, libération d'un `BTreeMap` de `BucketProgress` dans `handle_checkpoint_applied`
+7 159s 0 non
+8 150s 0 non
+9 150s 0 non
+10 219s 1 oui — cliché `legal-os-poste-2732`, `apply_transition` pendant le parcours d'un `BTreeMap` de `BucketProgress`
+11 305s 1 oui — cliché `legal-os-poste-2232`, libération d'`OwnedBucketChecksum`
+12 152s 0 non
+13 182s 1 oui — cliché `legal-os-poste-29360`, libération d'`OwnedBucketChecksum`
+14 149s 0 non
+15 150s 0 non
+
+Les cinq piles restent dans les journaux `cdb-filet-*.log`. Taux sur cette série : 5 plantages sur 15 passes. Signalement mis à jour. Contrôleur relancé. J11 n'est pas coché.
+
+**Prochaine action.** Verdict du contrôleur, puis CI. J11 n'est pas coché.
