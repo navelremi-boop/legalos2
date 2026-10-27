@@ -58,8 +58,13 @@ export function diagnosticProcessusPoste(child) {
   const lignes = [];
   try {
     if (!child) return ["aucun poste lancé"];
+    const nomCrash = child.exitCode === 3221226356 ? " (0xC0000374 STATUS_HEAP_CORRUPTION)" : "";
     const lanceur =
-      child.exitCode !== null ? `terminé, code ${child.exitCode}` : child.signalCode ? `signal ${child.signalCode}` : "encore actif";
+      child.exitCode !== null
+        ? `terminé, code ${child.exitCode}${nomCrash}`
+        : child.signalCode
+          ? `signal ${child.signalCode}`
+          : "encore actif";
     lignes.push(`lanceur (pid ${child.pid}) : ${lanceur}`);
     if (process.platform === "win32") {
       const script = [
@@ -325,7 +330,20 @@ export function creerSession(etiquette) {
       const dest = join(tmpdir(), `legal-os-poste-${etiquette}-${id}-${marque}.exe`);
       copyFileSync(src, dest);
       env.WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = `--remote-debugging-port=${port} --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`;
-      child = spawn(dest, [], { cwd: poste, env, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+      // D4 : le binaire construit ne passe pas par le lanceur Cargo. `LEGALOS_CDB_LANCE=1` le démarre sous cdb
+      // (`-hd`, tas ordinaire) et, sur `0xC0000374`, écrit la pile puis quitte. Sans la variable, lancement inchangé.
+      if (process.env.LEGALOS_CDB_LANCE === "1") {
+        const cdb = process.env.LEGALOS_CDB ?? "C:\\Program Files (x86)\\Windows Kits\\10\\Debuggers\\x64\\cdb.exe";
+        const journalCdb = process.env.LEGALOS_CDB_JOURNAL ?? join(tmpdir(), "cdb-poste.log");
+        const symboles = `srv*${join(tmpdir(), "legalos-symboles")}*https://msdl.microsoft.com/download/symbols`;
+        child = spawn(
+          cdb,
+          ["-hd", "-g", "-logo", journalCdb, "-y", symboles, "-c", 'sxe -c ".echo CRASH_C0000374; ~*kn 40; lmv; q" c0000374; g', dest],
+          { cwd: poste, env, stdio: ["ignore", "pipe", "pipe"], windowsHide: true },
+        );
+      } else {
+        child = spawn(dest, [], { cwd: poste, env, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+      }
       child.exeCopie = dest;
     } else {
       const configPath = ecrireConfig(id, port);
