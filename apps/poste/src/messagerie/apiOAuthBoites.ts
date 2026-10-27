@@ -20,9 +20,12 @@ import {
   requeteFournisseurs,
   validerRetour,
   type ApplicationOAuth,
+  type DemandeConnexionOAuth,
   type EtapeOAuth,
   type FournisseurOAuth,
+  type ParcoursOAuth,
   type PhaseAppelOAuth,
+  type ResultatConnexionOAuth,
 } from "@/messagerie/formesOAuth";
 import {
   confierAdresseALaRecette,
@@ -36,18 +39,6 @@ import {
  * système. En ligne seulement. Le poste ne voit ni ne garde aucun jeton : le code d'autorisation, rendu par le
  * navigateur à l'écoute locale, part à l'instance et n'est conservé nulle part (ni stockage, ni journal).
  */
-
-export type DemandeConnexionOAuth = { compteId: string; adresse: string; fournisseur: string };
-
-export type ResultatConnexionOAuth =
-  | { ok: true; compteId: string; reconnexion: boolean }
-  | { ok: false; annule: boolean; message: string };
-
-export type ParcoursOAuth = {
-  /** Ferme l'écoute locale et libère l'attente ; sans effet une fois l'échange commencé. */
-  annuler: () => void;
-  resultat: Promise<ResultatConnexionOAuth>;
-};
 
 /** Fournisseurs que l'instance sait connecter (liste vide si elle n'en propose pas ; l'appelant gère l'erreur). */
 export async function lireFournisseursOAuth(instanceUrl: string): Promise<ResultatApi<FournisseurOAuth[]>> {

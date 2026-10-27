@@ -30,8 +30,8 @@ import {
   sousTitreEcran,
   type DossierClassement,
 } from "@/messagerie/classement";
-import { composerDepartServeur, type DepartServeur } from "@/messagerie/apiBrouillons";
-import { appliquerDepartServeur, champsEcrits, etatDeDepart, etatDepuisLigne, type ChampsEcrits, type EtatRedaction } from "@/messagerie/etatRedaction";
+import { composerDepartServeur } from "@/messagerie/apiBrouillons";
+import { appliquerDepartServeur, champsEcrits, etatDeDepart, etatDepuisLigne, type ChampsEcrits, type DepartServeur, type EtatRedaction } from "@/messagerie/etatRedaction";
 import { brouillonsVersMails } from "@/messagerie/listeBrouillons";
 import { lirePiecesBrouillon, type PieceBrouillon } from "@/messagerie/piecesRedaction";
 import type { GenreRedaction, MessageCite } from "@/messagerie/citation";

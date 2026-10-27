@@ -1,4 +1,4 @@
-import type { CorpsRequete, Recu } from "@/api/contrat";
+import type { CorpsRequete, Recu, Schema } from "@/api/contrat";
 import type { RequeteApi } from "@/messagerie/formesApiRedaction";
 
 /**
@@ -10,7 +10,7 @@ import type { RequeteApi } from "@/messagerie/formesApiRedaction";
  * et l'instance seule échange ce code (avec le vérificateur PKCE qu'elle détient) et garde les jetons.
  */
 
-export type FournisseurOAuth = { id: string; libelle: string };
+export type FournisseurOAuth = Schema<"FournisseurDisponible">;
 
 const LIBELLES_FOURNISSEURS: Record<string, string> = {
   microsoft: "Microsoft 365",
@@ -54,7 +54,7 @@ export function corpsEcrireApplicationOAuth(saisie: {
   };
 }
 
-export type ApplicationOAuth = { microsoft: boolean; gmail: boolean };
+export type ApplicationOAuth = Schema<"ApplicationOAuth">;
 
 /** `null` si la réponse n'a pas les deux booléens. Une clé inattendue (secret, client_id) est ignorée. */
 export function lireApplicationOAuth(json: unknown): ApplicationOAuth | null {
@@ -230,6 +230,20 @@ export function messageEchecAppel(phase: PhaseAppelOAuth, statut: number, messag
 }
 
 export type EtapeOAuth = "ouverture" | "attente" | "echange";
+
+/** Paramètres du parcours local. Le corps HTTP est `CorpsRequete<"DemandeDebut">`, pas ce type. */
+export type DemandeConnexionOAuth = { compteId: string; adresse: string; fournisseur: string };
+
+/** Issue du parcours (navigateur, écoute locale, échange), pas le corps HTTP. */
+export type ResultatConnexionOAuth =
+  | { ok: true; compteId: string; reconnexion: boolean }
+  | { ok: false; annule: boolean; message: string };
+
+export type ParcoursOAuth = {
+  /** Ferme l'écoute locale et libère l'attente ; sans effet une fois l'échange commencé. */
+  annuler: () => void;
+  resultat: Promise<ResultatConnexionOAuth>;
+};
 
 export function libelleEtape(etape: EtapeOAuth): string {
   switch (etape) {

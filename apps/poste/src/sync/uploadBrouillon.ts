@@ -1,3 +1,5 @@
+import type { CorpsRequete } from "@/api/contrat";
+
 /**
  * Miroir TypeScript du connecteur d'envoi du poste (apps/poste/src-tauri/src/powersync_connect.rs,
  * `corps_brouillon`) pour la table `brouillons_message` : de quoi est fait le corps de
@@ -33,17 +35,20 @@ function lignes(valeur: unknown): string[] {
     .filter((ligne) => ligne !== "");
 }
 
-/** Corps d'une écriture partielle : seules les colonnes présentes partent. */
-export function corpsBrouillon(colonnes: Readonly<Record<string, unknown>>): Record<string, unknown> {
-  const corps: Record<string, unknown> = {};
-  for (const nom of ["compte_id", "genre", "origine_message_id"]) {
-    const valeur = texteNonVide(colonnes, nom);
-    if (valeur !== null) corps[nom] = valeur;
-  }
-  for (const nom of ["objet", "corps_html", "corps"]) {
-    const valeur = colonnes[nom];
-    if (typeof valeur === "string") corps[nom] = valeur;
-  }
+/** Corps d'une écriture partielle : seules les colonnes présentes partent. Le type est celui du contrat. */
+export function corpsBrouillon(
+  colonnes: Readonly<Record<string, unknown>>,
+): CorpsRequete<"EcrireBrouillonRequest"> {
+  const corps: CorpsRequete<"EcrireBrouillonRequest"> = {};
+  const compteId = texteNonVide(colonnes, "compte_id");
+  if (compteId !== null) corps.compte_id = compteId;
+  const genre = texteNonVide(colonnes, "genre");
+  if (genre !== null) corps.genre = genre;
+  const origine = texteNonVide(colonnes, "origine_message_id");
+  if (origine !== null) corps.origine_message_id = origine;
+  if (typeof colonnes.objet === "string") corps.objet = colonnes.objet;
+  if (typeof colonnes.corps_html === "string") corps.corps_html = colonnes.corps_html;
+  if (typeof colonnes.corps === "string") corps.corps = colonnes.corps;
   if ("dossier_id" in colonnes) corps.dossier_id = texteNonVide(colonnes, "dossier_id");
   if ("en_reponse_a" in colonnes) {
     const valeur = colonnes.en_reponse_a;

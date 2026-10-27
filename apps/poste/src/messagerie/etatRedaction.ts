@@ -1,7 +1,9 @@
+import type { Recu } from "@/api/contrat";
 import { formatHeure } from "@/lib/format";
 import { fr } from "@/lib/fr";
 import {
   depuisLignes,
+  lireSaisie,
   versLignes,
   type ChampAdresses,
   type Destinataire,
@@ -11,6 +13,7 @@ import {
   destinatairesDepart,
   filDeReponse,
   objetRedaction,
+  texteDeLaCitationServeur,
   type GenreRedaction,
   type MessageCite,
 } from "@/messagerie/citation";
@@ -118,6 +121,36 @@ export function etatDeDepart(entree: {
     corpsHtml: corpsDeDepart(genre, message),
     enReponseA: fil.enReponseA,
     references: fil.references,
+  };
+}
+
+/** Départ d'une réponse tel que l'écran l'applique : projection du contrat `CompositionResponse`, pas le corps brut. */
+export type DepartServeur = {
+  a: Destinataire[];
+  cc: Destinataire[];
+  enReponseA: string | null;
+  references: string[];
+  /** Texte du message d'origine tel que le serveur l'a lu (vide s'il n'a pas pu). */
+  texteCite: string;
+  /** Compte d'envoi du message : celui du message d'origine. Sa signature est insérée à la rédaction. */
+  compteId: string | null;
+};
+
+function textes(valeur: unknown): string[] {
+  return Array.isArray(valeur) ? valeur.filter((v): v is string => typeof v === "string") : [];
+}
+
+/** Lit une réponse `CompositionResponse` sans faire confiance aux types du JSON. */
+export function lireDepartServeur(json: unknown): DepartServeur {
+  const ligne = (typeof json === "object" && json !== null ? json : {}) as Recu<"CompositionResponse">;
+  const enReponseA = typeof ligne.en_reponse_a === "string" && ligne.en_reponse_a.trim() !== "" ? ligne.en_reponse_a : null;
+  return {
+    a: lireSaisie(textes(ligne.a).join("\n")).destinataires,
+    cc: lireSaisie(textes(ligne.cc).join("\n")).destinataires,
+    enReponseA,
+    references: textes(ligne.references),
+    texteCite: typeof ligne.html === "string" ? texteDeLaCitationServeur(ligne.html) : "",
+    compteId: typeof ligne.compte_id === "string" && ligne.compte_id !== "" ? ligne.compte_id : null,
   };
 }
 

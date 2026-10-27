@@ -1,6 +1,7 @@
 import type { CorpsRequete, Recu } from "@/api/contrat";
 import { apiUrl } from "@/lib/auth/client";
 import { loadSessionTokens } from "@/lib/session/storage";
+import type { ResultatApi } from "@/messagerie/appelApi";
 import { messageErreurHttp } from "@/messagerie/erreursHttp";
 import type { LigneEnvoi } from "@/messagerie/typesMails";
 
@@ -8,8 +9,6 @@ import type { LigneEnvoi } from "@/messagerie/typesMails";
  * Appels à l'API de messagerie : seulement ce qui exige le serveur (corps d'un mail non stocké, classement,
  * file d'envoi). La lecture des mails passe par la base locale.
  */
-
-export type ResultatAction = { ok: true } | { ok: false; message: string };
 
 export function jetonAcces(): string | null {
   const jeton = loadSessionTokens().accessToken;
@@ -31,19 +30,19 @@ export async function lireJsonSansEchec(reponse: Response): Promise<unknown> {
   }
 }
 
-async function poster(instanceUrl: string, chemin: string, corps?: unknown): Promise<ResultatAction> {
+async function poster(instanceUrl: string, chemin: string, corps?: unknown): Promise<ResultatApi<void>> {
   const jeton = jetonAcces();
-  if (jeton === null) return { ok: false, message: "La session a expiré. Reconnectez-vous." };
+  if (jeton === null) return { ok: false, statut: 401, message: "La session a expiré. Reconnectez-vous." };
   try {
     const reponse = await fetch(apiUrl(instanceUrl, chemin), {
       method: "POST",
       headers: entetes(jeton, corps !== undefined),
       body: corps === undefined ? undefined : JSON.stringify(corps),
     });
-    if (reponse.ok) return { ok: true };
-    return { ok: false, message: messageErreurHttp(reponse.status, await lireJsonSansEchec(reponse)) };
+    if (reponse.ok) return { ok: true, valeur: undefined };
+    return { ok: false, statut: reponse.status, message: messageErreurHttp(reponse.status, await lireJsonSansEchec(reponse)) };
   } catch {
-    return { ok: false, message: "L'instance est injoignable." };
+    return { ok: false, statut: 0, message: "L'instance est injoignable." };
   }
 }
 
@@ -100,14 +99,14 @@ export function classerMessage(
   instanceUrl: string,
   messageId: string,
   dossierId: string,
-): Promise<ResultatAction> {
+): Promise<ResultatApi<void>> {
   return poster(instanceUrl, `/messagerie/messages/${messageId}/classer`, { dossier_id: dossierId } satisfies CorpsRequete<"ClasserCorps">);
 }
 
-export function annulerEnvoi(instanceUrl: string, envoiId: string): Promise<ResultatAction> {
+export function annulerEnvoi(instanceUrl: string, envoiId: string): Promise<ResultatApi<void>> {
   return poster(instanceUrl, `/messagerie/file-envoi/${envoiId}/annuler`);
 }
 
-export function relancerEnvoi(instanceUrl: string, envoiId: string): Promise<ResultatAction> {
+export function relancerEnvoi(instanceUrl: string, envoiId: string): Promise<ResultatApi<void>> {
   return poster(instanceUrl, `/messagerie/file-envoi/${envoiId}/traiter`);
 }
