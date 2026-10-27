@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-10-27 (jalon en cours : **J11**, refusé par le contrôleur sur `9474c61` ; le crash `0xC0000374` est identifié dans `powersync_core` et bloque J14 ; la série officielle exige 10 passes vertes hors ce crash).
+Dernière mise à jour : 2026-10-27 (jalon en cours : **J11**, refusé par le contrôleur sur `bf780c8` faute de CI : `origin/main` est `e4de2da`, le push attend la revue du jeu protégé ; le crash `0xC0000374` bloque J14 ; la série officielle exige 10 passes vertes hors ce crash).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
