@@ -676,4 +676,6 @@ Aucun `0xC0000374`. Aucun cliché dans `C:\Users\PC\CrashDumps\legal-os-poste`. 
 
 2026-10-27 — Relecture du cliché `legal-os-poste-22536` (`!heap -x` sur `000002370d9f4590`, pas un nouveau plantage). Le bloc est déjà marqué libre, taille `0xC0`, bloc précédent `0x410`. `Blink->Flink` vaut `000002370d9f4526`, qui tombe dans le bloc précédent et n'est pas aligné (l'entrée attendue est `000002370d9f4590`). Les premiers octets du bloc libéré sont des pointeurs du tas, pas le texte d'un nom de seau. Le tampon de la `String` était donc déjà réécrit. L'écrivain n'est toujours pas nommé.
 
+2026-10-27 — Le chaînon dont le lien avant est faux (`0000023708bd2c00`, lui aussi un bloc libre de `0xC0`) pointe dans le bloc précédent, au milieu d'une structure de schéma : noms de tables et de colonnes du poste (`cabinet_globals`, `repertoires_publics`, `type_compte`, `taux_restreints`), pas un contenu de mail. Le tas lit alors ces octets comme un pointeur (`type_c…`). Le bloc de schéma et la liste libre se recouvrent. L'instruction qui a écrit ce pointeur n'est pas sur la pile.
+
 **Prochaine action.** D4 ouvert. J11 n'est pas coché. Ne pas relancer les 10 passes pour le chiffre. Ne pas réactiver le tas de pages.
