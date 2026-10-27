@@ -617,3 +617,5 @@ Inventaire du natif pendant l'attente « Identifiants refusés », avant le clic
 **Prochaine action.** Banc de 50 répétitions de cette étape sur le binaire de la série : 25 fenêtre visible, 25 fenêtre réduite.
 
 2026-10-27 — Passe de diagnostic sous `cdb` lancée à 13 h 56 UTC : timeout à 1 800 s, aucune pile (`crash=-1`, le débogueur n'a pas démarré). Cause : `resetPostes` a échoué (`EPERM` sur `legalos-powersync-jcnx.db`, base tenue par un autre poste) avant le `try` qui arrête la sonde `doveadm`. Le minuteur de la sonde a gardé le processus jusqu'au délai. Corrigé : `resetPostes` est dans ce `try`. Le banc de révocation déjà attaché à `cdb` n'est pas relancé.
+
+2026-10-27 — Banc de révocation en cours (`node tests/recette/j11-revocation-oauth.mjs`, démarré 14 h 26 UTC, binaire de la série, filet `cdb` par attache). Itérations 1 à 4 : fenêtre visible, poste vivant, aucun cliché, état `connecte`, 34 à 37 s. La suite est surveillée ; un cliché ou une mort du poste interrompt l'attente pour l'analyse.
