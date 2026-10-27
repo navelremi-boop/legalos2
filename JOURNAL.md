@@ -553,3 +553,7 @@ Transmise par le commandement.
 5. **Ordre** : alignement des `api*.ts` (D9), seau PowerSync, série officielle, contrôleur. La série vient en dernier.
 
 **Prochaine action.** Aligner les `api*.ts` sur la règle 11-api (D9).
+
+2026-10-27 — D9, alignement des `api*.ts`. Les fonctions d'appel n'y déclarent plus de type de requête ou de réponse : les corps partent en `CorpsRequete`, les lectures en `Recu` ou `Schema` (`EnvoiCree` est un `Pick` de `FileEnvoiResponse`, `DestinataireSuggere`, `FournisseurDisponible`, `ApplicationOAuth`). La projection `DepartServeur` et le parcours OAuth vivent hors de ces fichiers. `pnpm --filter @legal-os/poste exec tsc --noEmit` exit 0 ; eslint des fichiers touchés exit 0 ; 50 tests unitaires (brouillon, OAuth, contrat) exit 0.
+
+**Prochaine action.** Seau PowerSync : établir la source des opérations (tables et colonnes), puis les écritures sans changement.
