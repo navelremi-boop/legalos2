@@ -5,7 +5,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { totpNow } from "./demo-auth.mjs";
 import {
@@ -17,6 +17,9 @@ import {
 } from "./lancement.mjs";
 
 const repoRoot = join(fileURLToPath(new URL(".", import.meta.url)), "../../..");
+
+/** Clichés complets du filet de recette (attache cdb), hors du rapport d'erreurs Windows. */
+export const DOSSIER_CLICHES_POSTE = "C:\\Users\\PC\\CrashDumps\\legal-os-poste";
 
 export function racineInstance() {
   if (existsSync(join(repoRoot, ".env"))) return repoRoot;
@@ -288,6 +291,66 @@ export function creerSession(etiquette) {
     return join(target, "debug", "legal-os-poste.exe");
   }
 
+  /**
+   * Filet de recette (consigne du 27/10/2026) : attache cdb au processus déjà créé.
+   * Lancer le poste sous le débogueur activerait le tas de débogage ; l'attache, non.
+   * Sur `c0000374`, écrit un cliché complet puis quitte. Le fichier n'existe qu'en cas d'exception.
+   */
+  function attacherFiletCdb(pid) {
+    if (process.platform !== "win32") return null;
+    const cdb = process.env.LEGALOS_CDB ?? "C:\\Program Files (x86)\\Windows Kits\\10\\Debuggers\\x64\\cdb.exe";
+    if (!existsSync(cdb)) {
+      console.error(`${etiquette}: cdb introuvable, le filet de cliché n'est pas posé`);
+      return null;
+    }
+    mkdirSync(DOSSIER_CLICHES_POSTE, { recursive: true });
+    const cliche = join(DOSSIER_CLICHES_POSTE, `legal-os-poste-${pid}-${Date.now()}.dmp`).replaceAll("\\", "/");
+    const journal = join(tmpdir(), `cdb-filet-${pid}.log`);
+    const symboles = dirname(cheminBinairePoste());
+    const commande = `.echo CDB_ATTACHE; sxe -c ".echo CRASH_C0000374; .dump /ma ${cliche}; ~*kn 80; lmv; !heap -s; q" c0000374; g`;
+    const filet = spawn(cdb, ["-p", String(pid), "-logo", journal, "-y", symboles, "-c", commande], {
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    filet.cliche = cliche;
+    filet.journal = journal;
+    return filet;
+  }
+
+  function pidsImage(image) {
+    const r = spawnSync("tasklist", ["/FI", `IMAGENAME eq ${image}`, "/FO", "CSV", "/NH"], {
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    const pids = [];
+    for (const ligne of String(r.stdout ?? "").split(/\r?\n/u)) {
+      const m = /^"[^"]+","(\d+)"/u.exec(ligne.trim());
+      if (m) pids.push(m[1]);
+    }
+    return pids;
+  }
+
+  /** Le lancement `tauri dev` n'est pas le poste : on attache le filet quand `legal-os-poste.exe` apparaît. */
+  function surveillerPoste(child) {
+    if (process.platform !== "win32") return;
+    const deja = new Set(pidsImage("legal-os-poste.exe"));
+    const timer = setInterval(() => {
+      if (child.filet) {
+        clearInterval(timer);
+        return;
+      }
+      for (const pid of pidsImage("legal-os-poste.exe")) {
+        if (!deja.has(pid)) {
+          child.filet = attacherFiletCdb(pid);
+          clearInterval(timer);
+          return;
+        }
+      }
+    }, 1000);
+    child.filetTimer = timer;
+    child.on("exit", () => clearInterval(timer));
+  }
+
   function ecrireConfig(id, port) {
     const configPath = join(tmpdir(), `legalos-${etiquette}-${id}-${marque}.json`);
     writeFileSync(
@@ -307,7 +370,7 @@ export function creerSession(etiquette) {
     return configPath;
   }
 
-  function startApp(id, port, mode) {
+  function startApp(id, port, mode, args = []) {
     const dir = join(tmpdir(), `legalos-webview-${etiquette}-${id}-${marque}`);
     mkdirSync(dir, { recursive: true });
     const env = {
@@ -330,21 +393,9 @@ export function creerSession(etiquette) {
       const dest = join(tmpdir(), `legal-os-poste-${etiquette}-${id}-${marque}.exe`);
       copyFileSync(src, dest);
       env.WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = `--remote-debugging-port=${port} --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`;
-      // D4 : le binaire construit ne passe pas par le lanceur Cargo. `LEGALOS_CDB_LANCE=1` le démarre sous cdb
-      // (`-hd`, tas ordinaire) et, sur `0xC0000374`, écrit la pile puis quitte. Sans la variable, lancement inchangé.
-      if (process.env.LEGALOS_CDB_LANCE === "1") {
-        const cdb = process.env.LEGALOS_CDB ?? "C:\\Program Files (x86)\\Windows Kits\\10\\Debuggers\\x64\\cdb.exe";
-        const journalCdb = process.env.LEGALOS_CDB_JOURNAL ?? join(tmpdir(), "cdb-poste.log");
-        const symboles = `srv*${join(tmpdir(), "legalos-symboles")}*https://msdl.microsoft.com/download/symbols`;
-        child = spawn(
-          cdb,
-          ["-hd", "-g", "-logo", journalCdb, "-y", symboles, "-c", 'sxe -c ".echo CRASH_C0000374; ~*kn 40; lmv; q" c0000374; g', dest],
-          { cwd: poste, env, stdio: ["ignore", "pipe", "pipe"], windowsHide: true },
-        );
-      } else {
-        child = spawn(dest, [], { cwd: poste, env, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
-      }
+      child = spawn(dest, args, { cwd: poste, env, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
       child.exeCopie = dest;
+      child.filet = attacherFiletCdb(child.pid);
     } else {
       const configPath = ecrireConfig(id, port);
       child = spawn("cmd.exe", ["/d", "/s", "/c", `pnpm tauri dev --config ${configPath}`], {
@@ -353,6 +404,7 @@ export function creerSession(etiquette) {
         stdio: ["ignore", "pipe", "pipe"],
         windowsHide: true,
       });
+      surveillerPoste(child);
     }
     let log = "";
     const onData = (chunk) => {
@@ -375,6 +427,12 @@ export function creerSession(etiquette) {
   }
 
   async function stopApp(child) {
+    if (child?.filetTimer) clearInterval(child.filetTimer);
+    if (child?.filet && child.filet.exitCode === null) {
+      await new Promise((resolve) => {
+        spawn("taskkill", ["/PID", String(child.filet.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true }).on("exit", resolve);
+      });
+    }
     if (!child || child.exitCode !== null) return;
     await new Promise((resolve) => {
       spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], {

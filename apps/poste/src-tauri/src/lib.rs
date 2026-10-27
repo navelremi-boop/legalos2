@@ -6,9 +6,38 @@ mod oauth_boucle;
 mod powersync_connect;
 mod trousseau;
 
+/// Commande de recette (feature `test-webdriver` seulement) : lève `STATUS_HEAP_CORRUPTION`
+/// après un délai, pour éprouver le filet de cliché. Absente du build distribué.
+#[cfg(feature = "test-webdriver")]
+fn armer_corruption_de_recette() {
+    const ARGUMENT: &str = "--lever-corruption-tas";
+    if std::env::args().any(|arg| arg == ARGUMENT) {
+        std::thread::spawn(|| {
+            // Le filet attache cdb après le démarrage : laisser ce délai avant l'exception.
+            std::thread::sleep(std::time::Duration::from_secs(15));
+            lever_status_heap_corruption();
+        });
+    }
+}
+
+#[cfg(feature = "test-webdriver")]
+fn lever_status_heap_corruption() -> ! {
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn RaiseException(code: u32, flags: u32, nombre: u32, arguments: *const usize);
+    }
+    // Exception non continuable. Le débogueur attaché la voit ; sans lui, le processus se termine.
+    unsafe {
+        RaiseException(0xC000_0374, 1, 0, std::ptr::null());
+    }
+    std::process::abort();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[allow(clippy::expect_used)]
 pub fn run() {
+    #[cfg(feature = "test-webdriver")]
+    armer_corruption_de_recette();
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
