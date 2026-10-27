@@ -768,3 +768,7 @@ Une série est déjà en cours depuis 18 h 39 UTC (`j11-serie-officielle.mjs`, u
 Les cinq piles restent dans les journaux `cdb-filet-*.log`. Taux sur cette série : 5 plantages sur 15 passes. Signalement mis à jour. Contrôleur relancé. J11 n'est pas coché.
 
 **Prochaine action.** Verdict du contrôleur, puis CI. J11 n'est pas coché.
+
+2026-10-27 — Contrôleur [J11](40cb2a8b-0ee2-4e19-95b9-489f21ae8058) : **REFUSÉ** sur `bf780c8`. Rédaction, formatage et série officielle tiennent (10 passes vertes, 5 crashs `0xC0000374` identifiés, non comptés). `j11-redaction.mjs` relancé : exit 0 en 210 s. `cargo fmt --check` des deux workspaces : exit 0. `origin/main` est `e4de2da`, 113 commits derrière. `gh run list --commit bf780c8` : aucun run. Le critère « CI verte » n'est pas rempli. Le push reste refusé par `pre-push-check` (sortie 2, jeu protégé). J11 n'est pas coché.
+
+**Prochaine action.** Le commandement relit le jeu protégé et pousse `main`. Ensuite, lire la CI par `gh`. J11 n'est pas coché.
