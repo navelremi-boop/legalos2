@@ -11,6 +11,7 @@ import { DEMO_CABINET_ID } from "@/sync/demoCabinet";
 import { FirstLaunchFlow } from "@/onboarding/FirstLaunchFlow";
 import { InitialSyncScreen } from "@/onboarding/InitialSyncScreen";
 import { closePowerSyncDatabase, getPowerSyncDatabase } from "@/sync/database";
+import { ecranDuPoste } from "@/sync/ecranDuPoste";
 import { exposeRecetteHooksIfEnabled } from "@/sync/recetteHooks";
 
 const STORAGE_SYNC_DONE = "legalos.initial_sync_done";
@@ -63,7 +64,7 @@ function App() {
   // sans cela un redémarrage « sync déjà faite » n'appelle jamais connect_powersync
   // et la file ps_crud ne part pas (conflits hors ligne, S5, etc.).
   useEffect(() => {
-    if (!authenticated || !syncDone) return;
+    if (!authenticated || (!syncDone && !localReady)) return;
     const accessToken = loadSessionTokens().accessToken;
     if (accessToken === null || accessToken === "") return;
     const arret = { courant: false };
@@ -83,7 +84,7 @@ function App() {
     return () => {
       arret.courant = true;
     };
-  }, [authenticated, syncDone, instanceUrl]);
+  }, [authenticated, syncDone, localReady, instanceUrl]);
 
   const handleFirstLaunchComplete = useCallback((result: { instanceUrl: string }) => {
     setInstanceUrl(result.instanceUrl);
@@ -116,14 +117,20 @@ function App() {
     setAuthenticated(false);
   }, []);
 
-  if (!ecranPret) {
-    return null;
-  }
+  const ecran = ecranDuPoste({
+    ecranPret,
+    authenticated,
+    localReady,
+    forceLogin,
+    syncDone,
+    aUnJeton: loadSessionTokens().accessToken !== null && loadSessionTokens().accessToken !== "",
+  });
 
-  // Données locales déjà présentes : travail hors ligne sans masquer la coque.
-  // (Ne pas exiger syncDone : un profil webview neuf avec SQLite déjà peuplée
-  // doit quand même exposer la coque + « Se reconnecter ».)
-  if (!authenticated && localReady && !forceLogin) {
+  if (ecran === "attente") return null;
+
+  // Données locales déjà présentes : la coque s'ouvre tout de suite. L'état du seau
+  // (historique compacté ou non) ne retient pas un poste déjà synchronisé.
+  if (ecran === "coque") {
     return (
       <CoqueApp
         instanceUrl={instanceUrl}
@@ -133,7 +140,7 @@ function App() {
     );
   }
 
-  if (!authenticated && localReady && forceLogin) {
+  if (ecran === "coque-et-connexion") {
     return (
       <>
         <CoqueApp instanceUrl={instanceUrl} />
@@ -145,27 +152,17 @@ function App() {
     );
   }
 
-  if (!authenticated) {
+  if (ecran === "connexion") {
     return (
       <FirstLaunchFlow initialInstanceUrl={instanceUrl} onComplete={handleFirstLaunchComplete} />
     );
   }
 
-  if (!syncDone && loadSessionTokens().accessToken) {
-    return (
-      <InitialSyncScreen
-        instanceUrl={instanceUrl}
-        onComplete={handleSyncComplete}
-        onError={handleSyncError}
-      />
-    );
-  }
-
   return (
-    <CoqueApp
+    <InitialSyncScreen
       instanceUrl={instanceUrl}
-      onResetSession={handleResetSession}
-      onReconnect={handleReconnect}
+      onComplete={handleSyncComplete}
+      onError={handleSyncError}
     />
   );
 }
