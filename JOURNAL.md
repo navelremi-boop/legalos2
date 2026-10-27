@@ -523,3 +523,5 @@ Transmise par le commandement. Critères inscrits au PLAN par un commit `plan:` 
 **Prochaine action.** Dès que B21 est levé : passes de diagnostic sous tas de test standard, puis série officielle. En attendant : `s9-factures` dès que veraPDF 1.28.2 est installé dans `target/verapdf` ; D9 et D11 restent à la poussée du commandement et, pour D9, à l'adaptation de `.cursor/rules/11-api.mdc` par l'architecte.
 
 **Commandes à relancer.** `node tests/recette/plan-gouvernance.mjs` ; `node tests/recette/j11-redaction-api.mjs` ; `docker compose -f instance/docker-compose.yml --env-file .env exec -T postgres psql -U legalos -d legalos -c "select version from _sqlx_migrations order by version desc limit 3"`.
+
+2026-10-27 — `AUTHENTICATE XOAUTH2` classait tout échec en `Authentification` (`map_err(|_| …)`). Aligné sur le `LOGIN` : NO → `classer_refus` (texte, `io-imap` 0.6.1 jette le code RFC 5530), mécanisme rejeté → refus, BAD → protocole, BYE / coupure → panne. Tests `imap::tests::xoauth2_*` (5) + `cargo test -p legalos-messagerie --lib imap::tests` 24/24 ; clippy `-D warnings` exit 0.

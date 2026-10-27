@@ -2,7 +2,7 @@
 
 use std::num::NonZeroU32;
 
-use io_imap::client::{ImapClient, ImapClientStd};
+use io_imap::client::{ImapClient, ImapClientError, ImapClientStd};
 use io_imap::codec::fragmentizer::Fragmentizer;
 use io_imap::codec::CommandCodec;
 use io_imap::coroutine::{ImapCoroutine, ImapCoroutineState, ImapYield};
@@ -15,6 +15,7 @@ use io_imap::rfc3501::login::ImapLoginError;
 use io_imap::rfc3501::search::ImapMessageSearchOptions;
 use io_imap::rfc3501::store::ImapMessageStoreOptions;
 use io_imap::rfc6851::r#move::ImapMessageMoveOptions;
+use io_imap::sasl::auth_xoauth2::ImapAuthXoauth2Error;
 use io_imap::send::ImapSend;
 use io_imap::session::ImapSessionOpenOptions;
 use io_imap::types::command::{Command, CommandBody};
@@ -182,6 +183,27 @@ fn classer_refus(code: Option<&[u8]>, texte: &str) -> ErreurMail {
     }
 }
 
+/// Classe l'échec d'`AUTHENTICATE XOAUTH2`. `io-imap` 0.6.1 jette le code RFC 5530 (comme pour `LOGIN`) :
+/// le texte du NO passe par `classer_refus` ; un jeton rejeté par le mécanisme est un refus ; BYE, envoi
+/// coupé ou réponse manquante sont une panne transitoire.
+fn classer_auth_xoauth2(erreur: ImapClientError) -> ErreurMail {
+    match erreur {
+        ImapClientError::AuthXOAuth2(interne) => classer_auth_xoauth2_interne(interne),
+        _ => ErreurMail::Connexion,
+    }
+}
+
+fn classer_auth_xoauth2_interne(erreur: ImapAuthXoauth2Error) -> ErreurMail {
+    match erreur {
+        ImapAuthXoauth2Error::No(texte) | ImapAuthXoauth2Error::NoWithError { info: texte, .. } => {
+            classer_refus(None, &texte)
+        }
+        ImapAuthXoauth2Error::Mechanism(_) => ErreurMail::Authentification,
+        ImapAuthXoauth2Error::Bad(_) => ErreurMail::Protocole,
+        _ => ErreurMail::Connexion,
+    }
+}
+
 /// Texte d'un refus qui ne dit rien des identifiants : limite de connexions, indisponibilité passagère. Ne sert
 /// qu'en l'absence de code connu.
 fn refus_transitoire(texte: &str) -> bool {
@@ -276,7 +298,7 @@ impl Session {
         .map_err(|_| ErreurMail::Connexion)?;
         client
             .auth_xoauth2(utilisateur, jeton_acces, Default::default())
-            .map_err(|_| ErreurMail::Authentification)?;
+            .map_err(classer_auth_xoauth2)?;
         Ok(Self {
             client,
             permis: Some(permis),
@@ -2140,10 +2162,14 @@ fn ancrage_imap_codec() -> usize {
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::panic)]
 mod tests {
-    use super::{a_partie_calendrier, classer_refus, noms_pieces, IssueLogin, LoginAvecCode};
+    use super::{
+        a_partie_calendrier, classer_auth_xoauth2_interne, classer_refus, noms_pieces, IssueLogin,
+        LoginAvecCode,
+    };
     use crate::ErreurMail;
     use io_imap::codec::fragmentizer::Fragmentizer;
     use io_imap::coroutine::{ImapCoroutine, ImapCoroutineState, ImapYield};
+    use io_imap::sasl::auth_xoauth2::ImapAuthXoauth2Error;
     use io_imap::types::body::{
         BasicFields, Body, BodyStructure, Disposition, SinglePartExtensionData, SpecificFields,
     };
@@ -2500,6 +2526,56 @@ mod tests {
             classer_refus(Some(b"CONTACTADMIN"), limite),
             &ErreurMail::Connexion
         ));
+    }
+
+    #[test]
+    fn xoauth2_no_limite_est_une_panne() {
+        let limite =
+            "Maximum number of connections from user+IP exceeded (mail_max_userip_connections=10)";
+        assert!(est(
+            classer_auth_xoauth2_interne(ImapAuthXoauth2Error::No(limite.into())),
+            &ErreurMail::Connexion
+        ));
+    }
+
+    #[test]
+    fn xoauth2_no_sans_marque_est_un_refus() {
+        assert!(est(
+            classer_auth_xoauth2_interne(ImapAuthXoauth2Error::No("Invalid credentials".into())),
+            &ErreurMail::Authentification
+        ));
+    }
+
+    #[test]
+    fn xoauth2_bye_est_une_panne() {
+        assert!(est(
+            classer_auth_xoauth2_interne(ImapAuthXoauth2Error::Bye("timeout".into())),
+            &ErreurMail::Connexion
+        ));
+    }
+
+    #[test]
+    fn xoauth2_bad_est_un_protocole() {
+        assert!(est(
+            classer_auth_xoauth2_interne(ImapAuthXoauth2Error::Bad("unknown".into())),
+            &ErreurMail::Protocole
+        ));
+    }
+
+    #[test]
+    fn xoauth2_classe_le_refus_comme_login() {
+        let production = include_str!("imap.rs")
+            .split("#[cfg(test)]")
+            .next()
+            .unwrap_or("");
+        assert!(
+            production.contains("map_err(classer_auth_xoauth2)"),
+            "AUTHENTICATE XOAUTH2 doit passer par classer_auth_xoauth2"
+        );
+        assert!(
+            !production.contains("auth_xoauth2(utilisateur, jeton_acces, Default::default())\n            .map_err(|_| ErreurMail::Authentification)"),
+            "essai négatif : tout échec XOAUTH2 ne doit plus être un refus d'identifiants"
+        );
     }
 
     /// Joue `LOGIN` contre une réponse du serveur : la commande est écrite, la réponse lue, l'issue rendue avec son code.
