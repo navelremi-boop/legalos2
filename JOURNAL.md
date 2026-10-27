@@ -573,3 +573,7 @@ Transmise par le commandement.
 2026-10-27 — Compactage planifié. Procédure relue le jour (https://docs.powersync.com/maintenance-ops/compacting-buckets) : image 1.26.1, commande `compact` sur tous les seaux, toutes les heures (stockage version 4). La défragmentation n'y figure pas : elle réécrit les lignes sources et force les postes déjà synchronisés à tout retélécharger. Service `powersync-compact` dans `instance/docker-compose.yml`. `cargo test -p legalos-api compactage_seaux` : 1 passed. `docker compose config --services` liste `powersync-compact`.
 
 **Prochaine action.** Chaque passe de recette n'ajoute au seau qu'au plus 3 opérations par ligne créée, modifiée ou supprimée, et un poste déjà synchronisé ouvre la coque sur ses données locales — `node tests/recette/seau-powersync.mjs`.
+
+2026-10-27 — Plafond du seau et coque locale. `node tests/recette/seau-powersync.mjs` exit 0 : création et modification d'un contact fictif, **4 opérations pour 3 lignes** (plafond 3 par ligne ; essai négatif : 7 pour 2 lignes échoue). Le contact est retiré ensuite par un `DELETE` ciblé, le seau n'est pas vidé. Un poste dont la base locale a déjà le cabinet ouvre la coque sans attendre la synchronisation initiale (`ecranDuPoste`, 3 tests). `tsc` exit 0.
+
+**Prochaine action.** Série officielle, en dernier : brancher `--build` sur `j11-connexion-boites` (poste construit, sans Vite), puis 10 passes à froid.
