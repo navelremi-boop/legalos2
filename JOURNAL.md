@@ -680,4 +680,6 @@ Aucun `0xC0000374`. Aucun cliché dans `C:\Users\PC\CrashDumps\legal-os-poste`. 
 
 2026-10-27 — Ce pointeur (`000002370d9f4526`) est à 90 octets de la fin du bloc de schéma (`0x410`), pas juste après. Ce n'est donc pas un débordement de quelques octets du schéma dans l'en-tête suivant. C'est un lien de liste libre qui vise l'intérieur de l'enregistrement de schéma (fin de `repertoires_publics`, puis `type_compte`). `SqlBuffer` de `powersync_core` 0.5.3 est une `String` Rust, pas un tampon fixe. L'écrivain n'est pas nommé.
 
+2026-10-27 — veraPDF 1.28.2 et Saxon-HE 12.5 installés dans `target/` (même origine que la CI, conteneur Temurin 21). `node tests/recette/s9-factures.mjs` exit 0 en 6,5 s (numéros, PDF/CII, veraPDF, dépôt, encaissement, avoir, immutabilité). `s9-s5-temps.mjs` visait encore `dossier_acces` : aligné sur le contrat actuel (`groupe_acces_membres`, `auth.user_id()`), puis exit 0 (collaborateur hors groupe : 0 ligne de temps, brouillon et taux).
+
 **Prochaine action.** D4 ouvert. J11 n'est pas coché. Ne pas relancer les 10 passes pour le chiffre. Ne pas réactiver le tas de pages.

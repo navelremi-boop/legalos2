@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * S5 — temps_saisis / brouillons_facture / taux_horaires :
- * flux Sync Streams + preuve qu'un collaborateur hors dossier_acces
- * ne reçoit aucune ligne (filtre JOIN = auth.user_id()).
+ * flux Sync Streams + preuve qu'un collaborateur hors du groupe d'accès
+ * ne reçoit aucune ligne (filtre JOIN groupe_acces_membres = auth.user_id()).
  */
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
@@ -92,8 +92,12 @@ function verifierFluxStatiques() {
     const re = new RegExp(`^  ${flux}:[ \\t]*\\r?\\n([\\s\\S]*?)(?=^  [a-z_]+:|(?![\\s\\S]))`, "m");
     const m = yaml.match(re);
     if (!m) fail(`bloc ${flux} illisible`);
-    if (!/INNER JOIN dossier_acces/i.test(m[1])) fail(`${flux} : JOIN dossier_acces requis (S5)`);
-    if (!/auth\.user_id\(\)/.test(m[1])) fail(`${flux} : auth.user_id() requis`);
+    if (!/INNER JOIN groupe_acces_membres/i.test(m[1]) || !/utilisateur_texte = auth\.user_id\(\)/i.test(m[1])) {
+      fail(`${flux} : doit joindre groupe_acces_membres sur auth.user_id() (S5)`);
+    }
+    if (/JOIN\s+dossier_acces|JOIN\s+dossiers\b/i.test(m[1])) {
+      fail(`${flux} joint dossier_acces ou dossiers (un bucket par dossier est interdit)`);
+    }
   }
   const schema = readFileSync(join(root, "apps/poste/src/sync/AppSchema.ts"), "utf8");
   for (const table of ["temps_saisis", "brouillons_facture", "taux_horaires"]) {
@@ -177,29 +181,27 @@ const collabUserId = await sqlServeur(
 if (!demoUserId || !collabUserId) fail("identifiants utilisateurs absents");
 
 const accesCollab = await sqlServeur(
-  `SELECT COUNT(*) FROM dossier_acces WHERE dossier_id = '${dossierId}' AND utilisateur_texte = '${collabUserId}'`,
+  `SELECT COUNT(*) FROM temps_saisis t INNER JOIN groupe_acces_membres m ON t.groupe_acces = m.groupe_id WHERE t.id = '${tempsId}' AND m.utilisateur_texte = '${collabUserId}'`,
 );
-if (accesCollab !== "0") fail(`collaborateur déjà dans dossier_acces (${accesCollab})`);
+if (accesCollab !== "0") fail(`collaborateur déjà membre du groupe du temps (${accesCollab})`);
 
-const tempsChezCollab = await sqlServeur(
-  `SELECT COUNT(*) FROM temps_saisis t INNER JOIN dossier_acces a ON t.dossier_id = a.dossier_id WHERE t.id = '${tempsId}' AND a.utilisateur_texte = '${collabUserId}'`,
-);
+const tempsChezCollab = accesCollab;
 if (tempsChezCollab !== "0") fail(`temps visible pour poste non autorisé (${tempsChezCollab})`);
 
 const brouillonChezCollab = await sqlServeur(
-  `SELECT COUNT(*) FROM brouillons_facture b INNER JOIN dossier_acces a ON b.dossier_id = a.dossier_id WHERE b.id = '${brouillonId}' AND a.utilisateur_texte = '${collabUserId}'`,
+  `SELECT COUNT(*) FROM brouillons_facture b INNER JOIN groupe_acces_membres m ON b.groupe_acces = m.groupe_id WHERE b.id = '${brouillonId}' AND m.utilisateur_texte = '${collabUserId}'`,
 );
 if (brouillonChezCollab !== "0") {
   fail(`brouillon visible pour poste non autorisé (${brouillonChezCollab})`);
 }
 
 const tauxChezCollab = await sqlServeur(
-  `SELECT COUNT(*) FROM taux_horaires t INNER JOIN dossier_acces a ON t.dossier_id = a.dossier_id WHERE t.id = '${tauxId}' AND a.utilisateur_texte = '${collabUserId}'`,
+  `SELECT COUNT(*) FROM taux_horaires t INNER JOIN groupe_acces_membres m ON t.groupe_acces = m.groupe_id WHERE t.id = '${tauxId}' AND m.utilisateur_texte = '${collabUserId}'`,
 );
 if (tauxChezCollab !== "0") fail(`taux visible pour poste non autorisé (${tauxChezCollab})`);
 
 const tempsChezDemo = await sqlServeur(
-  `SELECT COUNT(*) FROM temps_saisis t INNER JOIN dossier_acces a ON t.dossier_id = a.dossier_id WHERE t.id = '${tempsId}' AND a.utilisateur_texte = '${demoUserId}'`,
+  `SELECT COUNT(*) FROM temps_saisis t INNER JOIN groupe_acces_membres m ON t.groupe_acces = m.groupe_id WHERE t.id = '${tempsId}' AND m.utilisateur_texte = '${demoUserId}'`,
 );
 if (tempsChezDemo !== "1") fail(`temps absent pour titulaire (${tempsChezDemo})`);
 
