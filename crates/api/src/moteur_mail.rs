@@ -323,7 +323,7 @@ fn tourner(handle: tokio::runtime::Handle, pool: PgPool, cle: [u8; 32], compte: 
         if doit_relever {
             let resultat = relever_session(&parametres, &modseqs, derniere_complete);
             match resultat {
-                Ok(lot) => {
+                Ok((lot, mut session)) => {
                     echecs = 0;
                     reveil = false;
                     derniere_releve = Some(Instant::now());
@@ -339,12 +339,14 @@ fn tourner(handle: tokio::runtime::Handle, pool: PgPool, cle: [u8; 32], compte: 
                         let _ = handle.block_on(appliquer_dossier(
                             &pool,
                             &compte,
-                            &parametres,
+                            &mut session,
                             &dossier,
                             &releve,
                             connu,
                         ));
                     }
+                    // LOGOUT à la fin du tour (Drop de SessionActions) : une session pour tous les
+                    // dossiers, les en-têtes et les invitations ; la veille IDLE reste à part.
                 }
                 Err(ErreurMail::Authentification) => {
                     let _ = handle.block_on(noter(&pool, compte.id, "authentification"));
@@ -408,7 +410,7 @@ fn relever_session(
     parametres: &ParametresCompte,
     modseqs: &HashMap<String, u64>,
     derniere_complete: Option<std::time::Instant>,
-) -> Result<LotReleve, ErreurMail> {
+) -> Result<(LotReleve, SessionActions), ErreurMail> {
     let mut session = SessionActions::connecter(parametres)?;
     let caps = session.capacites()?;
     let complet_du = derniere_complete.map_or(true, |instant| {
@@ -439,19 +441,25 @@ fn relever_session(
         releves.push((dossier, releve));
     }
     if releves.is_empty() && !caps.qresync && !caps.condstore && !complet_du {
-        return Ok(LotReleve {
+        return Ok((
+            LotReleve {
+                releves,
+                complet: false,
+                qresync: caps.qresync,
+                condstore: caps.condstore,
+            },
+            session,
+        ));
+    }
+    Ok((
+        LotReleve {
             releves,
-            complet: false,
+            complet,
             qresync: caps.qresync,
             condstore: caps.condstore,
-        });
-    }
-    Ok(LotReleve {
-        releves,
-        complet,
-        qresync: caps.qresync,
-        condstore: caps.condstore,
-    })
+        },
+        session,
+    ))
 }
 
 fn changements_qresync(connus: &[EtatUid], releve: &ReleveDossier) -> Vec<Changement> {
@@ -586,8 +594,8 @@ async fn noter_idle(pool: &PgPool, compte: Uuid) -> Result<(), sqlx::Error> {
 async fn appliquer_dossier(
     pool: &PgPool,
     compte: &CompteMoteur,
-    // Paramètres de CE tour : pour une boîte OAuth, ils portent le jeton d'accès renouvelé.
-    parametres: &ParametresCompte,
+    // Même session que la relève de ce tour : en-têtes et invitations sans nouveau LOGIN.
+    session: &mut SessionActions,
     dossier: &str,
     releve: &ReleveDossier,
     modseq_connu: u64,
@@ -638,10 +646,10 @@ async fn appliquer_dossier(
             _ => None,
         })
         .collect();
-    let entetes = entetes_des_ajouts(parametres, dossier, &ajouts).await;
+    let entetes = entetes_des_ajouts(session, dossier, &ajouts);
     // Les invitations d'abord : si la lecture du message échoue, rien n'est inscrit ni curseur
     // avancé, et la relève suivante revoit les mêmes messages (l'enregistrement est rejouable).
-    traiter_invitations(pool, compte, parametres, dossier, &ajouts, &entetes).await?;
+    traiter_invitations(pool, compte, session, dossier, &ajouts, &entetes).await?;
     if !retires.is_empty() {
         // Un message dont une action est en cours ne disparaît pas ici : la relève peut voir son
         // ancien UID disparaître parce que l'action vient de le déplacer, avant qu'elle ne
@@ -703,7 +711,7 @@ async fn appliquer_dossier(
 async fn traiter_invitations(
     pool: &PgPool,
     compte: &CompteMoteur,
-    parametres: &ParametresCompte,
+    session: &mut SessionActions,
     dossier: &str,
     ajouts: &[EtatUid],
     entetes: &[EnteteRecu],
@@ -726,8 +734,7 @@ async fn traiter_invitations(
     if candidats.is_empty() {
         return Ok(());
     }
-    let lues = lire_invitations(parametres, dossier, &candidats)
-        .await
+    let lues = lire_invitations(session, dossier, &candidats)
         .map_err(|_| sqlx::Error::Protocol("lecture des invitations impossible".into()))?;
     for (message_id, lue) in &lues {
         let issue = enregistrer_invitation(
@@ -775,52 +782,35 @@ async fn identifiant_interne(pool: &PgPool, compte_id: Uuid, message_id: &str) -
     .flatten()
 }
 
-/// Relit les messages en entier (une connexion) et en tire l'invitation. Un calendrier illisible
-/// est écarté sans bloquer la relève ; une connexion qui échoue fait échouer l'appel.
-async fn lire_invitations(
-    parametres: &ParametresCompte,
+/// Relit les messages en entier sur la session de relève et en tire l'invitation. Un calendrier
+/// illisible est écarté sans bloquer la relève ; une lecture qui échoue fait échouer l'appel.
+fn lire_invitations(
+    session: &mut SessionActions,
     dossier: &str,
     candidats: &[(u32, String)],
 ) -> Result<Vec<(String, InvitationLue)>, ErreurMail> {
-    let parametres = parametres.clone();
-    let dossier = dossier.to_owned();
-    let candidats = candidats.to_vec();
-    tokio::task::spawn_blocking(move || {
-        let mut session = SessionActions::connecter(&parametres)?;
-        let mut lues = Vec::new();
-        for (uid, message_id) in candidats {
-            let octets = session.lire_rfc822(&dossier, uid)?;
-            match invitation_du_message(&octets) {
-                Ok(Some(lue)) => lues.push((message_id, lue)),
-                Ok(None) => {}
-                Err(_) => tracing::warn!(uid, "calendrier illisible, message écarté"),
-            }
+    let mut lues = Vec::new();
+    for (uid, message_id) in candidats {
+        let octets = session.lire_rfc822(dossier, *uid)?;
+        match invitation_du_message(&octets) {
+            Ok(Some(lue)) => lues.push((message_id.clone(), lue)),
+            Ok(None) => {}
+            Err(_) => tracing::warn!(uid, "calendrier illisible, message écarté"),
         }
-        Ok(lues)
-    })
-    .await
-    .map_err(|_| ErreurMail::Connexion)?
+    }
+    Ok(lues)
 }
 
-async fn entetes_des_ajouts(
-    parametres: &ParametresCompte,
+fn entetes_des_ajouts(
+    session: &mut SessionActions,
     dossier: &str,
     ajouts: &[EtatUid],
 ) -> Vec<EnteteRecu> {
     if ajouts.is_empty() {
         return Vec::new();
     }
-    let parametres = parametres.clone();
-    let dossier = dossier.to_owned();
     let uids: Vec<u32> = ajouts.iter().map(|etat| etat.uid).collect();
-    tokio::task::spawn_blocking(move || {
-        let mut session = SessionActions::connecter(&parametres)?;
-        session.entetes_uids(&dossier, &uids)
-    })
-    .await
-    .ok()
-    .and_then(|resultat| resultat.ok())
-    .unwrap_or_default()
+    session.entetes_uids(dossier, &uids).unwrap_or_default()
 }
 
 async fn charger_etats(
@@ -1206,6 +1196,28 @@ mod tests {
         assert!(!arrivee_notifiable("INBOX", 77, 78));
         // Envoyés : ce sont les envois de l'utilisateur.
         assert!(!arrivee_notifiable("Sent", 77, 77));
+    }
+
+    /// Consigne du 26/10/2026 : une session de relève sert aussi aux en-têtes et aux invitations ;
+    /// IDLE reste à part (`VeilleReception::ouvrir`). Un second `SessionActions::connecter` dans
+    /// ce fichier ferait échouer le test (essai négatif : l'ajouter à `entetes_des_ajouts` le casse).
+    #[test]
+    fn une_seule_connexion_d_actions_par_tour_de_releve() {
+        let source = include_str!("moteur_mail.rs");
+        let production = source.split("#[cfg(test)]").next().unwrap_or(source);
+        assert_eq!(
+            production.matches("SessionActions::connecter").count(),
+            1,
+            "la relève, les en-têtes et les invitations partagent une session"
+        );
+        assert!(
+            production.contains("entetes_des_ajouts(session"),
+            "les en-têtes réutilisent la session de relève"
+        );
+        assert!(
+            production.contains("lire_invitations(session"),
+            "les invitations réutilisent la session de relève"
+        );
     }
 
     #[test]
