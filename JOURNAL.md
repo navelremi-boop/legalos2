@@ -628,6 +628,10 @@ Aucun `0xC0000374`. Aucun cliché dans `C:\Users\PC\CrashDumps\legal-os-poste`. 
 
 **Prochaine action.** D4 ouvert. L'outil suivant reste à l'architecte : trois sites de détection (libération reqwest, libération SQLite, allocation pendant `emit_js`), aucun écrivain. Ne pas relancer les 10 passes pour le chiffre.
 
+2026-10-27 — Le filet voyait le crash et n'écrivait pas le cliché. Trois passes du scénario complet, filet attaché, hors série officielle : passes 1 et 2 vertes (158 s, 142 s). Passe 3 : la page se fige à la capture d'écran après « choix du mode », le lanceur sort `3221226324` = `0xC0000354 STATUS_DEBUGGER_INACTIVE`, aucun fichier de cliché. Le journal de cdb (pid 26108) contient pourtant `Critical error detected c0000374`, puis l'arrêt sur l'`int 3` de `RtlReportCriticalFailure`, sans `CRASH_C0000374`. La recette, page muette, a tué cdb avant que l'exception ne soit livrée. Le filet reprend maintenant cet `int 3` (`sxe -c "g" 80000003`) pour laisser l'exception `c0000374` écrire le cliché.
+
+**Prochaine action.** Relancer des passes du scénario complet, filet corrigé, arrêt au premier cliché. Pas la série des 10.
+
 2026-10-27 — Passe de diagnostic sous `cdb` lancée à 13 h 56 UTC : timeout à 1 800 s, aucune pile (`crash=-1`, le débogueur n'a pas démarré). Cause : `resetPostes` a échoué (`EPERM` sur `legalos-powersync-jcnx.db`, base tenue par un autre poste) avant le `try` qui arrête la sonde `doveadm`. Le minuteur de la sonde a gardé le processus jusqu'au délai. Corrigé : `resetPostes` est dans ce `try`. Le banc de révocation déjà attaché à `cdb` n'est pas relancé.
 
 2026-10-27 — Banc de révocation en cours (`node tests/recette/j11-revocation-oauth.mjs`, démarré 14 h 26 UTC, binaire de la série, filet `cdb` par attache). Itérations 1 à 4 : fenêtre visible, poste vivant, aucun cliché, état `connecte`, 34 à 37 s. La suite est surveillée ; un cliché ou une mort du poste interrompt l'attente pour l'analyse.
