@@ -699,3 +699,20 @@ Pas de pré-série. Pas de nouveau banc de révocation. Pas de tas de pages ni d
 2026-10-27 — `cargo check` du poste, `CARGO_TARGET_DIR=target-recette`, `powersync_core` 0.5.4 : exit 0 en 19 s. Série officielle lancée : 10 passes de `j11-connexion-boites.mjs --build`, une ligne par passe (numéro, durée, code, cliché). Un `0xC0000374` ne compte pas parmi les 10 vertes. Un autre échec arrête la série.
 
 **Prochaine action.** Attendre la série. J11 n'est pas coché.
+
+2026-10-27 — Série officielle, une commande, poste construit (`j11-connexion-boites.mjs --build`), filet `cdb` attaché par la recette. Dix passes, exit 0, aucun cliché :
+
+1 193s 0 non
+2 151s 0 non
+3 160s 0 non
+4 143s 0 non
+5 145s 0 non
+6 145s 0 non
+7 145s 0 non
+8 149s 0 non
+9 146s 0 non
+10 150s 0 non
+
+Durée totale 1 529 s. Le crash `0xC0000374` ne s'est pas reproduit sur `powersync_core` 0.5.4. L'écran « Connectée » bloqué et la boîte absente après relance ne se sont pas reproduits. Pas de signalement. Contrôleur lancé. J11 n'est pas coché.
+
+**Prochaine action.** Verdict du contrôleur sur J11. Ne pas cocher avant la CI verte.
