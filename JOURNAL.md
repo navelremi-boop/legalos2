@@ -579,3 +579,5 @@ Transmise par le commandement.
 **Prochaine action.** Série officielle, en dernier : brancher `--build` sur `j11-connexion-boites` (poste construit, sans Vite), puis 10 passes à froid.
 
 2026-10-27 — `--build` branché sur `j11-connexion-boites` : `tauri build --debug --no-bundle`, interface dans `dist-recette` avec les crochets de recette, lancement par copie du binaire (`mode: copie`), sans `tauri dev`. La série de 10 passes part ensuite.
+
+2026-10-27 — Série officielle lancée (13 h 32 UTC) : 10 passes consécutives de `node tests/recette/j11-connexion-boites.mjs --build`, arrêt au premier échec, journaux dans le dossier temporaire de la session. Pas de redémarrage de Docker entre les passes : le poste est le binaire construit, sans Vite. Passe 1 : exit 0 en 304 s, heap=0, 0 relance, `doveadm who` maximum 2 (plafond 5), 0 cliché dans `C:\Users\PC\CrashDumps\legal-os-poste`. La compilation du poste (2 min 42 s) est comprise dans ces 304 s.
