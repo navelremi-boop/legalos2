@@ -55,6 +55,7 @@ Aucune.
 
 ## Historique
 
+- **2026-10-27 (architecte, crash natif)** : l'enquête s'arrête au composant. Détection dans `powersync_core` 0.5.3, `StreamingSyncIteration::apply_transition`, depuis `sqlite3_step`. Mise à jour vers `powersync` 0.1.1, greffon 0.1.1, `powersync_core` 0.5.4 (la publication 0.1.1 épingle `=0.5.3` ; le patch ne change que cette épingle). Pas de tas de pages ni d'Application Verifier. Un crash qui se reproduit après cette mise à jour satisfait D4 par cette identification, bloque J14, et la série officielle exige alors 10 passes vertes hors ce crash.
 - **2026-10-27 (intérieur)** : le lien libre vise 90 octets avant la fin du bloc de schéma, dans `repertoires_publics` / `type_compte`. Pas un court débordement vers l'en-tête suivant. `SqlBuffer` est une `String`. Écrivain non nommé.
 - **2026-10-27 (schéma)** : le lien de liste libre faux aboutit dans le schéma local (noms `cabinet_globals`, `repertoires_publics`, `type_compte`, `taux_restreints`). Le tas prend ces octets pour un pointeur. Pas un contenu de mail. L'instruction qui a croisé le schéma et la liste libre n'est pas sur la pile.
 - **2026-10-27 (bloc libre)** : dans le cliché de la passe 5, le bloc `000002370d9f4590` est déjà marqué libre (taille `0xC0`, précédent `0x410`). Le chaînage pointe `0x6A` plus tôt, dans le bloc précédent, sans alignement. Le début du tampon n'est pas du texte. L'écrivain reste antérieur.

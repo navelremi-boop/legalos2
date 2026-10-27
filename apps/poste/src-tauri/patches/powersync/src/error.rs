@@ -1,0 +1,145 @@
+use powersync_sqlite_nostd::ResultCode;
+use std::error::Error;
+use std::io;
+use std::sync::Arc;
+use std::{borrow::Cow, fmt::Display};
+use thiserror::Error;
+
+use crate::sync::checkpoint::CheckpointError;
+
+pub type Result<T> = std::result::Result<T, PowerSyncError>;
+
+/// A [RawPowerSyncError], but boxed.
+///
+/// We allocate errors in boxes to avoid large [Result] types (given the large size of the
+/// [RawPowerSyncError] enum type).
+#[derive(Debug, Clone)]
+pub struct PowerSyncError {
+    pub(crate) inner: Arc<RawPowerSyncError>,
+}
+
+impl PowerSyncError {
+    /// Wrap any error as a PowerSync error to indicate an error in a
+    /// [crate::BackendConnector::upload_data] implementation.
+    pub fn upload_error(inner: impl Error + Send + Sync + 'static) -> Self {
+        RawPowerSyncError::UploadError {
+            source: Box::new(inner),
+        }
+        .into()
+    }
+
+    pub(crate) fn argument_error(desc: impl Into<Cow<'static, str>>) -> Self {
+        RawPowerSyncError::ArgumentError { desc: desc.into() }.into()
+    }
+}
+
+#[cfg(feature = "rusqlite")]
+impl From<rusqlite::Error> for PowerSyncError {
+    fn from(value: rusqlite::Error) -> Self {
+        RawPowerSyncError::Sqlite { inner: value }.into()
+    }
+}
+
+impl From<serde_json::Error> for PowerSyncError {
+    fn from(value: serde_json::Error) -> Self {
+        RawPowerSyncError::JsonConversion { inner: value }.into()
+    }
+}
+
+#[cfg(feature = "reqwest")]
+impl From<reqwest::Error> for PowerSyncError {
+    fn from(value: reqwest::Error) -> Self {
+        RawPowerSyncError::Reqwest { inner: value }.into()
+    }
+}
+
+impl From<CheckpointError> for PowerSyncError {
+    fn from(value: CheckpointError) -> Self {
+        RawPowerSyncError::Checkpoint { error: value }.into()
+    }
+}
+
+impl From<RawPowerSyncError> for PowerSyncError {
+    fn from(value: RawPowerSyncError) -> Self {
+        PowerSyncError {
+            inner: Arc::new(value),
+        }
+    }
+}
+
+impl Display for PowerSyncError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        self.inner.fmt(f)
+    }
+}
+
+impl Error for PowerSyncError {}
+
+/// A structured enumeration of possible errors that can occur in the core extension.
+#[derive(Error, Debug)]
+pub(crate) enum RawPowerSyncError {
+    /// An invalid argument was passed to the PowerSync SDK.
+    ///
+    /// This is used when the schema passed to the database is invalid.
+    #[error("invalid argument: {desc}")]
+    ArgumentError { desc: Cow<'static, str> },
+    /// An inner SQLite call failed.
+    #[cfg(feature = "rusqlite")]
+    #[error("SQLite: {inner}")]
+    Sqlite { inner: rusqlite::Error },
+    #[error("SQLite: {context} failed with {code}")]
+    RawSqlite { code: ResultCode, context: String },
+    /// Reading a value from SQLite failed.
+    #[cfg(feature = "rusqlite")]
+    #[error("Reading from SQLite: {inner}")]
+    FromSql {
+        #[from]
+        inner: rusqlite::types::FromSqlError,
+    },
+    /// The version of the core extension linked into the application is unexpected.
+    ///
+    /// This should virtually never happen because the native SDK is responsible for linking it.
+    #[error("Invalid version of core extension: {actual}")]
+    InvalidCoreExtensionVersion { actual: String },
+    /// Wraps `serde_json` errors.
+    #[error("Internal error while converting JSON: {inner}")]
+    JsonConversion { inner: serde_json::Error },
+    #[error("Error decoding stream from sync service: {desc}")]
+    SyncServiceResponseParsing { desc: &'static str },
+    /// Used when a backend connector returns an invalid URI as a service URL.
+    #[error("Invalid PowerSync endpoint: {inner}")]
+    InvalidPowerSyncEndpoint { inner: url::ParseError },
+    /// A generic IO error that occurred in the SDK.
+    #[error("IO error: {inner}")]
+    IO {
+        #[from]
+        inner: io::Error,
+    },
+    #[cfg(feature = "reqwest")]
+    #[error("HTTP error: {inner}")]
+    Reqwest {
+        #[from]
+        inner: reqwest::Error,
+    },
+    #[error("The PowerSync service did not accept credentials returned by connector")]
+    InvalidCredentials,
+    #[error("Unexpected HTTP status code from PowerSync service: {code}")]
+    UnexpectedStatusCode { code: u16 },
+    #[error("Error in upload_data: {source}")]
+    UploadError {
+        #[source]
+        source: Box<dyn Error + Send + Sync>,
+    },
+    #[error("Checkpoint error: {error}")]
+    Checkpoint { error: CheckpointError },
+}
+
+impl From<ResultCode> for PowerSyncError {
+    fn from(value: ResultCode) -> Self {
+        RawPowerSyncError::RawSqlite {
+            code: value,
+            context: String::new(),
+        }
+        .into()
+    }
+}
