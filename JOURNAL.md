@@ -678,4 +678,6 @@ Aucun `0xC0000374`. Aucun cliché dans `C:\Users\PC\CrashDumps\legal-os-poste`. 
 
 2026-10-27 — Le chaînon dont le lien avant est faux (`0000023708bd2c00`, lui aussi un bloc libre de `0xC0`) pointe dans le bloc précédent, au milieu d'une structure de schéma : noms de tables et de colonnes du poste (`cabinet_globals`, `repertoires_publics`, `type_compte`, `taux_restreints`), pas un contenu de mail. Le tas lit alors ces octets comme un pointeur (`type_c…`). Le bloc de schéma et la liste libre se recouvrent. L'instruction qui a écrit ce pointeur n'est pas sur la pile.
 
+2026-10-27 — Ce pointeur (`000002370d9f4526`) est à 90 octets de la fin du bloc de schéma (`0x410`), pas juste après. Ce n'est donc pas un débordement de quelques octets du schéma dans l'en-tête suivant. C'est un lien de liste libre qui vise l'intérieur de l'enregistrement de schéma (fin de `repertoires_publics`, puis `type_compte`). `SqlBuffer` de `powersync_core` 0.5.3 est une `String` Rust, pas un tampon fixe. L'écrivain n'est pas nommé.
+
 **Prochaine action.** D4 ouvert. J11 n'est pas coché. Ne pas relancer les 10 passes pour le chiffre. Ne pas réactiver le tas de pages.
