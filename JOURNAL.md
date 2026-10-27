@@ -716,3 +716,13 @@ Pas de pré-série. Pas de nouveau banc de révocation. Pas de tas de pages ni d
 Durée totale 1 529 s. Le crash `0xC0000374` ne s'est pas reproduit sur `powersync_core` 0.5.4. L'écran « Connectée » bloqué et la boîte absente après relance ne se sont pas reproduits. Pas de signalement. Contrôleur lancé. J11 n'est pas coché.
 
 **Prochaine action.** Verdict du contrôleur sur J11. Ne pas cocher avant la CI verte.
+
+## 2026-10-27 — Contrôleur J11 : REFUSÉ sur 9474c61
+
+Série officielle relue (dix passes, exit 0, filet cdb, aucun cliché nouveau). Recettes d'API relancées sur l'image reconstruite : vertes. Refus : `j11-redaction.mjs` exit 1 à la ligne 755 (la pièce de 20 Mio n'est plus dans le DOM au moment de la retirer, après le refus du cumul) ; `cargo fmt --all --check` et le fmt du poste exit 1. `main` locale en avance de 105 commits sur `origin/main`, aucune CI sur `9474c61`. Pas coché.
+
+**Prochaine action.** Le cliché local des pièces ne doit plus effacer une pièce que l'API vient de confirmer ; fmt ; relancer `j11-redaction.mjs`.
+
+2026-10-27 — La surveillance du brouillon relisait `pieces_texte` chaque seconde et remplaçait la liste renvoyée par l'API. Le cliché synchronisé est en retard : la pièce de 20 Mio disparaissait de l'écran avant le clic « retirer ». `concilierPiecesLocales` garde cette liste tant que le cliché local n'a pas les mêmes identifiants. Tests unitaires du fichier : 28/28. Fmt des deux workspaces : exit 0. `j11-redaction.mjs` exit 0 en 148 s (0 relance). Captures de la réponse, des modèles et du temps réécrites à 19 h 26-19 h 27.
+
+**Prochaine action.** Commit, pousser, CI. J11 n'est pas coché : le contrôleur doit repasser.

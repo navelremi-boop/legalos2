@@ -26,6 +26,7 @@ import {
   type StatutEnregistrement,
 } from "@/messagerie/etatRedaction";
 import {
+  concilierPiecesLocales,
   lirePiecesBrouillon,
   piecesAffichees,
   verifierAjout,
@@ -119,7 +120,13 @@ export function useBrouillon(entree: EntreeBrouillon): RetourBrouillon {
   const file = useRef<Promise<void>>(Promise.resolve());
   const ferme = useRef(false);
   const operationsPieces = useRef(0);
+  const tenirPieces = useRef(false);
   const piecesServeurRef = useRef(piecesServeur);
+  const poserDepuisApi = (pieces: PieceBrouillon[]) => {
+    piecesServeurRef.current = pieces;
+    tenirPieces.current = true;
+    setPiecesServeur(pieces);
+  };
   useEffect(() => {
     piecesServeurRef.current = piecesServeur;
   }, [piecesServeur]);
@@ -251,7 +258,12 @@ export function useBrouillon(entree: EntreeBrouillon): RetourBrouillon {
           if (arrete()) return;
           if (ligne !== null && operationsPieces.current === 0) {
             const lues = lirePiecesBrouillon(ligne.pieces_texte);
-            setPiecesServeur((actuelles) => (JSON.stringify(actuelles) === JSON.stringify(lues) ? actuelles : lues));
+            const decision = concilierPiecesLocales(piecesServeurRef.current, lues, tenirPieces.current);
+            tenirPieces.current = decision.tenir;
+            if (JSON.stringify(piecesServeurRef.current) !== JSON.stringify(decision.pieces)) {
+              piecesServeurRef.current = decision.pieces;
+              setPiecesServeur(decision.pieces);
+            }
           }
           const enAttente = await ecrituresEnAttente(base);
           if (arrete()) return;
@@ -294,7 +306,7 @@ export function useBrouillon(entree: EntreeBrouillon): RetourBrouillon {
         ? "Le serveur est injoignable : cette action se fait en ligne. Le brouillon reste enregistré sur cet appareil."
         : resultat.message;
     }
-    setPiecesServeur(resultat.valeur);
+    poserDepuisApi(resultat.valeur);
     return null;
   }, [instanceUrl, vider]);
 
@@ -348,7 +360,7 @@ export function useBrouillon(entree: EntreeBrouillon): RetourBrouillon {
           for (const { fichier, cle } of acceptes) {
             const resultat = await televerserPiece(instanceUrl, etatRef.current.id, fichier, cle);
             if (resultat.ok) {
-              setPiecesServeur(resultat.valeur);
+              poserDepuisApi(resultat.valeur);
               setPiecesEnCours((actuelles) => actuelles.filter((piece) => piece.cle !== cle));
             } else {
               setPiecesEnCours((actuelles) =>
@@ -388,7 +400,7 @@ export function useBrouillon(entree: EntreeBrouillon): RetourBrouillon {
             return;
           }
           const resultat = await retirerPiece(instanceUrl, etatRef.current.id, cle);
-          if (resultat.ok) setPiecesServeur(resultat.valeur);
+          if (resultat.ok) poserDepuisApi(resultat.valeur);
           else setErreur(resultat.statut === 0 ? "Le serveur est injoignable : réessayez en ligne." : resultat.message);
         } finally {
           operationsPieces.current -= 1;

@@ -61,6 +61,32 @@ export function piecesDepuisValeur(valeur: unknown): PieceBrouillon[] {
   return pieces;
 }
 
+function memesIdentifiants(a: readonly PieceBrouillon[], b: readonly PieceBrouillon[]): boolean {
+  const ids = (pieces: readonly PieceBrouillon[]) =>
+    pieces
+      .map((piece) => piece.id)
+      .sort()
+      .join("\0");
+  return ids(a) === ids(b);
+}
+
+/**
+ * Le cliché local (`pieces_texte`) arrive par la synchronisation, donc après la réponse de l'API
+ * qui vient d'ajouter ou de retirer une pièce. Tant qu'il ne porte pas les mêmes identifiants,
+ * il ne remplace pas la liste déjà affichée : la pièce disparaîtrait de l'écran. Une fois aligné,
+ * le cliché reprend la main, suppression depuis un autre poste comprise.
+ */
+export function concilierPiecesLocales(
+  affichees: readonly PieceBrouillon[],
+  locales: readonly PieceBrouillon[],
+  tenir: boolean,
+): { pieces: PieceBrouillon[]; tenir: boolean } {
+  if (!tenir || memesIdentifiants(affichees, locales)) {
+    return { pieces: [...locales], tenir: false };
+  }
+  return { pieces: [...affichees], tenir: true };
+}
+
 /** Lecture du résumé JSON des pièces (colonne pieces_texte). Une valeur illisible vaut « aucune pièce ». */
 export function lirePiecesBrouillon(texte: string | null | undefined): PieceBrouillon[] {
   if (texte === null || texte === undefined || texte.trim() === "") return [];

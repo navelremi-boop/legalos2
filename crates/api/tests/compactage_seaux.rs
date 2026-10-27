@@ -19,7 +19,11 @@ fn bloc_compactage(compose: &str) -> Result<&str, String> {
     let octets = depuis.as_bytes();
     let mut i = 1usize;
     while i + 3 < octets.len() {
-        if octets[i] == b'\n' && octets[i + 1] == b' ' && octets[i + 2] == b' ' && octets[i + 3] != b' ' {
+        if octets[i] == b'\n'
+            && octets[i + 1] == b' '
+            && octets[i + 2] == b' '
+            && octets[i + 3] != b' '
+        {
             return Ok(&depuis[..=i]);
         }
         i += 1;
@@ -48,7 +52,8 @@ fn verifier_compactage(bloc: &str) -> Result<(), String> {
 
 #[test]
 fn compactage_seaux() {
-    let compose = std::fs::read_to_string(racine().join("instance/docker-compose.yml")).expect("docker-compose");
+    let compose = std::fs::read_to_string(racine().join("instance/docker-compose.yml"))
+        .expect("docker-compose");
     let bloc = bloc_compactage(&compose).expect("service");
     verifier_compactage(bloc).expect("procédure");
     let versions = std::fs::read_to_string(racine().join("docs/versions.md")).expect("versions");
@@ -57,7 +62,13 @@ fn compactage_seaux() {
         "la procédure n'est pas consignée dans docs/versions.md"
     );
     let mauvais = bloc.replace("sleep 3600", "sleep 86400");
-    assert!(verifier_compactage(&mauvais).is_err(), "un passage quotidien doit échouer");
+    assert!(
+        verifier_compactage(&mauvais).is_err(),
+        "un passage quotidien doit échouer"
+    );
     let vidage = format!("{bloc}\n    teardown TEARDOWN\n");
-    assert!(verifier_compactage(&vidage).is_err(), "vider le seau doit échouer");
+    assert!(
+        verifier_compactage(&vidage).is_err(),
+        "vider le seau doit échouer"
+    );
 }

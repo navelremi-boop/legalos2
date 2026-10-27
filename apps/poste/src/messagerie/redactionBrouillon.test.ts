@@ -7,6 +7,7 @@ import { brouillonVersMail, debutDeSaisie, nomLigneBrouillon } from "./listeBrou
 import {
   annonceTailleMax,
   formatTaille,
+  concilierPiecesLocales,
   lirePiecesBrouillon,
   nomPieceValide,
   NOMBRE_MAX_PIECES,
@@ -51,6 +52,25 @@ describe("pièces jointes : taille maximale annoncée et vérifiée avant l'envo
     assert.equal(formatTaille(850 * 1024), "850 Kio");
     assert.equal(formatTaille(Math.round(2.4 * MO)), "2,4 Mio");
     assert.equal(formatTaille(25 * MO), "25 Mio");
+  });
+
+  it("un cliché local en retard ne retire pas une pièce que l'API vient de confirmer", () => {
+    const note = { id: "p1", nom: "note.txt", type_mime: "text/plain", taille: 12 };
+    const vingt = { id: "p2", nom: "vingt.bin", type_mime: "application/octet-stream", taille: 20 * MO };
+    const tenu = concilierPiecesLocales([note, vingt], [note], true);
+    assert.equal(tenu.tenir, true);
+    assert.deepEqual(tenu.pieces.map((piece) => piece.id), ["p1", "p2"]);
+    const aligne = concilierPiecesLocales([note, vingt], [note, vingt], true);
+    assert.equal(aligne.tenir, false);
+    assert.deepEqual(aligne.pieces.map((piece) => piece.id), ["p1", "p2"]);
+  });
+
+  it("essai négatif : sans tenue, le cliché local remplace la liste, y compris s'il retire une pièce", () => {
+    const note = { id: "p1", nom: "note.txt", type_mime: "text/plain", taille: 12 };
+    const vingt = { id: "p2", nom: "vingt.bin", type_mime: "application/octet-stream", taille: 20 * MO };
+    const libre = concilierPiecesLocales([note, vingt], [note], false);
+    assert.equal(libre.tenir, false);
+    assert.deepEqual(libre.pieces.map((piece) => piece.id), ["p1"]);
   });
 
   it("le résumé des pièces est lu avec prudence", () => {

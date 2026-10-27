@@ -90,25 +90,33 @@ async fn essai(url: &str) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
     if identique != 0 {
-        return Err(format!("réécriture identique : {identique} ligne, 0 attendue"));
+        return Err(format!(
+            "réécriture identique : {identique} ligne, 0 attendue"
+        ));
     }
     let version_apres = xmin(&pool, compte).await?;
     if version_apres != version {
-        return Err(format!("la version de ligne a changé ({version} → {version_apres})"));
+        return Err(format!(
+            "la version de ligne a changé ({version} → {version_apres})"
+        ));
     }
 
     let empreinte = poser_etat_connexion(&pool, compte, "connecte", Some("hote|143|capa|secret"))
         .await
         .map_err(|e| e.to_string())?;
     if empreinte != 1 {
-        return Err(format!("empreinte nouvelle : {empreinte} ligne, 1 attendue"));
+        return Err(format!(
+            "empreinte nouvelle : {empreinte} ligne, 1 attendue"
+        ));
     }
     let empreinte_identique =
         poser_etat_connexion(&pool, compte, "connecte", Some("hote|143|capa|secret"))
             .await
             .map_err(|e| e.to_string())?;
     if empreinte_identique != 0 {
-        return Err(format!("empreinte identique : {empreinte_identique} ligne, 0 attendue"));
+        return Err(format!(
+            "empreinte identique : {empreinte_identique} ligne, 0 attendue"
+        ));
     }
 
     let panne = poser_serveur_indisponible(&pool, compte)
@@ -121,21 +129,27 @@ async fn essai(url: &str) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
     if panne_identique != 0 {
-        return Err(format!("indisponible déjà posé : {panne_identique} ligne, 0 attendue"));
+        return Err(format!(
+            "indisponible déjà posé : {panne_identique} ligne, 0 attendue"
+        ));
     }
     // La relève réussie retire l'indicateur, même si l'état de connexion est déjà « connecte ».
     let releve = poser_etat_connexion(&pool, compte, "connecte", Some("hote|143|capa|secret"))
         .await
         .map_err(|e| e.to_string())?;
     if releve != 1 {
-        return Err(format!("retrait de l'indicateur : {releve} ligne, 1 attendue"));
+        return Err(format!(
+            "retrait de l'indicateur : {releve} ligne, 1 attendue"
+        ));
     }
     let releve_identique =
         poser_etat_connexion(&pool, compte, "connecte", Some("hote|143|capa|secret"))
             .await
             .map_err(|e| e.to_string())?;
     if releve_identique != 0 {
-        return Err(format!("relève identique : {releve_identique} ligne, 0 attendue"));
+        return Err(format!(
+            "relève identique : {releve_identique} ligne, 0 attendue"
+        ));
     }
     Ok(())
 }
