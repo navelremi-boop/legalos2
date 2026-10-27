@@ -577,3 +577,5 @@ Transmise par le commandement.
 2026-10-27 — Plafond du seau et coque locale. `node tests/recette/seau-powersync.mjs` exit 0 : création et modification d'un contact fictif, **4 opérations pour 3 lignes** (plafond 3 par ligne ; essai négatif : 7 pour 2 lignes échoue). Le contact est retiré ensuite par un `DELETE` ciblé, le seau n'est pas vidé. Un poste dont la base locale a déjà le cabinet ouvre la coque sans attendre la synchronisation initiale (`ecranDuPoste`, 3 tests). `tsc` exit 0.
 
 **Prochaine action.** Série officielle, en dernier : brancher `--build` sur `j11-connexion-boites` (poste construit, sans Vite), puis 10 passes à froid.
+
+2026-10-27 — `--build` branché sur `j11-connexion-boites` : `tauri build --debug --no-bundle`, interface dans `dist-recette` avec les crochets de recette, lancement par copie du binaire (`mode: copie`), sans `tauri dev`. La série de 10 passes part ensuite.
