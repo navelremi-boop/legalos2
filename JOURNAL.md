@@ -673,3 +673,7 @@ Aucun `0xC0000374`. Aucun cliché dans `C:\Users\PC\CrashDumps\legal-os-poste`. 
 2026-10-27 — Le renouvellement couvre aussi les autres appels qui portaient le jeton en mémoire : réponse à une invitation, ouverture d'un document, référence du cabinet, validation d'un temps, synchronisation initiale et reprise de la synchronisation en recette. `tsc` et eslint de ces fichiers : exit 0.
 
 **Prochaine action.** D4 ouvert. J11 n'est pas coché. Ne pas relancer les 10 passes pour le chiffre. Ne pas réactiver le tas de pages.
+
+2026-10-27 — Relecture du cliché `legal-os-poste-22536` (`!heap -x` sur `000002370d9f4590`, pas un nouveau plantage). Le bloc est déjà marqué libre, taille `0xC0`, bloc précédent `0x410`. `Blink->Flink` vaut `000002370d9f4526`, qui tombe dans le bloc précédent et n'est pas aligné (l'entrée attendue est `000002370d9f4590`). Les premiers octets du bloc libéré sont des pointeurs du tas, pas le texte d'un nom de seau. Le tampon de la `String` était donc déjà réécrit. L'écrivain n'est toujours pas nommé.
+
+**Prochaine action.** D4 ouvert. J11 n'est pas coché. Ne pas relancer les 10 passes pour le chiffre. Ne pas réactiver le tas de pages.
