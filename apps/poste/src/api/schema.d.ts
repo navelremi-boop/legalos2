@@ -1096,6 +1096,22 @@ export interface paths {
         patch: operations["patch_modele"];
         trace?: never;
     };
+    "/messagerie/oauth/application": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["lire_application"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/messagerie/oauth/debut": {
         parameters: {
             query?: never;
@@ -1373,6 +1389,13 @@ export interface components {
              *     plus élevé rendrait le changement acceptable (R0-f).
              */
             numero_depart_minimal?: number | null;
+        };
+        /** @description Présence des identifiants d'application, sans les valeurs (D8, écran Réglages, administrateur). */
+        ApplicationOAuth: {
+            /** @description `true` si `LEGALOS_OAUTH_GMAIL_CLIENT_ID` est renseigné. */
+            gmail: boolean;
+            /** @description `true` si `LEGALOS_OAUTH_MICROSOFT_CLIENT_ID` est renseigné. */
+            microsoft: boolean;
         };
         Autorisation: {
             state: string;
@@ -5817,6 +5840,44 @@ export interface operations {
             };
             /** @description Nom déjà utilisé */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    lire_application: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Présence des identifiants d'application (aucune valeur) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationOAuth"];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Réservé aux administrateurs du cabinet */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -6,15 +6,18 @@ import {
   adresseAutorisationOuvrable,
   lireDebut,
   lireEchange,
+  lireApplicationOAuth,
   lireFournisseurs,
   lireRetourBouclage,
   messageEchecAppel,
   MESSAGE_ANNULE,
   redirectionBouclage,
+  requeteApplicationOAuth,
   requeteDebut,
   requeteEchange,
   requeteFournisseurs,
   validerRetour,
+  type ApplicationOAuth,
   type EtapeOAuth,
   type FournisseurOAuth,
   type PhaseAppelOAuth,
@@ -54,6 +57,22 @@ export async function lireFournisseursOAuth(instanceUrl: string): Promise<Result
   const deRecette = fournisseursDeRecette();
   if (!resultat.ok || deRecette.length === 0) return resultat;
   return { ok: true, valeur: [...resultat.valeur, ...deRecette] };
+}
+
+/** Présence des identifiants d'application. 403 : l'appelant n'est pas administrateur. */
+export async function lireApplicationOAuthInstance(
+  instanceUrl: string,
+): Promise<ResultatApi<ApplicationOAuth>> {
+  const requete = requeteApplicationOAuth();
+  const resultat = await appeler(instanceUrl, requete.methode, requete.chemin, {
+    delaiMs: 12_000,
+    lire: lireApplicationOAuth,
+  });
+  if (!resultat.ok) return resultat;
+  if (resultat.valeur === null) {
+    return { ok: false, statut: 500, message: "L'instance n'a pas pu lire les identifiants d'application." };
+  }
+  return { ok: true, valeur: resultat.valeur };
 }
 
 function envoyer<T>(instanceUrl: string, requete: RequeteApi, lire: (json: unknown) => T): Promise<ResultatApi<T>> {

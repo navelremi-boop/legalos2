@@ -503,6 +503,37 @@ async fn scenario(url_base_jetable: String) {
         .unwrap()
         .iter()
         .any(|m| m["id"] == json!(id_second) && m["nom"] == json!("Convocation d'audience")));
+    let (statut, _) = appel(
+        &app,
+        "GET",
+        "/messagerie/oauth/application",
+        &b,
+        Value::Null,
+    )
+    .await;
+    assert_eq!(
+        statut,
+        StatusCode::FORBIDDEN,
+        "un collaborateur ne lit pas les identifiants d'application OAuth"
+    );
+    let (statut, application) = appel(
+        &app,
+        "GET",
+        "/messagerie/oauth/application",
+        &a,
+        Value::Null,
+    )
+    .await;
+    assert_eq!(statut, StatusCode::OK, "{application}");
+    assert!(application
+        .get("microsoft")
+        .and_then(|v| v.as_bool())
+        .is_some());
+    assert!(application.get("gmail").and_then(|v| v.as_bool()).is_some());
+    assert!(
+        application.get("client_id").is_none() && application.get("client_secret").is_none(),
+        "aucune valeur d'identifiant dans la réponse : {application}"
+    );
     let (statut, cree) = appel(
         &app,
         "POST",

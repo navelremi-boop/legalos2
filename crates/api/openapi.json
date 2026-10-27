@@ -4683,6 +4683,51 @@
         ]
       }
     },
+    "/messagerie/oauth/application": {
+      "get": {
+        "tags": [
+          "messagerie"
+        ],
+        "operationId": "lire_application",
+        "responses": {
+          "200": {
+            "description": "Présence des identifiants d'application (aucune valeur)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationOAuth"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Réservé aux administrateurs du cabinet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/messagerie/oauth/debut": {
       "post": {
         "tags": [
@@ -5645,6 +5690,24 @@
             ],
             "format": "int64",
             "description": "Présent seulement pour un 409 `reference_existante` quand un numéro de départ\nplus élevé rendrait le changement acceptable (R0-f)."
+          }
+        }
+      },
+      "ApplicationOAuth": {
+        "type": "object",
+        "description": "Présence des identifiants d'application, sans les valeurs (D8, écran Réglages, administrateur).",
+        "required": [
+          "microsoft",
+          "gmail"
+        ],
+        "properties": {
+          "gmail": {
+            "type": "boolean",
+            "description": "`true` si `LEGALOS_OAUTH_GMAIL_CLIENT_ID` est renseigné."
+          },
+          "microsoft": {
+            "type": "boolean",
+            "description": "`true` si `LEGALOS_OAUTH_MICROSOFT_CLIENT_ID` est renseigné."
           }
         }
       },

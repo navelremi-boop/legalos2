@@ -312,6 +312,37 @@ pub async fn lister_fournisseurs(AuthAccess(_claims): AuthAccess) -> Json<Fourni
     })
 }
 
+/// Présence des identifiants d'application, sans les valeurs (D8, écran Réglages, administrateur).
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct ApplicationOAuth {
+    /// `true` si `LEGALOS_OAUTH_MICROSOFT_CLIENT_ID` est renseigné.
+    pub microsoft: bool,
+    /// `true` si `LEGALOS_OAUTH_GMAIL_CLIENT_ID` est renseigné.
+    pub gmail: bool,
+}
+
+#[utoipa::path(
+    get,
+    path = "/messagerie/oauth/application",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, description = "Présence des identifiants d'application (aucune valeur)", body = ApplicationOAuth),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 403, description = "Réservé aux administrateurs du cabinet", body = crate::error::ApiErrorBody),
+    )
+)]
+pub async fn lire_application(
+    State(state): State<Arc<AppState>>,
+    AuthAccess(claims): AuthAccess,
+) -> Result<Json<ApplicationOAuth>, ApiError> {
+    crate::routes::collaborateurs::exiger_administrateur(&state.pool, &claims).await?;
+    Ok(Json(ApplicationOAuth {
+        microsoft: identifiants("microsoft").is_some(),
+        gmail: identifiants("gmail").is_some(),
+    }))
+}
+
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct DemandeDebut {
     /// Identifiant du compte : celui d'une boîte OAuth du demandeur (reconnexion) ou un nouvel identifiant.

@@ -6,15 +6,32 @@ import {
   libelleFournisseur,
   lireDebut,
   lireEchange,
+  lireApplicationOAuth,
   lireFournisseurs,
   lireRetourBouclage,
   messageEchecAppel,
   messageErreurRetour,
   redirectionBouclage,
+  requeteApplicationOAuth,
   requeteDebut,
   requeteEchange,
   validerRetour,
 } from "./formesOAuth.ts";
+
+describe("identifiants d'application (D8)", () => {
+  it("lit la présence, ignore une valeur d'identifiant", () => {
+    assert.deepEqual(lireApplicationOAuth({ microsoft: true, gmail: false, client_secret: "x" }), {
+      microsoft: true,
+      gmail: false,
+    });
+    assert.equal(lireApplicationOAuth({ microsoft: true }), null);
+    assert.equal(lireApplicationOAuth({}), null);
+  });
+
+  it("adresse la route d'application", () => {
+    assert.deepEqual(requeteApplicationOAuth(), { methode: "GET", chemin: "/messagerie/oauth/application" });
+  });
+});
 
 describe("fournisseurs proposés", () => {
   it("garde Microsoft 365 et Gmail annoncés par l'instance, avec les libellés du poste", () => {

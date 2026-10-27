@@ -226,6 +226,10 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/messagerie/oauth/fournisseurs",
             get(crate::oauth_mail::lister_fournisseurs),
         )
+        .route(
+            "/messagerie/oauth/application",
+            get(crate::oauth_mail::lire_application),
+        )
         .route("/messagerie/oauth/debut", post(crate::oauth_mail::debut))
         .route(
             "/messagerie/oauth/echange",

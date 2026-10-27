@@ -31,6 +31,20 @@ export function requeteFournisseurs(): { methode: "GET"; chemin: string } {
   return { methode: "GET", chemin: "/messagerie/oauth/fournisseurs" };
 }
 
+/** Présence des identifiants d'application (D8). Réservé à l'administrateur ; aucune valeur. */
+export function requeteApplicationOAuth(): { methode: "GET"; chemin: string } {
+  return { methode: "GET", chemin: "/messagerie/oauth/application" };
+}
+
+export type ApplicationOAuth = { microsoft: boolean; gmail: boolean };
+
+/** `null` si la réponse n'a pas les deux booléens. Une clé inattendue (secret, client_id) est ignorée. */
+export function lireApplicationOAuth(json: unknown): ApplicationOAuth | null {
+  const recu = objet(json) as Recu<"ApplicationOAuth">;
+  if (typeof recu.microsoft !== "boolean" || typeof recu.gmail !== "boolean") return null;
+  return { microsoft: recu.microsoft, gmail: recu.gmail };
+}
+
 function objet(json: unknown): Record<string, unknown> {
   return typeof json === "object" && json !== null && !Array.isArray(json) ? (json as Record<string, unknown>) : {};
 }

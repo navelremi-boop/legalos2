@@ -22,7 +22,9 @@ import {
   type CompteMessagerie,
 } from "@/messagerie/formesApiRedaction";
 import { nettoyerSortie } from "@/messagerie/nettoyageHtml";
+import { lireApplicationOAuthInstance } from "@/messagerie/apiOAuthBoites";
 import { ComptesMessagerie } from "@/messagerie/ComptesMessagerie";
+import type { ApplicationOAuth } from "@/messagerie/formesOAuth";
 import type { SanteMessagerie } from "@/messagerie/formesSanteMessagerie";
 import { memoriserModeles } from "@/messagerie/useModeles";
 
@@ -479,6 +481,45 @@ function ModelesDuCabinet({ instanceUrl, enLigne, demonstration }: ModelesDuCabi
 // Rubrique
 // ---------------------------------------------------------------------------------------------
 
+function IdentifiantsApplicationOAuth({
+  instanceUrl,
+  enLigne,
+  demonstration,
+}: {
+  instanceUrl: string;
+  enLigne: boolean;
+  demonstration: boolean;
+}) {
+  const [etat, setEtat] = useState<ApplicationOAuth | null>(null);
+
+  useEffect(() => {
+    if (demonstration || !enLigne) return;
+    let annule = false;
+    void lireApplicationOAuthInstance(instanceUrl).then((resultat) => {
+      if (annule) return;
+      if (resultat.ok) setEtat(resultat.valeur);
+    });
+    return () => {
+      annule = true;
+    };
+  }, [demonstration, enLigne, instanceUrl]);
+
+  if (etat === null) return null;
+  return (
+    <>
+      <h3>{fr("Identifiants d'application OAuth")}</h3>
+      <p className="rg-mess__desc">
+        {fr("Microsoft 365 et Gmail. Ces identifiants sont ceux de l'instance, pas d'une boîte. Seul un administrateur les voit.")}
+      </p>
+      <p className="rg-mess__note" data-testid="oauth-application">
+        {fr(
+          `Microsoft 365 : ${etat.microsoft ? "renseigné" : "non renseigné"}. Gmail : ${etat.gmail ? "renseigné" : "non renseigné"}.`,
+        )}
+      </p>
+    </>
+  );
+}
+
 export function ReglagesMessagerie({ instanceUrl, horsLigne, demonstration }: ReglagesMessagerieProps) {
   const [comptes, setComptes] = useState<CompteMessagerie[] | null>(demonstration?.comptes ?? null);
   const [erreurComptes, setErreurComptes] = useState<string | null>(null);
@@ -508,6 +549,8 @@ export function ReglagesMessagerie({ instanceUrl, horsLigne, demonstration }: Re
       )}
 
       <ComptesMessagerie instanceUrl={instanceUrl} enLigne={enLigne} demonstration={demonstration?.sante} />
+
+      <IdentifiantsApplicationOAuth instanceUrl={instanceUrl} enLigne={enLigne} demonstration={demonstration !== undefined} />
 
       <h3>{fr("Signature")}</h3>
       <p className="rg-mess__desc">
