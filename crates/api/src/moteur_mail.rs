@@ -548,30 +548,61 @@ pub async fn noter_releve(pool: &PgPool, compte: Uuid, issue: Result<(), &Erreur
     }
 }
 
+/// Écrit l'état de connexion seulement s'il change. Une réécriture identique ne produit pas de
+/// nouvelle version de ligne, donc pas d'opération de synchronisation (le flux reprend
+/// `etat_connexion`). Retourne le nombre de lignes modifiées.
+pub async fn poser_etat_connexion(
+    pool: &PgPool,
+    compte: Uuid,
+    etat: &str,
+    empreinte: Option<&str>,
+) -> Result<u64, sqlx::Error> {
+    let resultat = sqlx::query(
+        r#"
+        UPDATE comptes_mail
+        SET etat_connexion = $2, empreinte_refus = $3, serveur_indisponible = FALSE
+        WHERE id = $1
+          AND (etat_connexion, empreinte_refus, serveur_indisponible)
+              IS DISTINCT FROM ($2, $3, FALSE)
+        "#,
+    )
+    .bind(compte)
+    .bind(etat)
+    .bind(empreinte)
+    .execute(pool)
+    .await?;
+    Ok(resultat.rows_affected())
+}
+
 async fn marquer_etat(
     pool: &PgPool,
     compte: Uuid,
     etat: &str,
     empreinte: Option<&str>,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        "UPDATE comptes_mail SET etat_connexion = $2, empreinte_refus = $3, serveur_indisponible = FALSE WHERE id = $1",
-    )
-        .bind(compte)
-        .bind(etat)
-        .bind(empreinte)
-        .execute(pool)
-        .await?;
+    poser_etat_connexion(pool, compte, etat, empreinte).await?;
     Ok(())
 }
 
 /// Pose l'indicateur « serveur indisponible » (consigne du 26/10/2026) : la boîte reste dans son état de connexion, le
 /// tableau de santé en tire « serveur indisponible ». Retiré par `marquer_etat` à la première relève réussie.
+/// Pose « serveur indisponible » seulement si l'indicateur n'y est pas déjà. Retourne le nombre de lignes modifiées.
+pub async fn poser_serveur_indisponible(pool: &PgPool, compte: Uuid) -> Result<u64, sqlx::Error> {
+    let resultat = sqlx::query(
+        r#"
+        UPDATE comptes_mail
+        SET serveur_indisponible = TRUE
+        WHERE id = $1 AND serveur_indisponible IS DISTINCT FROM TRUE
+        "#,
+    )
+    .bind(compte)
+    .execute(pool)
+    .await?;
+    Ok(resultat.rows_affected())
+}
+
 async fn marquer_indisponible(pool: &PgPool, compte: Uuid) -> Result<(), sqlx::Error> {
-    sqlx::query("UPDATE comptes_mail SET serveur_indisponible = TRUE WHERE id = $1")
-        .bind(compte)
-        .execute(pool)
-        .await?;
+    poser_serveur_indisponible(pool, compte).await?;
     Ok(())
 }
 
@@ -1008,7 +1039,30 @@ async fn inserer_ajouts(
                 -- Photographie du serveur antérieure à une action : le message qu'elle vient de
                 -- déplacer n'est pas ramené à la place qu'il a quittée. Un message revenu dans ce
                 -- dossier sous un autre UID (déplacé par un autre client) n'est pas concerné.
-                WHERE NOT EXISTS (
+                -- Une photographie identique ne réécrit pas : `revision` ne bougerait que pour
+                -- produire une opération de synchronisation.
+                WHERE (
+                    messages.lu,
+                    messages.drapeaux,
+                    messages.dossier_imap,
+                    messages.uid,
+                    messages.uid_validity,
+                    messages.destinataires_texte,
+                    messages.pieces_texte,
+                    messages.extrait_texte,
+                    messages.date_entete
+                ) IS DISTINCT FROM (
+                    EXCLUDED.lu,
+                    EXCLUDED.drapeaux,
+                    EXCLUDED.dossier_imap,
+                    EXCLUDED.uid,
+                    EXCLUDED.uid_validity,
+                    CASE WHEN EXCLUDED.destinataires_texte <> '' THEN EXCLUDED.destinataires_texte ELSE messages.destinataires_texte END,
+                    CASE WHEN EXCLUDED.pieces_texte <> '' THEN EXCLUDED.pieces_texte ELSE messages.pieces_texte END,
+                    CASE WHEN EXCLUDED.extrait_texte <> '' THEN EXCLUDED.extrait_texte ELSE messages.extrait_texte END,
+                    COALESCE(EXCLUDED.date_entete, messages.date_entete)
+                )
+                AND NOT EXISTS (
                     SELECT 1 FROM actions_messages a
                     WHERE a.message_ref = messages.id
                       AND a.genre IN ('archiver', 'supprimer', 'deplacer')
