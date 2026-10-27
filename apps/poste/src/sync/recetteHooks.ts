@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { lireNotificationsEmises, type NotificationEmise } from "@/lib/notificationBureau";
-import { loadInstanceUrl, loadSessionTokens } from "@/lib/session/storage";
+import { assurerJetonAcces } from "@/lib/session/rafraichir";
+import { loadInstanceUrl } from "@/lib/session/storage";
 import {
   cheminCacheDocument,
   ouvrirDocument,
@@ -204,9 +205,9 @@ export function createRecetteHooks(): RecetteHooks {
     },
     async reconnectSync() {
       const database = await getPowerSyncDatabase();
-      const accessToken = loadSessionTokens().accessToken;
+      const accessToken = await assurerJetonAcces();
       const instanceUrl = loadInstanceUrl();
-      if (accessToken === null || accessToken === "" || instanceUrl === null) {
+      if (accessToken === null || instanceUrl === null) {
         throw new Error("session absente");
       }
       await invoke("connect_powersync", { handle: database.rustHandle, instanceUrl, accessToken });

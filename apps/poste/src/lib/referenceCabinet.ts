@@ -7,7 +7,7 @@ import {
   MODELE_PAR_DEFAUT,
   type RemiseAZero,
 } from "@/lib/modeleReference";
-import { loadSessionTokens } from "@/lib/session/storage";
+import { assurerJetonAcces } from "@/lib/session/rafraichir";
 
 export type { ErreurReferenceCabinet };
 export { erreurReferenceDepuisCorps };
@@ -104,7 +104,7 @@ export async function chargerReferenceCabinet(
   instanceUrl: string,
   cabinetId: string,
 ): Promise<{ ok: true; etat: EtatReferenceCabinet } | { ok: false; message: string }> {
-  const jeton = loadSessionTokens().accessToken;
+  const jeton = await assurerJetonAcces();
   if (!jeton) {
     return { ok: false, message: "Connexion requise." };
   }
@@ -130,7 +130,7 @@ export async function enregistrerReferenceCabinet(
   | { ok: true; etat: EtatReferenceCabinet }
   | { ok: false; message: string; numero_depart_minimal: number | null }
 > {
-  const jeton = loadSessionTokens().accessToken;
+  const jeton = await assurerJetonAcces();
   if (!jeton) {
     return { ok: false, message: "Connexion requise.", numero_depart_minimal: null };
   }

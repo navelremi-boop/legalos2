@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import { loadSessionTokens } from "@/lib/session/storage";
+import { assurerJetonAcces } from "@/lib/session/rafraichir";
 import { DEMO_CABINET_ID } from "@/sync/demoCabinet";
 import { getPowerSyncDatabase } from "@/sync/database";
 
@@ -21,8 +21,8 @@ export async function runInitialSync(
     detail: "Connexion au service de synchronisation…",
   });
 
-  const accessToken = loadSessionTokens().accessToken;
-  if (accessToken === null || accessToken === "") {
+  const accessToken = await assurerJetonAcces();
+  if (accessToken === null) {
     throw new Error("Jeton d’accès absent pour PowerSync");
   }
 

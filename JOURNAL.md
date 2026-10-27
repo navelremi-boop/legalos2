@@ -669,3 +669,7 @@ Aucun `0xC0000374`. Aucun cliché dans `C:\Users\PC\CrashDumps\legal-os-poste`. 
 2026-10-27 — Le jeton d'accès (900 s) n'était jamais renouvelé : le trousseau gardait le jeton de rafraîchissement sans route pour s'en servir, et `GET /messagerie/sante` passait en 401 (banc de révocation, itération 28). `POST /auth/rafraichir` relit le registre des postes (révoqué ou inconnu : 401, même message qu'un jeton d'accès présenté à la place) et émet un nouvel accès. Le poste l'appelle quand l'accès manque ou expire dans moins d'une minute, y compris pour la santé des boîtes. Preuve : `cargo test -p legalos-api --test auth_integration auth_rafraichir` ok ; `node --test` sur `expirationJeton.test.ts` 2/2.
 
 **Prochaine action.** D4 ouvert (écrivain du tas non nommé). J11 n'est pas coché. Ne pas relancer les 10 passes pour le chiffre. Ne pas réactiver le tas de pages.
+
+2026-10-27 — Le renouvellement couvre aussi les autres appels qui portaient le jeton en mémoire : réponse à une invitation, ouverture d'un document, référence du cabinet, validation d'un temps, synchronisation initiale et reprise de la synchronisation en recette. `tsc` et eslint de ces fichiers : exit 0.
+
+**Prochaine action.** D4 ouvert. J11 n'est pas coché. Ne pas relancer les 10 passes pour le chiffre. Ne pas réactiver le tas de pages.

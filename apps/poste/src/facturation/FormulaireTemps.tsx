@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { SubmitEvent } from "react";
 import { apiUrl } from "@/lib/auth/client";
 import { fr } from "@/lib/fr";
-import { loadSessionTokens } from "@/lib/session/storage";
+import { assurerJetonAcces } from "@/lib/session/rafraichir";
 import { enregistrerTemps, htTempsCentimes, tauxHoraireParDefaut } from "@/facturation/ecrireTemps";
 import { getPowerSyncDatabase } from "@/sync/database";
 
@@ -120,7 +120,7 @@ export function FormulaireTemps({
       setMessage(fr("Enregistrez d'abord le temps hors ligne."));
       return;
     }
-    const jeton = loadSessionTokens().accessToken;
+    const jeton = await assurerJetonAcces();
     if (!jeton) {
       setMessage(fr("Connexion requise pour valider."));
       return;

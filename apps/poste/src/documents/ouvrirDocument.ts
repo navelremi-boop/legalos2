@@ -2,7 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { apiUrl } from "@/lib/auth/client";
-import { loadInstanceUrl, loadSessionTokens } from "@/lib/session/storage";
+import { assurerJetonAcces } from "@/lib/session/rafraichir";
+import { loadInstanceUrl } from "@/lib/session/storage";
 import { estFichierIgnorePourVersion } from "@/documents/filtreTemporaire";
 import { getPowerSyncDatabase } from "@/sync/database";
 
@@ -29,8 +30,8 @@ const ecoutes = new Map<string, UnlistenFn>();
 const empreintesLocales = new Map<string, string>();
 const debounces = new Map<string, number>();
 
-function jetonEtBase(): { jeton: string; base: string } {
-  const jeton = loadSessionTokens().accessToken;
+async function jetonEtBase(): Promise<{ jeton: string; base: string }> {
+  const jeton = await assurerJetonAcces();
   const base = loadInstanceUrl();
   if (!jeton || !base) {
     throw new Error("Session absente");
@@ -90,7 +91,7 @@ export async function renvoyerVersionDepuisCache(
   const precedente = empreintesLocales.get(documentId);
   if (precedente === hash) return null;
 
-  const { jeton, base } = jetonEtBase();
+  const { jeton, base } = await jetonEtBase();
   const prep = await fetch(apiUrl(base, `/documents/${documentId}/versions`), {
     method: "POST",
     headers: {
@@ -156,7 +157,7 @@ function planifierRenvoi(documentId: string, baseNumero: number, chemin: string)
  */
 export async function ouvrirDocument(documentId: string): Promise<string> {
   const { numero, empreinte, nom } = await derniereVersion(documentId);
-  const { jeton, base } = jetonEtBase();
+  const { jeton, base } = await jetonEtBase();
   const lecture = await fetch(apiUrl(base, `/documents/${documentId}/versions/${String(numero)}`), {
     headers: { authorization: `Bearer ${jeton}` },
   });

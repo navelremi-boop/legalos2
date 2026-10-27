@@ -1,5 +1,5 @@
 import { apiUrl } from "@/lib/auth/client";
-import { loadSessionTokens } from "@/lib/session/storage";
+import { assurerJetonAcces } from "@/lib/session/rafraichir";
 import { messageEchecReponse } from "@/messagerie/erreursHttp";
 import { cheminReponseInvitation } from "@/messagerie/invitations";
 
@@ -35,8 +35,8 @@ export async function reponseInvitation(
   invitationId: string,
   reponse: ReponseInvitation,
 ): Promise<void> {
-  const jeton = loadSessionTokens().accessToken;
-  if (jeton === null || jeton === "") {
+  const jeton = await assurerJetonAcces();
+  if (jeton === null) {
     throw new ErreurReponseInvitation("La session a expiré. Reconnectez-vous.");
   }
   let resultat: Response;
