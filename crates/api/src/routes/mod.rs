@@ -81,7 +81,10 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/intercalaire-elements/{element_lien_id}",
             delete(intercalaires::detacher_element),
         )
-        .route("/collaborateurs", post(collaborateurs::creer_collaborateur))
+        .route(
+            "/collaborateurs",
+            get(collaborateurs::lister_collaborateurs).post(collaborateurs::creer_collaborateur),
+        )
         .route("/repertoires", post(documents::creer_repertoire))
         .route(
             "/repertoires/{repertoire_id}",

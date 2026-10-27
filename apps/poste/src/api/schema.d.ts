@@ -171,7 +171,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["lister_collaborateurs"];
         put?: never;
         post: operations["creer_collaborateur"];
         delete?: never;
@@ -654,10 +654,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Membres d'une boîte partagée, visibles de ses seuls membres. */
+        /** Membres d'une boîte partagée, visibles de ses membres et des administrateurs du cabinet. */
         get: operations["lister_membres"];
         /**
-         * Remplace la liste des membres. Seul un membre actuel le peut ; la liste ne devient jamais vide
+         * Remplace la liste des membres. Un membre actuel ou un administrateur du cabinet le peut ; la liste ne devient jamais vide
          *     (une boîte sans membre serait orpheline).
          */
         put: operations["definir_membres"];
@@ -1452,6 +1452,8 @@ export interface components {
             email: string;
             /** Format: uuid */
             id: string;
+            /** @description `administrateur` ou `collaborateur`. */
+            role: string;
         };
         CompositionRequest: {
             a?: string[];
@@ -3018,6 +3020,35 @@ export interface operations {
             };
         };
     };
+    lister_collaborateurs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Utilisateurs actifs du cabinet de l'appelant, avec leur rôle */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborateurResponse"][];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
     creer_collaborateur: {
         parameters: {
             query?: never;
@@ -3031,7 +3062,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Collaborateur du cabinet */
+            /** @description Collaborateur du cabinet (rôle collaborateur) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3042,6 +3073,15 @@ export interface operations {
             };
             /** @description Non authentifié */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Réservé aux administrateurs du cabinet */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5666,6 +5706,15 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorBody"];
                 };
             };
+            /** @description Réservé aux administrateurs du cabinet */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
             /** @description Nom déjà utilisé */
             409: {
                 headers: {
@@ -5694,6 +5743,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Réservé aux administrateurs du cabinet */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
             };
             /** @description Modèle introuvable */
             404: {
@@ -5732,6 +5790,15 @@ export interface operations {
             };
             /** @description Modèle invalide */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Réservé aux administrateurs du cabinet */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

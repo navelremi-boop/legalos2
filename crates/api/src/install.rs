@@ -37,8 +37,8 @@ pub async fn creer_premier_administrateur(
         .execute(pool)
         .await?;
     sqlx::query(
-        r#"INSERT INTO utilisateurs (id, cabinet_id, email, password_hash, totp_secret_chiffre, actif)
-           VALUES ($1, $2, $3, $4, $5, TRUE)"#,
+        r#"INSERT INTO utilisateurs (id, cabinet_id, email, password_hash, totp_secret_chiffre, actif, role)
+           VALUES ($1, $2, $3, $4, $5, TRUE, 'administrateur')"#,
     )
     .bind(user)
     .bind(cabinet)

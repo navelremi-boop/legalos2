@@ -891,6 +891,7 @@ pub async fn lister_modeles(
     responses(
         (status = 200, description = "Modèle créé ou déjà présent", body = ModeleResponse),
         (status = 400, description = "Modèle invalide", body = crate::error::ApiErrorBody),
+        (status = 403, description = "Réservé aux administrateurs du cabinet", body = crate::error::ApiErrorBody),
         (status = 409, description = "Nom déjà utilisé", body = crate::error::ApiErrorBody),
     )
 )]
@@ -899,6 +900,7 @@ pub async fn creer_modele(
     AuthAccess(claims): AuthAccess,
     Json(body): Json<CreerModeleRequest>,
 ) -> Result<Json<ModeleResponse>, ApiError> {
+    crate::routes::collaborateurs::exiger_administrateur(&state.pool, &claims).await?;
     let nom = verifier_nom_modele(&body.nom)?;
     let objet = verifier_objet_modele(&body.objet)?;
     let corps_html = verifier_corps_modele(&body.corps_html)?;
@@ -959,6 +961,7 @@ pub async fn creer_modele(
     responses(
         (status = 200, description = "Modèle modifié", body = ModeleResponse),
         (status = 400, description = "Modèle invalide", body = crate::error::ApiErrorBody),
+        (status = 403, description = "Réservé aux administrateurs du cabinet", body = crate::error::ApiErrorBody),
         (status = 404, description = "Modèle introuvable", body = crate::error::ApiErrorBody),
         (status = 409, description = "Nom déjà utilisé", body = crate::error::ApiErrorBody),
     )
@@ -969,6 +972,7 @@ pub async fn patch_modele(
     Path(modele_id): Path<Uuid>,
     Json(body): Json<PatchModeleRequest>,
 ) -> Result<Json<ModeleResponse>, ApiError> {
+    crate::routes::collaborateurs::exiger_administrateur(&state.pool, &claims).await?;
     let nom = body.nom.as_deref().map(verifier_nom_modele).transpose()?;
     let objet = body
         .objet
@@ -1023,6 +1027,7 @@ pub async fn patch_modele(
     security(("bearer_auth" = [])),
     responses(
         (status = 204, description = "Modèle supprimé"),
+        (status = 403, description = "Réservé aux administrateurs du cabinet", body = crate::error::ApiErrorBody),
         (status = 404, description = "Modèle introuvable", body = crate::error::ApiErrorBody),
     )
 )]
@@ -1031,6 +1036,7 @@ pub async fn supprimer_modele(
     AuthAccess(claims): AuthAccess,
     Path(modele_id): Path<Uuid>,
 ) -> Result<StatusCode, ApiError> {
+    crate::routes::collaborateurs::exiger_administrateur(&state.pool, &claims).await?;
     let efface = sqlx::query("DELETE FROM modeles_message WHERE id = $1 AND cabinet_id = $2")
         .bind(modele_id)
         .bind(claims.cabinet_id)

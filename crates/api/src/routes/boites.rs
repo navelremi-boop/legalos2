@@ -252,7 +252,34 @@ async fn exiger_membre(
     }
 }
 
-/// Membres d'une boîte partagée, visibles de ses seuls membres.
+/// Les membres d'une boîte partagée, ou un administrateur du cabinet (qui gère toutes les boîtes partagées de son
+/// cabinet, y compris une boîte dont plus personne n'est joignable) ; sinon 404, comme une boîte absente.
+async fn exiger_membre_ou_administrateur(
+    state: &AppState,
+    cabinet_id: Uuid,
+    utilisateur_id: Uuid,
+    compte_id: Uuid,
+) -> Result<(), ApiError> {
+    if crate::routes::collaborateurs::est_administrateur(&state.pool, cabinet_id, utilisateur_id)
+        .await?
+    {
+        let existe = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS (SELECT 1 FROM comptes_mail WHERE id = $1 AND cabinet_id = $2 AND type_compte = 'partage')",
+        )
+        .bind(compte_id)
+        .bind(cabinet_id)
+        .fetch_one(&state.pool)
+        .await
+        .map_err(|_| ApiError::internal("Lecture des droits"))?;
+        if existe {
+            return Ok(());
+        }
+        return Err(ApiError::not_found("Boîte introuvable"));
+    }
+    exiger_membre(state, cabinet_id, utilisateur_id, compte_id).await
+}
+
+/// Membres d'une boîte partagée, visibles de ses membres et des administrateurs du cabinet.
 #[utoipa::path(
     get,
     path = "/messagerie/boites-partagees/{compte_id}/membres",
@@ -268,7 +295,7 @@ pub async fn lister_membres(
     AuthAccess(claims): AuthAccess,
     Path(compte_id): Path<Uuid>,
 ) -> Result<Json<Vec<Membre>>, ApiError> {
-    exiger_membre(&state, claims.cabinet_id, claims.sub, compte_id).await?;
+    exiger_membre_ou_administrateur(&state, claims.cabinet_id, claims.sub, compte_id).await?;
     let lignes = sqlx::query_as::<_, (Uuid, String)>(
         r#"
         SELECT u.id, u.email
@@ -293,7 +320,7 @@ pub async fn lister_membres(
     ))
 }
 
-/// Remplace la liste des membres. Seul un membre actuel le peut ; la liste ne devient jamais vide
+/// Remplace la liste des membres. Un membre actuel ou un administrateur du cabinet le peut ; la liste ne devient jamais vide
 /// (une boîte sans membre serait orpheline).
 #[utoipa::path(
     put,
@@ -313,7 +340,7 @@ pub async fn definir_membres(
     Path(compte_id): Path<Uuid>,
     Json(body): Json<DefinirMembres>,
 ) -> Result<Json<BoitePartagee>, ApiError> {
-    exiger_membre(&state, claims.cabinet_id, claims.sub, compte_id).await?;
+    exiger_membre_ou_administrateur(&state, claims.cabinet_id, claims.sub, compte_id).await?;
     let membres: BTreeSet<Uuid> = body.membres.iter().copied().collect();
     if membres.is_empty() {
         return Err(ApiError::bad_request(

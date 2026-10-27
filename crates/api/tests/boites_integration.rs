@@ -666,6 +666,51 @@ async fn scenario(url_base_jetable: String) {
     let (statut, _) = appel(&app, "POST", &corps(msg_p), &c, Value::Null).await;
     assert_ne!(statut, StatusCode::NOT_FOUND, "C ajouté lit le corps");
 
+    // Administrateur du cabinet (dette « gestion des membres », rôle minimal) : B, retiré de la boîte, devient
+    // administrateur et peut lire et fixer la liste des membres sans en être membre ; redevenu collaborateur, il retombe
+    // sur 404. Une boîte qui n'est pas une boîte partagée du cabinet reste introuvable, même pour un administrateur.
+    sqlx::query("UPDATE utilisateurs SET role = 'administrateur' WHERE id = $1")
+        .bind(id_b)
+        .execute(&pool)
+        .await
+        .expect("promotion de B");
+    let (statut, liste) = appel(&app, "GET", &uri_membres, &b, Value::Null).await;
+    assert_eq!(statut, StatusCode::OK, "l'administrateur lit les membres");
+    assert_eq!(liste.as_array().expect("membres").len(), 2);
+    let (statut, _) = appel(
+        &app,
+        "PUT",
+        &uri_membres,
+        &b,
+        json!({"membres": [id_a, id_c]}),
+    )
+    .await;
+    assert_eq!(statut, StatusCode::OK, "l'administrateur fixe les membres");
+    let (statut, _) = appel(
+        &app,
+        "GET",
+        &format!("/messagerie/boites-partagees/{}/membres", Uuid::now_v7()),
+        &b,
+        Value::Null,
+    )
+    .await;
+    assert_eq!(
+        statut,
+        StatusCode::NOT_FOUND,
+        "boîte inconnue, même pour un administrateur"
+    );
+    sqlx::query("UPDATE utilisateurs SET role = 'collaborateur' WHERE id = $1")
+        .bind(id_b)
+        .execute(&pool)
+        .await
+        .expect("rétrogradation de B");
+    let (statut, _) = appel(&app, "GET", &uri_membres, &b, Value::Null).await;
+    assert_eq!(
+        statut,
+        StatusCode::NOT_FOUND,
+        "redevenu collaborateur, B n'est plus ni membre ni administrateur"
+    );
+
     // =========================================================================================
     // Tableau de santé : relève, refus d'authentification, retard, envoi en échec
     // =========================================================================================

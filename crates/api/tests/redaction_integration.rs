@@ -146,17 +146,19 @@ async fn creer_utilisateur(
     email: &str,
     mot_de_passe: &str,
     totp: &str,
+    role: &str,
 ) {
     let hash = legalos_api::auth::password::hash_password(mot_de_passe).expect("hash");
     let secret = legalos_api::auth::totp::chiffrer_secret_totp(totp.as_bytes(), CLE).expect("totp");
     sqlx::query(
-        "INSERT INTO utilisateurs (id, cabinet_id, email, password_hash, totp_secret_chiffre, actif) VALUES ($1, $2, $3, $4, $5, TRUE)",
+        "INSERT INTO utilisateurs (id, cabinet_id, email, password_hash, totp_secret_chiffre, actif, role) VALUES ($1, $2, $3, $4, $5, TRUE, $6)",
     )
     .bind(id)
     .bind(cabinet)
     .bind(email)
     .bind(hash)
     .bind(secret)
+    .bind(role)
     .execute(pool)
     .await
     .expect("utilisateur");
@@ -231,6 +233,7 @@ async fn scenario(url_base_jetable: String) {
         email_a,
         DEMO_PASSWORD,
         DEMO_TOTP_SECRET_BASE32,
+        "administrateur",
     )
     .await;
     creer_utilisateur(
@@ -240,6 +243,7 @@ async fn scenario(url_base_jetable: String) {
         COLLAB_EMAIL,
         DEMO_PASSWORD,
         COLLAB_TOTP,
+        "collaborateur",
     )
     .await;
 
@@ -430,6 +434,89 @@ async fn scenario(url_base_jetable: String) {
     )
     .await;
     assert_eq!(statut, StatusCode::OK);
+    // Rôles (dette « rôle administrateur », consigne du 14/10/2026) : un collaborateur lit les modèles, ne les écrit pas
+    // (403 : la ressource est visible, l'action est interdite) ; il ne crée pas de compte ; l'administrateur le peut.
+    for (libelle, methode, uri, corps) in [
+        (
+            "création",
+            "POST",
+            "/messagerie/modeles".to_owned(),
+            json!({"id": Uuid::now_v7(), "nom": "Modèle de B"}),
+        ),
+        (
+            "modification",
+            "PATCH",
+            format!("/messagerie/modeles/{id_second}"),
+            json!({"nom": "Renommé par B"}),
+        ),
+        (
+            "suppression",
+            "DELETE",
+            format!("/messagerie/modeles/{id_second}"),
+            Value::Null,
+        ),
+        (
+            "création d'un compte",
+            "POST",
+            "/collaborateurs".to_owned(),
+            json!({"email": "nouveau@cabinet.example", "password": "un mot de passe long", "totp_secret_base32": "ABCDEFGHIJKLMNOP"}),
+        ),
+    ] {
+        let (statut, _) = appel(&app, methode, &uri, &b, corps).await;
+        assert_eq!(
+            statut,
+            StatusCode::FORBIDDEN,
+            "un collaborateur ne fait pas : {libelle}"
+        );
+    }
+    let (statut, liste_modeles_b) =
+        appel(&app, "GET", "/messagerie/modeles", &b, Value::Null).await;
+    assert_eq!(statut, StatusCode::OK, "un collaborateur lit les modèles");
+    assert!(liste_modeles_b.as_array().is_some_and(|l| !l.is_empty()));
+    let (statut, collaborateurs) = appel(&app, "GET", "/collaborateurs", &b, Value::Null).await;
+    assert_eq!(statut, StatusCode::OK);
+    let roles: Vec<(String, String)> = collaborateurs
+        .as_array()
+        .expect("liste")
+        .iter()
+        .map(|c| {
+            (
+                c["email"].as_str().unwrap_or("").to_owned(),
+                c["role"].as_str().unwrap_or("").to_owned(),
+            )
+        })
+        .collect();
+    assert!(
+        roles
+            .iter()
+            .any(|(e, r)| e == COLLAB_EMAIL && r == "collaborateur"),
+        "{roles:?}"
+    );
+    assert!(
+        roles.iter().any(|(_, r)| r == "administrateur"),
+        "{roles:?}"
+    );
+    // Rien n'a changé du fait des refus : le second modèle porte toujours son nom.
+    let (_, apres) = appel(&app, "GET", "/messagerie/modeles", &a, Value::Null).await;
+    assert!(apres
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|m| m["id"] == json!(id_second) && m["nom"] == json!("Convocation d'audience")));
+    let (statut, cree) = appel(
+        &app,
+        "POST",
+        "/collaborateurs",
+        &a,
+        json!({"email": "nouveau@cabinet.example", "password": "un mot de passe long", "totp_secret_base32": "ABCDEFGHIJKLMNOP"}),
+    )
+    .await;
+    assert_eq!(statut, StatusCode::OK, "{cree}");
+    assert_eq!(
+        cree["role"],
+        json!("collaborateur"),
+        "un compte créé par l'API n'est jamais administrateur"
+    );
     let (_, liste_b) = appel(&app, "GET", "/messagerie/modeles", &b, Value::Null).await;
     assert!(liste_b
         .as_array()

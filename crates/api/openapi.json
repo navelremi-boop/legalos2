@@ -723,6 +723,42 @@
       }
     },
     "/collaborateurs": {
+      "get": {
+        "tags": [
+          "dossiers"
+        ],
+        "operationId": "lister_collaborateurs",
+        "responses": {
+          "200": {
+            "description": "Utilisateurs actifs du cabinet de l'appelant, avec leur rôle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CollaborateurResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      },
       "post": {
         "tags": [
           "dossiers"
@@ -740,7 +776,7 @@
         },
         "responses": {
           "200": {
-            "description": "Collaborateur du cabinet",
+            "description": "Collaborateur du cabinet (rôle collaborateur)",
             "content": {
               "application/json": {
                 "schema": {
@@ -751,6 +787,16 @@
           },
           "401": {
             "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Réservé aux administrateurs du cabinet",
             "content": {
               "application/json": {
                 "schema": {
@@ -2740,7 +2786,7 @@
         "tags": [
           "messagerie"
         ],
-        "summary": "Membres d'une boîte partagée, visibles de ses seuls membres.",
+        "summary": "Membres d'une boîte partagée, visibles de ses membres et des administrateurs du cabinet.",
         "operationId": "lister_membres",
         "parameters": [
           {
@@ -2788,7 +2834,7 @@
         "tags": [
           "messagerie"
         ],
-        "summary": "Remplace la liste des membres. Seul un membre actuel le peut ; la liste ne devient jamais vide\n(une boîte sans membre serait orpheline).",
+        "summary": "Remplace la liste des membres. Un membre actuel ou un administrateur du cabinet le peut ; la liste ne devient jamais vide\n(une boîte sans membre serait orpheline).",
         "operationId": "definir_membres",
         "parameters": [
           {
@@ -4476,6 +4522,16 @@
               }
             }
           },
+          "403": {
+            "description": "Réservé aux administrateurs du cabinet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Nom déjà utilisé",
             "content": {
@@ -4514,6 +4570,16 @@
         "responses": {
           "204": {
             "description": "Modèle supprimé"
+          },
+          "403": {
+            "description": "Réservé aux administrateurs du cabinet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
           },
           "404": {
             "description": "Modèle introuvable",
@@ -4571,6 +4637,16 @@
           },
           "400": {
             "description": "Modèle invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Réservé aux administrateurs du cabinet",
             "content": {
               "application/json": {
                 "schema": {
@@ -5837,7 +5913,8 @@
         "type": "object",
         "required": [
           "id",
-          "email"
+          "email",
+          "role"
         ],
         "properties": {
           "email": {
@@ -5846,6 +5923,10 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "role": {
+            "type": "string",
+            "description": "`administrateur` ou `collaborateur`."
           }
         }
       },

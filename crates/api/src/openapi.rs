@@ -58,6 +58,7 @@ use crate::routes::redaction::{
         crate::routes::intercalaires::rattacher_element,
         crate::routes::intercalaires::detacher_element,
         crate::routes::collaborateurs::creer_collaborateur,
+        crate::routes::collaborateurs::lister_collaborateurs,
         crate::routes::documents::creer_repertoire,
         crate::routes::documents::patch_repertoire,
         crate::routes::documents::creer_document,
