@@ -580,4 +580,8 @@ Transmise par le commandement.
 
 2026-10-27 — `--build` branché sur `j11-connexion-boites` : `tauri build --debug --no-bundle`, interface dans `dist-recette` avec les crochets de recette, lancement par copie du binaire (`mode: copie`), sans `tauri dev`. La série de 10 passes part ensuite.
 
+2026-10-27 — Série officielle interrompue à la passe 5. Passes 1 à 4 vertes (304 s avec la construction, puis 149 s, 164 s, 143 s), aucun `0xC0000374`. Passe 5 : le poste meurt pendant l'attente « la boîte révoquée passe à Identifiants refusés » (CDP sans réponse 60 s, page muette). Code de sortie du lanceur `3221226356` = `0xC0000374 STATUS_HEAP_CORRUPTION`. Aucun processus `legal-os-poste` ensuite. Dossier `C:\Users\PC\CrashDumps\legal-os-poste` : 0 cliché, donc pas de pile nouvelle. `doveadm who` : maximum 3. D4 est déclenché : la cause n'est pas établie au-delà de la catégorie déjà connue (corruption du tas, dette avant J15). La série n'est pas rejouée pour faire passer le chiffre.
+
+**Prochaine action.** D4 : sans cliché, la pile du plantage de la passe 5 n'est pas lisible. La série officielle reste incomplète (4 vertes, 1 crash). Attendre un cliché ou la décision de l'architecte avant de relancer les 10 passes.
+
 2026-10-27 — Série officielle lancée (13 h 32 UTC) : 10 passes consécutives de `node tests/recette/j11-connexion-boites.mjs --build`, arrêt au premier échec, journaux dans le dossier temporaire de la session. Pas de redémarrage de Docker entre les passes : le poste est le binaire construit, sans Vite. Passe 1 : exit 0 en 304 s, heap=0, 0 relance, `doveadm who` maximum 2 (plafond 5), 0 cliché dans `C:\Users\PC\CrashDumps\legal-os-poste`. La compilation du poste (2 min 42 s) est comprise dans ces 304 s.

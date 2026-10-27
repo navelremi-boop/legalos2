@@ -55,6 +55,7 @@ Aucune.
 
 ## Historique
 
+- **2026-10-27 (série officielle)** : passe 5 de `j11-connexion-boites --build` morte de `0xC0000374` (code `3221226356`) à l'étape de révocation OAuth. Passes 1 à 4 vertes. Aucun cliché dans `C:\Users\PC\CrashDumps\legal-os-poste`. D4 déclenché, cause non établie au-delà de la catégorie.
 - **2026-10-27 (architecte, suite)** : B20 et B21 levés. Le tas de test est retiré, la collecte des clichés reste permanente. Le crash natif est une dette avant J15. Les onze connexions sont un point clos (maximum relevé : 3). Le seau PowerSync devient un critère de J11.
 - **2026-10-27 (état-major)** : B21, 30 passes sous tas de test standard, crash non reproduit (0 cliché), facteur de ralentissement 1,0 en début de série. La suite est à l'architecte.
 - **2026-10-27 (architecte)** : B21, le commandement a activé le tas de test standard sur `legal-os-poste.exe` ; la collecte reste dans `C:\Users\PC\CrashDumps\legal-os-poste`. D9 : texte de la règle 11-api appliqué (commit `f01d649`).
