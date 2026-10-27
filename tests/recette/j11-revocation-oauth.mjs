@@ -180,6 +180,7 @@ async function main() {
             secret: totpSecretB32,
             nomAppareil: `Revocation ${marque}`,
             mode: "copie",
+            forcer: true,
           });
           await ouvrirReglages(poste);
           await js(
@@ -191,6 +192,8 @@ async function main() {
           await attendre("la boîte est revenue", () => present(ligne(idOauth)), Boolean, 120_000);
         }
         if (!poserFenetre(poste.child.pid, reduite)) fenetre = `${fenetre}-non-posee`;
+        const sessionExpiree = await js(`document.querySelector("[data-testid=comptes-chargement]")?.textContent ?? ""`);
+        if (String(sessionExpiree).toLowerCase().includes("session a expiré")) throw new Error("session expiree");
         banc.fournisseur.revoquer();
         await attendre("identifiants refusés", () => etatEcran(idOauth), (t) => norm(t) === "Identifiants refusés", 180_000);
         if (poste.child.exitCode !== null) throw new Error(`poste mort pendant l'attente, code ${poste.child.exitCode}`);
