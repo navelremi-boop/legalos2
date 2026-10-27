@@ -25,6 +25,8 @@
  */
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { existsSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { demarrerBancOauth, portRepond } from "./lib/banc-oauth-poste.mjs";
@@ -37,6 +39,10 @@ import { PLAFOND_CONNEXIONS, demarrerSondeConnexions } from "./lib/sonde-connexi
 import { creerUi, lit, norm } from "./lib/ui-mails.mjs";
 
 const racine = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+/** Série officielle : poste construit, interface embarquée, sans serveur Vite. */
+const modeBuild = process.argv.includes("--build");
+const cibleBuild = join(racine, "target-recette");
+const exeBuild = join(cibleBuild, "debug", "legal-os-poste.exe");
 const dossierCaptures = join(racine, "design", "captures", "j11-mails");
 const session = creerSession("j11-connexion");
 const { api, fail, ok, resetPostes, stopApp, ouvrirPoste, fermer } = session;
@@ -113,7 +119,37 @@ async function demarrerImapTest() {
   }
 }
 
+function construirePosteConstruit() {
+  const poste = join(racine, "apps", "poste");
+  const configPath = join(tmpdir(), `legalos-j11-connexion-build-${marque}.json`);
+  writeFileSync(
+    configPath,
+    JSON.stringify({
+      build: {
+        frontendDist: "../dist-recette",
+        beforeBuildCommand: "pnpm exec vite build --outDir dist-recette --emptyOutDir",
+      },
+    }),
+  );
+  console.log("j11-connexion: poste construit, interface embarquée, sans serveur Vite");
+  const r = spawnSync("cmd.exe", ["/d", "/s", "/c", `pnpm tauri build --debug --no-bundle --config ${configPath}`], {
+    cwd: poste,
+    env: {
+      ...process.env,
+      CARGO_TARGET_DIR: cibleBuild,
+      VITE_LEGALOS_RECETTE_HOOKS: "1",
+      LIBCLANG_PATH: process.env.LIBCLANG_PATH ?? "C:\\Program Files\\LLVM\\bin",
+    },
+    stdio: "inherit",
+    windowsHide: true,
+  });
+  if (r.status !== 0) fail(`construction du poste exit ${r.status ?? 1}`);
+  if (!existsSync(exeBuild)) fail(`binaire absent (${exeBuild})`);
+  process.env.CARGO_TARGET_DIR = cibleBuild;
+}
+
 async function main() {
+  if (modeBuild) construirePosteConstruit();
   await session.assurerInstance();
   const dovecot = await demarrerImapTest();
   // Critère de J11 (consigne du 26/10/2026) : les connexions simultanées par boîte, relevées côté serveur (`doveadm who`),
@@ -167,6 +203,7 @@ async function main() {
       password: demoPassword,
       secret: totpSecretB32,
       nomAppareil: `Connexion ${marque}`,
+      ...(modeBuild ? { mode: "copie" } : {}),
     });
     send = poste.page.send;
     await attendre(
