@@ -723,6 +723,6 @@ Série officielle relue (dix passes, exit 0, filet cdb, aucun cliché nouveau). 
 
 **Prochaine action.** Le cliché local des pièces ne doit plus effacer une pièce que l'API vient de confirmer ; fmt ; relancer `j11-redaction.mjs`.
 
-2026-10-27 — La surveillance du brouillon relisait `pieces_texte` chaque seconde et remplaçait la liste renvoyée par l'API. Le cliché synchronisé est en retard : la pièce de 20 Mio disparaissait de l'écran avant le clic « retirer ». `concilierPiecesLocales` garde cette liste tant que le cliché local n'a pas les mêmes identifiants. Tests unitaires du fichier : 28/28. Fmt des deux workspaces : exit 0. `j11-redaction.mjs` exit 0 en 148 s (0 relance). Captures de la réponse, des modèles et du temps réécrites à 19 h 26-19 h 27.
+2026-10-27 — La surveillance du brouillon relisait `pieces_texte` chaque seconde et remplaçait la liste renvoyée par l'API. Le cliché synchronisé est en retard : la pièce de 20 Mio disparaissait de l'écran avant le clic « retirer ». `concilierPiecesLocales` garde cette liste tant que le cliché local n'a pas les mêmes identifiants. Une fois les identifiants alignés, le cliché reprend la main, y compris une suppression venue d'un autre poste. Tests unitaires du fichier : 28/28. `cargo fmt --check` des deux workspaces : exit 0. `node tests/recette/j11-redaction.mjs` exit 0 en 205 s, 0 relance. Ce correctif change le poste : la série officielle précédente ne vaut plus.
 
-**Prochaine action.** Commit, pousser, CI. J11 n'est pas coché : le contrôleur doit repasser.
+**Prochaine action.** Relancer la série officielle de 10 passes, puis le contrôleur. J11 n'est pas coché.
