@@ -565,3 +565,7 @@ Transmise par le commandement.
 2026-10-27 — Écriture sans changement : `poser_etat_connexion` et `poser_serveur_indisponible` n'écrivent que si la valeur diffère (`UPDATE … WHERE … IS DISTINCT FROM …`) ; le conflit d'insertion d'un message déjà identique ne touche plus `revision`. `cargo test -p legalos-api seau_sans_reecriture` : 1 passed (0,84 s). Une réécriture identique laisse 0 ligne et la même `xmin`.
 
 **Prochaine action.** États techniques hors synchronisation (horodatage de relève, progression, compteurs, état de connexion lus par une route dédiée) — `cargo test -p legalos-api etats_techniques_hors_synchro`.
+
+2026-10-27 — États techniques hors du seau. `etat_connexion` est retiré des flux `comptes_nominatifs` et `comptes_partages`, et du schéma local. Le poste le lit par `GET /messagerie/sante` (déjà la route du tableau de santé) ; le rail des mails s'en sert pour « identifiants refusés », rafraîchi toutes les 30 s. `cargo test -p legalos-api etats_techniques_hors_synchro` : 1 passed. `node tests/recette/s5-sync-streams.mjs` exit 0. `tsc` exit 0.
+
+**Prochaine action.** Compactage des seaux par l'instance, selon la procédure de PowerSync figée dans `docs/versions.md` — `cargo test -p legalos-api compactage_seaux`.
