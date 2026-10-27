@@ -306,7 +306,7 @@ export function creerSession(etiquette) {
     mkdirSync(DOSSIER_CLICHES_POSTE, { recursive: true });
     const cliche = join(DOSSIER_CLICHES_POSTE, `legal-os-poste-${pid}-${Date.now()}.dmp`).replaceAll("\\", "/");
     const journal = join(tmpdir(), `cdb-filet-${pid}.log`);
-    const symboles = dirname(cheminBinairePoste());
+    const symboles = `srv*${join(tmpdir(), "legalos-symboles")}*https://msdl.microsoft.com/download/symbols;${dirname(cheminBinairePoste())}`;
     // `c0000374` est précédé d'un `int 3` dans RtlReportCriticalFailure. Sans reprise automatique,
     // cdb s'y arrête, la page gèle, et la recette tue le débogueur avant le cliché (code 0xC0000354).
     const commande = `.echo CDB_ATTACHE; sxe -c "g" 80000003; sxe -c ".echo CRASH_C0000374; .dump /ma ${cliche}; ~*kn 80; lmv; !heap -s; q" c0000374; g`;
@@ -431,9 +431,15 @@ export function creerSession(etiquette) {
   async function stopApp(child) {
     if (child?.filetTimer) clearInterval(child.filetTimer);
     if (child?.filet && child.filet.exitCode === null) {
-      await new Promise((resolve) => {
-        spawn("taskkill", ["/PID", String(child.filet.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true }).on("exit", resolve);
-      });
+      if (child.exitCode !== null) {
+        const debut = Date.now();
+        while (child.filet.exitCode === null && Date.now() - debut < 120_000) await sleep(500);
+      }
+      if (child.filet.exitCode === null) {
+        await new Promise((resolve) => {
+          spawn("taskkill", ["/PID", String(child.filet.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true }).on("exit", resolve);
+        });
+      }
     }
     if (!child || child.exitCode !== null) return;
     await new Promise((resolve) => {
