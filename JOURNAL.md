@@ -776,3 +776,13 @@ Les cinq piles restent dans les journaux `cdb-filet-*.log`. Taux sur cette séri
 2026-10-27 — Reprise. `node scripts/pre-push-check.mjs` sort 2 : `.cursor/hooks.json`, `.github/workflows/ci.yml`, `.github/workflows/volume-50k.yml`, `CLAUDE.md`, `tests/recette/regles-synchronisees.mjs`. `main` est 114 commits devant `origin/main` (`e4de2da`). Action inscrite en B22. Aucun code de production : un changement après `6a0713c` invaliderait la série officielle. J11 n'est pas coché. La Finition des écrans attend la coche de J11.
 
 **Prochaine action.** Le commandement pousse `main` (B22), puis la CI se lit par `gh`. J11 n'est pas coché.
+
+2026-10-27 — Consigne de l'architecte (CI de `e95c644`, run [40586596460](https://github.com/navelremi-boop/legalos2/actions/runs/40586596460)). Frontend, gouvernance, périmètre et facturx verts. Deux jobs en échec.
+
+`webdriver-macos` : `ld: library 'kernel32' not found`. Le seul `#[link(name = "kernel32")]` du dépôt est `lever_status_heap_corruption` (`apps/poste/src-tauri/src/lib.rs`), compilé avec la feature `test-webdriver` sans `cfg(windows)`. Il est maintenant réservé à Windows. Aucun autre `#[link]` dans le dépôt.
+
+`rust` : `la_limite_de_connexions_n_est_pas_un_refus_d_identifiants` panique en 138 ms sur la première connexion (`Connexion`). L'autre test du même fichier, sur le même utilisateur `capa` et le même conteneur à deux places, finit 6 s plus tard et passe. `Drop` de `SessionActions` envoie déjà `LOGOUT`. Ce n'est pas une session du moteur laissée ouverte : les deux tests se partageaient la boîte. Le test de limite a maintenant l'utilisateur `limite`, que personne d'autre n'ouvre. Le verrou du fichier reste. Pas de correctif du moteur, donc pas de nouvelle série officielle.
+
+La copie `patches/powersync` est retirée. Le poste reprend `powersync` 0.1.1 publié, qui épingle `powersync_core` 0.5.3.
+
+**Prochaine action.** CI verte sur ce correctif, puis contrôleur. J11 n'est pas coché.

@@ -1957,7 +1957,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.61.2",
+ "windows-core 0.62.2",
 ]
 
 [[package]]
@@ -3332,6 +3332,8 @@ checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
 [[package]]
 name = "powersync"
 version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ecc6dabe0499a1dbade3a94d75b01908afc0a8a8d825353966d6ecdbdc0eba8"
 dependencies = [
  "async-broadcast",
  "async-channel",
@@ -3361,12 +3363,13 @@ dependencies = [
 
 [[package]]
 name = "powersync_core"
-version = "0.5.4"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8ac47e1a63d394296de45fed9b6840573f5d0a83dc355897d04019561a55b92"
+checksum = "ece156d9cf159803f4ddc99d66e4c0d386fb017200f338d9ec9f33f6aba2f1c2"
 dependencies = [
  "bytes",
  "const_format",
+ "futures-lite",
  "num-derive 0.3.3",
  "num-traits",
  "powersync_sqlite_nostd",
@@ -3380,9 +3383,9 @@ dependencies = [
 
 [[package]]
 name = "powersync_sqlite_nostd"
-version = "0.5.4"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fafde7843829cfa538f62e4bd9c35367d08cb3ac5ea214cbe9671fcef0c13db9"
+checksum = "032b5f2d573a901f6e7bb83b3e3cfa47ab9196fed1f2e32c11ae059e504d9eb3"
 dependencies = [
  "bindgen",
  "num-derive 0.4.2",
@@ -4907,7 +4910,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",

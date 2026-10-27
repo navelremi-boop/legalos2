@@ -20,7 +20,9 @@ fn armer_corruption_de_recette() {
     }
 }
 
-#[cfg(feature = "test-webdriver")]
+/// `RaiseException` est dans `kernel32`. Le lien n'existe que sous Windows : le job
+/// `webdriver-macos` compile cette feature, et un `-lkernel32` y fait échouer `ld`.
+#[cfg(all(feature = "test-webdriver", windows))]
 fn lever_status_heap_corruption() -> ! {
     #[link(name = "kernel32")]
     extern "system" {
@@ -30,6 +32,11 @@ fn lever_status_heap_corruption() -> ! {
     unsafe {
         RaiseException(0xC000_0374, 1, 0, std::ptr::null());
     }
+    std::process::abort();
+}
+
+#[cfg(all(feature = "test-webdriver", not(windows)))]
+fn lever_status_heap_corruption() -> ! {
     std::process::abort();
 }
 

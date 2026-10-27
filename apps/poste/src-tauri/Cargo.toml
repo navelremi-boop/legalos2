@@ -38,8 +38,6 @@ test-webdriver = ["dep:tauri-plugin-wdio-webdriver"]
 
 [patch.crates-io]
 tauri-plugin-wdio-webdriver = { path = "patches/tauri-plugin-wdio-webdriver" }
-# 0.1.1 publié épingle powersync_core =0.5.3 ; ce chemin ne change que cette épingle vers 0.5.4.
-powersync = { path = "patches/powersync" }
 
 [profile.release]
 codegen-units = 1

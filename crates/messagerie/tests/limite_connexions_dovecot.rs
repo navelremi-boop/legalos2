@@ -17,17 +17,22 @@ use std::time::Duration;
 
 use legalos_messagerie::{ErreurMail, ParametresCompte, SessionActions};
 
-/// Les deux tests partagent un serveur à deux connexions : un seul à la fois (démarrage du conteneur et places).
+/// Les deux tests partagent le conteneur (démarrage), pas la boîte : chacun a son utilisateur.
+/// Le verrou empêche qu'ils recréent le conteneur en même temps.
 static BANC: Mutex<()> = Mutex::new(());
 
 const PORT: u16 = 24_147;
 const NOM: &str = "legalos-j11-dovecot-limite";
+/// Boîte du test de limite. Aucun autre test ne s'y connecte.
+const BOITE_LIMITE: &str = "limite";
+/// Boîte de l'essai négatif (mauvais mot de passe).
+const BOITE_AUTRE: &str = "capa";
 
-fn parametres(mot_de_passe: &str) -> ParametresCompte {
+fn parametres(utilisateur: &str, mot_de_passe: &str) -> ParametresCompte {
     ParametresCompte {
         hote: "127.0.0.1".to_owned(),
         port: PORT,
-        utilisateur: "capa".to_owned(),
+        utilisateur: utilisateur.to_owned(),
         mot_de_passe: mot_de_passe.to_owned(),
         tls: false,
         jeton_acces: None,
@@ -35,14 +40,12 @@ fn parametres(mot_de_passe: &str) -> ParametresCompte {
 }
 
 fn assurer_dovecot() {
-    if TcpStream::connect(("127.0.0.1", PORT)).is_ok() {
-        return;
-    }
     let racine = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(2)
         .expect("racine du dépôt");
     let configuration = racine.join("instance/imap-test/dovecot-limite.conf");
+    // Conteneur neuf : une exécution précédente qui aurait laissé des sessions ne remplit pas le quota.
     let _ = Command::new("docker")
         .args(["rm", "-f", NOM])
         .stdout(Stdio::null())
@@ -62,7 +65,7 @@ fn assurer_dovecot() {
             "sh",
             "dovecot/dovecot:2.3.21.1",
             "-c",
-            "mkdir -p /tmp/mail/capa && chown -R dovecot:dovecot /tmp/mail && exec dovecot -F",
+            "mkdir -p /tmp/mail/capa /tmp/mail/limite && chown -R dovecot:dovecot /tmp/mail && exec dovecot -F",
         ])
         .output()
         .expect("docker indisponible pour Dovecot");
@@ -81,19 +84,21 @@ fn assurer_dovecot() {
     assert!(joignable, "Dovecot {PORT} n'accepte pas de connexion");
 }
 
-fn connecter_avec_reprise(mot_de_passe: &str) -> Result<SessionActions, ErreurMail> {
+fn connecter_avec_reprise(
+    utilisateur: &str,
+    mot_de_passe: &str,
+) -> Result<SessionActions, ErreurMail> {
     let mut derniere = None;
     for _ in 0..40 {
-        match SessionActions::connecter(&parametres(mot_de_passe)) {
+        match SessionActions::connecter(&parametres(utilisateur, mot_de_passe)) {
             Ok(session) => return Ok(session),
-            // Le serveur peut ne pas être prêt : seule une connexion refusée sans réponse se retente ici.
-            Err(ErreurMail::Connexion) if TcpStream::connect(("127.0.0.1", PORT)).is_err() => {
+            // Dovecot accepte le TCP avant d'être prêt à une commande IMAP : `Connexion` se retente.
+            // Une limite qui dure tout le délai échoue encore.
+            Err(ErreurMail::Connexion) => {
+                derniere = Some(ErreurMail::Connexion);
                 thread::sleep(Duration::from_millis(500));
             }
-            Err(erreur) => {
-                derniere = Some(erreur);
-                break;
-            }
+            Err(erreur) => return Err(erreur),
         }
     }
     Err(derniere.unwrap_or(ErreurMail::Connexion))
@@ -103,10 +108,12 @@ fn connecter_avec_reprise(mot_de_passe: &str) -> Result<SessionActions, ErreurMa
 fn la_limite_de_connexions_n_est_pas_un_refus_d_identifiants() {
     let _banc = BANC.lock().unwrap_or_else(|erreur| erreur.into_inner());
     assurer_dovecot();
-    let _premiere = connecter_avec_reprise("MotDePasseCapa123!").expect("première connexion");
-    let _seconde = connecter_avec_reprise("MotDePasseCapa123!").expect("seconde connexion");
+    let _premiere =
+        connecter_avec_reprise(BOITE_LIMITE, "MotDePasseCapa123!").expect("première connexion");
+    let _seconde =
+        connecter_avec_reprise(BOITE_LIMITE, "MotDePasseCapa123!").expect("seconde connexion");
     // La troisième dépasse la limite de deux : panne passagère, avec les bons identifiants.
-    match SessionActions::connecter(&parametres("MotDePasseCapa123!")) {
+    match SessionActions::connecter(&parametres(BOITE_LIMITE, "MotDePasseCapa123!")) {
         Err(ErreurMail::Connexion) => {}
         Err(ErreurMail::Authentification) => {
             panic!("une limite de connexions a été prise pour un refus d'identifiants")
@@ -122,10 +129,10 @@ fn la_limite_de_connexions_n_est_pas_un_refus_d_identifiants() {
 fn un_mauvais_mot_de_passe_reste_un_refus_et_la_place_liberee_sert() {
     let _banc = BANC.lock().unwrap_or_else(|erreur| erreur.into_inner());
     assurer_dovecot();
-    // Les deux tests partagent le serveur : on attend qu'il n'y ait pas plus d'une connexion tenue par l'autre test.
+    // Boîte `capa`, distincte de `limite`. Aucune session de l'autre test ne compte ici.
     let mut refus = None;
     for _ in 0..40 {
-        match SessionActions::connecter(&parametres("MauvaisMotDePasse")) {
+        match SessionActions::connecter(&parametres(BOITE_AUTRE, "MauvaisMotDePasse")) {
             Err(ErreurMail::Authentification) => {
                 refus = Some(true);
                 break;
@@ -141,7 +148,7 @@ fn un_mauvais_mot_de_passe_reste_un_refus_et_la_place_liberee_sert() {
         "le mauvais mot de passe n'a jamais donné un refus d'identifiants"
     );
     let session = (0..40).find_map(|_| {
-        SessionActions::connecter(&parametres("MotDePasseCapa123!"))
+        SessionActions::connecter(&parametres(BOITE_AUTRE, "MotDePasseCapa123!"))
             .ok()
             .or_else(|| {
                 thread::sleep(Duration::from_millis(500));

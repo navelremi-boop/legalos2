@@ -9,7 +9,6 @@ Une copie ou un portage de code sous MIT, Apache-2.0 ou BSD ajoute ici l'en-têt
 | Origine | Licence | Emplacement |
 | --- | --- | --- |
 | tauri-plugin-wdio-webdriver 1.4.0, WebdriverIO Community, 2024 | MIT | `apps/poste/src-tauri/patches/tauri-plugin-wdio-webdriver` — dépendance `webview2-com` alignée sur 0.39 (Tauri 2.12) |
-| powersync 0.1.1, PowerSync, 2026 | Apache-2.0 | `apps/poste/src-tauri/patches/powersync` — copie du crate publié ; seules les exigences `powersync_core` et `powersync_sqlite_nostd` passent de `=0.5.3` à `=0.5.4` (la publication 0.1.1 les épingle en 0.5.3) |
 
 ## Dépendances figées (pas une copie)
 
