@@ -786,3 +786,11 @@ Les cinq piles restent dans les journaux `cdb-filet-*.log`. Taux sur cette séri
 La copie `patches/powersync` est retirée. Le poste reprend `powersync` 0.1.1 publié, qui épingle `powersync_core` 0.5.3.
 
 **Prochaine action.** CI verte sur ce correctif, puis contrôleur. J11 n'est pas coché.
+
+2026-10-27 — CI [40590037375](https://github.com/navelremi-boop/legalos2/actions/runs/40590037375) verte sur `1ebfac5` : périmètre, gouvernance, frontend, rust, facturx, webdriver-macos, s1-instance. Pas de nouvelle série officielle (le moteur de mail n'a pas changé). Contrôleur lancé.
+
+**Prochaine action.** Verdict du contrôleur. J11 n'est pas coché.
+
+2026-10-27 — Contrôleur [J11](7dfd2514-021e-4b1f-8c05-3a27f04d86fc) : **REFUSÉ** sur `1ebfac5`. La CI [40590037375](https://github.com/navelremi-boop/legalos2/actions/runs/40590037375) est verte. L'écart bloquant : la série officielle a construit un poste qui liait la copie `patches/powersync` (`powersync_core` 0.5.4). `1ebfac5` lie la publication `powersync` 0.1.1, donc `powersync_core` 0.5.3. `PLAN.md` dit qu'un changement de code après la série l'invalide. Le `cfg(windows)` de `kernel32` n'est pas dans le binaire `--build`. Le moteur de mail n'a pas changé ; la bibliothèque de synchronisation, si. La série est relancée sur cet arbre. Les passes tuées par `0xC0000374` ne comptent pas.
+
+**Prochaine action.** Dix passes vertes hors le crash identifié, sur `powersync_core` 0.5.3. J11 n'est pas coché.
