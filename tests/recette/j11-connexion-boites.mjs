@@ -289,7 +289,7 @@ async function main() {
     if (await js(`document.querySelector("[data-testid=connexion-tls]").checked`)) await cliquer("[data-testid=connexion-tls]");
     await cliquer("[data-testid=connexion-envoyer]");
     await attendre("la boîte est connectée sans autre geste", () => etat(compteRefuse), (t) => norm(t) === "Connectée", 120_000);
-    verifier("le serveur la dit connectée", (await etatServeur(compteRefuse)) === "connecte");
+    await attendre("le serveur la dit connectée", () => etatServeur(compteRefuse), (v) => v === "connecte", 30_000);
     verifier("le bouton redevient « Modifier »", (await texteDe(bouton)) === "Modifier");
     essaiNegatif("la boîte reconnectée reste dite refusée", norm(await etat(compteRefuse)) === "Identifiants refusés");
     ok("reconnexion avec le bon mot de passe : « Connectée » sans autre geste");
