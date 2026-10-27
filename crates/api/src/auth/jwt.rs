@@ -147,6 +147,18 @@ impl JwtKeys {
         }
         Ok(data.claims)
     }
+
+    pub fn decode_refresh(&self, issuer: &str, token: &str) -> anyhow::Result<RefreshClaims> {
+        let mut validation = Validation::new(Algorithm::RS256);
+        validation.set_issuer(&[issuer]);
+        validation.set_required_spec_claims(&["exp", "iat", "sub"]);
+        let data = decode::<RefreshClaims>(token, &self.decoding, &validation)
+            .map_err(|e| anyhow::anyhow!("refresh JWT: {e}"))?;
+        if data.claims.token_type != "refresh" {
+            anyhow::bail!("type de jeton de rafraîchissement invalide");
+        }
+        Ok(data.claims)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

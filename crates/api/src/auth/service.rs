@@ -192,6 +192,36 @@ pub fn jwks(state: &AppState) -> serde_json::Value {
     state.jwt.jwks_json()
 }
 
+/// Nouveau jeton d'accès à partir du jeton de rafraîchissement. Le registre des postes est relu :
+/// un poste révoqué ou inconnu est refusé. Le jeton de rafraîchissement n'est pas tourné.
+pub async fn rafraichir_acces(state: &AppState, refresh_token: &str) -> Result<String, ApiError> {
+    let claims = state
+        .jwt
+        .decode_refresh(&state.jwt_issuer, refresh_token)
+        .map_err(|_| ApiError::unauthorized("Jeton de rafraîchissement refusé"))?;
+    if !poste_utilisable(&state.pool, claims.poste_id, claims.sub).await? {
+        return Err(ApiError::unauthorized("Jeton de rafraîchissement refusé"));
+    }
+    let user = charger_utilisateur_par_id(&state.pool, claims.sub)
+        .await?
+        .ok_or_else(|| ApiError::unauthorized("Jeton de rafraîchissement refusé"))?;
+    if user.cabinet_id != claims.cabinet_id {
+        return Err(ApiError::unauthorized("Jeton de rafraîchissement refusé"));
+    }
+    mettre_a_jour_derniere_connexion(&state.pool, claims.poste_id).await?;
+    state
+        .jwt
+        .sign_access(
+            &state.jwt_issuer,
+            &state.jwt_audience,
+            user.id,
+            user.cabinet_id,
+            claims.poste_id,
+            state.access_token_ttl_secs,
+        )
+        .map_err(|_| ApiError::internal("Émission du jeton d'accès"))
+}
+
 async fn charger_utilisateur_par_email(
     pool: &PgPool,
     email: &str,
@@ -264,6 +294,23 @@ async fn enregistrer_poste(
     .map_err(|_| ApiError::internal("Base de données"))?;
 
     Ok(poste_id)
+}
+
+async fn poste_utilisable(
+    pool: &PgPool,
+    poste_id: Uuid,
+    utilisateur_id: Uuid,
+) -> Result<bool, ApiError> {
+    let row: Option<(Uuid, Option<time::OffsetDateTime>)> =
+        sqlx::query_as("SELECT utilisateur_id, revoque_le FROM postes WHERE id = $1")
+            .bind(poste_id)
+            .fetch_optional(pool)
+            .await
+            .map_err(|_| ApiError::internal("Base de données"))?;
+    Ok(match row {
+        Some((titulaire, None)) => titulaire == utilisateur_id,
+        _ => false,
+    })
 }
 
 async fn poste_revoque(pool: &PgPool, poste_id: Uuid) -> Result<bool, ApiError> {

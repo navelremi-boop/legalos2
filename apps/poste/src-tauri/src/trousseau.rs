@@ -37,6 +37,13 @@ pub fn keyring_store_refresh(token: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn keyring_read_refresh() -> Result<String, String> {
+    entree()?
+        .get_password()
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
 pub fn keyring_has_refresh() -> Result<bool, String> {
     match entree()?.get_password() {
         Ok(valeur) => Ok(!valeur.is_empty()),

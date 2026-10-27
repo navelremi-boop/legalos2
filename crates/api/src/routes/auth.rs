@@ -104,3 +104,32 @@ pub struct JwksResponse {
 pub async fn jwks(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     Json(service::jwks(&state))
 }
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct RafraichirRequest {
+    /// Jeton de rafraîchissement émis après la double authentification.
+    pub refresh_token: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct RafraichirResponse {
+    pub access_token: String,
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/rafraichir",
+    tag = "auth",
+    request_body = RafraichirRequest,
+    responses(
+        (status = 401, description = "Jeton refusé ou poste révoqué", body = crate::error::ApiErrorBody),
+        (status = 200, description = "Nouveau jeton d'accès", body = RafraichirResponse)
+    )
+)]
+pub async fn rafraichir(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<RafraichirRequest>,
+) -> Result<Json<RafraichirResponse>, ApiError> {
+    let access_token = service::rafraichir_acces(&state, &body.refresh_token).await?;
+    Ok(Json(RafraichirResponse { access_token }))
+}

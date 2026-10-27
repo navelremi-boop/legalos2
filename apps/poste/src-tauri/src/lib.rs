@@ -49,6 +49,7 @@ pub fn run() {
             trousseau::assurer_repertoire_poste,
             trousseau::poste_isolation_id,
             trousseau::keyring_store_refresh,
+            trousseau::keyring_read_refresh,
             trousseau::keyring_has_refresh,
             trousseau::keyring_clear_refresh,
             document_cache::ecrire_cache_document,

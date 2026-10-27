@@ -287,6 +287,46 @@
         }
       }
     },
+    "/auth/rafraichir": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "rafraichir",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RafraichirRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Nouveau jeton d'accès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RafraichirResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Jeton refusé ou poste révoqué",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/totp/verifier": {
       "post": {
         "tags": [
@@ -8793,6 +8833,29 @@
           },
           "remise_a_zero": {
             "$ref": "#/components/schemas/RemiseAZeroApi"
+          }
+        }
+      },
+      "RafraichirRequest": {
+        "type": "object",
+        "required": [
+          "refresh_token"
+        ],
+        "properties": {
+          "refresh_token": {
+            "type": "string",
+            "description": "Jeton de rafraîchissement émis après la double authentification."
+          }
+        }
+      },
+      "RafraichirResponse": {
+        "type": "object",
+        "required": [
+          "access_token"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string"
           }
         }
       },

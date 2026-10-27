@@ -235,3 +235,128 @@ async fn auth_flow_totp_et_jwks() {
     assert!(!keys.is_empty());
     assert_eq!(keys[0]["alg"], "RS256");
 }
+
+#[tokio::test]
+async fn auth_rafraichir_emet_un_acces_et_refuse_un_poste_revoque() {
+    ensure_test_env();
+    require_database_url();
+    let app = test_app().await;
+    let appareil = format!("test-rafraichir-{}", uuid::Uuid::now_v7());
+
+    let connexion = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/auth/connexion")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "email": DEMO_EMAIL,
+                        "password": DEMO_PASSWORD,
+                        "nom_appareil": appareil
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(connexion.status(), StatusCode::OK);
+    let session = json_body(connexion).await["session_token"]
+        .as_str()
+        .expect("session")
+        .to_string();
+
+    let verify = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/auth/totp/verifier")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({ "session_token": session, "code_totp": demo_totp_code() }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(verify.status(), StatusCode::OK);
+    let jetons = json_body(verify).await;
+    let access = jetons["access_token"].as_str().expect("access").to_string();
+    let refresh = jetons["refresh_token"]
+        .as_str()
+        .expect("refresh")
+        .to_string();
+
+    let refuse_acces = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/auth/rafraichir")
+                .header("content-type", "application/json")
+                .body(Body::from(json!({ "refresh_token": access }).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(refuse_acces.status(), StatusCode::UNAUTHORIZED);
+
+    let neuf = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/auth/rafraichir")
+                .header("content-type", "application/json")
+                .body(Body::from(json!({ "refresh_token": refresh }).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(neuf.status(), StatusCode::OK);
+    let nouvel_acces = json_body(neuf).await["access_token"]
+        .as_str()
+        .expect("nouvel accès")
+        .to_string();
+    assert!(!nouvel_acces.is_empty());
+
+    let cabinet = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/cabinets/me")
+                .header("authorization", format!("Bearer {nouvel_acces}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(cabinet.status(), StatusCode::OK);
+
+    let config = Config::from_env().expect("config");
+    let pool = legalos_api::db::connect_pool(&config.database_url)
+        .await
+        .expect("pool");
+    sqlx::query("UPDATE postes SET revoque_le = NOW() WHERE nom_appareil = $1")
+        .bind(&appareil)
+        .execute(&pool)
+        .await
+        .expect("révocation");
+
+    let refuse_poste = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/auth/rafraichir")
+                .header("content-type", "application/json")
+                .body(Body::from(json!({ "refresh_token": refresh }).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(refuse_poste.status(), StatusCode::UNAUTHORIZED);
+}

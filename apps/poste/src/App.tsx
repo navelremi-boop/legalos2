@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useState } from "react";
 import { CoqueApp } from "@/coque/CoqueApp";
 import { DEFAULT_INSTANCE_URL } from "@/lib/auth/client";
+import { assurerJetonAcces } from "@/lib/session/rafraichir";
 import {
   isOnboardingComplete,
   loadInstanceUrl,
@@ -65,10 +66,10 @@ function App() {
   // et la file ps_crud ne part pas (conflits hors ligne, S5, etc.).
   useEffect(() => {
     if (!authenticated || (!syncDone && !localReady)) return;
-    const accessToken = loadSessionTokens().accessToken;
-    if (accessToken === null || accessToken === "") return;
     const arret = { courant: false };
     void (async () => {
+      const accessToken = await assurerJetonAcces();
+      if (accessToken === null) return;
       try {
         const database = await getPowerSyncDatabase();
         if (arret.courant) return;

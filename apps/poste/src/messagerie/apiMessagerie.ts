@@ -1,5 +1,6 @@
 import type { CorpsRequete, Recu } from "@/api/contrat";
 import { apiUrl } from "@/lib/auth/client";
+import { assurerJetonAcces } from "@/lib/session/rafraichir";
 import { loadSessionTokens } from "@/lib/session/storage";
 import type { ResultatApi } from "@/messagerie/appelApi";
 import { messageErreurHttp } from "@/messagerie/erreursHttp";
@@ -31,7 +32,7 @@ export async function lireJsonSansEchec(reponse: Response): Promise<unknown> {
 }
 
 async function poster(instanceUrl: string, chemin: string, corps?: unknown): Promise<ResultatApi<void>> {
-  const jeton = jetonAcces();
+  const jeton = await assurerJetonAcces();
   if (jeton === null) return { ok: false, statut: 401, message: "La session a expiré. Reconnectez-vous." };
   try {
     const reponse = await fetch(apiUrl(instanceUrl, chemin), {
@@ -48,7 +49,7 @@ async function poster(instanceUrl: string, chemin: string, corps?: unknown): Pro
 
 /** File d'envoi du cabinet (lecture seule). Vide si la session ou le réseau manque. */
 export async function lireFileEnvoi(instanceUrl: string): Promise<LigneEnvoi[]> {
-  const jeton = jetonAcces();
+  const jeton = await assurerJetonAcces();
   if (jeton === null) return [];
   try {
     const reponse = await fetch(apiUrl(instanceUrl, "/messagerie/file-envoi"), {
@@ -77,7 +78,7 @@ export async function lireFileEnvoi(instanceUrl: string): Promise<LigneEnvoi[]> 
 
 /** Texte d'un mail dont le corps n'est pas stocké sur le poste (récupéré à la demande par le serveur). */
 export async function lireCorpsMessage(instanceUrl: string, id: string): Promise<string> {
-  const jeton = jetonAcces();
+  const jeton = await assurerJetonAcces();
   if (jeton === null) return "";
   try {
     const reponse = await fetch(apiUrl(instanceUrl, `/messagerie/messages/${id}/corps`), {

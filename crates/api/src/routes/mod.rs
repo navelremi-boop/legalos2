@@ -36,6 +36,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/health", get(health::health))
         .route("/auth/connexion", post(auth::connexion))
         .route("/auth/totp/verifier", post(auth::totp_verifier))
+        .route("/auth/rafraichir", post(auth::rafraichir))
         .route("/auth/jwks", get(auth::jwks))
         .route("/cabinets/me", get(cabinets::cabinet_me))
         .route("/cabinets/{cabinet_id}", patch(cabinets::patch_cabinet))

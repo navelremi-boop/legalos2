@@ -1,5 +1,6 @@
 import { apiUrl } from "@/lib/auth/client";
-import { jetonAcces, lireJsonSansEchec } from "@/messagerie/apiMessagerie";
+import { assurerJetonAcces } from "@/lib/session/rafraichir";
+import { lireJsonSansEchec } from "@/messagerie/apiMessagerie";
 import { messageErreurHttp } from "@/messagerie/erreursHttp";
 
 /**
@@ -17,10 +18,10 @@ export async function appeler<T>(
   chemin: string,
   options: { corps?: BodyInit; typeContenu?: string; delaiMs: number; lire: (json: unknown) => T },
 ): Promise<ResultatApi<T>> {
-  const jeton = jetonAcces();
+  let jeton = await assurerJetonAcces();
   if (jeton === null) return { ok: false, statut: 401, message: "La session a expiré. Reconnectez-vous." };
   try {
-    const reponse = await fetch(apiUrl(instanceUrl, chemin), {
+    let reponse = await fetch(apiUrl(instanceUrl, chemin), {
       method: methode,
       headers: {
         authorization: `Bearer ${jeton}`,
@@ -29,6 +30,19 @@ export async function appeler<T>(
       body: options.corps,
       signal: AbortSignal.timeout(options.delaiMs),
     });
+    if (reponse.status === 401) {
+      jeton = await assurerJetonAcces(true);
+      if (jeton === null) return { ok: false, statut: 401, message: "La session a expiré. Reconnectez-vous." };
+      reponse = await fetch(apiUrl(instanceUrl, chemin), {
+        method: methode,
+        headers: {
+          authorization: `Bearer ${jeton}`,
+          ...(options.typeContenu === undefined ? {} : { "content-type": options.typeContenu }),
+        },
+        body: options.corps,
+        signal: AbortSignal.timeout(options.delaiMs),
+      });
+    }
     const json = await lireJsonSansEchec(reponse);
     if (!reponse.ok) {
       return { ok: false, statut: reponse.status, message: messageErreurHttp(reponse.status, json) };

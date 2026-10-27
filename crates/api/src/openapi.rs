@@ -45,6 +45,7 @@ use crate::routes::redaction::{
         crate::routes::health::health,
         crate::routes::auth::connexion,
         crate::routes::auth::totp_verifier,
+        crate::routes::auth::rafraichir,
         crate::routes::auth::jwks,
         crate::routes::cabinets::cabinet_me,
         crate::routes::cabinets::patch_cabinet,

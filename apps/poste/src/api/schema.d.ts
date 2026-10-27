@@ -68,6 +68,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/rafraichir": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rafraichir"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/totp/verifier": {
         parameters: {
             query?: never;
@@ -2307,6 +2323,13 @@ export interface components {
             numero_depart?: number | null;
             remise_a_zero: components["schemas"]["RemiseAZeroApi"];
         };
+        RafraichirRequest: {
+            /** @description Jeton de rafraîchissement émis après la double authentification. */
+            refresh_token: string;
+        };
+        RafraichirResponse: {
+            access_token: string;
+        };
         RattacherElementRequest: {
             /** Format: uuid */
             element_id: string;
@@ -2724,6 +2747,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JwksResponse"];
+                };
+            };
+        };
+    };
+    rafraichir: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RafraichirRequest"];
+            };
+        };
+        responses: {
+            /** @description Nouveau jeton d'accès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RafraichirResponse"];
+                };
+            };
+            /** @description Jeton refusé ou poste révoqué */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
                 };
             };
         };
