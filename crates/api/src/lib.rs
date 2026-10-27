@@ -109,6 +109,9 @@ pub async fn build_app_state(
         )?),
         None => None,
     };
+    crate::oauth_mail::charger_application(&pool, &config.totp_cipher_key)
+        .await
+        .map_err(|_| anyhow::anyhow!("chargement des identifiants d'application OAuth"))?;
     Ok(Arc::new(AppState {
         pool,
         jwt,

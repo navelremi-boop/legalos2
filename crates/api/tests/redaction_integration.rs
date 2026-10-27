@@ -534,6 +534,58 @@ async fn scenario(url_base_jetable: String) {
         application.get("client_id").is_none() && application.get("client_secret").is_none(),
         "aucune valeur d'identifiant dans la réponse : {application}"
     );
+    let (statut, _) = appel(
+        &app,
+        "PUT",
+        "/messagerie/oauth/application",
+        &b,
+        json!({"fournisseur": "gmail", "client_id": "gmail-fictif.apps"}),
+    )
+    .await;
+    assert_eq!(
+        statut,
+        StatusCode::FORBIDDEN,
+        "un collaborateur n'écrit pas les identifiants d'application"
+    );
+    let (statut, _) = appel(
+        &app,
+        "PUT",
+        "/messagerie/oauth/application",
+        &a,
+        json!({"fournisseur": "gmail", "client_id": "gmail secret avec espace"}),
+    )
+    .await;
+    assert_eq!(statut, StatusCode::BAD_REQUEST, "valeur dangereuse refusée");
+    let (statut, apres) = appel(
+        &app,
+        "PUT",
+        "/messagerie/oauth/application",
+        &a,
+        json!({"fournisseur": "gmail", "client_id": "gmail-fictif.apps"}),
+    )
+    .await;
+    assert_eq!(statut, StatusCode::OK, "{apres}");
+    assert_eq!(apres["gmail"], json!(true));
+    let (statut, relue) = appel(
+        &app,
+        "GET",
+        "/messagerie/oauth/application",
+        &a,
+        Value::Null,
+    )
+    .await;
+    assert_eq!(statut, StatusCode::OK);
+    assert_eq!(relue["gmail"], json!(true));
+    let (statut, retiree) = appel(
+        &app,
+        "PUT",
+        "/messagerie/oauth/application",
+        &a,
+        json!({"fournisseur": "gmail", "client_id": ""}),
+    )
+    .await;
+    assert_eq!(statut, StatusCode::OK, "{retiree}");
+    assert_eq!(retiree["gmail"], json!(false));
     let (statut, cree) = appel(
         &app,
         "POST",

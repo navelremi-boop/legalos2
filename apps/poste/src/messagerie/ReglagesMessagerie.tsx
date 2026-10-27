@@ -22,7 +22,7 @@ import {
   type CompteMessagerie,
 } from "@/messagerie/formesApiRedaction";
 import { nettoyerSortie } from "@/messagerie/nettoyageHtml";
-import { lireApplicationOAuthInstance } from "@/messagerie/apiOAuthBoites";
+import { ecrireApplicationOAuthInstance, lireApplicationOAuthInstance } from "@/messagerie/apiOAuthBoites";
 import { ComptesMessagerie } from "@/messagerie/ComptesMessagerie";
 import type { ApplicationOAuth } from "@/messagerie/formesOAuth";
 import type { SanteMessagerie } from "@/messagerie/formesSanteMessagerie";
@@ -491,6 +491,11 @@ function IdentifiantsApplicationOAuth({
   demonstration: boolean;
 }) {
   const [etat, setEtat] = useState<ApplicationOAuth | null>(null);
+  const [fournisseur, setFournisseur] = useState<"microsoft" | "gmail">("microsoft");
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [tenant, setTenant] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (demonstration || !enLigne) return;
@@ -509,13 +514,85 @@ function IdentifiantsApplicationOAuth({
     <>
       <h3>{fr("Identifiants d'application OAuth")}</h3>
       <p className="rg-mess__desc">
-        {fr("Microsoft 365 et Gmail. Ces identifiants sont ceux de l'instance, pas d'une boîte. Seul un administrateur les voit.")}
+        {fr("Microsoft 365 et Gmail. Ces identifiants sont ceux de l'instance, pas d'une boîte. Seul un administrateur les voit et les modifie.")}
       </p>
       <p className="rg-mess__note" data-testid="oauth-application">
         {fr(
           `Microsoft 365 : ${etat.microsoft ? "renseigné" : "non renseigné"}. Gmail : ${etat.gmail ? "renseigné" : "non renseigné"}.`,
         )}
       </p>
+      <form
+        className="rg-mess__formulaire"
+        data-testid="oauth-application-formulaire"
+        onSubmit={(evenement) => {
+          evenement.preventDefault();
+          setMessage(null);
+          void ecrireApplicationOAuthInstance(instanceUrl, { fournisseur, clientId, clientSecret, tenant }).then(
+            (resultat) => {
+              if (resultat.ok) {
+                setEtat(resultat.valeur);
+                setClientId("");
+                setClientSecret("");
+                setTenant("");
+                setMessage("Identifiants enregistrés.");
+              } else {
+                setMessage(resultat.message);
+              }
+            },
+          );
+        }}
+      >
+        <label>
+          {fr("Fournisseur")}
+          <select
+            value={fournisseur}
+            onChange={(evenement) => {
+              setFournisseur(evenement.target.value === "gmail" ? "gmail" : "microsoft");
+            }}
+          >
+            <option value="microsoft">{fr("Microsoft 365")}</option>
+            <option value="gmail">{fr("Gmail")}</option>
+          </select>
+        </label>
+        <label>
+          {fr("Identifiant d'application")}
+          <input
+            value={clientId}
+            onChange={(evenement) => {
+              setClientId(evenement.target.value);
+            }}
+            autoComplete="off"
+          />
+        </label>
+        <label>
+          {fr("Secret (facultatif)")}
+          <input
+            value={clientSecret}
+            onChange={(evenement) => {
+              setClientSecret(evenement.target.value);
+            }}
+            autoComplete="off"
+          />
+        </label>
+        {fournisseur === "microsoft" ? (
+          <label>
+            {fr("Locataire (facultatif)")}
+            <input
+              value={tenant}
+              onChange={(evenement) => {
+                setTenant(evenement.target.value);
+              }}
+              autoComplete="off"
+            />
+          </label>
+        ) : null}
+        <button type="submit">{fr("Enregistrer")}</button>
+      </form>
+      {message === null ? null : (
+        <p className="rg-mess__note" role="status">
+          {fr(message)}
+        </p>
+      )}
     </>
   );
 }

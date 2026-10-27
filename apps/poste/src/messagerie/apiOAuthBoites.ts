@@ -6,6 +6,7 @@ import {
   adresseAutorisationOuvrable,
   lireDebut,
   lireEchange,
+  corpsEcrireApplicationOAuth,
   lireApplicationOAuth,
   lireFournisseurs,
   lireRetourBouclage,
@@ -13,6 +14,7 @@ import {
   MESSAGE_ANNULE,
   redirectionBouclage,
   requeteApplicationOAuth,
+  requeteEcrireApplicationOAuth,
   requeteDebut,
   requeteEchange,
   requeteFournisseurs,
@@ -71,6 +73,24 @@ export async function lireApplicationOAuthInstance(
   if (!resultat.ok) return resultat;
   if (resultat.valeur === null) {
     return { ok: false, statut: 500, message: "L'instance n'a pas pu lire les identifiants d'application." };
+  }
+  return { ok: true, valeur: resultat.valeur };
+}
+
+export async function ecrireApplicationOAuthInstance(
+  instanceUrl: string,
+  saisie: { fournisseur: "microsoft" | "gmail"; clientId: string; clientSecret: string; tenant: string },
+): Promise<ResultatApi<ApplicationOAuth>> {
+  const requete = requeteEcrireApplicationOAuth();
+  const resultat = await appeler(instanceUrl, requete.methode, requete.chemin, {
+    delaiMs: 12_000,
+    typeContenu: "application/json",
+    corps: JSON.stringify(corpsEcrireApplicationOAuth(saisie)),
+    lire: lireApplicationOAuth,
+  });
+  if (!resultat.ok) return resultat;
+  if (resultat.valeur === null) {
+    return { ok: false, statut: 500, message: "L'instance n'a pas pu enregistrer les identifiants d'application." };
   }
   return { ok: true, valeur: resultat.valeur };
 }

@@ -36,6 +36,24 @@ export function requeteApplicationOAuth(): { methode: "GET"; chemin: string } {
   return { methode: "GET", chemin: "/messagerie/oauth/application" };
 }
 
+export function requeteEcrireApplicationOAuth(): { methode: "PUT"; chemin: string } {
+  return { methode: "PUT", chemin: "/messagerie/oauth/application" };
+}
+
+export function corpsEcrireApplicationOAuth(saisie: {
+  fournisseur: "microsoft" | "gmail";
+  clientId: string;
+  clientSecret: string;
+  tenant: string;
+}): CorpsRequete<"EcrireApplicationOAuth"> {
+  return {
+    fournisseur: saisie.fournisseur,
+    client_id: saisie.clientId.trim(),
+    client_secret: saisie.clientSecret.trim() === "" ? null : saisie.clientSecret.trim(),
+    tenant: saisie.fournisseur === "microsoft" && saisie.tenant.trim() !== "" ? saisie.tenant.trim() : null,
+  };
+}
+
 export type ApplicationOAuth = { microsoft: boolean; gmail: boolean };
 
 /** `null` si la réponse n'a pas les deux booléens. Une clé inattendue (secret, client_id) est ignorée. */

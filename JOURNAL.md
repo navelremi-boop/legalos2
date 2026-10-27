@@ -505,3 +505,5 @@ Transmise par le commandement. Critères inscrits au PLAN par un commit `plan:` 
 **Prochaine action.** D8 (Avant J12) : écran Réglages des identifiants d'application OAuth, réservé à l'administrateur. Série officielle de `j11-connexion-boites` toujours suspendue à B21.
 
 2026-10-27 — D8, première tranche : `GET /messagerie/oauth/application` (administrateur : présence Microsoft / Gmail, aucune valeur ; collaborateur : 403). Écran Réglages, section visible seulement si l'appel réussit. Preuves : `redaction_integration`, `contrat_routes`, `openapi_a_jour`, `types-api-a-jour`, `formesOAuth.test.ts` (23), `tsc`. L'écriture depuis l'écran n'est pas livrée.
+
+2026-10-27 — D8, écriture : `PUT /messagerie/oauth/application` (admin, 403 sinon, 400 si valeur hors charset install), secret chiffré en base (migration 051), surcharge du `.env` au démarrage et à l'écriture. Formulaire dans Réglages. `redaction_integration` couvre écriture, refus collaborateur, refus d'une valeur avec espace, retrait. `cargo test --workspace --no-fail-fast` exit 0 (157 s).

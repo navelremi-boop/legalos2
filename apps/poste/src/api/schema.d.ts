@@ -1104,7 +1104,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["lire_application"];
-        put?: never;
+        put: operations["ecrire_application"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1890,6 +1890,15 @@ export interface components {
         EchangeCode: {
             code: string;
             state: string;
+        };
+        EcrireApplicationOAuth: {
+            /** @description Vide : le fournisseur n'est plus proposé (repli `.env` masqué). */
+            client_id: string;
+            client_secret?: string | null;
+            /** @description `microsoft` ou `gmail`. */
+            fournisseur: string;
+            /** @description Microsoft seulement ; ignoré pour Gmail. */
+            tenant?: string | null;
         };
         /**
          * @description Écriture partielle d'un brouillon. Tout champ absent est laissé tel quel ; `compte_id`,
@@ -5865,6 +5874,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApplicationOAuth"];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Réservé aux administrateurs du cabinet */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    ecrire_application: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EcrireApplicationOAuth"];
+            };
+        };
+        responses: {
+            /** @description Présence des identifiants d'application après écriture */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationOAuth"];
+                };
+            };
+            /** @description Valeur refusée */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
                 };
             };
             /** @description Non authentifié */

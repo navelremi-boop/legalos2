@@ -4726,6 +4726,69 @@
             "bearer_auth": []
           }
         ]
+      },
+      "put": {
+        "tags": [
+          "messagerie"
+        ],
+        "operationId": "ecrire_application",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EcrireApplicationOAuth"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Présence des identifiants d'application après écriture",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationOAuth"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Valeur refusée",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Réservé aux administrateurs du cabinet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
       }
     },
     "/messagerie/oauth/debut": {
@@ -7353,6 +7416,36 @@
           },
           "state": {
             "type": "string"
+          }
+        }
+      },
+      "EcrireApplicationOAuth": {
+        "type": "object",
+        "required": [
+          "fournisseur",
+          "client_id"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "description": "Vide : le fournisseur n'est plus proposé (repli `.env` masqué)."
+          },
+          "client_secret": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fournisseur": {
+            "type": "string",
+            "description": "`microsoft` ou `gmail`."
+          },
+          "tenant": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Microsoft seulement ; ignoré pour Gmail."
           }
         }
       },

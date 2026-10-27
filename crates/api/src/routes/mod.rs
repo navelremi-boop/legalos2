@@ -228,7 +228,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         )
         .route(
             "/messagerie/oauth/application",
-            get(crate::oauth_mail::lire_application),
+            get(crate::oauth_mail::lire_application).put(crate::oauth_mail::ecrire_application),
         )
         .route("/messagerie/oauth/debut", post(crate::oauth_mail::debut))
         .route(

@@ -6,7 +6,8 @@
 //! l'instance ; les jetons d'accès et de rafraîchissement sont chiffrés en base, jamais renvoyés au poste, jamais
 //! synchronisés, jamais journalisés.
 
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, LazyLock, Mutex};
 use std::time::Duration;
 
 use axum::extract::State;
@@ -64,11 +65,89 @@ struct Fournisseur {
     hotes: Hotes,
 }
 
+/// Valeurs posées par l'écran Réglages (administrateur) : elles l'emportent sur le `.env`.
+/// Une chaîne vide masque la variable d'environnement (fournisseur retiré).
+static SURCHARGE: LazyLock<Mutex<HashMap<String, String>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
 fn variable(nom: &str) -> Option<String> {
+    if let Ok(garde) = SURCHARGE.lock() {
+        if let Some(valeur) = garde.get(nom) {
+            let taille = valeur.trim();
+            return if taille.is_empty() {
+                None
+            } else {
+                Some(taille.to_owned())
+            };
+        }
+    }
     std::env::var(nom)
         .ok()
         .map(|v| v.trim().to_owned())
         .filter(|v| !v.is_empty())
+}
+
+fn poser_surcharge(nom: &str, valeur: Option<&str>) {
+    let Ok(mut garde) = SURCHARGE.lock() else {
+        return;
+    };
+    match valeur.map(str::trim).filter(|v| !v.is_empty()) {
+        Some(valeur) => {
+            garde.insert(nom.to_owned(), valeur.to_owned());
+        }
+        None => {
+            garde.insert(nom.to_owned(), String::new());
+        }
+    }
+}
+
+/// Lettres, chiffres, point, tiret, soulignement et tilde : mêmes règles que `cargo xtask install`.
+fn valeur_oauth_valide(valeur: &str) -> bool {
+    !valeur.is_empty()
+        && valeur.len() <= 300
+        && valeur
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '~' | '-'))
+}
+
+const NOMS_MICROSOFT: [&str; 3] = [
+    "LEGALOS_OAUTH_MICROSOFT_CLIENT_ID",
+    "LEGALOS_OAUTH_MICROSOFT_CLIENT_SECRET",
+    "LEGALOS_OAUTH_MICROSOFT_TENANT",
+];
+const NOMS_GMAIL: [&str; 2] = [
+    "LEGALOS_OAUTH_GMAIL_CLIENT_ID",
+    "LEGALOS_OAUTH_GMAIL_CLIENT_SECRET",
+];
+
+/// Charge les identifiants persistés (s'il y en a) au-dessus du `.env`.
+pub async fn charger_application(pool: &PgPool, cle: &[u8; 32]) -> Result<(), ApiError> {
+    let lignes = sqlx::query_as::<_, (String, String, Option<String>, Option<String>)>(
+        "SELECT fournisseur, client_id, client_secret_chiffre, tenant FROM oauth_application",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|_| ApiError::internal("Lecture des identifiants d'application"))?;
+    for (fournisseur, client_id, secret_chiffre, tenant) in lignes {
+        let secret = secret_chiffre.and_then(|chiffre| {
+            crate::auth::totp::dechiffrer_secret_totp(&chiffre, cle)
+                .ok()
+                .and_then(|octets| String::from_utf8(octets).ok())
+        });
+        match fournisseur.as_str() {
+            "microsoft" => {
+                poser_surcharge(NOMS_MICROSOFT[0], Some(&client_id));
+                poser_surcharge(NOMS_MICROSOFT[1], secret.as_deref());
+                poser_surcharge(NOMS_MICROSOFT[2], tenant.as_deref());
+            }
+            "gmail" => {
+                poser_surcharge(NOMS_GMAIL[0], Some(&client_id));
+                poser_surcharge(NOMS_GMAIL[1], secret.as_deref());
+            }
+            _ => {}
+        }
+    }
+    Ok(())
 }
 
 /// Identifiants d'application du fournisseur (variables d'environnement de l'instance), `None` s'ils manquent.
@@ -337,6 +416,127 @@ pub async fn lire_application(
     AuthAccess(claims): AuthAccess,
 ) -> Result<Json<ApplicationOAuth>, ApiError> {
     crate::routes::collaborateurs::exiger_administrateur(&state.pool, &claims).await?;
+    Ok(Json(ApplicationOAuth {
+        microsoft: identifiants("microsoft").is_some(),
+        gmail: identifiants("gmail").is_some(),
+    }))
+}
+
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+pub struct EcrireApplicationOAuth {
+    /// `microsoft` ou `gmail`.
+    pub fournisseur: String,
+    /// Vide : le fournisseur n'est plus proposé (repli `.env` masqué).
+    pub client_id: String,
+    pub client_secret: Option<String>,
+    /// Microsoft seulement ; ignoré pour Gmail.
+    pub tenant: Option<String>,
+}
+
+#[utoipa::path(
+    put,
+    path = "/messagerie/oauth/application",
+    tag = "messagerie",
+    security(("bearer_auth" = [])),
+    request_body = EcrireApplicationOAuth,
+    responses(
+        (status = 200, description = "Présence des identifiants d'application après écriture", body = ApplicationOAuth),
+        (status = 400, description = "Valeur refusée", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 403, description = "Réservé aux administrateurs du cabinet", body = crate::error::ApiErrorBody),
+    )
+)]
+pub async fn ecrire_application(
+    State(state): State<Arc<AppState>>,
+    AuthAccess(claims): AuthAccess,
+    Json(body): Json<EcrireApplicationOAuth>,
+) -> Result<Json<ApplicationOAuth>, ApiError> {
+    crate::routes::collaborateurs::exiger_administrateur(&state.pool, &claims).await?;
+    let fournisseur = body.fournisseur.trim();
+    if fournisseur != "microsoft" && fournisseur != "gmail" {
+        return Err(ApiError::bad_request("Fournisseur inconnu"));
+    }
+    let client_id = body.client_id.trim();
+    if !client_id.is_empty() && !valeur_oauth_valide(client_id) {
+        return Err(ApiError::bad_request("Identifiant d'application invalide"));
+    }
+    let secret = body
+        .client_secret
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty());
+    if secret.is_some_and(|v| !valeur_oauth_valide(v)) {
+        return Err(ApiError::bad_request("Secret d'application invalide"));
+    }
+    let tenant = body
+        .tenant
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty());
+    if tenant.is_some_and(|v| !valeur_oauth_valide(v)) {
+        return Err(ApiError::bad_request("Locataire invalide"));
+    }
+    if client_id.is_empty() {
+        sqlx::query("DELETE FROM oauth_application WHERE fournisseur = $1")
+            .bind(fournisseur)
+            .execute(&state.pool)
+            .await
+            .map_err(|_| ApiError::internal("Retrait des identifiants d'application"))?;
+        match fournisseur {
+            "microsoft" => {
+                for nom in NOMS_MICROSOFT {
+                    poser_surcharge(nom, None);
+                }
+            }
+            "gmail" => {
+                for nom in NOMS_GMAIL {
+                    poser_surcharge(nom, None);
+                }
+            }
+            _ => {}
+        }
+    } else {
+        let secret_chiffre = match secret {
+            Some(clair) => Some(
+                crate::auth::totp::chiffrer_secret_totp(clair.as_bytes(), &state.totp_cipher_key)
+                    .map_err(|_| ApiError::internal("Chiffrement du secret d'application"))?,
+            ),
+            None => None,
+        };
+        sqlx::query(
+            r#"
+            INSERT INTO oauth_application (fournisseur, client_id, client_secret_chiffre, tenant)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (fournisseur) DO UPDATE SET
+                client_id = EXCLUDED.client_id,
+                client_secret_chiffre = EXCLUDED.client_secret_chiffre,
+                tenant = EXCLUDED.tenant
+            "#,
+        )
+        .bind(fournisseur)
+        .bind(client_id)
+        .bind(secret_chiffre)
+        .bind(if fournisseur == "microsoft" {
+            tenant
+        } else {
+            None
+        })
+        .execute(&state.pool)
+        .await
+        .map_err(|_| ApiError::internal("Écriture des identifiants d'application"))?;
+        match fournisseur {
+            "microsoft" => {
+                poser_surcharge(NOMS_MICROSOFT[0], Some(client_id));
+                poser_surcharge(NOMS_MICROSOFT[1], secret);
+                poser_surcharge(NOMS_MICROSOFT[2], tenant);
+            }
+            "gmail" => {
+                poser_surcharge(NOMS_GMAIL[0], Some(client_id));
+                poser_surcharge(NOMS_GMAIL[1], secret);
+            }
+            _ => {}
+        }
+    }
     Ok(Json(ApplicationOAuth {
         microsoft: identifiants("microsoft").is_some(),
         gmail: identifiants("gmail").is_some(),

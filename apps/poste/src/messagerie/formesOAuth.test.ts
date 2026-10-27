@@ -12,6 +12,7 @@ import {
   messageEchecAppel,
   messageErreurRetour,
   redirectionBouclage,
+  corpsEcrireApplicationOAuth,
   requeteApplicationOAuth,
   requeteDebut,
   requeteEchange,
@@ -30,6 +31,13 @@ describe("identifiants d'application (D8)", () => {
 
   it("adresse la route d'application", () => {
     assert.deepEqual(requeteApplicationOAuth(), { methode: "GET", chemin: "/messagerie/oauth/application" });
+  });
+
+  it("le corps d'écriture n'envoie pas de secret vide", () => {
+    assert.deepEqual(
+      corpsEcrireApplicationOAuth({ fournisseur: "gmail", clientId: " id ", clientSecret: "  ", tenant: "x" }),
+      { fournisseur: "gmail", client_id: "id", client_secret: null, tenant: null },
+    );
   });
 });
 
