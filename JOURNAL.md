@@ -507,3 +507,19 @@ Transmise par le commandement. Critères inscrits au PLAN par un commit `plan:` 
 2026-10-27 — D8, première tranche : `GET /messagerie/oauth/application` (administrateur : présence Microsoft / Gmail, aucune valeur ; collaborateur : 403). Écran Réglages, section visible seulement si l'appel réussit. Preuves : `redaction_integration`, `contrat_routes`, `openapi_a_jour`, `types-api-a-jour`, `formesOAuth.test.ts` (23), `tsc`. L'écriture depuis l'écran n'est pas livrée.
 
 2026-10-27 — D8, écriture : `PUT /messagerie/oauth/application` (admin, 403 sinon, 400 si valeur hors charset install), secret chiffré en base (migration 051), surcharge du `.env` au démarrage et à l'écriture. Formulaire dans Réglages. `redaction_integration` couvre écriture, refus collaborateur, refus d'une valeur avec espace, retrait. `cargo test --workspace --no-fail-fast` exit 0 (157 s).
+
+2026-10-27 — `plan-gouvernance` : les commits `b7d5682` et `4da18ee` avaient reformulé le texte des dettes en les cochant (FAIL cliquet). Historique local non poussé réécrit : ces deux commits retirés, D8 lecture/écriture rejoués (`2d12767`, `7125740`), puis `99465ac` `plan:` qui ne change que les cases `[ ]` → `[x]` des libellés d'origine (cargo-deny avant J11, rôle administrateur avant J12, D8 avant J12). `node tests/recette/plan-gouvernance.mjs` exit 0 (2 commits PLAN sur `origin/main..HEAD`).
+
+**Prochaine action.** Preuves J11 hors Tauri (image API à jour, `reference-dossier-api`, `s9-factures`, `j11-redaction-api`) ; série officielle de `j11-connexion-boites` toujours suspendue à B21.
+
+2026-10-27 — Image `legalos/api:0.1.0` reconstruite (migration 051 absente de l'instance), API redémarrée, `_sqlx_migrations` jusqu'à 51 (`oauth application`). Preuves hors Tauri : `reference-dossier-api` exit 0 ; `j11-redaction-api` exit 0 ; `j11-invitation` exit 0 ; `s7-classement` exit 0. `s9-factures` s'arrête à veraPDF (`target/verapdf/verapdf` absent, pas de Java local ; même écart qu'au 24/10, le job `facturx` de la CI installe 1.28.2). `gflags` n'est pas dans le PATH (B21 inchangé).
+
+## 2026-10-27 — État de session
+
+**Fait.** Dettes `cargo-deny`, rôle administrateur et D8 cochées (`99465ac`) sans reformuler les libellés ; `plan-gouvernance` exit 0. Session IMAP de relève réutilisée pour en-têtes et invitations (`9e20882`). D8 lecture + écriture (`2d12767`, `7125740`). Image API reconstruite, migration 051 appliquée. Recettes API de J11 vertes sur ce code (ci-dessus).
+
+**En cours.** J11 non coché. Série officielle de 10 passes à froid de `j11-connexion-boites` suspendue à B21 (tas de test standard, décision du commandement). D12 (page muette 60 s à la révocation OAuth) non expliqué, à surveiller pendant cette série. `s9-factures` non rejouable ici sans veraPDF.
+
+**Prochaine action.** Dès que B21 est levé : passes de diagnostic sous tas de test standard, puis série officielle. En attendant : `s9-factures` dès que veraPDF 1.28.2 est installé dans `target/verapdf` ; D9 et D11 restent à la poussée du commandement et, pour D9, à l'adaptation de `.cursor/rules/11-api.mdc` par l'architecte.
+
+**Commandes à relancer.** `node tests/recette/plan-gouvernance.mjs` ; `node tests/recette/j11-redaction-api.mjs` ; `docker compose -f instance/docker-compose.yml --env-file .env exec -T postgres psql -U legalos -d legalos -c "select version from _sqlx_migrations order by version desc limit 3"`.
