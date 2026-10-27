@@ -149,6 +149,32 @@ services:
       retries: 8
       start_period: 40s
 
+  # Compactage de tous les seaux, toutes les heures. Procédure de l'image 1.26.1
+  # (docs.powersync.com/maintenance-ops/compacting-buckets, stockage version 4) :
+  # `compact` sans liste de seaux. Pas de défragmentation ici : elle réécrit les
+  # lignes sources et force les postes déjà synchronisés à tout retélécharger.
+  powersync-compact:
+    image: journeyapps/powersync-service:1.26.1
+    restart: unless-stopped
+    depends_on:
+      powersync:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        while true; do
+          node service/lib/entry.js compact
+          sleep 3600
+        done
+    environment:
+      POWERSYNC_CONFIG_PATH: /config/service.yaml
+      PS_DATA_SOURCE_URI: postgresql://powersync_replication:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      PS_STORAGE_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/powersync_storage
+    volumes:
+      - ./powersync/service.yaml:/config/service.yaml:ro
+      - ./powersync/sync-config.yaml:/config/sync-config.yaml:ro
+
   garage:
     image: dxflrs/garage:v1.0.1
     restart: unless-stopped
