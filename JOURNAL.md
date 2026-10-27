@@ -772,3 +772,7 @@ Les cinq piles restent dans les journaux `cdb-filet-*.log`. Taux sur cette séri
 2026-10-27 — Contrôleur [J11](40cb2a8b-0ee2-4e19-95b9-489f21ae8058) : **REFUSÉ** sur `bf780c8`. Rédaction, formatage et série officielle tiennent (10 passes vertes, 5 crashs `0xC0000374` identifiés, non comptés). `j11-redaction.mjs` relancé : exit 0 en 210 s. `cargo fmt --check` des deux workspaces : exit 0. `origin/main` est `e4de2da`, 113 commits derrière. `gh run list --commit bf780c8` : aucun run. Le critère « CI verte » n'est pas rempli. Le push reste refusé par `pre-push-check` (sortie 2, jeu protégé). J11 n'est pas coché.
 
 **Prochaine action.** Le commandement relit le jeu protégé et pousse `main`. Ensuite, lire la CI par `gh`. J11 n'est pas coché.
+
+2026-10-27 — Reprise. `node scripts/pre-push-check.mjs` sort 2 : `.cursor/hooks.json`, `.github/workflows/ci.yml`, `.github/workflows/volume-50k.yml`, `CLAUDE.md`, `tests/recette/regles-synchronisees.mjs`. `main` est 114 commits devant `origin/main` (`e4de2da`). Action inscrite en B22. Aucun code de production : un changement après `6a0713c` invaliderait la série officielle. J11 n'est pas coché. La Finition des écrans attend la coche de J11.
+
+**Prochaine action.** Le commandement pousse `main` (B22), puis la CI se lit par `gh`. J11 n'est pas coché.
