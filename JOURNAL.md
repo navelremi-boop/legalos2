@@ -734,3 +734,7 @@ Série officielle relue (dix passes, exit 0, filet cdb, aucun cliché nouveau). 
 2026-10-27 — Passe 2 de la même série : 175 s, code 1, cliché non. L'écran est « Connectée », le `SELECT etat_connexion` lu dans la foulée n'est pas `connecte` (`j11-connexion-boites.mjs`, reconnexion au bon mot de passe). Ce n'est pas le crash. La lecture unique est remplacée par une attente de 30 s, comme les autres lectures du serveur dans cette recette. La série est relancée.
 
 **Prochaine action.** Série officielle : 10 passes vertes hors le crash identifié. J11 n'est pas coché.
+
+2026-10-27 — Relance immédiate arrêtée en 36 s : `EADDRINUSE` sur `0.0.0.0:18766`. Un `node tests/recette/j11-connexion-boites.mjs --build` (pid 26120) tenait encore le port après la passe 2. Processus arrêté. Port libre. Série relancée.
+
+**Prochaine action.** Série officielle en cours. J11 n'est pas coché.
