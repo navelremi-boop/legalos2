@@ -1,6 +1,7 @@
 ---
 paths:
   - "crates/api/**"
+  - "apps/poste/src/**/api*.ts"
 ---
 
 # API de l'instance
@@ -10,6 +11,6 @@ paths:
 - **Toute écriture** : authentification, vérification des droits sur le dossier concerné, validation complète. Le poste n'est jamais cru sur parole.
 - **Idempotence** : toute écriture susceptible d'être rejouée (file de synchronisation, envois) porte une clé d'idempotence.
 - **Erreurs** : type d'erreur unique converti en réponse HTTP ; aucun détail interne ni donnée personnelle dans le corps d'erreur.
-- **Contrat** : OpenAPI généré depuis le code ; le client TypeScript est généré depuis ce contrat, jamais écrit à la main.
+- **Contrat** : OpenAPI généré depuis le code. Les types TypeScript du poste (requêtes, réponses, erreurs) sont générés depuis ce contrat par l'outil figé dans `docs/versions.md`, et le fichier généré n'est jamais modifié à la main. Les fonctions d'appel des fichiers `api*.ts` peuvent être écrites à la main, mais n'emploient que ces types, sans type de requête ou de réponse déclaré à la main. Une route modifiée et ses types régénérés vont dans le même commit ; la CI échoue si les types générés ne sont pas à jour.
 - **Identifiants tiers** (stockage, mail, plateforme agréée) : chiffrés au repos, jamais renvoyés au poste.
 - **Jetons** : JWT courts pour PowerSync, JWKS exposé ; registre des postes consulté à chaque renouvellement (révocation).
