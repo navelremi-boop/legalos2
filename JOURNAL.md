@@ -70,4 +70,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, lint et flux (28/10).** `pnpm --filter @legal-os/poste lint:ci` exit 0. `node tests/recette/s5-sync-streams.mjs` exit 0 (dossier restreint : flux `dossier_acces`). Le jalon n'est pas coché.
 
-**Prochaine action.** `node tests/recette/agenda-tauri.mjs`. Le jalon n'est pas coché.
+- **Finition, agenda Tauri (28/10).** `node tests/recette/agenda-tauri.mjs` exit 0 en 225 s (échéance recalculée, suppression confirmée et tracée, conflit signalé, restreint absent du second poste). Deux postes de copie sont sortis `0xc0000354` (le débogueur qui quitte, pile dans les notifications Windows). La recette a continué jusqu'à « tous les critères ». Le jalon n'est pas coché.
+
+**Prochaine action.** Lire la CI du dernier push sur main. Le jalon n'est pas coché.
