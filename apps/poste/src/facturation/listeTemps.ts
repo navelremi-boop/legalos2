@@ -1,4 +1,5 @@
 import { decalerJour } from "@/agenda/navigationAgenda";
+import type { ChemiseId } from "@/lib/chemise";
 
 export type FiltreSaisie = "toutes" | "non-facturees" | "facturees";
 export type PerimetreSaisie = "cabinet" | "moi";
@@ -10,6 +11,7 @@ export type SaisieTemps = {
   libelle: string;
   dossierId: string;
   dossierNom: string;
+  chemise?: ChemiseId;
   intervenantId: string;
   tauxCentimesHeure: number;
   htCentimes: number;

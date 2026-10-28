@@ -20,6 +20,7 @@ import {
   type PerimetreSaisie,
   type SaisieTemps,
 } from "@/facturation/listeTemps";
+import { isChemiseId } from "@/lib/chemise";
 import { formatDateCourte, formatDateLongue, formatDuree, formatMontant } from "@/lib/format";
 import { fr } from "@/lib/fr";
 import { getPowerSyncDatabase } from "@/sync/database";
@@ -45,6 +46,7 @@ type LigneSql = {
   taux_centimes_heure: number;
   ht_centimes: number;
   dossier_nom: string | null;
+  dossier_chemise: string | null;
 };
 
 const FILTRES: { id: FiltreSaisie; label: string }[] = [
@@ -77,7 +79,8 @@ export function EcranTemps({
         .then(async (database) => {
           const temps = await database.getAll<LigneSql>(
             `SELECT t.id, t.cree_le, t.minutes, t.libelle, t.dossier_id, t.intervenant_id,
-                    t.taux_centimes_heure, t.ht_centimes, d.nom AS dossier_nom
+                    t.taux_centimes_heure, t.ht_centimes, d.nom AS dossier_nom,
+                    d.chemise AS dossier_chemise
              FROM temps_saisis t
              LEFT JOIN dossiers d ON d.id = t.dossier_id`,
           );
@@ -92,6 +95,10 @@ export function EcranTemps({
             libelle: ligne.libelle,
             dossierId: ligne.dossier_id,
             dossierNom: ligne.dossier_nom ?? "",
+            chemise:
+              ligne.dossier_chemise !== null && isChemiseId(ligne.dossier_chemise)
+                ? ligne.dossier_chemise
+                : undefined,
             intervenantId: ligne.intervenant_id,
             tauxCentimesHeure: ligne.taux_centimes_heure,
             htCentimes: ligne.ht_centimes,
@@ -288,9 +295,19 @@ export function EcranTemps({
                 <ul>
                   {groupe.saisies.map((ligne) => (
                     <li key={ligne.id} className="flex items-baseline justify-between gap-3 py-1" data-facturee={ligne.facturee ? "true" : "false"}>
-                      <span>
-                        {fr(ligne.libelle)}
-                        {ligne.dossierNom !== "" ? fr(` — ${ligne.dossierNom}`) : ""}
+                      <span className="flex min-w-0 items-baseline gap-2">
+                        {ligne.chemise ? (
+                          <span
+                            className="ligne-journee__pastille"
+                            data-testid="temps-pastille"
+                            data-chemise={ligne.chemise}
+                            aria-hidden
+                          />
+                        ) : null}
+                        <span className="truncate">
+                          {fr(ligne.libelle)}
+                          {ligne.dossierNom !== "" ? fr(` — ${ligne.dossierNom}`) : ""}
+                        </span>
                       </span>
                       <span className="text-right">
                         {formatDuree(ligne.minutes * 60)} {formatMontant(ligne.htCentimes)}

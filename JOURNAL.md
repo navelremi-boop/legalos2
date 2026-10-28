@@ -60,4 +60,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, taux sur la ligne (28/10).** Chaque saisie affiche le taux horaire figé, en euros par heure. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
 
-**Prochaine action.** Pastille de dossier sur la ligne de Temps, à partir de la chemise déjà en base. Le jalon n'est pas coché.
+- **Finition, pastille Temps (28/10).** Chaque ligne porte la pastille de la chemise du dossier, lue en base. La galerie montre le kraft et le vert amande. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
+
+**Prochaine action.** Le champ de saisie affiche le taux en euros par heure, plus seulement en centimes. Le jalon n'est pas coché.
