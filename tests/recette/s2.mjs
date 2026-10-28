@@ -4,6 +4,13 @@
  * Prérequis : instance S1 up (`node tests/recette/s1.mjs` ou compose), `.env` avec SECRETS_CHIFFREMENT_KEY.
  */
 import { createHmac } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
+const motDePasseRefuse = "mot-de-passe-qui-ne-convient-pas";
 const demoEmail = process.env.LEGALOS_DEMO_EMAIL ?? "demo@cabinet-fictif.example";
 const demoPassword = process.env.LEGALOS_DEMO_PASSWORD ?? "MotDePasseDemo123!";
 const totpSecretB32 =
@@ -108,7 +115,7 @@ const mauvaisMotDePasse = await fetch(`${baseUrl}/auth/connexion`, {
   headers: { "content-type": "application/json" },
   body: JSON.stringify({
     email: demoEmail,
-    password: "mot-de-passe-qui-ne-convient-pas",
+    password: motDePasseRefuse,
     nom_appareil: "recette-s2-refus",
   }),
   signal: AbortSignal.timeout(15_000),
@@ -171,5 +178,41 @@ const rejeu = await fetch(`${baseUrl}/auth/totp/secours`, {
   signal: AbortSignal.timeout(15_000),
 });
 if (rejeu.status !== 401) fail(`un code de secours déjà utilisé doit répondre 401, reçu ${rejeu.status}`);
+
+const journaux = spawnSync("docker", ["logs", "--since", "5m", "legalos-instance-api-1"], {
+  encoding: "utf8",
+});
+const texteJournaux = `${journaux.stdout ?? ""}\n${journaux.stderr ?? ""}`;
+if (journaux.status !== 0) fail("journaux de l'instance illisibles");
+if (texteJournaux.includes(motDePasseRefuse) || texteJournaux.includes(demoPassword)) {
+  fail("un mot de passe apparaît dans les journaux de l'instance");
+}
+
+const utilisateurSql = process.env.POSTGRES_USER ?? "legalos";
+const baseSql = process.env.POSTGRES_DB ?? "legalos";
+const hash = spawnSync(
+  "docker",
+  [
+    "exec",
+    "legalos-instance-postgres-1",
+    "psql",
+    "-U",
+    utilisateurSql,
+    "-d",
+    baseSql,
+    "-tAc",
+    `SELECT password_hash FROM utilisateurs WHERE email = '${demoEmail.replaceAll("'", "")}'`,
+  ],
+  { encoding: "utf8" },
+);
+if (hash.status !== 0) fail("lecture du hash impossible");
+const stocke = (hash.stdout ?? "").trim();
+if (!stocke.startsWith("$argon2")) fail("le mot de passe n'est pas stocké sous forme de hash");
+if (stocke.includes(demoPassword) || stocke.includes(motDePasseRefuse)) {
+  fail("le mot de passe en clair est dans la base");
+}
+
+const stockage = readFileSync(join(root, "apps/poste/src/lib/session/storage.ts"), "utf8");
+if (/password/i.test(stockage)) fail("le stockage de session du poste mentionne un mot de passe");
 
 console.log("s2: OK");
