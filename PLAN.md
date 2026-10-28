@@ -225,7 +225,7 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
     - Parcours S2 d'après `design/maquettes/prototype-connexion.html` : adresse du serveur (premier lancement seulement), connexion, double authentification (six cases, collage accepté), préparation du poste avec progression réelle.
     - Situations : application verrouillée, hors ligne trop longtemps, poste révoqué, accès au Trousseau refusé ; chacune déclenchée par un test, sans perte de données locales.
     - Sécurité : le message d'erreur ne distingue pas l'adresse du mot de passe (test sur la réponse de l'API et sur l'interface) ; le mot de passe n'est jamais écrit sur le disque ni dans les journaux (`node tests/recette/s2.mjs` → exit 0, test S2 étendu) ; chiffrement du disque non détecté : avertissement non bloquant et poste inscrit « chiffrement non confirmé » au registre des postes.
-    - Décisions en attente, inscrites dans BLOCAGES : codes de secours de la double authentification (B18) et chiffrement du disque bloquant ou non (B19). Tant que B18 n'est pas tranché, le lien « code de secours » n'est pas affiché. (La consigne les numérotait B16 et B17, déjà pris par l'honoraire de résultat et la durée hors ligne : renumérotées, à confirmer par l'architecte.)
+    - Codes de secours de la double authentification (décision du commandement du 28/10/2026) : dix codes à usage unique, affichés une seule fois à l'activation, stockés hachés sur l'instance, régénérables ; le lien « code de secours » est affiché. Chiffrement du disque non bloquant en V1, poste inscrit « chiffrement non confirmé ».
     - Captures des onze états de la maquette comparées (`node tests/recette/coque-app.mjs --captures` → exit 0) ; preuve visuelle commune.
     - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
@@ -244,7 +244,7 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
       - une convention est produite par Modèles et fusion, rattachée au dossier ;
       - statuts brouillon, envoyée, signée (dépôt de l'exemplaire signé) ;
       - modes temps passé, forfait, résultat complémentaire, repris par la facturation ;
-      - alerte à l'ouverture du dossier et à la création d'une facture tant qu'aucune convention n'est signée ; levée possible avec un motif consigné. Liste des motifs proposée au commandement (B15), non inventée en silence.
+      - alerte à l'ouverture du dossier et à la création d'une facture tant qu'aucune convention n'est signée ; levée possible avec un motif consigné. Motifs décidés le 28/10/2026 (B15) : (1) urgence et force majeure, levée temporaire, l'alerte revient après 30 jours si la convention n'est toujours pas signée ; (2) convention signée hors de l'application, avec la date consignée ; (3) aide juridictionnelle totale, ou intervention au titre de la troisième partie de la loi du 10 juillet 1991 ; (4) premier rendez-vous ou consultation sans honoraires ; (5) dossier interne du cabinet.
     - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
 - [ ] **Facturation, suite** — § 4.2 n° 10, ce que J8 n'a pas livré — critères validés par l'architecte le 04/10/2026, complétés le 07/10/2026
@@ -253,7 +253,7 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
     - `node tests/recette/facturation-suite.mjs` → exit 0 (API, Postgres réel, puis app) :
       - facture au forfait et au résultat ;
       - précédence des taux documentée et testée : intervenant sur le dossier, puis dossier, puis client, puis taux général de l'intervenant, puis cabinet (décision PROVISOIRE du commandement du 10/10/2026, testée dans cet ordre ; à signaler à l'architecte si une règle métier l'impose autrement) ; taux figé à la saisie : modifier un taux ne change ni les temps saisis ni les brouillons ;
-      - honoraire de résultat seulement en complément d'un honoraire principal et si la convention du dossier le prévoit ; sinon, refus avec message (règle à confirmer par le commandement, B16) ;
+      - honoraire de résultat seulement en complément d'un honoraire principal et si la convention du dossier le prévoit (art. 10 de la loi du 31 décembre 1971) ; sinon, refus avec message (confirmé par le commandement le 28/10/2026, B16) ;
       - provisions : appel, encaissement, imputation sur la facture finale ; TVA selon les hypothèses F (`docs/hypotheses-facturation.md`, revue B10) ;
       - conditions tarifaires par client, par dossier et par intervenant ;
       - relances : modèle par niveau, historique par facture, envoi uniquement après validation de l'utilisateur, par la file d'envoi ;
@@ -277,7 +277,7 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
     - `node tests/recette/s10-revocation.mjs` → exit 0 :
       - jeton du poste révoqué refusé par l'API dès la révocation ; aucune écriture de sa file appliquée ; refus consigné ;
       - à la connexion suivante : effacement de la base locale, du cache de fichiers, du jeton et des secrets du trousseau ; le poste révoqué n'écrit plus ;
-      - verrouillage d'un poste resté hors ligne au-delà de 30 jours (proposition au commandement, B17) ;
+      - verrouillage d'un poste resté hors ligne au-delà de 30 jours (confirmé par le commandement le 28/10/2026, B17) ;
       - révocation journalisée.
     - `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
