@@ -260,6 +260,19 @@ export function EcranAgenda({
   }
 
   const jourRepere = ancre ?? jourCivil(new Date());
+  const joursOccupes = new Set<string>();
+  for (const ligne of lignes) {
+    const jour = composantesAffichees(ligne.debut)?.jour;
+    if (jour) joursOccupes.add(jour);
+  }
+  const joursBarre =
+    vue === "jour" ? [jourRepere] : joursSemaineAffiches(semaineDe(jourRepere), joursOccupes);
+  const debutBarre = joursBarre[0] ?? jourRepere;
+  const finBarre = joursBarre[joursBarre.length - 1] ?? jourRepere;
+  const titreBarre =
+    vue === "jour" || debutBarre === finBarre
+      ? `${formatDateLongue(debutBarre)} ${debutBarre.slice(0, 4)}`
+      : `${formatDateCourte(debutBarre)} au ${formatDateCourte(finBarre)} ${finBarre.slice(0, 4)}`;
   const mois = moisAffiche ?? debutMois(jourRepere);
   const casesMois = grilleMois(mois);
   const lignesVisibles = lignes.filter((ligne) => filtres[categorieAgenda(ligne.type_element, ligne.origine_calcul)]);
@@ -385,7 +398,39 @@ export function EcranAgenda({
         </ul>
       </aside>
       <div className="min-h-0 overflow-y-auto p-[22px] pb-24">
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
+          data-testid="agenda-precedent"
+          onClick={() => {
+            setAncre(decalerJour(ancre ?? jourCivil(new Date()), vue === "jour" ? -1 : -7));
+          }}
+        >
+          {fr(vue === "jour" ? "Jour précédent" : "Semaine précédente")}
+        </button>
+        <button
+          type="button"
+          className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
+          data-testid="agenda-suivant"
+          onClick={() => {
+            setAncre(decalerJour(ancre ?? jourCivil(new Date()), vue === "jour" ? 1 : 7));
+          }}
+        >
+          {fr(vue === "jour" ? "Jour suivant" : "Semaine suivante")}
+        </button>
+        <button
+          type="button"
+          className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
+          data-testid="agenda-aujourdhui"
+          onClick={() => {
+            setAncre(null);
+          }}
+        >
+          {fr("Aujourd'hui")}
+        </button>
+        <span className="flex-1" />
         <button
           type="button"
           className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
@@ -408,36 +453,8 @@ export function EcranAgenda({
         >
           {fr("Semaine")}
         </button>
-        <button
-          type="button"
-          className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
-          data-testid="agenda-precedent"
-          onClick={() => {
-            setAncre(decalerJour(ancre ?? jourCivil(new Date()), vue === "jour" ? -1 : -7));
-          }}
-        >
-          {fr(vue === "jour" ? "Jour précédent" : "Semaine précédente")}
-        </button>
-        <button
-          type="button"
-          className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
-          data-testid="agenda-aujourdhui"
-          onClick={() => {
-            setAncre(null);
-          }}
-        >
-          {fr("Aujourd'hui")}
-        </button>
-        <button
-          type="button"
-          className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
-          data-testid="agenda-suivant"
-          onClick={() => {
-            setAncre(decalerJour(ancre ?? jourCivil(new Date()), vue === "jour" ? 1 : 7));
-          }}
-        >
-          {fr(vue === "jour" ? "Jour suivant" : "Semaine suivante")}
-        </button>
+      </div>
+      <h2 className="mt-2 text-[length:var(--font-size-section)] font-extrabold">{fr(titreBarre)}</h2>
       </div>
       <form
         className={creation ? "mb-6 max-w-xl rounded-[var(--radius-control)] border border-filet p-3" : "hidden"}

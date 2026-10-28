@@ -90,4 +90,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, aperçu du taux (28/10).** Avant toute durée, la saisie affiche le taux (« Taux 60,00 € par heure »). Le montant s'y ajoute dès que la durée se lit. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
 
-**Prochaine action.** La preuve visuelle commune reste un refus (fiche d'agenda sans lieu, pas de montant encaissé). Le jalon n'est pas coché.
+- **Finition, barre d'agenda (28/10).** La date de la période est sous la navigation. Jour et Semaine sont à droite. Il n'y a pas de colonne lieu, ni de montant encaissé : ils ne sont pas affichés. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
+
+**Prochaine action.** Le contrôleur de fin de jalon n'a pas validé. Le jalon n'est pas coché.
