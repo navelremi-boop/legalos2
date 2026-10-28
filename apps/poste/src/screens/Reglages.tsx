@@ -65,6 +65,7 @@ export function Reglages({
   const [numeroDepart, setNumeroDepart] = useState("");
   const [apercuValeurs, setApercuValeurs] = useState<ApercuReference>(apercuHorsLigne);
   const [messageReference, setMessageReference] = useState("");
+  const [sectionOuverte, setSectionOuverte] = useState("cabinet");
   const [numeroDepartMinimal, setNumeroDepartMinimal] = useState<number | null>(null);
   const baseNomRef = useRef("");
   const baseSlugRef = useRef("");
@@ -229,20 +230,35 @@ export function Reglages({
         {fr("Réglages")}
       </h1>
       <Feuille uneColonne className="min-h-[360px]">
-        <div className="space-y-6 p-[22px] pb-16">
-          <nav aria-label={fr("Sections des réglages")} data-testid="reglages-nav" className="flex flex-wrap gap-2">
+        <div className="flex h-full min-h-[360px]">
+          <nav
+            aria-label={fr("Sections des réglages")}
+            data-testid="reglages-nav"
+            className="flex w-56 shrink-0 flex-col gap-1 border-r border-filet p-4"
+          >
+            <h2 className="mb-2 text-[length:var(--font-size-dense)] font-extrabold text-encre">
+              {fr("Réglages du cabinet")}
+            </h2>
             {sectionsVisibles().map((section) => (
-              <a
+              <button
                 key={section.id}
-                href={`#reglages-${section.id}`}
-                className="rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-1 text-encre"
+                type="button"
+                aria-pressed={sectionOuverte === section.id}
+                className={`rounded-[var(--radius-control)] px-3 py-2 text-left text-encre ${sectionOuverte === section.id ? "bg-feuille-2 font-bold" : ""}`}
                 data-testid={`reglages-section-${section.id}`}
+                onClick={() => {
+                  setSectionOuverte(section.id);
+                }}
               >
                 {fr(section.titre)}
-              </a>
+              </button>
             ))}
           </nav>
-          <div id="reglages-apparence">
+          <div className="min-w-0 flex-1 space-y-6 overflow-auto p-[22px] pb-16">
+          <div id="reglages-apparence" hidden={sectionOuverte !== "apparence"}>
+            <h2 className="mb-3 text-[length:var(--font-size-section)] font-extrabold text-encre">
+              {fr("Apparence")}
+            </h2>
             <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="theme">
               {fr("Thème")}
             </label>
@@ -260,7 +276,9 @@ export function Reglages({
             </select>
           </div>
 
-          <form id="reglages-cabinet"
+          <form
+            id="reglages-cabinet"
+            hidden={sectionOuverte !== "cabinet"}
             onSubmit={(event) => {
               event.preventDefault();
               const formulaire = new FormData(event.currentTarget);
@@ -306,25 +324,31 @@ export function Reglages({
               setBaseSlug(slugSaisi);
             }}
           >
-            <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="cabinet-nom">
+            <h2 className="mb-1 text-[length:var(--font-size-section)] font-extrabold text-encre">
+              {fr("Cabinet")}
+            </h2>
+            <p className="mb-4 text-graphite">
+              {fr("Le nom et le slug identifient le cabinet.")}
+            </p>
+            <label className="block text-[length:var(--font-size-dense)] text-graphite" htmlFor="cabinet-nom">
               {fr("Nom du cabinet")}
             </label>
             <input
               id="cabinet-nom"
               name="nom"
-              className="mt-1 mb-3 w-full max-w-md rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+              className="mt-1 mb-3 block w-full max-w-md rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
               value={nom}
               onChange={(event) => {
                 setNom(event.target.value);
               }}
             />
-            <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="cabinet-slug">
+            <label className="block text-[length:var(--font-size-dense)] text-graphite" htmlFor="cabinet-slug">
               {fr("Slug du cabinet")}
             </label>
             <input
               id="cabinet-slug"
               name="slug"
-              className="mt-1 mb-3 w-full max-w-md rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+              className="mt-1 mb-3 block w-full max-w-md rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
               value={slug}
               onChange={(event) => {
                 setSlug(event.target.value);
@@ -338,7 +362,7 @@ export function Reglages({
             </button>
           </form>
 
-          <section id="reglages-reference" className="space-y-3">
+          <section id="reglages-reference" className="space-y-3" hidden={sectionOuverte !== "reference"}>
             <h2 className="text-[length:var(--font-size-section)] font-extrabold text-encre">
               {fr("Référence des dossiers")}
             </h2>
@@ -430,7 +454,7 @@ export function Reglages({
             ) : null}
           </section>
 
-          <div id="reglages-messagerie">
+          <div id="reglages-messagerie" hidden={sectionOuverte !== "messagerie"}>
             <ReglagesMessagerie instanceUrl={instanceUrl} horsLigne={horsLigne} demonstration={messagerieDemo} />
           </div>
 
@@ -480,6 +504,7 @@ export function Reglages({
                 {fr("Se déconnecter (test)")}
               </button>
             ) : null}
+          </div>
           </div>
         </div>
       </Feuille>
