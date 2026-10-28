@@ -17,6 +17,23 @@ export function htTempsCentimes(minutes: number, tauxCentimesHeure: number): num
   return Math.trunc((minutes * tauxCentimesHeure) / 60);
 }
 
+/** Affichage d'un taux : 6000 centimes deviennent « 60 », 6050 deviennent « 60,50 ». */
+export function eurosDepuisCentimes(centimes: number): string {
+  const entier = Math.trunc(centimes / 100);
+  const reste = Math.abs(centimes % 100);
+  if (reste === 0) return String(entier);
+  return `${String(entier)},${String(reste).padStart(2, "0")}`;
+}
+
+/** « 60 », « 60,5 » ou « 60.50 » deviennent des centimes. Vide, zéro ou plus de deux décimales : null. */
+export function centimesDepuisEuros(texte: string): number | null {
+  const propre = texte.trim().replace(/\s/g, "").replace(",", ".");
+  if (!/^\d+(\.\d{1,2})?$/.test(propre)) return null;
+  const [euros, decimales = ""] = propre.split(".");
+  const centimes = Number(euros) * 100 + Number(decimales.padEnd(2, "0"));
+  return centimes > 0 ? centimes : null;
+}
+
 /** Dernier taux horaire du cabinet, hors dossier ou client précis ; à défaut `TAUX_PAR_DEFAUT_CENTIMES`. */
 export async function tauxHoraireParDefaut(base: Pick<CommonPowerSyncDatabase, "getAll">): Promise<number> {
   const taux = await base.getAll<{ centimes_par_heure: number }>(

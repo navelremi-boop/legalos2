@@ -62,4 +62,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, pastille Temps (28/10).** Chaque ligne porte la pastille de la chemise du dossier, lue en base. La galerie montre le kraft et le vert amande. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
 
-**Prochaine action.** Le champ de saisie affiche le taux en euros par heure, plus seulement en centimes. Le jalon n'est pas coché.
+- **Finition, taux en euros (28/10).** Le champ de saisie demande des euros par heure (« 60 » ou « 60,50 »). L'enregistrement reste en centimes. `s9-poste-tauri` saisit « 60 », qui vaut 6 000 centimes. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/messagerie/tempsMail.test.ts` : 22/22. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
+
+**Prochaine action.** Nouvelle comparaison visuelle de Temps, après le volet, le taux et la pastille. Le jalon n'est pas coché.

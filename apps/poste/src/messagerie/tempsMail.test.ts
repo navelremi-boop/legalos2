@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { enregistrerTemps, htTempsCentimes, TAUX_PAR_DEFAUT_CENTIMES, tauxHoraireParDefaut, type BaseTemps } from "../facturation/ecrireTemps.ts";
+import {
+  centimesDepuisEuros,
+  enregistrerTemps,
+  eurosDepuisCentimes,
+  htTempsCentimes,
+  TAUX_PAR_DEFAUT_CENTIMES,
+  tauxHoraireParDefaut,
+  type BaseTemps,
+} from "../facturation/ecrireTemps.ts";
 import type { StockageTexte } from "./cacheRedaction.ts";
 import {
   CLE_JOURNAL_MAILS,
@@ -170,6 +178,11 @@ describe("saisie du temps d'un mail : le chemin d'écriture des temps du poste",
   it("le montant est celui du temps et du taux figé à l'enregistrement : 12 min à 90 € de l'heure font 18 €", () => {
     assert.equal(htTempsCentimes(12, 9_000), 1_800);
     assert.equal(htTempsCentimes(6, 6_000), 600);
+    assert.equal(eurosDepuisCentimes(6_000), "60");
+    assert.equal(eurosDepuisCentimes(6_050), "60,50");
+    assert.equal(centimesDepuisEuros("60"), 6_000);
+    assert.equal(centimesDepuisEuros("60,5"), 6_050);
+    assert.equal(centimesDepuisEuros("0"), null);
   });
 
   it("écrit la saisie et son brouillon de facture sans numéro, avec le taux du cabinet et le libellé du traitement", async () => {

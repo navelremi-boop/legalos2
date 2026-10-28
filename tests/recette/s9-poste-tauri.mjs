@@ -335,7 +335,7 @@ try {
     })()`,
   );
   await setField(send, "temps-minutes", "60");
-  await setField(send, "temps-taux", "6000");
+  await setField(send, "temps-taux", "60");
   await setField(send, "temps-libelle", "Honoraires fictifs");
   await evaluate(send, `document.getElementById("temps-minutes")?.closest("form")?.requestSubmit()`);
   const debut = Date.now();

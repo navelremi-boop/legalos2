@@ -5,7 +5,13 @@ import type { SubmitEvent } from "react";
 import { apiUrl } from "@/lib/auth/client";
 import { fr } from "@/lib/fr";
 import { assurerJetonAcces } from "@/lib/session/rafraichir";
-import { enregistrerTemps, htTempsCentimes, tauxHoraireParDefaut } from "@/facturation/ecrireTemps";
+import {
+  centimesDepuisEuros,
+  enregistrerTemps,
+  eurosDepuisCentimes,
+  htTempsCentimes,
+  tauxHoraireParDefaut,
+} from "@/facturation/ecrireTemps";
 import { getPowerSyncDatabase } from "@/sync/database";
 
 function champ(form: FormData, nom: string): string {
@@ -49,8 +55,9 @@ export function FormulaireTemps({
     const donnees = new FormData(formulaire);
     const saisie = donnees.get("minutes");
     const minutes = lireDuree(typeof saisie === "string" ? saisie : "");
-    const taux = Number(donnees.get("taux_centimes_heure"));
-    if (minutes === null || !Number.isInteger(taux) || taux <= 0) {
+    const tauxBrut = donnees.get("taux_euros");
+    const taux = centimesDepuisEuros(typeof tauxBrut === "string" ? tauxBrut : "");
+    if (minutes === null || taux === null) {
       setApercu(null);
       return;
     }
@@ -94,7 +101,7 @@ export function FormulaireTemps({
     const minutes = lireDuree(champ(form, "minutes"));
     const libelle = champ(form, "libelle");
     const dossierId = champ(form, "dossier_id");
-    const taux = Number(champ(form, "taux_centimes_heure"));
+    const taux = centimesDepuisEuros(champ(form, "taux_euros"));
     if (minutes === null || libelle.length === 0) {
       setMessage(fr("Saisissez une durée et un libellé."));
       return;
@@ -103,8 +110,8 @@ export function FormulaireTemps({
       setMessage(fr("Choisissez un dossier existant."));
       return;
     }
-    if (!Number.isInteger(taux) || taux <= 0) {
-      setMessage(fr("Indiquez un taux horaire en centimes."));
+    if (taux === null) {
+      setMessage(fr("Indiquez un taux horaire en euros par heure."));
       return;
     }
     const existe = dossiers.some((d) => d.id === dossierId);
@@ -241,15 +248,17 @@ export function FormulaireTemps({
         className="text-[length:var(--font-size-dense)] text-graphite"
         htmlFor="temps-taux"
       >
-        {fr("Taux horaire (centimes)")}
+        {fr("Taux horaire, euros par heure")}
       </label>
       <input
+        key={tauxSuggere}
         id="temps-taux"
-        name="taux_centimes_heure"
-        type="number"
-        min={1}
+        name="taux_euros"
+        type="text"
+        inputMode="decimal"
         required
-        defaultValue={tauxSuggere}
+        placeholder={fr("60 ou 60,50")}
+        defaultValue={eurosDepuisCentimes(tauxSuggere)}
         className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
       />
       <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="temps-libelle">
