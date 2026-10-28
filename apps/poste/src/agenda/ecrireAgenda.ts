@@ -105,6 +105,26 @@ export async function recalculerEcheance(id: string, origine: string): Promise<s
   return resultat.echeance;
 }
 
+/** Titre, début et rappel : colonnes que la synchronisation accepte de renvoyer. */
+export async function modifierElementAgenda(saisie: {
+  id: string;
+  titre: string;
+  debut: string;
+  rappelLe?: string;
+}): Promise<void> {
+  const titre = saisie.titre.trim();
+  const debut = instantAgenda(saisie.debut);
+  if (titre === "" || debut === "") throw new Error("Titre et début requis");
+  const database = await getPowerSyncDatabase();
+  const rappel = saisie.rappelLe?.trim() || null;
+  await database.writeTransaction(async (tx) => {
+    await tx.execute(
+      "UPDATE agenda_elements SET titre = ?, debut = ?, rappel_le = ? WHERE id = ?",
+      [titre, debut, rappel, saisie.id],
+    );
+  });
+}
+
 export async function retirerEcheance(id: string): Promise<void> {
   const database = await getPowerSyncDatabase();
   await database.writeTransaction(async (tx) => {

@@ -225,73 +225,79 @@ export function FormulaireTemps({
       }}
     >
       <h2 className="mb-3 text-[length:var(--font-size-section)] font-bold">{fr("Saisir du temps")}</h2>
-      <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="temps-dossier">
-        {fr("Dossier")}
-      </label>
-      <select
-        id="temps-dossier"
-        name="dossier_id"
-        required
-        className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
-        data-testid="temps-dossier"
-        value={dossierSelect}
-        onChange={(event) => {
-          setDossierChoisi(event.target.value);
-        }}
-      >
-        <option value="">{fr("Choisir un dossier")}</option>
-        {dossiers.map((d) => (
-          <option key={d.id} value={d.id}>
-            {d.nom}
-          </option>
-        ))}
-      </select>
-      <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="temps-minutes">
-        {fr("Durée")}
-      </label>
-      <input
-        id="temps-minutes"
-        name="minutes"
-        type="text"
-        required
-        placeholder={fr("1 h 30, 45 min ou 0,75")}
-        className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
-      />
-      <label
-        className="text-[length:var(--font-size-dense)] text-graphite"
-        htmlFor="temps-taux"
-      >
-        {fr("Taux horaire, euros par heure")}
-      </label>
-      <input
-        key={tauxSuggere}
-        id="temps-taux"
-        name="taux_euros"
-        type="text"
-        inputMode="decimal"
-        required
-        placeholder={fr("60 ou 60,50")}
-        defaultValue={eurosDepuisCentimes(tauxSuggere)}
-        className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
-      />
-      <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="temps-libelle">
-        {fr("Libellé")}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="temps-dossier">
+            {fr("Dossier")}
+          </label>
+          <select
+            id="temps-dossier"
+            name="dossier_id"
+            required
+            className="mt-1 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+            data-testid="temps-dossier"
+            value={dossierSelect}
+            onChange={(event) => {
+              setDossierChoisi(event.target.value);
+            }}
+          >
+            <option value="">{fr("Choisir un dossier")}</option>
+            {dossiers.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.nom}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="temps-minutes">
+            {fr("Durée")}
+          </label>
+          <input
+            id="temps-minutes"
+            name="minutes"
+            type="text"
+            required
+            placeholder={fr("1 h 30, 45 min ou 0,75")}
+            className="mt-1 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+          />
+        </div>
+      </div>
+      <label className="mt-3 block text-[length:var(--font-size-dense)] text-graphite" htmlFor="temps-libelle">
+        {fr("Description")}
       </label>
       <input
         id="temps-libelle"
         name="libelle"
         required
+        placeholder={fr("Ce que vous avez fait")}
         className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
       />
-      {apercu !== null ? (
-        <p className="mb-3 text-encre" data-testid="temps-apercu">
-          {apercu.minutes !== null && apercu.ht !== null
-            ? fr(
-                `${String(apercu.minutes)} min, ${formatMontant(apercu.ht)}, taux ${formatMontant(apercu.taux)} par heure`,
-              )
-            : fr(`Taux ${formatMontant(apercu.taux)} par heure`)}
-        </p>
-      ) : null}
+      <div className="mb-3 flex items-center gap-2">
+        <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="temps-taux">
+          {fr("Taux, euros par heure")}
+        </label>
+        <input
+          key={tauxSuggere}
+          id="temps-taux"
+          name="taux_euros"
+          type="text"
+          inputMode="decimal"
+          required
+          placeholder={fr("60 ou 60,50")}
+          defaultValue={eurosDepuisCentimes(tauxSuggere)}
+          className="w-28 rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+        />
+      </div>
+      <p className="mb-3 text-encre" data-testid="temps-apercu">
+        {apercu !== null && apercu.minutes !== null && apercu.ht !== null
+          ? fr(
+              `${String(apercu.minutes)} min, ${formatMontant(apercu.ht)}, taux ${formatMontant(apercu.taux)} par heure, figé à l'enregistrement`,
+            )
+          : fr(
+              `Durées acceptées : 1 h 30, 45 min, 0,75. Taux ${formatMontant(apercu?.taux ?? tauxSuggere)} par heure.`,
+            )}
+      </p>
       <button
         type="submit"
         className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"

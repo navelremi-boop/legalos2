@@ -92,4 +92,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, barre d'agenda (28/10).** La date de la période est sous la navigation. Jour et Semaine sont à droite. Il n'y a pas de colonne lieu, ni de montant encaissé : ils ne sont pas affichés. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
 
-**Prochaine action.** Le contrôleur de fin de jalon n'a pas validé. Le jalon n'est pas coché.
+- **Finition, écarts du contrôleur (28/10).** L'aperçu d'un dossier affiche l'encaissé : 0,00 €, aucun règlement n'est synchronisé sur le poste. La fiche d'agenda porte Modifier et Supprimer. La date de la période est centrée sous la navigation. Le second mail suggéré de La journée a Classer et Autre dossier. La saisie de temps met le dossier et la durée côte à côte, et l'aperçu est toujours visible. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/dossiers/apercuDossier.test.ts apps/poste/src/screens/journeeDemo.test.ts` : 6/6. `node tests/recette/coque-app.mjs --captures` exit 0. Le jalon n'est pas coché.
+
+**Prochaine action.** Relancer le contrôleur visuel sur ces captures. Le jalon n'est pas coché.

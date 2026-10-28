@@ -50,14 +50,15 @@ export function derniersElements(
 
 export function resumeFacturation(
   lignes: readonly { minutes: number; htCentimes: number; facture: boolean }[],
-): { nonFactureMinutes: number; factureCentimes: number } {
+): { nonFactureMinutes: number; factureCentimes: number; encaiseCentimes: number } {
   let nonFactureMinutes = 0;
   let factureCentimes = 0;
   for (const ligne of lignes) {
     if (ligne.facture) factureCentimes += ligne.htCentimes;
     else nonFactureMinutes += ligne.minutes;
   }
-  return { nonFactureMinutes, factureCentimes };
+  // Aucun règlement n'est synchronisé sur le poste : l'encaissé affiché est nul.
+  return { nonFactureMinutes, factureCentimes, encaiseCentimes: 0 };
 }
 
 /** « 1 jour » au singulier, « aujourd'hui » quand l'échéance est le jour même. */

@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import type { SubmitEvent } from "react";
-import { ecrireElementAgenda, recalculerEcheance, retirerEcheance, type TypeAgenda } from "@/agenda/ecrireAgenda";
+import {
+  ecrireElementAgenda,
+  modifierElementAgenda,
+  recalculerEcheance,
+  retirerEcheance,
+  type TypeAgenda,
+} from "@/agenda/ecrireAgenda";
 import { BarreActions } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
 import { lireInvitations } from "@/agenda/donneesInvitations";
@@ -141,6 +147,7 @@ export function EcranAgenda({
   const [ancre, setAncre] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [confirmation, setConfirmation] = useState("");
+  const [edition, setEdition] = useState("");
   const [conflit, setConflit] = useState("");
   const [creation, setCreation] = useState(false);
   const [calcul, setCalcul] = useState(false);
@@ -256,6 +263,23 @@ export function EcranAgenda({
       event.currentTarget.reset();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : fr("Enregistrement impossible."));
+    }
+  }
+
+  async function modifier(event: SubmitEvent<HTMLFormElement>, id: string) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    try {
+      await modifierElementAgenda({
+        id,
+        titre: champ(form, "titre"),
+        debut: champ(form, "debut"),
+        rappelLe: champ(form, "rappel_le"),
+      });
+      setEdition("");
+      setMessage(fr("Élément modifié."));
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : fr("Modification impossible."));
     }
   }
 
@@ -454,7 +478,7 @@ export function EcranAgenda({
           {fr("Semaine")}
         </button>
       </div>
-      <h2 className="mt-2 text-[length:var(--font-size-section)] font-extrabold">{fr(titreBarre)}</h2>
+      <h2 className="mt-2 text-center text-[length:var(--font-size-section)] font-extrabold">{fr(titreBarre)}</h2>
       </div>
       <form
         className={creation ? "mb-6 max-w-xl rounded-[var(--radius-control)] border border-filet p-3" : "hidden"}
@@ -809,7 +833,60 @@ export function EcranAgenda({
         })}
       </div>
       <aside className="w-56 shrink-0 rounded-[var(--radius-control)] border border-filet p-3" data-testid="agenda-apercu">
-        {choisi ? (
+        {choisi && edition === choisi.id ? (
+          <form
+            data-testid="agenda-modifier-form"
+            onSubmit={(event) => void modifier(event, choisi.id)}
+          >
+            <h2 className="mb-2 font-extrabold">{fr("Modifier")}</h2>
+            <label className="text-graphite" htmlFor="agenda-mod-titre">
+              {fr("Titre")}
+            </label>
+            <input
+              id="agenda-mod-titre"
+              name="titre"
+              required
+              defaultValue={choisi.titre}
+              className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+            />
+            <label className="text-graphite" htmlFor="agenda-mod-debut">
+              {fr("Début")}
+            </label>
+            <input
+              id="agenda-mod-debut"
+              name="debut"
+              required
+              defaultValue={choisi.debut}
+              className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+            />
+            <label className="text-graphite" htmlFor="agenda-mod-rappel">
+              {fr("Rappel")}
+            </label>
+            <input
+              id="agenda-mod-rappel"
+              name="rappel_le"
+              defaultValue={choisi.rappel_le ?? ""}
+              className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+            />
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="submit"
+                className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+              >
+                {fr("Enregistrer")}
+              </button>
+              <button
+                type="button"
+                className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                onClick={() => {
+                  setEdition("");
+                }}
+              >
+                {fr("Annuler")}
+              </button>
+            </div>
+          </form>
+        ) : choisi ? (
           <>
             <h2 className="font-extrabold">{fr(choisi.titre)}</h2>
             <p className="text-graphite">
@@ -819,23 +896,73 @@ export function EcranAgenda({
             <p>{fr(libelleQuand(choisi.debut))}</p>
             {ficheDossier ? (
               <p>
+                <span className="text-graphite">{fr("Dossier")}</span>
+                {" "}
                 {fr(ficheDossier.nom)}
                 {ficheDossier.reference ? fr(`, ${libelleReferenceDossier(ficheDossier.reference)}`) : ""}
               </p>
             ) : null}
             {rappelAffiche ? <p data-testid="agenda-rappel-affiche">{fr(`Rappel, ${rappelAffiche}`)}</p> : null}
-            {onOuvrirDossier && ficheDossier?.chemise && isChemiseId(ficheDossier.chemise) ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {onOuvrirDossier && ficheDossier?.chemise && isChemiseId(ficheDossier.chemise) ? (
+                <button
+                  type="button"
+                  className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                  onClick={() => {
+                    if (!ficheDossier.chemise) return;
+                    onOuvrirDossier(choisi.dossier_id, ficheDossier.nom, ficheDossier.chemise, ficheDossier.reference);
+                  }}
+                >
+                  {fr("Ouvrir le dossier")}
+                </button>
+              ) : null}
               <button
                 type="button"
-                className="mt-3 rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                data-testid="agenda-modifier"
                 onClick={() => {
-                  if (!ficheDossier.chemise) return;
-                  onOuvrirDossier(choisi.dossier_id, ficheDossier.nom, ficheDossier.chemise, ficheDossier.reference);
+                  setEdition(choisi.id);
                 }}
               >
-                {fr("Ouvrir le dossier")}
+                {fr("Modifier")}
               </button>
-            ) : null}
+              {confirmation === choisi.id ? (
+                <>
+                  <button
+                    type="button"
+                    className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                    onClick={() => {
+                      void retirerEcheance(choisi.id).then(() => {
+                        setConfirmation("");
+                        setSelection(null);
+                      });
+                    }}
+                  >
+                    {fr("Confirmer la suppression")}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                    onClick={() => {
+                      setConfirmation("");
+                    }}
+                  >
+                    {fr("Garder")}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                  data-testid="agenda-fiche-supprimer"
+                  onClick={() => {
+                    setConfirmation(choisi.id);
+                  }}
+                >
+                  {fr("Supprimer")}
+                </button>
+              )}
+            </div>
           </>
         ) : (
           <p className="text-graphite">{fr("Aucun élément sélectionné.")}</p>

@@ -143,7 +143,7 @@ export function Dossiers({
   );
   const [recents, setRecents] = useState<Map<string, ElementRecent[]>>(() => new Map());
   const [facturation, setFacturation] = useState<
-    Map<string, { nonFactureMinutes: number; factureCentimes: number }>
+    Map<string, { nonFactureMinutes: number; factureCentimes: number; encaiseCentimes: number }>
   >(() => new Map());
   const [nonLus, setNonLus] = useState<Map<string, number>>(() => new Map());
   const [filtre, setFiltre] = useState<FiltreDossier>("actifs");
@@ -250,7 +250,10 @@ export function Dossiers({
             });
             parFacturation.set(ligne.dossier_id, liste);
           }
-          const resumes = new Map<string, { nonFactureMinutes: number; factureCentimes: number }>();
+          const resumes = new Map<
+            string,
+            { nonFactureMinutes: number; factureCentimes: number; encaiseCentimes: number }
+          >();
           for (const [id, liste] of parFacturation) resumes.set(id, resumeFacturation(liste));
           const recentsTries = new Map<string, ElementRecent[]>();
           for (const [id, liste] of parDossier) recentsTries.set(id, derniersElements(liste));
@@ -583,7 +586,7 @@ export function Dossiers({
               <h3 className="mb-1 font-extrabold">{fr("Temps et facturation")}</h3>
               <p className="mb-4" data-testid="dossier-temps">
                 {fr(
-                  `${formatDuree((facturation.get(choisi.id)?.nonFactureMinutes ?? 0) * 60)} non facturées, ${formatMontant(facturation.get(choisi.id)?.factureCentimes ?? 0)} facturés`,
+                  `${formatDuree((facturation.get(choisi.id)?.nonFactureMinutes ?? 0) * 60)} non facturées, ${formatMontant(facturation.get(choisi.id)?.factureCentimes ?? 0)} facturés, ${formatMontant(facturation.get(choisi.id)?.encaiseCentimes ?? 0)} encaissés`,
                 )}
               </p>
               <div className="flex flex-wrap gap-2">
