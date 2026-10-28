@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { BarreActions } from "@/coque/BarreActions";
 import { FormulaireTemps } from "@/facturation/FormulaireTemps";
 import {
   basculerPause,
@@ -14,11 +15,12 @@ import {
   filtrerSaisies,
   grouperParJour,
   resumeTemps,
+  voletTemps,
   type FiltreSaisie,
   type PerimetreSaisie,
   type SaisieTemps,
 } from "@/facturation/listeTemps";
-import { formatDateLongue, formatDuree, formatMontant } from "@/lib/format";
+import { formatDateCourte, formatDateLongue, formatDuree, formatMontant } from "@/lib/format";
 import { fr } from "@/lib/fr";
 import { getPowerSyncDatabase } from "@/sync/database";
 
@@ -28,6 +30,7 @@ type EcranTempsProps = {
   moiId: string | null;
   chrono: EtatChrono;
   onChrono: (etat: EtatChrono) => void;
+  onFacturer?: () => void;
   /** Galerie : liste fixe, sans lecture de la base. */
   lignesFixes?: SaisieTemps[];
 };
@@ -56,6 +59,7 @@ export function EcranTemps({
   moiId,
   chrono,
   onChrono,
+  onFacturer,
   lignesFixes,
 }: EcranTempsProps) {
   const [lignesSync, setLignesSync] = useState<SaisieTemps[]>([]);
@@ -115,6 +119,7 @@ export function EcranTemps({
   );
   const groupes = useMemo(() => grouperParJour(visibles), [visibles]);
   const resume = useMemo(() => resumeTemps(lignes, aujourdhui), [lignes, aujourdhui]);
+  const volet = useMemo(() => voletTemps(lignes, aujourdhui), [lignes, aujourdhui]);
   const minutesArret = minutesConfirmees(chrono);
 
   async function enregistrerChrono() {
@@ -148,7 +153,9 @@ export function EcranTemps({
       <h1 className="mb-4 text-[length:var(--font-size-journee)] font-extrabold text-sur-chemise">
         {fr("Temps")}
       </h1>
-      <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pb-16">
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_17rem] gap-4 overflow-hidden pb-16">
+        <div className="min-h-0 space-y-6 overflow-y-auto">
+        <div className="grid gap-6 md:grid-cols-2">
         <section aria-label={fr("Chronomètre")} data-testid="temps-chrono" data-phase={chrono.phase}>
           <h2 className="mb-2 text-[length:var(--font-size-section)] font-extrabold">
             {fr(chrono.phase === "pause" ? "Chronomètre, en pause" : "Chronomètre")}
@@ -156,6 +163,7 @@ export function EcranTemps({
           <p className="text-[length:var(--font-size-journee)] font-extrabold tabular-nums">
             {formatDuree(chrono.secondes)}
           </p>
+          {chrono.libelle !== "" ? <p>{fr(chrono.libelle)}</p> : null}
           {chrono.phase === "arrete" ? (
             <button
               type="button"
@@ -225,6 +233,7 @@ export function EcranTemps({
         </section>
 
         <FormulaireTemps instanceUrl={instanceUrl} dossierIdPrefere={dossierIdPrefere} />
+        </div>
 
         <section>
           <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label={fr("Filtrer les saisies")}>
@@ -294,7 +303,68 @@ export function EcranTemps({
             ))}
           </ul>
         </section>
+        </div>
+        <aside className="min-h-0 overflow-y-auto" data-testid="temps-volet">
+          <p className="text-[length:var(--font-size-section)] font-extrabold">
+            {formatDuree(volet.nonFactureMinutes * 60)}
+          </p>
+          <p>{fr(`${formatMontant(volet.nonFactureCentimes)} HT`)}</p>
+          <button
+            type="button"
+            className="my-3 font-bold text-encre"
+            onClick={() => {
+              onFacturer?.();
+            }}
+          >
+            {fr("Voir ce qui reste à facturer")}
+          </button>
+          <h2 className="mb-1 font-extrabold">{fr("Sept derniers jours")}</h2>
+          <ul className="mb-4" data-testid="temps-sept-jours">
+            {volet.jours.map((jour) => (
+              <li key={jour.jour} className="flex justify-between gap-2">
+                <span>{formatDateCourte(jour.jour)}</span>
+                <span>{formatDuree(jour.minutes * 60)}</span>
+              </li>
+            ))}
+          </ul>
+          <h2 className="mb-1 font-extrabold">{fr("Par dossier, non facturé")}</h2>
+          <ul data-testid="temps-par-dossier">
+            {volet.dossiers.length === 0 ? (
+              <li className="text-graphite">{fr("Rien à facturer.")}</li>
+            ) : (
+              volet.dossiers.map((dossier) => (
+                <li key={dossier.nom} className="flex justify-between gap-2">
+                  <span className="truncate">{fr(dossier.nom)}</span>
+                  <span>{formatDuree(dossier.minutes * 60)}</span>
+                </li>
+              ))
+            )}
+          </ul>
+          <p className="mt-4 text-[length:var(--font-size-meta)] text-graphite">
+            {fr("Le taux est figé à la saisie.")}
+          </p>
+        </aside>
       </div>
+      <BarreActions
+        actions={[
+          {
+            id: "saisir-temps",
+            label: "Saisir du temps",
+            raccourci: "T",
+            primaire: true,
+            onClick: () => {
+              document.getElementById("temps-minutes")?.focus();
+            },
+          },
+          {
+            id: "facturer",
+            label: "Facturer",
+            onClick: () => {
+              onFacturer?.();
+            },
+          },
+        ]}
+      />
     </div>
   );
 }

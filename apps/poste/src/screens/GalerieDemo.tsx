@@ -631,8 +631,10 @@ export function GalerieDemo() {
           onglets={vue === "dossier" ? onglets : []}
           ongletActifId={vue === "dossier" ? dossier.id : null}
           sync={{ kind: "synchronise" }}
-          chronoSecondes={vue === "dossier" ? 12 * 60 + 4 : undefined}
-          onChrono={vue === "dossier" ? () => undefined : undefined}
+          chronoSecondes={
+            vue === "temps" ? chronoTemps.secondes : vue === "dossier" ? 12 * 60 + 4 : undefined
+          }
+          onChrono={vue === "temps" || vue === "dossier" ? () => undefined : undefined}
           onPalette={() => undefined}
           mailsCompteur={aClasser}
           compteMenu={
@@ -710,6 +712,7 @@ export function GalerieDemo() {
               moiId="demo-moi"
               chrono={chronoTemps}
               onChrono={setChronoTemps}
+              onFacturer={() => undefined}
               lignesFixes={tempsDemo}
             />
           ) : null}

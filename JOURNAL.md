@@ -54,4 +54,8 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, capture Temps (28/10).** L'écran Temps est dans la galerie : chronomètre en pause, saisie, filtres, résumé et liste par jour en français. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0. Captures `temps-jour.png` et `temps-nuit.png`.
 
-**Prochaine action.** Comparaison de la capture Temps à la maquette. Le jalon n'est pas coché.
+- **Finition, comparaison Temps (28/10).** Contrôleur [Temps](c5523746-0889-4e37-98d4-78c66023cc60) : refus, jour et nuit. Bloquant : pas de volet (non facturé, sept jours, par dossier), chronomètre et saisie empilés, pastille absente de la barre, pas de barre d'actions. Le jalon n'est pas coché.
+
+- **Finition, volet Temps (28/10).** Colonne de droite : durée et montant non facturés, sept jours, total par dossier, « Le taux est figé à la saisie ». Chronomètre et saisie côte à côte. Pastille dans la barre. Dock : Saisir du temps, Facturer. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/facturation/chronoTemps.test.ts` : 3/3. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
+
+**Prochaine action.** Le taux horaire sur chaque ligne de Temps. La suggestion tirée d'un mail reste celle de J11, pas un second moteur. Le jalon n'est pas coché.

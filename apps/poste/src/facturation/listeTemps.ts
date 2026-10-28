@@ -58,6 +58,40 @@ export function grouperParJour(lignes: readonly SaisieTemps[]): GroupeJour[] {
   });
 }
 
+export type VoletTemps = {
+  nonFactureMinutes: number;
+  nonFactureCentimes: number;
+  jours: { jour: string; minutes: number }[];
+  dossiers: { nom: string; minutes: number; centimes: number }[];
+};
+
+/** Colonne de droite : non facturé, sept jours, total par dossier. */
+export function voletTemps(lignes: readonly SaisieTemps[], aujourdhui: string): VoletTemps {
+  const jours = Array.from({ length: 7 }, (_, index) => ({
+    jour: decalerJour(aujourdhui, index - 6),
+    minutes: 0,
+  }));
+  let nonFactureMinutes = 0;
+  let nonFactureCentimes = 0;
+  const parNom = new Map<string, { minutes: number; centimes: number }>();
+  for (const ligne of lignes) {
+    const cellule = jours.find((jour) => jour.jour === ligne.jour);
+    if (cellule) cellule.minutes += ligne.minutes;
+    if (ligne.facturee) continue;
+    nonFactureMinutes += ligne.minutes;
+    nonFactureCentimes += ligne.htCentimes;
+    const nom = ligne.dossierNom === "" ? "Sans dossier" : ligne.dossierNom;
+    const deja = parNom.get(nom) ?? { minutes: 0, centimes: 0 };
+    deja.minutes += ligne.minutes;
+    deja.centimes += ligne.htCentimes;
+    parNom.set(nom, deja);
+  }
+  const dossiers = [...parNom.entries()]
+    .map(([nom, valeur]) => ({ nom, minutes: valeur.minutes, centimes: valeur.centimes }))
+    .sort((a, b) => b.minutes - a.minutes || a.nom.localeCompare(b.nom, "fr"));
+  return { nonFactureMinutes, nonFactureCentimes, jours, dossiers };
+}
+
 export function resumeTemps(
   lignes: readonly SaisieTemps[],
   aujourdhui: string,

@@ -9,7 +9,7 @@ import {
   reprendreChrono,
   ticChrono,
 } from "./chronoTemps.ts";
-import { filtrerSaisies, grouperParJour, resumeTemps, type SaisieTemps } from "./listeTemps.ts";
+import { filtrerSaisies, grouperParJour, resumeTemps, voletTemps, type SaisieTemps } from "./listeTemps.ts";
 
 describe("chronomètre", () => {
   it("passe en pause, puis confirme l'arrêt en minutes", () => {
@@ -68,5 +68,9 @@ describe("liste des saisies", () => {
       nonFactureMinutes: 60,
       septJoursMinutes: 60,
     });
+    const volet = voletTemps(lignes, "2026-10-28");
+    assert.equal(volet.jours.length, 7);
+    assert.equal(volet.jours[6]?.jour, "2026-10-28");
+    assert.equal(volet.nonFactureMinutes, 60);
   });
 });
