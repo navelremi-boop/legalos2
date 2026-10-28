@@ -1,12 +1,17 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { ligneDelai, ligneMail, ligneTemps } from "./assemblerJournee.ts";
+import { libelleEcart, libelleHeure, ligneDelai, ligneMail, ligneTemps, partAnneau } from "./assemblerJournee.ts";
 
 describe("la journée", () => {
   it("marque Calculé seulement les délais du moteur", () => {
-    assert.equal(ligneDelai({ id: "1", titre: "Conclusions", origineCalcul: "2026-01-06" }).calcule, true);
-    assert.equal(ligneDelai({ id: "1", titre: "Conclusions", origineCalcul: "2026-01-06" }).meta, "Calculé");
+    const calcule = ligneDelai({ id: "1", titre: "Conclusions", origineCalcul: "2026-01-06", jours: 5 });
+    assert.equal(calcule.calcule, true);
+    assert.equal(calcule.jours, 5);
+    assert.equal(libelleEcart(5), "dans 5 jours");
+    assert.equal(libelleEcart(1), "dans 1 jour");
     assert.equal(ligneDelai({ id: "2", titre: "Note", origineCalcul: null }).calcule, false);
+    assert.equal(libelleHeure(9, 30), "9 h 30");
+    assert.ok(partAnneau(0) > partAnneau(30));
   });
 
   it("propose le classement en un clic quand un dossier est suggéré", () => {

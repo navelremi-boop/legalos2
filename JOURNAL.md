@@ -38,4 +38,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, fiche Cabinet (28/10).** Rail gauche des sections livrées. La fiche Cabinet montre le nom et le slug, les seuls champs enregistrés. Les autres sections restent dans la page, masquées, pour les recettes. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
 
-**Prochaine action.** Anneau de délai, cases et colonne d'heure de La journée. Le jalon n'est pas coché.
+- **Finition, La journée (28/10), heure et délais.** Colonne d'heure (« 9 h 30 », « 14 h 00 »). Anneau et « dans N jours » (un jour au singulier). Case à cocher sur les tâches, tenue dans l'écran seulement : aucune colonne ne mémorise l'état. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/screens/assemblerJournee.test.ts` : 3/3. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
+
+**Prochaine action.** Agenda : « Calculer un délai » et l'emplacement de « Nouvel élément ». Puis comparaison visuelle. Le jalon n'est pas coché.

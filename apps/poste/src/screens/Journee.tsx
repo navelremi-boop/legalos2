@@ -9,7 +9,8 @@ import { propositionTemps } from "@/messagerie/tempsMail";
 import { isChemiseId, type ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
 import { getPowerSyncDatabase } from "@/sync/database";
-import { ligneDelai, ligneMail, ligneTemps } from "@/screens/assemblerJournee";
+import { joursEntre } from "@/dossiers/listeDossiers";
+import { libelleEcart, libelleHeure, ligneDelai, ligneMail, ligneTemps, partAnneau } from "@/screens/assemblerJournee";
 
 export type LigneJournee = {
   id: string;
@@ -20,6 +21,9 @@ export type LigneJournee = {
   calcule?: boolean;
   classer?: { messageId: string; dossierId: string };
   saisir?: { minutes: number };
+  heure?: string;
+  jours?: number;
+  tache?: boolean;
 };
 
 export type DonneesJournee = {
@@ -35,21 +39,31 @@ export const JOURNEE_DEMO: DonneesJournee = {
     {
       id: "aud-1",
       titre: "Audience de mise en état",
-      meta: "TJ Nanterre, 9 h 30",
+      meta: "TJ Nanterre",
+      heure: "9 h 30",
       dossier: { nom: "Ferrand Métal", chemise: "kraft" },
     },
     {
       id: "aud-2",
       titre: "Rendez-vous client",
-      meta: "Cabinet, 14 h 00",
+      meta: "Cabinet",
+      heure: "14 h 00",
       dossier: { nom: "SCI des Lilas", chemise: "vert-amande" },
+    },
+    {
+      id: "tache-1",
+      titre: "Relire le projet d'assignation",
+      meta: "À faire aujourd'hui",
+      tache: true,
+      dossier: { nom: "Ferrand Métal", chemise: "kraft" },
     },
   ],
   delais: [
     {
       id: "del-1",
       titre: "Conclusions adverses",
-      meta: "dans 5 jours",
+      meta: "",
+      jours: 5,
       calcule: true,
       dossier: { nom: "Ferrand Métal", chemise: "kraft" },
       urgent: false,
@@ -57,7 +71,8 @@ export const JOURNEE_DEMO: DonneesJournee = {
     {
       id: "del-2",
       titre: "Appel incident",
-      meta: "échéance le 29 sept., dans 2 jours",
+      meta: "échéance le 29 sept.",
+      jours: 2,
       dossier: { nom: "Martin / Assurances Loire", chemise: "bleu-classeur" },
       urgent: true,
     },
@@ -106,6 +121,38 @@ type JourneeProps = {
   instanceUrl?: string;
 };
 
+function AnneauJours({ jours }: { jours: number }) {
+  const rayon = 14;
+  const tour = 2 * Math.PI * rayon;
+  const part = partAnneau(jours);
+  return (
+    <svg
+      width="38"
+      height="38"
+      viewBox="0 0 38 38"
+      aria-hidden
+      data-testid="journee-anneau"
+      data-jours={jours}
+    >
+      <circle cx="19" cy="19" r={rayon} fill="none" stroke="var(--arc-piste)" strokeWidth="4.2" />
+      <circle
+        cx="19"
+        cy="19"
+        r={rayon}
+        fill="none"
+        stroke="var(--encre)"
+        strokeWidth="4.2"
+        strokeLinecap="round"
+        strokeDasharray={`${String(tour * part)} ${String(tour)}`}
+        transform="rotate(-90 19 19)"
+      />
+      <text x="19" y="23" textAnchor="middle" fontSize="12" fontWeight="800" fill="var(--encre)">
+        {String(jours)}
+      </text>
+    </svg>
+  );
+}
+
 function Pastille({ chemise }: { chemise: ChemiseId }) {
   return (
     <span
@@ -126,6 +173,8 @@ function Section({
   onLien,
   onClasser,
   onSaisir,
+  faites,
+  onBasculerTache,
 }: {
   id: string;
   titre: string;
@@ -135,7 +184,11 @@ function Section({
   onLien?: () => void;
   onClasser?: (messageId: string, dossierId: string) => void;
   onSaisir?: () => void;
+  faites?: ReadonlySet<string>;
+  onBasculerTache?: (id: string) => void;
 }) {
+  const evenements = lignes.filter((ligne) => !ligne.tache);
+  const taches = lignes.filter((ligne) => ligne.tache);
   return (
     <section data-testid={`section-${id}`}>
       <h2 className="mb-2 flex items-baseline gap-3 text-[length:var(--font-size-section)] font-extrabold">
@@ -150,11 +203,17 @@ function Section({
         <p className="text-graphite">{fr(vide)}</p>
       ) : (
         <ul className="flex flex-col gap-1">
-          {lignes.map((ligne) => (
+          {evenements.map((ligne) => (
             <li
               key={ligne.id}
               className={`ligne-journee${ligne.urgent ? " ligne-journee--urgent" : ""}`}
             >
+              {ligne.jours !== undefined ? <AnneauJours jours={ligne.jours} /> : null}
+              {ligne.heure ? (
+                <span className="shrink-0 whitespace-nowrap font-bold" data-testid="journee-heure">
+                  {fr(ligne.heure)}
+                </span>
+              ) : null}
               {ligne.dossier ? <Pastille chemise={ligne.dossier.chemise} /> : null}
               <div className="min-w-0 flex-1">
                 <div className="truncate font-bold">{fr(ligne.titre)}</div>
@@ -179,6 +238,11 @@ function Section({
                   {fr("Classer")}
                 </button>
               ) : null}
+              {ligne.jours !== undefined ? (
+                <span className="shrink-0 text-right font-bold" data-testid="journee-dans">
+                  {fr(libelleEcart(ligne.jours))}
+                </span>
+              ) : null}
               {ligne.saisir ? (
                 <button
                   type="button"
@@ -193,6 +257,32 @@ function Section({
               ) : null}
             </li>
           ))}
+          {taches.length > 0 ? (
+            <li className="mt-3 list-none font-bold">{fr("À faire aujourd'hui")}</li>
+          ) : null}
+          {taches.map((ligne) => {
+            const faite = faites?.has(ligne.id) ?? false;
+            return (
+              <li key={ligne.id} className="ligne-journee">
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={faite}
+                  aria-label={fr(`Marquer comme faite : ${ligne.titre}`)}
+                  data-testid="journee-tache"
+                  className={`mt-0.5 h-4 w-4 shrink-0 rounded-[var(--radius-control)] border border-filet ${faite ? "bg-encre" : "bg-page"}`}
+                  onClick={() => {
+                    onBasculerTache?.(ligne.id);
+                  }}
+                />
+                {ligne.dossier ? <Pastille chemise={ligne.dossier.chemise} /> : null}
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-bold">{fr(ligne.titre)}</div>
+                  <div className="truncate text-[length:var(--font-size-dense)] text-graphite">{fr(ligne.meta)}</div>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
@@ -215,6 +305,16 @@ export function Journee({
   const delais = jeu?.delais ?? [];
   const mails = jeu?.mails ?? [];
   const temps = jeu?.temps ?? [];
+  const [faites, setFaites] = useState<Set<string>>(() => new Set());
+
+  function basculerTache(id: string) {
+    setFaites((actuel) => {
+      const suivant = new Set(actuel);
+      if (suivant.has(id)) suivant.delete(id);
+      else suivant.add(id);
+      return suivant;
+    });
+  }
 
   useEffect(() => {
     if (fixe) return;
@@ -269,10 +369,18 @@ export function Journee({
           return {
             audiences: duJour.map((ligne) => {
               const dossier = chemiseDe(ligne.dossier_id);
+              const quand = composantesAffichees(ligne.debut);
+              const heure =
+                quand && quand.heure !== null && quand.minute !== null
+                  ? libelleHeure(quand.heure, quand.minute)
+                  : undefined;
+              const tache = ligne.type_element === "tache";
               return {
                 id: ligne.id,
                 titre: ligne.titre,
-                meta: "",
+                meta: tache ? "À faire aujourd'hui" : "",
+                heure: tache ? undefined : heure,
+                tache,
                 dossier: dossier ? { nom: dossier.nom, chemise: dossier.chemise } : undefined,
               };
             }),
@@ -285,10 +393,13 @@ export function Journee({
               .slice(0, 4)
               .map((ligne) => {
                 const dossier = chemiseDe(ligne.dossier_id);
+                const quand = composantesAffichees(ligne.debut);
+                const ecart = quand ? joursEntre(aujourd, quand.jour) : null;
                 return ligneDelai({
                   id: ligne.id,
                   titre: ligne.titre,
                   origineCalcul: ligne.origine_calcul,
+                  jours: ecart,
                   dossierNom: dossier?.nom,
                   chemise: dossier?.chemise,
                 });
@@ -378,6 +489,8 @@ export function Journee({
             vide="Aucune audience ni rendez-vous aujourd'hui."
             lien="Ouvrir l'agenda"
             onLien={onOuvrirAgenda}
+            faites={faites}
+            onBasculerTache={basculerTache}
           />
           <Section
             id="delais"
