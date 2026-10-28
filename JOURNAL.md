@@ -40,4 +40,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, La journée (28/10), heure et délais.** Colonne d'heure (« 9 h 30 », « 14 h 00 »). Anneau et « dans N jours » (un jour au singulier). Case à cocher sur les tâches, tenue dans l'écran seulement : aucune colonne ne mémorise l'état. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/screens/assemblerJournee.test.ts` : 3/3. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
 
-**Prochaine action.** Agenda : « Calculer un délai » et l'emplacement de « Nouvel élément ». Puis comparaison visuelle. Le jalon n'est pas coché.
+- **Finition, dock de l'agenda (28/10).** « Nouvel élément » et « Calculer un délai » sont dans le dock. Le second ouvre le formulaire de calcul déjà utilisé dans un dossier, et inscrit l'échéance si un dossier est sélectionné. Le titre et l'heure d'un créneau sont sur deux lignes. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
+
+**Prochaine action.** Anneau d'échéance sur la ligne d'un dossier, puis comparaison visuelle. Le jalon n'est pas coché.

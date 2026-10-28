@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import {
   IconCalendarEvent,
+  IconCalendarPlus,
   IconClock,
   IconFolder,
   IconFileInvoice,
@@ -33,6 +34,8 @@ function IconeAction({ id }: { id: string }): ReactNode {
       return <IconFileInvoice {...props} />;
     case "calculer-delai":
       return <IconCalendarEvent {...props} />;
+    case "nouvel-element":
+      return <IconCalendarPlus {...props} />;
     case "nouveau-dossier":
       return <IconFolderPlus {...props} />;
     case "ouvrir-dossier":

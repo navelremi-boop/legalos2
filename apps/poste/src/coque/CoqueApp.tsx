@@ -508,16 +508,6 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
           setMailAOuvrir(messageId);
           setNav("mails");
         }}
-        onNouveauDossier={() => {
-          setPanneau("dossier-form");
-        }}
-        onNouveauMail={() => {
-          setNav("mails");
-        }}
-        onSaisirTemps={() => {
-          setNav("temps");
-          setPanneau("aucun");
-        }}
       />
     );
   } else if (nav === "facturation") {

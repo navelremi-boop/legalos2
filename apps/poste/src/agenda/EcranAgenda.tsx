@@ -22,6 +22,7 @@ import {
   type CategorieAgenda,
 } from "@/agenda/dispositionAgenda";
 import { decalerJour, debutMois, grilleMois, jourCivil, libelleMois, semaineDe } from "@/agenda/navigationAgenda";
+import { FormulaireDelai } from "@/delais/FormulaireDelai";
 import { calculerDelaiComplet } from "@/delais/moteur";
 import { formatDateCourte, formatDateLongue, formatHeureMur } from "@/lib/format";
 import { fr } from "@/lib/fr";
@@ -83,9 +84,6 @@ const DELAIS_RAPPEL = [
 ];
 
 type EcranAgendaProps = {
-  onNouveauDossier?: () => void;
-  onNouveauMail?: () => void;
-  onSaisirTemps?: () => void;
   /** Ouvre l'écran Mails sur le message dont l'en-tête Message-ID est donné (lien « Ouvrir le mail » d'une invitation). */
   onOuvrirMail?: (messageId: string) => void;
   /** Galerie : pas de PowerSync. */
@@ -94,9 +92,6 @@ type EcranAgendaProps = {
 };
 
 export function EcranAgenda({
-  onNouveauDossier,
-  onNouveauMail,
-  onSaisirTemps,
   onOuvrirMail,
   lignesFixes,
   invitationsFixes,
@@ -112,6 +107,7 @@ export function EcranAgenda({
   const [confirmation, setConfirmation] = useState("");
   const [conflit, setConflit] = useState("");
   const [creation, setCreation] = useState(false);
+  const [calcul, setCalcul] = useState(false);
   const [vue, setVue] = useState<"jour" | "semaine">("jour");
   const [filtres, setFiltres] = useState<Record<CategorieAgenda, boolean>>({
     audience: true,
@@ -383,16 +379,6 @@ export function EcranAgenda({
         >
           {fr(vue === "jour" ? "Jour suivant" : "Semaine suivante")}
         </button>
-        <button
-          type="button"
-          className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
-          data-testid="agenda-creer"
-          onClick={() => {
-            setCreation(true);
-          }}
-        >
-          {fr("Nouvel élément")}
-        </button>
       </div>
       <form
         className={creation ? "mb-6 max-w-xl rounded-[var(--radius-control)] border border-filet p-3" : "hidden"}
@@ -493,6 +479,11 @@ export function EcranAgenda({
           {message}
         </p>
       </form>
+      {calcul ? (
+        <div className="mb-6 max-w-xl" data-testid="agenda-calcul-delai">
+          <FormulaireDelai dossierId={choisi?.dossier_id} />
+        </div>
+      ) : null}
       {conflit !== "" ? (
         <p data-testid="agenda-conflit" role="status">
           {fr(`Conflit d'agenda : « ${conflit} ».`)}
@@ -683,8 +674,12 @@ export function EcranAgenda({
                           setSelection(ligne.id);
                         }}
                       >
-                        <span>{fr(ligne.titre)}</span>
-                        {heure !== "" ? <span data-testid="agenda-element-heure">{heure}</span> : null}
+                        <span className="block truncate">{fr(ligne.titre)}</span>
+                        {heure !== "" ? (
+                          <span className="block text-graphite" data-testid="agenda-element-heure">
+                            {heure}
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
@@ -787,24 +782,22 @@ export function EcranAgenda({
       <BarreActions
         actions={[
           {
-            id: "nouveau-dossier",
-            label: "Nouveau dossier",
+            id: "nouvel-element",
+            label: "Nouvel élément",
+            primaire: true,
+            testId: "agenda-creer",
             onClick: () => {
-              onNouveauDossier?.();
+              setCalcul(false);
+              setCreation(true);
             },
           },
           {
-            id: "nouveau-mail",
-            label: "Nouveau mail",
+            id: "calculer-delai",
+            label: "Calculer un délai",
+            testId: "agenda-calculer-delai",
             onClick: () => {
-              onNouveauMail?.();
-            },
-          },
-          {
-            id: "saisir-temps",
-            label: "Saisir du temps",
-            onClick: () => {
-              onSaisirTemps?.();
+              setCreation(false);
+              setCalcul(true);
             },
           },
         ]}
