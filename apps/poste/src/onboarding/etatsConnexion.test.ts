@@ -7,6 +7,7 @@ import {
   choisirSituation,
   contenuConnexion,
   lireSituation,
+  progressionPreparation,
 } from "./etatsConnexion.ts";
 
 describe("états de l'écran de connexion", () => {
@@ -52,5 +53,7 @@ describe("états de l'écran de connexion", () => {
   it("laisse continuer quand le chiffrement du disque n'est pas détecté", () => {
     assert.equal(contenuConnexion("chiffrement").bouton, "Continuer quand même");
     assert.match(contenuConnexion("chiffrement").alerte?.texte ?? "", /chiffrement non confirmé/);
+    assert.deepEqual(progressionPreparation("donnees"), [100, 100, 60, 0, 0]);
+    assert.equal(progressionPreparation("termine").every((part) => part === 100), true);
   });
 });

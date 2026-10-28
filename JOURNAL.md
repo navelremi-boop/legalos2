@@ -110,4 +110,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Écran de connexion, verrou et registre (28/10).** Verrouiller ouvre l'écran « Reprendre votre travail » sans fermer la base locale. Une réponse « Poste révoqué » ouvre l'écran de révocation, sans effacement. Les quatre situations se choisissent par `choisirSituation`, testées sans autre effet. Nouveau poste : colonne `chiffrement_disque` à `non_confirme` (migration 052). `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/onboarding/etatsConnexion.test.ts` : 4/4. CI [40727085151](https://github.com/navelremi-boop/legalos2/actions/runs/40727085151) verte. Le jalon n'est pas coché.
 
-**Prochaine action.** Comparer les captures des onze états à la maquette, puis le contrôleur. Le jalon n'est pas coché.
+- **Écran de connexion, champs et progression (28/10).** L'adresse, les identifiants et le mot de passe du verrou sont sur la carte. La préparation montre les cinq lignes, et l'écran réel suit la phase de synchronisation. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/onboarding/etatsConnexion.test.ts` : 4/4. `node tests/recette/coque-app.mjs --captures` exit 0. Le jalon n'est pas coché.
+
+**Prochaine action.** Contrôleur visuel des onze états. Le jalon n'est pas coché.

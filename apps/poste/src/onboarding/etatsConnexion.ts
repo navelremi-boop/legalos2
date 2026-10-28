@@ -188,3 +188,29 @@ export const LIBELLES_ETAT_CONNEXION: Record<EtatConnexion, string> = {
   revoque: "Poste révoqué",
   trousseau: "Accès au Trousseau refusé",
 };
+
+export const LIGNES_PREPARATION = [
+  "Dossiers et contacts",
+  "Agenda et échéances",
+  "Pièces et documents",
+  "Mails classés",
+  "Temps et facturation",
+] as const;
+
+/** Cinq parts, de 0 à 100, selon la phase réelle de la synchronisation initiale. */
+export function progressionPreparation(
+  phase: "connexion" | "schema" | "donnees" | "termine" | "apercu",
+): number[] {
+  switch (phase) {
+    case "connexion":
+      return [30, 0, 0, 0, 0];
+    case "schema":
+      return [100, 40, 0, 0, 0];
+    case "donnees":
+      return [100, 100, 60, 0, 0];
+    case "termine":
+      return [100, 100, 100, 100, 100];
+    case "apercu":
+      return [100, 100, 62, 0, 0];
+  }
+}

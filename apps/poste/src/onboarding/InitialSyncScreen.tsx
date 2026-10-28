@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ErrorMessage } from "@/components/onboarding/FormControls";
 import { OnboardingShell } from "@/components/onboarding/OnboardingShell";
+import { LIGNES_PREPARATION, progressionPreparation } from "@/onboarding/etatsConnexion";
 import { fr } from "@/lib/fr";
 import { runInitialSync, type InitialSyncProgress } from "@/sync/initialSync";
 
@@ -48,6 +49,16 @@ export function InitialSyncScreen({ instanceUrl, onComplete, onError }: InitialS
       subtitle="Téléchargement des données autorisées pour ce poste."
     >
       {error !== null ? <ErrorMessage message={error} /> : null}
+      <ul data-testid="connexion-progression">
+        {LIGNES_PREPARATION.map((nom, index) => {
+          const part = progressionPreparation(progress?.phase ?? "connexion")[index] ?? 0;
+          return (
+            <li key={nom}>
+              {fr(nom)} {fr(`${String(part)} %`)}
+            </li>
+          );
+        })}
+      </ul>
       <p className="text-[length:var(--font-size-dense)] text-graphite">
         {progress !== null ? fr(progress.detail) : fr("Initialisation…")}
       </p>
