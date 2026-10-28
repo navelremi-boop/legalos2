@@ -802,3 +802,23 @@ La copie `patches/powersync` est retirée. Le poste reprend `powersync` 0.1.1 pu
 2026-10-28 — Relance de 9 h 20 : `docker compose up` exit 1, le moteur Docker ne répondait pas (`dockerDesktopLinuxEngine` absent). Docker Desktop redémarré (moteur 29.8.0). Série relancée.
 
 **Prochaine action.** Dix passes vertes hors le crash identifié. J11 n'est pas coché.
+
+2026-10-28 — Série sur `powersync_core` 0.5.3, une commande, arrêt à la passe 15. Neuf passes vertes. Cinq tuées par `0xC0000374` (clichés `legal-os-poste-15748`, `8484`, `23524`, `6700`, `27880`). Passe 15 : 305 s, code 1, pas de cliché. Le lanceur est mort en `3221226324` (`STATUS_DEBUGGER_INACTIVE`). Le journal de cdb (pid 28548) n'a pas `c0000374` : seconde chance `c0000409` (`FAST_FAIL_FATAL_APP_EXIT`) dans `std::panicking::panic_with_hook`. La sortie du poste : fil `tokio-rt-worker`, panique dans `alloc::rc` (`hint::assert_unchecked`), puis abort. L'écran OAuth muet est la conséquence. Ce n'est pas le crash identifié. Série relancée avec `RUST_BACKTRACE=1`.
+
+1 144s 0 non
+2 140s 0 non
+3 309s 1 oui
+4 168s 0 non
+5 317s 1 oui
+6 216s 1 oui
+7 141s 0 non
+8 140s 0 non
+9 304s 1 oui
+10 153s 0 non
+11 224s 1 oui
+12 144s 0 non
+13 145s 0 non
+14 145s 0 non
+15 305s 1 non
+
+**Prochaine action.** Une série qui atteint 10 passes vertes hors `0xC0000374`. J11 n'est pas coché.
