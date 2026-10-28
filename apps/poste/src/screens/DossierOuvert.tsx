@@ -21,6 +21,7 @@ import {
   retirerIntercalaire,
 } from "@/dossiers/ecrireIntercalaire";
 import { ArborescencePieces } from "@/documents/ArborescencePieces";
+import { PanneauConvention } from "@/conventions/PanneauConvention";
 import { CompleterDossier } from "@/dossiers/CompleterDossier";
 import type { ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
@@ -266,6 +267,7 @@ export function DossierOuvert({
             etape={dossier.etape}
             lies={dossier.lies}
           />
+          <PanneauConvention dossierId={dossier.id} />
           {conflitDossier ? (
             <p data-testid="dossier-conflit" role="status">
               {fr(

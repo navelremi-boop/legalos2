@@ -3,6 +3,7 @@ import { formatDuree, formatMontant } from "@/lib/format";
 import { lireDuree } from "@/facturation/lireDuree";
 import type { SubmitEvent } from "react";
 import { apiUrl } from "@/lib/auth/client";
+import { jourCivil } from "@/agenda/navigationAgenda";
 import { fr } from "@/lib/fr";
 import { assurerJetonAcces } from "@/lib/session/rafraichir";
 import {
@@ -12,6 +13,7 @@ import {
   htTempsCentimes,
   tauxHoraireParDefaut,
 } from "@/facturation/ecrireTemps";
+import { alerteDuDossier, lireConventions } from "@/conventions/stockConvention";
 import { getPowerSyncDatabase } from "@/sync/database";
 
 function champ(form: FormData, nom: string): string {
@@ -45,6 +47,7 @@ export function FormulaireTemps({
 }) {
   const [message, setMessage] = useState("");
   const [brouillon, setBrouillon] = useState<BrouillonLocal | null>(null);
+  const [alertePour, setAlertePour] = useState<string | null>(null);
   const [cii, setCii] = useState("");
   const [dossiers, setDossiers] = useState<DossierOption[]>([]);
   const [tauxSuggere, setTauxSuggere] = useState(6_000);
@@ -106,6 +109,18 @@ export function FormulaireTemps({
         : dossierIdPrefere && dossiers.some((d) => d.id === dossierIdPrefere)
           ? dossierIdPrefere
           : "";
+
+  useEffect(() => {
+    if (dossierSelect === "") return;
+    let stop = false;
+    void lireConventions(dossierSelect).then((lignes) => {
+      if (!stop) setAlertePour(alerteDuDossier(lignes, jourCivil(new Date())) ? dossierSelect : null);
+    });
+    return () => {
+      stop = true;
+    };
+  }, [dossierSelect]);
+  const alerteFacture = alertePour === dossierSelect && dossierSelect !== "";
 
   async function soumettre(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -298,6 +313,11 @@ export function FormulaireTemps({
               `Durées acceptées : 1 h 30, 45 min, 0,75. Taux ${formatMontant(apercu?.taux ?? tauxSuggere)} par heure.`,
             )}
       </p>
+      {alerteFacture ? (
+        <p className="mb-3 text-encre" data-testid="alerte-convention-facture" role="status">
+          {fr("Aucune convention d'honoraires signée.")}
+        </p>
+      ) : null}
       <button
         type="submit"
         className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
