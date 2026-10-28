@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatMontant } from "@/lib/format";
 import { lireDuree } from "@/facturation/lireDuree";
 import type { SubmitEvent } from "react";
@@ -49,19 +49,29 @@ export function FormulaireTemps({
   const [dossiers, setDossiers] = useState<DossierOption[]>([]);
   const [tauxSuggere, setTauxSuggere] = useState(6_000);
   const [dossierChoisi, setDossierChoisi] = useState(dossierIdPrefere ?? "");
-  const [apercu, setApercu] = useState<{ minutes: number; ht: number; taux: number } | null>(null);
+  const [apercu, setApercu] = useState<{ minutes: number | null; ht: number | null; taux: number } | null>({
+    minutes: null,
+    ht: null,
+    taux: 6_000,
+  });
+  const tauxTouche = useRef(false);
 
   function relireApercu(formulaire: HTMLFormElement) {
+    tauxTouche.current = true;
     const donnees = new FormData(formulaire);
     const saisie = donnees.get("minutes");
     const minutes = lireDuree(typeof saisie === "string" ? saisie : "");
     const tauxBrut = donnees.get("taux_euros");
     const taux = centimesDepuisEuros(typeof tauxBrut === "string" ? tauxBrut : "");
-    if (minutes === null || taux === null) {
+    if (taux === null) {
       setApercu(null);
       return;
     }
-    setApercu({ minutes, ht: htTempsCentimes(minutes, taux), taux });
+    setApercu({
+      minutes,
+      ht: minutes === null ? null : htTempsCentimes(minutes, taux),
+      taux,
+    });
   }
 
   useEffect(() => {
@@ -73,7 +83,10 @@ export function FormulaireTemps({
       );
       if (!annule) setDossiers(lignes);
       const taux = await tauxHoraireParDefaut(database);
-      if (!annule) setTauxSuggere(taux);
+      if (!annule && !tauxTouche.current) {
+        setTauxSuggere(taux);
+        setApercu({ minutes: null, ht: null, taux });
+      }
     }
     void charger();
     const timer = window.setInterval(() => {
@@ -272,9 +285,11 @@ export function FormulaireTemps({
       />
       {apercu !== null ? (
         <p className="mb-3 text-encre" data-testid="temps-apercu">
-          {fr(
-            `${String(apercu.minutes)} min, ${formatMontant(apercu.ht)}, taux ${formatMontant(apercu.taux)} par heure`,
-          )}
+          {apercu.minutes !== null && apercu.ht !== null
+            ? fr(
+                `${String(apercu.minutes)} min, ${formatMontant(apercu.ht)}, taux ${formatMontant(apercu.taux)} par heure`,
+              )
+            : fr(`Taux ${formatMontant(apercu.taux)} par heure`)}
         </p>
       ) : null}
       <button

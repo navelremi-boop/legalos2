@@ -88,4 +88,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, bouton Enregistrer (28/10).** La saisie de temps a un bouton « Enregistrer ». « Valider » n'apparaît qu'une fois le brouillon écrit ; `s9-poste-tauri` le clique par son identifiant. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
 
-**Prochaine action.** L'aperçu du montant n'apparaît qu'une fois la durée saisie. Le jalon n'est pas coché.
+- **Finition, aperçu du taux (28/10).** Avant toute durée, la saisie affiche le taux (« Taux 60,00 € par heure »). Le montant s'y ajoute dès que la durée se lit. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
+
+**Prochaine action.** La preuve visuelle commune reste un refus (fiche d'agenda sans lieu, pas de montant encaissé). Le jalon n'est pas coché.
