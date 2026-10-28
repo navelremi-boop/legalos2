@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-10-28 (jalon en cours : **Écran de connexion** ; **Finition des écrans** validée `1fa6e2a`, CI [40713792209](https://github.com/navelremi-boop/legalos2/actions/runs/40713792209) ; le crash `0xC0000374` bloque J14).
+Dernière mise à jour : 2026-10-28 (jalon en cours : **Modèles et fusion** ; **Écran de connexion** validé `5b7f36f`, contrôleur [jalon](cc215437-1656-48a9-87be-6f9a5b5689d3), CI [40737316177](https://github.com/navelremi-boop/legalos2/actions/runs/40737316177) ; le crash `0xC0000374` bloque J14).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -220,14 +220,7 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
 
 - [x] **Finition des écrans** — VALIDÉ `1fa6e2a` (contrôleur [finition](b956d982-b60e-4da1-9fa6-bb344c7fc8ca), CI [40713792209](https://github.com/navelremi-boop/legalos2/actions/runs/40713792209))
 
-- [ ] **Écran de connexion** — après la Finition des écrans — critères validés par l'architecte le 07/10/2026
-  - **Critères d'acceptation (commandes)** :
-    - Parcours S2 d'après `design/maquettes/prototype-connexion.html` : adresse du serveur (premier lancement seulement), connexion, double authentification (six cases, collage accepté), préparation du poste avec progression réelle.
-    - Situations : application verrouillée, hors ligne trop longtemps, poste révoqué, accès au Trousseau refusé ; chacune déclenchée par un test, sans perte de données locales.
-    - Sécurité : le message d'erreur ne distingue pas l'adresse du mot de passe (test sur la réponse de l'API et sur l'interface) ; le mot de passe n'est jamais écrit sur le disque ni dans les journaux (`node tests/recette/s2.mjs` → exit 0, test S2 étendu) ; chiffrement du disque non détecté : avertissement non bloquant et poste inscrit « chiffrement non confirmé » au registre des postes.
-    - Codes de secours de la double authentification (décision du commandement du 28/10/2026) : dix codes à usage unique, affichés une seule fois à l'activation, stockés hachés sur l'instance, régénérables ; le lien « code de secours » est affiché. Chiffrement du disque non bloquant en V1, poste inscrit « chiffrement non confirmé ».
-    - Captures des onze états de la maquette comparées (`node tests/recette/coque-app.mjs --captures` → exit 0) ; preuve visuelle commune.
-    - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+- [x] **Écran de connexion** — VALIDÉ `5b7f36f` (contrôleur [jalon](cc215437-1656-48a9-87be-6f9a5b5689d3), CI [40737316177](https://github.com/navelremi-boop/legalos2/actions/runs/40737316177))
 
 - [ ] **Modèles et fusion** — § 4.2 n° 7 — critères validés par l'architecte le 04/10/2026
   - **Critères d'acceptation (commandes)** :
