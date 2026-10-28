@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { formatMontant } from "@/lib/format";
+import { lireDuree } from "@/facturation/lireDuree";
 import type { SubmitEvent } from "react";
 import { apiUrl } from "@/lib/auth/client";
 import { fr } from "@/lib/fr";
@@ -41,6 +43,19 @@ export function FormulaireTemps({
   const [dossiers, setDossiers] = useState<DossierOption[]>([]);
   const [tauxSuggere, setTauxSuggere] = useState(6_000);
   const [dossierChoisi, setDossierChoisi] = useState(dossierIdPrefere ?? "");
+  const [apercu, setApercu] = useState<{ minutes: number; ht: number; taux: number } | null>(null);
+
+  function relireApercu(formulaire: HTMLFormElement) {
+    const donnees = new FormData(formulaire);
+    const saisie = donnees.get("minutes");
+    const minutes = lireDuree(typeof saisie === "string" ? saisie : "");
+    const taux = Number(donnees.get("taux_centimes_heure"));
+    if (minutes === null || !Number.isInteger(taux) || taux <= 0) {
+      setApercu(null);
+      return;
+    }
+    setApercu({ minutes, ht: htTempsCentimes(minutes, taux), taux });
+  }
 
   useEffect(() => {
     let annule = false;
@@ -76,11 +91,11 @@ export function FormulaireTemps({
     event.preventDefault();
     const formulaire = event.currentTarget;
     const form = new FormData(formulaire);
-    const minutes = Number(champ(form, "minutes"));
+    const minutes = lireDuree(champ(form, "minutes"));
     const libelle = champ(form, "libelle");
     const dossierId = champ(form, "dossier_id");
     const taux = Number(champ(form, "taux_centimes_heure"));
-    if (!Number.isInteger(minutes) || minutes <= 0 || libelle.length === 0) {
+    if (minutes === null || libelle.length === 0) {
       setMessage(fr("Saisissez une durée et un libellé."));
       return;
     }
@@ -182,7 +197,13 @@ export function FormulaireTemps({
   }
 
   return (
-    <form className="mb-8" onSubmit={(event) => void soumettre(event)}>
+    <form
+      className="mb-8"
+      onSubmit={(event) => void soumettre(event)}
+      onInput={(event) => {
+        relireApercu(event.currentTarget);
+      }}
+    >
       <h2 className="mb-3 text-[length:var(--font-size-section)] font-bold">{fr("Saisir du temps")}</h2>
       <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="temps-dossier">
         {fr("Dossier")}
@@ -206,14 +227,14 @@ export function FormulaireTemps({
         ))}
       </select>
       <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="temps-minutes">
-        {fr("Minutes")}
+        {fr("Durée")}
       </label>
       <input
         id="temps-minutes"
         name="minutes"
-        type="number"
-        min={1}
+        type="text"
         required
+        placeholder={fr("1 h 30, 45 min ou 0,75")}
         className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
       />
       <label
@@ -240,6 +261,13 @@ export function FormulaireTemps({
         required
         className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
       />
+      {apercu !== null ? (
+        <p className="mb-3 text-encre" data-testid="temps-apercu">
+          {fr(
+            `${String(apercu.minutes)} min, ${formatMontant(apercu.ht)}, taux ${formatMontant(apercu.taux)} par heure`,
+          )}
+        </p>
+      ) : null}
       <button
         type="submit"
         className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"

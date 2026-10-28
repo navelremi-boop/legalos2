@@ -20,4 +20,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, Réglages (28/10).** La navigation n'affiche que les sections livrées : Cabinet, Messagerie, Apparence, Référence des dossiers. Collaborateurs et droits, Modèles de documents, Taux et facturation, Postes et sécurité restent absents. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/screens/sectionsReglages.test.ts` : 2/2. eslint et `pnpm --filter @legal-os/poste typecheck` : exit 0.
 
-**Prochaine action.** Finition des écrans : écran Temps (lecteur de durée « 1 h 30 », « 45 min », « 0,75 », puis chronomètre, liste et filtres).
+- **Finition, Temps (28/10), lecteur de durée.** « 1 h 30 » = 90 min, « 45 min » = 45, « 0,75 » = 45. « 60 » reste 60 minutes. Vide, zéro, « 1 h 60 » et un texte illisible sont refusés. Le formulaire affiche minutes, montant et taux avant l'enregistrement. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/facturation/lireDuree.test.ts` : 4/4. eslint et typecheck : exit 0.
+
+**Prochaine action.** Finition des écrans : écran Temps (chronomètre avec pause, liste par jour, filtres, saisie facturée verrouillée, taux figé).
