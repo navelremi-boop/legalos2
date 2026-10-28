@@ -31,6 +31,9 @@ use crate::routes::intercalaires::{
     RetirerIntercalaireRequest, RetirerIntercalaireResponse,
 };
 use crate::routes::invitations::{InvitationResponse, ReponseInvitationRequest};
+use crate::routes::modeles_documents::{
+    DepotModele, LectureModele, ModeleScelle, ScellerModeleRequest,
+};
 use crate::routes::recherche_messages::{MessageTrouve, RechercheResponse};
 use crate::routes::redaction::{
     CompositionRequest, CompositionResponse, CreerModeleRequest, EcrireSignatureRequest,
@@ -72,6 +75,9 @@ use crate::routes::redaction::{
         crate::routes::documents::preparer_version,
         crate::routes::documents::sceller_version,
         crate::routes::documents::lire_version,
+        crate::routes::modeles_documents::preparer_modele,
+        crate::routes::modeles_documents::sceller_modele,
+        crate::routes::modeles_documents::lire_modele,
         crate::routes::redaction::composer,
         crate::routes::redaction::lire_signature,
         crate::routes::redaction::ecrire_signature,
@@ -184,6 +190,10 @@ use crate::routes::redaction::{
         ScellerVersionRequest,
         VersionScellee,
         LectureDocument,
+        DepotModele,
+        ScellerModeleRequest,
+        ModeleScelle,
+        LectureModele,
         CompositionRequest,
         CompositionResponse,
         PieceResume,

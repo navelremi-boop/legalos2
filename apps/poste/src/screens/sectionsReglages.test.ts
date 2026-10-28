@@ -7,7 +7,6 @@ describe("sections des réglages", () => {
     const titres = sectionsVisibles().map((section) => section.titre);
     for (const absent of [
       "Collaborateurs et droits",
-      "Modèles de documents",
       "Taux et facturation",
       "Postes et sécurité",
     ]) {
@@ -17,7 +16,7 @@ describe("sections des réglages", () => {
 
   it("affiche les sections déjà livrées", () => {
     const ids = sectionsVisibles().map((section) => section.id);
-    for (const present of ["cabinet", "messagerie", "apparence", "reference"]) {
+    for (const present of ["cabinet", "messagerie", "apparence", "reference", "modeles"]) {
       assert.equal(ids.includes(present), true, present);
     }
   });

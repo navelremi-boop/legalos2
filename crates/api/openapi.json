@@ -5241,6 +5241,122 @@
         ]
       }
     },
+    "/modeles-documents/{genre}": {
+      "get": {
+        "tags": [
+          "documents"
+        ],
+        "operationId": "lire_modele",
+        "parameters": [
+          {
+            "name": "genre",
+            "in": "path",
+            "description": "courrier, convention ou acte",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lien de lecture du modèle du cabinet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LectureModele"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "documents"
+        ],
+        "operationId": "preparer_modele",
+        "parameters": [
+          {
+            "name": "genre",
+            "in": "path",
+            "description": "courrier, convention ou acte",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lien de dépôt du modèle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepotModele"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/modeles-documents/{genre}/sceller": {
+      "post": {
+        "tags": [
+          "documents"
+        ],
+        "operationId": "sceller_modele",
+        "parameters": [
+          {
+            "name": "genre",
+            "in": "path",
+            "description": "courrier, convention ou acte",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScellerModeleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Modèle enregistré pour le cabinet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModeleScelle"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/parties/{partie_id}": {
       "patch": {
         "tags": [
@@ -7392,6 +7508,25 @@
           }
         }
       },
+      "DepotModele": {
+        "type": "object",
+        "required": [
+          "genre",
+          "methode",
+          "url"
+        ],
+        "properties": {
+          "genre": {
+            "type": "string"
+          },
+          "methode": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
       "DestinataireSuggere": {
         "type": "object",
         "required": [
@@ -8174,6 +8309,25 @@
           }
         }
       },
+      "LectureModele": {
+        "type": "object",
+        "required": [
+          "genre",
+          "empreinte",
+          "url"
+        ],
+        "properties": {
+          "empreinte": {
+            "type": "string"
+          },
+          "genre": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
       "LienResponse": {
         "type": "object",
         "required": [
@@ -8394,6 +8548,31 @@
             "format": "int32"
           },
           "revision": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ModeleScelle": {
+        "type": "object",
+        "required": [
+          "genre",
+          "empreinte",
+          "taille",
+          "revision"
+        ],
+        "properties": {
+          "empreinte": {
+            "type": "string"
+          },
+          "genre": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "taille": {
             "type": "integer",
             "format": "int64"
           }
@@ -9373,6 +9552,21 @@
             "description": "Secondes écoulées depuis la dernière relève réussie (ou la création du compte). `None`\npour la boîte de classement, relevée à la demande et non en continu."
           },
           "type_compte": {
+            "type": "string"
+          }
+        }
+      },
+      "ScellerModeleRequest": {
+        "type": "object",
+        "required": [
+          "empreinte",
+          "idempotence_cle"
+        ],
+        "properties": {
+          "empreinte": {
+            "type": "string"
+          },
+          "idempotence_cle": {
             "type": "string"
           }
         }

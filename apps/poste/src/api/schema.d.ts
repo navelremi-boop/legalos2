@@ -1268,6 +1268,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/modeles-documents/{genre}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["lire_modele"];
+        put: operations["preparer_modele"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/modeles-documents/{genre}/sceller": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sceller_modele"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/parties/{partie_id}": {
         parameters: {
             query?: never;
@@ -1896,6 +1928,11 @@ export interface components {
             numero: number;
             url: string;
         };
+        DepotModele: {
+            genre: string;
+            methode: string;
+            url: string;
+        };
         DestinataireSuggere: {
             /** @description Adresse en minuscules. */
             adresse: string;
@@ -2139,6 +2176,11 @@ export interface components {
         LectureDocument: {
             url: string;
         };
+        LectureModele: {
+            empreinte: string;
+            genre: string;
+            url: string;
+        };
         LienResponse: {
             /** Format: uuid */
             dossier_id: string;
@@ -2213,6 +2255,14 @@ export interface components {
             ordre: number;
             /** Format: int64 */
             revision: number;
+        };
+        ModeleScelle: {
+            empreinte: string;
+            genre: string;
+            /** Format: int64 */
+            revision: number;
+            /** Format: int64 */
+            taille: number;
         };
         ModifierConnexion: components["schemas"]["ReglagesEnvoi"] & {
             hote: string;
@@ -2521,6 +2571,10 @@ export interface components {
              */
             retard_secondes?: number | null;
             type_compte: string;
+        };
+        ScellerModeleRequest: {
+            empreinte: string;
+            idempotence_cle: string;
         };
         ScellerVersionRequest: {
             empreinte: string;
@@ -6344,6 +6398,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Sante"];
+                };
+            };
+        };
+    };
+    lire_modele: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description courrier, convention ou acte */
+                genre: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lien de lecture du modèle du cabinet */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LectureModele"];
+                };
+            };
+        };
+    };
+    preparer_modele: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description courrier, convention ou acte */
+                genre: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lien de dépôt du modèle */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DepotModele"];
+                };
+            };
+        };
+    };
+    sceller_modele: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description courrier, convention ou acte */
+                genre: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScellerModeleRequest"];
+            };
+        };
+        responses: {
+            /** @description Modèle enregistré pour le cabinet */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModeleScelle"];
                 };
             };
         };

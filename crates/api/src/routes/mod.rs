@@ -17,6 +17,7 @@ pub mod health;
 pub mod intercalaires;
 pub mod invitations;
 pub mod messagerie;
+pub mod modeles_documents;
 pub mod recherche_messages;
 pub mod redaction;
 pub mod temps;
@@ -94,6 +95,14 @@ pub fn router(state: Arc<AppState>) -> Router {
             patch(documents::patch_repertoire),
         )
         .route("/documents", post(documents::creer_document))
+        .route(
+            "/modeles-documents/{genre}",
+            put(modeles_documents::preparer_modele).get(modeles_documents::lire_modele),
+        )
+        .route(
+            "/modeles-documents/{genre}/sceller",
+            post(modeles_documents::sceller_modele),
+        )
         .route("/documents/{document_id}", patch(documents::patch_document))
         .route(
             "/documents/{document_id}/versions",

@@ -26,6 +26,8 @@
     "@tiptap/pm": "3.31.4",
     "@tiptap/react": "3.31.4",
     "@tiptap/starter-kit": "3.31.4",
+    "docxtemplater": "3.71.1",
+    "pizzip": "3.3.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

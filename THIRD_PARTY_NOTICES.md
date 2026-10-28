@@ -21,3 +21,5 @@ Aucun. `tauri-plugin-wdio-webdriver` est consommé depuis crates.io (1.5.1), san
 | pdf-extract | 0.12.1 | MIT | https://crates.io/crates/pdf-extract/0.12.1 |
 | @sqlite.org/sqlite-wasm | 3.53.4-build1 | Apache-2.0 | https://www.npmjs.com/package/@sqlite.org/sqlite-wasm |
 | @tiptap/react, @tiptap/core, @tiptap/pm, @tiptap/starter-kit | 3.31.4 | MIT | https://www.npmjs.com/package/@tiptap/react (transitives MIT : `prosemirror-*`, `linkifyjs`, `fast-equals`, `orderedmap`, `rope-sequence`, `w3c-keyname`) |
+| docxtemplater | 3.71.1 | MIT | https://www.npmjs.com/package/docxtemplater |
+| pizzip | 3.3.0 | MIT OR GPL-3.0 (retenue : MIT) | https://www.npmjs.com/package/pizzip |

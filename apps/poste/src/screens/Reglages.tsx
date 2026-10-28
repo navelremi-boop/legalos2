@@ -17,6 +17,7 @@ import {
 } from "@/lib/referenceCabinet";
 import { clearSession } from "@/lib/session/storage";
 import { ReglagesMessagerie, type DemonstrationMessagerie } from "@/messagerie/ReglagesMessagerie";
+import { PanneauModeles } from "@/modeles/PanneauModeles";
 import { ConstructeurReference } from "@/screens/ConstructeurReference";
 import { sectionsVisibles } from "@/screens/sectionsReglages";
 import { DEMO_CABINET_ID } from "@/sync/demoCabinet";
@@ -367,6 +368,7 @@ export function Reglages({
             </button>
           </form>
 
+          {sectionOuverte === "modeles" ? <PanneauModeles /> : null}
           <section id="reglages-reference" className="space-y-3" hidden={sectionOuverte !== "reference"}>
             <h2 className="text-[length:var(--font-size-section)] font-extrabold text-encre">
               {fr("Référence des dossiers")}
