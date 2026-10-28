@@ -22,4 +22,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, Temps (28/10), lecteur de durée.** « 1 h 30 » = 90 min, « 45 min » = 45, « 0,75 » = 45. « 60 » reste 60 minutes. Vide, zéro, « 1 h 60 » et un texte illisible sont refusés. Le formulaire affiche minutes, montant et taux avant l'enregistrement. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/facturation/lireDuree.test.ts` : 4/4. eslint et typecheck : exit 0.
 
-**Prochaine action.** Finition des écrans : écran Temps (chronomètre avec pause, liste par jour, filtres, saisie facturée verrouillée, taux figé).
+- **Finition, écran Temps (28/10).** Le menu Temps ouvre l'écran, plus une fenêtre. Chronomètre : démarrer, pause (le temps ne avance plus), arrêt confirmé en minutes (au moins une), reprendre. La pastille de la barre suit ce chronomètre sur tous les écrans ; la touche T ouvre Temps hors d'un champ. Liste par jour, filtres Toutes, Non facturées, Facturées, Le cabinet et Mes temps, résumé non facturé et sept jours. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/facturation/chronoTemps.test.ts` : 3/3. eslint et typecheck : exit 0. `menu-compte-tauri` attend désormais l'écran. Recette Tauri de l'écran pas rejouée.
+
+**Prochaine action.** Finition des écrans : La journée (quatre sections, classement en un clic, temps à saisir, mention « Calculé »), puis les captures.

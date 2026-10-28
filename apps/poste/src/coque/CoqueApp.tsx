@@ -20,20 +20,22 @@ import { EcranAgenda } from "@/agenda/EcranAgenda";
 import { emettreRappelsEchus } from "@/agenda/rappels";
 import { emettreNotificationsArrivee } from "@/messagerie/notificationsArrivee";
 import { EcranFacturation } from "@/facturation/EcranFacturation";
-import { FormulaireTemps } from "@/facturation/FormulaireTemps";
+import { chronoArrete, ticChrono, type EtatChrono } from "@/facturation/chronoTemps";
 import { FormulaireDossier } from "@/dossiers/FormulaireDossier";
 import { PaletteCommandes } from "@/dossiers/PaletteCommandes";
 import { isChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
 import { instanceReachable } from "@/lib/instanceReachable";
 import { libelleReferenceDossier } from "@/lib/referenceDossier";
-import { clearSession } from "@/lib/session/storage";
+import { clearSession, loadSessionTokens } from "@/lib/session/storage";
 import { DossierOuvert, type DossierVue } from "@/screens/DossierOuvert";
 import { Dossiers } from "@/screens/Dossiers";
 import { CONDITION_SQL_A_CLASSER } from "@/messagerie/classement";
 import { EcranMails } from "@/messagerie/EcranMails";
 import { Journee } from "@/screens/Journee";
+import { EcranTemps } from "@/screens/EcranTemps";
 import { Reglages, type ThemeMode } from "@/screens/Reglages";
+import { utilisateurIdDepuisJeton } from "@/lib/session/utilisateurCourant";
 import { getPowerSyncDatabase } from "@/sync/database";
 
 /** Galerie absente des builds distribués (tree-shake via import.meta.env.DEV). */
@@ -75,6 +77,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
   const [ongletActifId, setOngletActifId] = useState<string | null>(null);
   const [dossierCharge, setDossierCharge] = useState<DossierVue | null>(null);
   const [panneau, setPanneau] = useState<Panneau>("aucun");
+  const [chrono, setChrono] = useState<EtatChrono>(chronoArrete);
   const [enAttente, setEnAttente] = useState(0);
   const [mailsAClasser, setMailsAClasser] = useState(0);
   /** Message-ID du mail à ouvrir dans l'écran Mails (lien « Ouvrir le mail » d'une invitation de l'Agenda). */
@@ -82,6 +85,36 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
   const [navigateurHorsLigne, setNavigateurHorsLigne] = useState(!navigator.onLine);
   const [instanceHorsLigne, setInstanceHorsLigne] = useState(false);
   const [initiales] = useState<string | null>(initialesDuCompte);
+
+  useEffect(() => {
+    if (chrono.phase !== "en-cours") return;
+    const timer = window.setInterval(() => {
+      setChrono((actuel) => ticChrono(actuel));
+    }, 1_000);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [chrono.phase]);
+
+  useEffect(() => {
+    const surTouche = (event: KeyboardEvent) => {
+      if (event.key !== "t" && event.key !== "T") return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      const cible = event.target;
+      if (
+        cible instanceof HTMLElement &&
+        cible.closest("input, textarea, select, [contenteditable='true']")
+      ) {
+        return;
+      }
+      setPanneau("aucun");
+      setNav("temps");
+    };
+    window.addEventListener("keydown", surTouche);
+    return () => {
+      window.removeEventListener("keydown", surTouche);
+    };
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = resolveTheme(themeMode);
@@ -380,7 +413,8 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
           setNav("mails");
         }}
         onSaisirTemps={() => {
-          setPanneau("temps");
+          setNav("temps");
+          setPanneau("aucun");
         }}
       />
     );
@@ -395,8 +429,19 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
           setNav("mails");
         }}
         onSaisirTemps={() => {
-          setPanneau("temps");
+          setNav("temps");
+          setPanneau("aucun");
         }}
+      />
+    );
+  } else if (nav === "temps") {
+    contenu = (
+      <EcranTemps
+        instanceUrl={instanceUrl}
+        dossierIdPrefere={ongletActifId}
+        moiId={utilisateurIdDepuisJeton(loadSessionTokens().accessToken)}
+        chrono={chrono}
+        onChrono={setChrono}
       />
     );
   } else if (nav === "reglages") {
@@ -415,7 +460,8 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
           setNav("mails");
         }}
         onSaisirTemps={() => {
-          setPanneau("temps");
+          setNav("temps");
+          setPanneau("aucun");
         }}
       />
     );
@@ -427,7 +473,8 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
           setNav("mails");
         }}
         onSaisirTemps={() => {
-          setPanneau("temps");
+          setNav("temps");
+          setPanneau("aucun");
         }}
         onFacturer={() => {
           setNav("facturation");
@@ -442,7 +489,8 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
       <EcranMails
         instanceUrl={instanceUrl}
         onSaisirTemps={() => {
-          setPanneau("temps");
+          setNav("temps");
+          setPanneau("aucun");
         }}
         onOuvrirDossier={ouvrirDossier}
         ouvrirMessageId={mailAOuvrir}
@@ -463,7 +511,8 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
           setNav("mails");
         }}
         onSaisirTemps={() => {
-          setPanneau("temps");
+          setNav("temps");
+          setPanneau("aucun");
         }}
       />
     );
@@ -477,7 +526,8 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
           setNav("mails");
         }}
         onSaisirTemps={() => {
-          setPanneau("temps");
+          setNav("temps");
+          setPanneau("aucun");
         }}
       />
     );
@@ -497,7 +547,8 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
           setNav("mails");
         }}
         onSaisirTemps={() => {
-          setPanneau("temps");
+          setNav("temps");
+          setPanneau("aucun");
         }}
       />
     );
@@ -507,7 +558,8 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
     <MenuCompte
       initiales={initiales}
       onTemps={() => {
-        setPanneau("temps");
+        setNav("temps");
+          setPanneau("aucun");
       }}
       onReglages={() => {
         naviguer("reglages");
@@ -559,9 +611,15 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
         }}
         sync={sync}
         mailsCompteur={mailsAClasser}
-        chronoSecondes={nav === "dossier" ? 12 * 60 + 4 : undefined}
+        chronoSecondes={chrono.phase === "arrete" ? undefined : chrono.secondes}
+        chronoTitre={
+          chrono.phase === "arrete"
+            ? fr("Aucun chronomètre en cours")
+            : fr("Chronomètre en cours")
+        }
         onChrono={() => {
-          setPanneau("temps");
+          setNav("temps");
+          setPanneau("aucun");
         }}
         onPalette={() => {
           setPanneau("palette");
@@ -599,12 +657,6 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
                 onCree={({ id, nom, chemise, reference }) => {
                   ouvrirDossier(id, nom, chemise, reference);
                 }}
-              />
-            ) : null}
-            {panneau === "temps" ? (
-              <FormulaireTemps
-                instanceUrl={instanceUrl}
-                dossierIdPrefere={ongletActifId}
               />
             ) : null}
             {panneau === "delai" ? <FormulaireDelai dossierId={ongletActifId} /> : null}

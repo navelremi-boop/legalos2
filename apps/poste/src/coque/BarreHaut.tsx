@@ -17,6 +17,7 @@ export type NavId =
   | "agenda"
   | "facturation"
   | "reglages"
+  | "temps"
   | "dossier"
   | "galerie";
 
@@ -43,6 +44,7 @@ type BarreHautProps = {
   /** Libellé déjà formaté (§ 7.7), sinon `chronoSecondes`. */
   chronoLibelle?: string;
   chronoSecondes?: number;
+  chronoTitre?: string;
   onChrono?: () => void;
   onPalette?: () => void;
   mailsCompteur?: number;
@@ -72,6 +74,7 @@ export function BarreHaut({
   sync,
   chronoLibelle,
   chronoSecondes,
+  chronoTitre,
   onChrono,
   onPalette,
   mailsCompteur = 0,
@@ -323,6 +326,7 @@ export function BarreHaut({
             className="barre-haut__pilule"
             onClick={onChrono}
             aria-label={fr("Chronomètre")}
+            title={chronoTitre}
             data-testid="chrono-barre"
           >
             <span className="barre-haut__chrono-point" aria-hidden />

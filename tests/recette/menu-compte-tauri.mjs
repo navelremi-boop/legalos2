@@ -83,11 +83,9 @@ const creds = { email: demoEmail, password: demoPassword, secret: totpSecretB32,
     await attendre("fermeture", `!document.querySelector("[data-testid=menu-compte-liste]")`, send, 5_000);
     ok("menu : Temps, Réglages, Palette de commandes, Verrouiller, Se déconnecter");
 
-    // Temps : le panneau de saisie s'ouvre.
+    // Temps : l'écran s'ouvre.
     await choisir(send, "menu-compte-temps");
-    await attendre("panneau Temps", `Boolean(document.querySelector("[role=dialog] form, [role=dialog] input, [role=dialog] select"))`, send);
-    await evaluate(send, `[...document.querySelectorAll("[role=dialog] button")].find((b) => /^Fermer$/.test(b.textContent.trim()))?.click()`);
-    await attendre("fermeture du panneau Temps", `!document.querySelector("[role=dialog]")`, send, 5_000);
+    await attendre("écran Temps", `Boolean(document.querySelector("[data-testid=ecran-temps]"))`, send);
     ok("Temps s'ouvre depuis le menu");
 
     // Réglages : l'écran s'ouvre.

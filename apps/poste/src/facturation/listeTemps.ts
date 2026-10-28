@@ -1,0 +1,73 @@
+import { decalerJour } from "@/agenda/navigationAgenda";
+
+export type FiltreSaisie = "toutes" | "non-facturees" | "facturees";
+export type PerimetreSaisie = "cabinet" | "moi";
+
+export type SaisieTemps = {
+  id: string;
+  jour: string;
+  minutes: number;
+  libelle: string;
+  dossierId: string;
+  dossierNom: string;
+  intervenantId: string;
+  tauxCentimesHeure: number;
+  htCentimes: number;
+  facturee: boolean;
+};
+
+export type GroupeJour = {
+  jour: string;
+  minutes: number;
+  saisies: SaisieTemps[];
+};
+
+export function filtrerSaisies(
+  lignes: readonly SaisieTemps[],
+  filtre: FiltreSaisie,
+  perimetre: PerimetreSaisie,
+  moiId: string | null,
+): SaisieTemps[] {
+  return lignes.filter((ligne) => {
+    if (perimetre === "moi" && ligne.intervenantId !== moiId) return false;
+    if (filtre === "non-facturees") return !ligne.facturee;
+    if (filtre === "facturees") return ligne.facturee;
+    return true;
+  });
+}
+
+export function grouperParJour(lignes: readonly SaisieTemps[]): GroupeJour[] {
+  const ordre: string[] = [];
+  const parJour = new Map<string, SaisieTemps[]>();
+  const triees = [...lignes].sort((a, b) => b.jour.localeCompare(a.jour) || a.id.localeCompare(b.id));
+  for (const ligne of triees) {
+    const groupe = parJour.get(ligne.jour);
+    if (groupe) groupe.push(ligne);
+    else {
+      ordre.push(ligne.jour);
+      parJour.set(ligne.jour, [ligne]);
+    }
+  }
+  return ordre.map((jour) => {
+    const saisies = parJour.get(jour) ?? [];
+    return {
+      jour,
+      minutes: saisies.reduce((total, ligne) => total + ligne.minutes, 0),
+      saisies,
+    };
+  });
+}
+
+export function resumeTemps(
+  lignes: readonly SaisieTemps[],
+  aujourdhui: string,
+): { nonFactureMinutes: number; septJoursMinutes: number } {
+  const debut = decalerJour(aujourdhui, -6);
+  let nonFactureMinutes = 0;
+  let septJoursMinutes = 0;
+  for (const ligne of lignes) {
+    if (!ligne.facturee) nonFactureMinutes += ligne.minutes;
+    if (ligne.jour >= debut && ligne.jour <= aujourdhui) septJoursMinutes += ligne.minutes;
+  }
+  return { nonFactureMinutes, septJoursMinutes };
+}
