@@ -798,3 +798,7 @@ La copie `patches/powersync` est retirée. Le poste reprend `powersync` 0.1.1 pu
 2026-10-28 — La série lancée le 27/10 à 22 h 17 UTC s'est arrêtée après la passe 1 (185 s, code 0, cliché non, `j11-connexion: OK`). Le processus n'est plus là. Les journaux `passe-2` à `passe-15` sont ceux de la série précédente (18 h 44 à 19 h 24 UTC), pas de celle-ci. Ports 18766 et 18767 libres, aucun poste. Série relancée.
 
 **Prochaine action.** Finir les 10 passes vertes hors le crash, sur `powersync_core` 0.5.3. J11 n'est pas coché.
+
+2026-10-28 — Relance de 9 h 20 : `docker compose up` exit 1, le moteur Docker ne répondait pas (`dockerDesktopLinuxEngine` absent). Docker Desktop redémarré (moteur 29.8.0). Série relancée.
+
+**Prochaine action.** Dix passes vertes hors le crash identifié. J11 n'est pas coché.
