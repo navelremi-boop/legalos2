@@ -44,4 +44,8 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, ligne de dossier (28/10).** L'anneau, le titre et la date de la prochaine échéance figurent sur la ligne. « 1 jour » au singulier. Le nombre de mails non lus du dossier s'affiche quand il est supérieur à zéro. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/dossiers/apercuDossier.test.ts` : 4/4. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
 
-**Prochaine action.** Comparaison visuelle des captures aux maquettes. Le jalon n'est pas coché.
+- **Finition, comparaison visuelle (28/10).** Contrôleur [captures](d755c953-1186-4e5f-bc49-fb092996a1bc) : refus pour Dossiers, Agenda, Réglages et La journée, jour et nuit. Bloquant : aperçu Dossiers sans client, adversaire ni montant encaissé ; agenda sans fiche visible et semaine empilée sur un seul jour ; dock sans « Saisir du temps » ; Réglages sans les champs Cabinet absents du schéma (SIREN, TVA, adresse, IBAN) et avec la section Référence des dossiers, qui existe ; La journée sans « Autre dossier », sans extrait, sans bandeau non facturé. Temps non comparé : pas de capture. Le jalon n'est pas coché.
+
+- **Finition, semaine et fiche (28/10).** La semaine aligne lundi à vendredi, et le week-end seulement s'il a un élément. La fiche est à droite de la grille. « Saisir du temps » est de retour dans le dock. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/agenda/navigationAgenda.test.ts` : 9/9. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
+
+**Prochaine action.** Bandeau « non facturé » de La journée, puis le bloc client et adversaire de l'aperçu quand les parties existent. Le jalon n'est pas coché.

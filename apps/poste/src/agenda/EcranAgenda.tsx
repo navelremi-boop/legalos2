@@ -21,7 +21,15 @@ import {
   prochainesEcheances,
   type CategorieAgenda,
 } from "@/agenda/dispositionAgenda";
-import { decalerJour, debutMois, grilleMois, jourCivil, libelleMois, semaineDe } from "@/agenda/navigationAgenda";
+import {
+  decalerJour,
+  debutMois,
+  grilleMois,
+  jourCivil,
+  joursSemaineAffiches,
+  libelleMois,
+  semaineDe,
+} from "@/agenda/navigationAgenda";
 import { FormulaireDelai } from "@/delais/FormulaireDelai";
 import { calculerDelaiComplet } from "@/delais/moteur";
 import { formatDateCourte, formatDateLongue, formatHeureMur } from "@/lib/format";
@@ -61,6 +69,13 @@ function echeanceAttendue(ligne: Ligne): string | null {
 
 const TYPES: TypeAgenda[] = ["audience", "rendez_vous", "tache"];
 
+function libelleQuand(debut: string): string {
+  const mur = composantesAffichees(debut);
+  if (!mur) return "";
+  const heure = mur.heure !== null && mur.minute !== null ? ` ${formatHeureMur(mur.heure, mur.minute)}` : "";
+  return `${formatDateLongue(mur.jour)}${heure}`;
+}
+
 function champ(form: FormData, nom: string): string {
   const valeur = form.get(nom);
   return typeof valeur === "string" ? valeur.trim() : "";
@@ -84,6 +99,7 @@ const DELAIS_RAPPEL = [
 ];
 
 type EcranAgendaProps = {
+  onSaisirTemps?: () => void;
   /** Ouvre l'écran Mails sur le message dont l'en-tête Message-ID est donné (lien « Ouvrir le mail » d'une invitation). */
   onOuvrirMail?: (messageId: string) => void;
   /** Galerie : pas de PowerSync. */
@@ -92,6 +108,7 @@ type EcranAgendaProps = {
 };
 
 export function EcranAgenda({
+  onSaisirTemps,
   onOuvrirMail,
   lignesFixes,
   invitationsFixes,
@@ -489,8 +506,41 @@ export function EcranAgenda({
           {fr(`Conflit d'agenda : « ${conflit} ».`)}
         </p>
       ) : null}
-      <div data-testid={vue === "jour" ? "agenda-vue-jour-contenu" : "agenda-vue-semaine-contenu"}>
-        {(vue === "jour" ? [jourRepere] : semaineDe(jourRepere)).map((jour) => {
+      <div className="flex items-start gap-3">
+      <div
+        className={vue === "semaine" ? "grid min-w-0 flex-1 gap-2" : "min-w-0 flex-1"}
+        style={
+          vue === "semaine"
+            ? {
+                gridTemplateColumns: `repeat(${String(
+                  joursSemaineAffiches(
+                    semaineDe(jourRepere),
+                    new Set(
+                      lignesVisibles.flatMap((ligne) => {
+                        const jour = composantesAffichees(ligne.debut)?.jour;
+                        return jour ? [jour] : [];
+                      }),
+                    ),
+                  ).length,
+                )}, minmax(0, 1fr))`,
+              }
+            : undefined
+        }
+        data-testid={vue === "jour" ? "agenda-vue-jour-contenu" : "agenda-vue-semaine-contenu"}
+      >
+        {(vue === "jour"
+          ? [jourRepere]
+          : joursSemaineAffiches(
+              semaineDe(jourRepere),
+              new Set(
+                lignesVisibles.flatMap((ligne) => {
+                  const jour = composantesAffichees(ligne.debut)?.jour;
+                  return jour ? [jour] : [];
+                }),
+              ),
+            )
+        ).map((jour, indexJour) => {
+          const axeHeures = vue === "jour" || indexJour === 0;
           const duJour = lignesVisibles.filter((ligne) => composantesAffichees(ligne.debut)?.jour === jour);
           const minutes = (ligne: Ligne) => {
             const quand = composantesAffichees(ligne.debut);
@@ -509,9 +559,11 @@ export function EcranAgenda({
           const placeDe = (id: string) => places.find((place) => place.id === id);
           const invitationsDuJourAffichees = invitationsDuJour(elementsInvit, jour);
           return (
-            <section key={jour} className="mb-3" data-testid="agenda-jour" data-jour={jour}>
-              <h2 className="text-[length:var(--font-size-dense)] font-extrabold">{formatDateLongue(jour)}</h2>
-              {duJour.length === 0 && invitationsDuJourAffichees.length === 0 ? (
+            <section key={jour} className="mb-3 min-w-0 overflow-hidden" data-testid="agenda-jour" data-jour={jour}>
+              <h2 className="truncate text-[length:var(--font-size-dense)] font-extrabold">
+                {vue === "semaine" ? formatDateCourte(jour) : formatDateLongue(jour)}
+              </h2>
+              {vue === "jour" && duJour.length === 0 && invitationsDuJourAffichees.length === 0 ? (
                 <p className="text-graphite">{fr("Rien ce jour-là.")}</p>
               ) : null}
               {invitationsDuJourAffichees.length > 0 ? (
@@ -531,7 +583,7 @@ export function EcranAgenda({
                       >
                         <div className="flex items-baseline justify-between gap-3">
                           <span
-                            className={element.annulee ? "text-graphite line-through" : undefined}
+                            className={`truncate ${element.annulee ? "text-graphite line-through" : ""}`}
                             data-testid="agenda-invitation-titre"
                           >
                             {fr(presentation.libelle)}
@@ -540,7 +592,10 @@ export function EcranAgenda({
                             <span data-testid="agenda-invitation-heure">{presentation.heure}</span>
                           ) : null}
                         </div>
-                        <div className="flex flex-wrap items-baseline gap-x-3 text-[length:var(--font-size-meta)] text-graphite">
+                        <div
+                          className="flex flex-wrap items-baseline gap-x-3 text-[length:var(--font-size-meta)] text-graphite"
+                          hidden={vue === "semaine"}
+                        >
                           {presentation.etat !== null ? (
                             <span data-testid="agenda-invitation-etat">{fr(presentation.etat)}</span>
                           ) : null}
@@ -590,7 +645,7 @@ export function EcranAgenda({
                         <li key={ligne.id}>
                           <button
                             type="button"
-                            className="text-left"
+                            className="block w-full truncate text-left"
                             onClick={() => {
                               setSelection(ligne.id);
                             }}
@@ -627,17 +682,19 @@ export function EcranAgenda({
                 data-testid="agenda-grille"
                 style={{ height: (GRILLE_FIN - GRILLE_DEBUT) * HAUTEUR_HEURE }}
               >
-                {Array.from({ length: GRILLE_FIN - GRILLE_DEBUT + 1 }, (_, index) => GRILLE_DEBUT + index).map(
-                  (heureGrille) => (
-                    <span
-                      key={heureGrille}
-                      className="absolute left-0 text-[length:var(--font-size-dense)] text-graphite"
-                      style={{ top: (heureGrille - GRILLE_DEBUT) * HAUTEUR_HEURE }}
-                    >
-                      {fr(`${String(heureGrille)} h`)}
-                    </span>
-                  ),
-                )}
+                {axeHeures
+                  ? Array.from({ length: GRILLE_FIN - GRILLE_DEBUT + 1 }, (_, index) => GRILLE_DEBUT + index).map(
+                      (heureGrille) => (
+                        <span
+                          key={heureGrille}
+                          className="absolute left-0 text-[length:var(--font-size-dense)] text-graphite"
+                          style={{ top: (heureGrille - GRILLE_DEBUT) * HAUTEUR_HEURE }}
+                        >
+                          {fr(`${String(heureGrille)} h`)}
+                        </span>
+                      ),
+                    )
+                  : null}
                 {duJour
                   .filter(
                     (ligne) =>
@@ -664,8 +721,12 @@ export function EcranAgenda({
                         style={{
                           top: pos.top,
                           height: pos.hauteur,
-                          left: `calc(3rem + ${String((place.colonne * 100) / place.colonnes)}%)`,
-                          width: `calc(${String(100 / place.colonnes)}% - 3rem)`,
+                          left: axeHeures
+                            ? `calc(3rem + ${String((place.colonne * 100) / place.colonnes)}%)`
+                            : `${String((place.colonne * 100) / place.colonnes)}%`,
+                          width: axeHeures
+                            ? `calc(${String(100 / place.colonnes)}% - 3rem)`
+                            : `${String(100 / place.colonnes)}%`,
                         }}
                         data-colonne={place.colonne}
                         data-colonnes={place.colonnes}
@@ -688,7 +749,7 @@ export function EcranAgenda({
           );
         })}
       </div>
-      <aside className="mt-4 rounded-[var(--radius-control)] border border-filet p-3" data-testid="agenda-apercu">
+      <aside className="w-56 shrink-0 rounded-[var(--radius-control)] border border-filet p-3" data-testid="agenda-apercu">
         {choisi ? (
           <>
             <h2 className="font-extrabold">{fr(choisi.titre)}</h2>
@@ -696,11 +757,13 @@ export function EcranAgenda({
               {fr(LIBELLES_TYPE[choisi.type_element] ?? choisi.type_element)}
               {choisi.origine_calcul ? fr(", calculé") : ""}
             </p>
+            <p>{fr(libelleQuand(choisi.debut))}</p>
           </>
         ) : (
           <p className="text-graphite">{fr("Aucun élément sélectionné.")}</p>
         )}
       </aside>
+      </div>
       <ul data-testid="agenda-liste" className="sr-only">
         {lignes.map((ligne) => {
           const attendue = echeanceAttendue(ligne);
@@ -798,6 +861,14 @@ export function EcranAgenda({
             onClick: () => {
               setCreation(false);
               setCalcul(true);
+            },
+          },
+          {
+            id: "saisir-temps",
+            label: "Saisir du temps",
+            raccourci: "T",
+            onClick: () => {
+              onSaisirTemps?.();
             },
           },
         ]}

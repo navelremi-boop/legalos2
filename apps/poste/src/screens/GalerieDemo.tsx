@@ -656,6 +656,7 @@ export function GalerieDemo() {
               lignesFixes={agendaDemo}
               invitationsFixes={invitationsAgendaDemo}
               onOuvrirMail={() => undefined}
+              onSaisirTemps={() => undefined}
             />
           ) : null}
           {vue === "facturation" ? (

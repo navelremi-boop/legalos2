@@ -28,6 +28,14 @@ export function decalerJour(jour: string, n: number): string {
   return versJour(date);
 }
 
+/**
+ * Lundi à vendredi, plus le samedi ou le dimanche s'il porte déjà un élément.
+ * `semaine` va du lundi au dimanche.
+ */
+export function joursSemaineAffiches(semaine: readonly string[], joursOccupes: ReadonlySet<string>): string[] {
+  return [...semaine.slice(0, 5), ...semaine.slice(5).filter((jour) => joursOccupes.has(jour))];
+}
+
 /** Les sept jours de la semaine (lundi au dimanche) qui contient `jour`. */
 export function semaineDe(jour: string): string[] {
   const decalage = (enUtc(jour).getUTCDay() + 6) % 7;

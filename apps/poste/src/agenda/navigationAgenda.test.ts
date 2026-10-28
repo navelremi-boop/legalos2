@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { decalerJour, jourCivil, semaineDe } from "./navigationAgenda.ts";
+import { decalerJour, jourCivil, joursSemaineAffiches, semaineDe } from "./navigationAgenda.ts";
 
 describe("jourCivil", () => {
   it("écrit AAAA-MM-JJ avec des zéros", () => {
@@ -24,6 +24,17 @@ describe("decalerJour", () => {
   it("décale d'une semaine", () => {
     assert.equal(decalerJour("2026-10-14", 7), "2026-10-21");
     assert.equal(decalerJour("2026-10-14", -7), "2026-10-07");
+  });
+});
+
+describe("joursSemaineAffiches", () => {
+  it("garde le lundi au vendredi et le week-end seulement s'il est occupé", () => {
+    const semaine = semaineDe("2026-10-14");
+    assert.deepEqual(joursSemaineAffiches(semaine, new Set()), semaine.slice(0, 5));
+    assert.deepEqual(joursSemaineAffiches(semaine, new Set(["2026-10-17"])), [
+      ...semaine.slice(0, 5),
+      "2026-10-17",
+    ]);
   });
 });
 
