@@ -104,4 +104,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition des écrans cochée (28/10).** Contrôleur [finition](b956d982-b60e-4da1-9fa6-bb344c7fc8ca) : VALIDÉ sur `1fa6e2a`. CI [40713792209](https://github.com/navelremi-boop/legalos2/actions/runs/40713792209) verte (gouvernance, frontend, périmètre, rust, webdriver-macos, facturx, s1). La dette « liste limitée à 50 » est cochée : plus de `LIMIT` dans `Dossiers.tsx`, plus de préfixe « 000 » dans `agenda-tauri`. `node tests/recette/plan-gouvernance.mjs` exit 0 sur `25d5c1e`.
 
-**Prochaine action.** Écran de connexion, d'après `design/maquettes/prototype-connexion.html`. Le jalon n'est pas coché.
+- **Écran de connexion, code à six cases (28/10).** Un collage « 12 34-56 » devient six chiffres. Le refus d'identifiants s'affiche « Adresse ou mot de passe incorrect », sans dire lequel des deux est faux. Pas de lien « code de secours ». `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/onboarding/codeConnexion.test.ts` : 2/2. `pnpm --filter @legal-os/poste typecheck` et `lint:ci` exit 0. Le jalon n'est pas coché.
+
+**Prochaine action.** Écran de connexion : les onze états de la maquette. Le code à six cases est en place. Le jalon n'est pas coché.

@@ -7,6 +7,8 @@ import {
   TextInput,
 } from "@/components/onboarding/FormControls";
 import { OnboardingShell } from "@/components/onboarding/OnboardingShell";
+import { SaisieCode } from "@/onboarding/SaisieCode";
+import { messageConnexion } from "@/onboarding/codeConnexion";
 import {
   connexion,
   DEFAULT_INSTANCE_URL,
@@ -77,7 +79,7 @@ export function FirstLaunchFlow({ initialInstanceUrl, onComplete }: FirstLaunchF
     setBusy(false);
 
     if (!result.ok) {
-      setError(result.error.message);
+      setError(messageConnexion(result.error.message));
       return;
     }
 
@@ -239,25 +241,10 @@ export function FirstLaunchFlow({ initialInstanceUrl, onComplete }: FirstLaunchF
     >
       <form onSubmit={(event) => void handleTotpSubmit(event)}>
         {error !== null ? <ErrorMessage message={error} /> : null}
-        <Field id="code-totp" label="Code TOTP">
-          <TextInput
-            id="code-totp"
-            name="codeTotp"
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            pattern="[0-9]{6}"
-            maxLength={6}
-            required
-            value={codeTotp}
-            onChange={(event) => {
-              setCodeTotp(event.target.value.replace(/\D/g, "").slice(0, 6));
-            }}
-          />
-        </Field>
+        <SaisieCode valeur={codeTotp} onChange={setCodeTotp} />
         <div className="flex flex-col gap-2">
           <PrimaryButton type="submit" disabled={busy || codeTotp.length !== 6}>
-            {busy ? fr("Vérification…") : fr("Valider")}
+            {busy ? fr("Vérification…") : fr("Vérifier")}
           </PrimaryButton>
           <SecondaryButton
             disabled={busy}
