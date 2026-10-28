@@ -177,7 +177,7 @@ Chaque jalon : recettes + clippy + contrôleur.
 
 ## Phase 3 — Intégration avancée
 
-Critères validés par l'architecte le 04/10/2026, complétés par la consigne du 07/10/2026 (écrans V1 d'après les maquettes). Ordre (consigne du 07/10/2026) : **Bascule vers Claude Code** → **Montée PowerSync** → **Coque claire** → **J11** → **Finition des écrans** → **Écran de connexion** → **Modèles et fusion** → **Conventions d'honoraires** → **Facturation, suite** → **Tableau de bord** → **J12** → **J13** → **J14** → **J15 à J17**.
+Critères validés par l'architecte le 04/10/2026, complétés par la consigne du 07/10/2026 (écrans V1 d'après les maquettes). Ordre (consigne du 07/10/2026, Tenue visuelle insérée le 28/10/2026) : **Bascule vers Claude Code** → **Montée PowerSync** → **Coque claire** → **J11** → **Finition des écrans** → **Écran de connexion** → **Modèles et fusion** → **Tenue visuelle** → **Conventions d'honoraires** → **Facturation, suite** → **Tableau de bord** → **J12** → **J13** → **J14** → **J15 à J17**.
 
 Décisions du commandement (06/10/2026) :
 - En mode jour : barre haute claire, barre d'actions claire, fond neutre « lin » avec grain, feuille blanche. En mode nuit : sombres. Les couleurs de chemise de dossier ne changent pas.
@@ -186,7 +186,7 @@ Décisions du commandement (06/10/2026) :
 - Les données des maquettes (`design/maquettes/`) sont fictives : jamais dans l'app, sauf dans le jeu de démonstration de développement.
 - L'écran Temps n'a pas encore de maquette : ne pas le refaire avant que l'architecte en fournisse une. Le logo est en attente : ne pas toucher à l'icône.
 
-Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette (Playwright, 1240 par 800, jour et nuit) et la capture de l'application au même état, les compare, liste les écarts. Un écart de structure (volets, ordre, élément absent) refuse le jalon ; un écart de détail (espacement, ombre) est consigné en dette. Le commandement garde son veto (B9).
+Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette (Playwright, 1240 par 800, jour et nuit) et la capture de l'application au même état, les compare, liste les écarts. Un écart de structure (volets, ordre, élément absent) refuse le jalon ; un écart de détail (espacement, ombre) est consigné en dette. Consigne de l'architecte du 28/10/2026 : tout jalon qui livre un écran fournit en plus les captures jour et nuit à 1 366 × 768, 1 920 × 1 080 et 2 560 × 1 440, sur le jeu de démonstration (jalon Tenue visuelle). Le commandement garde son veto (B9).
 
 - [x] **Bascule vers Claude Code** — VALIDÉ `6c7b0a6` (contrôleur 07/10/2026, CI [37680889863](https://github.com/navelremi-boop/legalos2/actions/runs/37680889863)) — critères validés par l'architecte le 07/10/2026
   - **Critères d'acceptation (commandes)** :
@@ -231,7 +231,18 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
       - le document produit devient un document versionné du dossier ; styles, polices et retraits du modèle conservés à l'identique.
     - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
-- [ ] **Conventions d'honoraires** — § 4.2 n° 12 — critères validés par l'architecte le 04/10/2026 — après Modèles et fusion, avant Facturation, suite
+- [ ] **Tenue visuelle** — après Modèles et fusion, avant Conventions d'honoraires — consigne de l'architecte du 28/10/2026 (veto B9)
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/tenue-visuelle.mjs` → exit 0 :
+      - la feuille a une largeur maximale et reste centrée ; listes, aperçu, fiche et intercalaires ont des largeurs fixes ou bornées ; les intercalaires restent collés à la feuille ; dans une ligne de liste, le nom et l'échéance restent proches ; aucun texte tronqué quand la place existe ;
+      - jeu réaliste d'une trentaine de dossiers aux noms plausibles, avec parties, échéances sur trois semaines, mails, temps et factures, chargé dans une instance de démonstration distincte de celle des recettes ;
+      - vue d'un dossier : le formulaire des parties et des dossiers liés s'ouvre dans un panneau, avec des champs étiquetés et des valeurs à majuscule initiale ; un dossier lié se choisit par recherche (nom, référence), jamais par un identifiant ;
+      - agenda : lignes entre les heures ; jour courant marqué dans le mini-calendrier ; jours des mois voisins atténués ; « Sans heure » sur une seule ligne ; message de conflit dans un bandeau ; la fiche ne montre qu'un élément de la période affichée ; dates en toutes lettres dans les titres, jamais au format 2026-01-21 ; compteurs des filtres calculés sur la période affichée ;
+      - le zéro barré est réservé aux références ; le texte, les compteurs et les montants n'ont pas de zéro barré.
+    - `node tests/recette/tenue-visuelle-captures.mjs` → exit 0 : captures jour et nuit à 1 366 × 768, 1 920 × 1 080 et 2 560 × 1 440, sur le jeu de démonstration, pour Dossiers, la vue d'un dossier, Mails, Agenda, La journée, Temps et Réglages.
+    - Le contrôleur compare ces captures, puis le commandement valide sur son écran (B9). `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+
+- [ ] **Conventions d'honoraires** — § 4.2 n° 12 — critères validés par l'architecte le 04/10/2026 — après Tenue visuelle, avant Facturation, suite
   - **Critères d'acceptation (commandes)** :
     - `node tests/recette/conventions-honoraires.mjs` → exit 0 (app Tauri) :
       - une convention est produite par Modèles et fusion, rattachée au dossier ;
@@ -253,6 +264,7 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
       - encours et impayés par client et par ancienneté (0–30, 31–60, 61–90, plus de 90 jours) ; total égal aux factures moins les encaissements, vérifié sur un jeu de test ;
       - consigne de l'architecte du 24/10/2026 (question e du contrôleur J11) : numéro de TVA de l'acheteur tiré de la fiche du client, refus de valider une facture à un professionnel français sans ce numéro (bloquant avant toute première facture réelle) ; vérifier que le règlement est transmis à la plateforme par une file idempotente reprise après échec ; `GET /annuaire/{siren}` : contrôle du format du SIREN (clé de Luhn) ; les erreurs de validation restent en 400, seules les ressources introuvables passent en 404.
     - `node tests/recette/s9-factures.mjs` → exit 0 (non-régression du temps, des débours, des avoirs et de la facturation électronique).
+    - `node tests/recette/tenue-visuelle-captures.mjs` → exit 0 (consigne du 28/10/2026 : captures jour et nuit à 1 366 × 768, 1 920 × 1 080 et 2 560 × 1 440, sur le jeu de démonstration).
     - `cargo clippy --workspace --all-targets -- -D warnings` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
 - [ ] **Tableau de bord** — § 4.2 n° 13 — critères validés par l'architecte le 04/10/2026, complétés le 07/10/2026
@@ -263,6 +275,7 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
       - définition écrite de chaque indicateur dans le document `tableau-de-bord.md` (répertoire docs) : période, HT ou TTC, facturé ou encaissé ;
       - jeu fixe dont les valeurs attendues sont calculées à la main dans le test, indépendamment du code ;
       - requêtes dans un module de données, jamais dans les composants ; mention visible : chiffres calculés sur les dossiers accessibles à l'utilisateur.
+    - `node tests/recette/tenue-visuelle-captures.mjs` → exit 0 (consigne du 28/10/2026 : captures jour et nuit à 1 366 × 768, 1 920 × 1 080 et 2 560 × 1 440, sur le jeu de démonstration).
     - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
 - [ ] **J12** — Révocation postes (S10) — critères validés par l'architecte le 04/10/2026
