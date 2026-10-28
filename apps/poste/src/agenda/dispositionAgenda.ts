@@ -11,6 +11,24 @@ export function categorieAgenda(typeElement: string, origineCalcul: string | nul
   return "tache";
 }
 
+/** Grille horaire de la maquette : 8 h à 19 h, 48 px par heure. */
+export const GRILLE_DEBUT = 8;
+export const GRILLE_FIN = 19;
+export const HAUTEUR_HEURE = 48;
+
+export function positionGrille(
+  debutMinute: number,
+  dureeMinute: number,
+): { top: number; hauteur: number } | null {
+  const debut = GRILLE_DEBUT * 60;
+  const fin = GRILLE_FIN * 60;
+  const finElement = debutMinute + Math.max(dureeMinute, 15);
+  if (debutMinute >= fin || finElement <= debut) return null;
+  const top = ((debutMinute - debut) / 60) * HAUTEUR_HEURE;
+  const hauteur = Math.max(24, ((finElement - debutMinute) / 60) * HAUTEUR_HEURE - 4);
+  return { top, hauteur };
+}
+
 export type Creneau = {
   id: string;
   debutMinute: number;

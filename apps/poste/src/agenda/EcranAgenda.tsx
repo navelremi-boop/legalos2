@@ -13,7 +13,11 @@ import {
 import {
   categorieAgenda,
   CATEGORIES_AGENDA,
+  GRILLE_DEBUT,
+  GRILLE_FIN,
+  HAUTEUR_HEURE,
   placerSimultanes,
+  positionGrille,
   prochainesEcheances,
   type CategorieAgenda,
 } from "@/agenda/dispositionAgenda";
@@ -506,6 +510,8 @@ export function EcranAgenda({
             duJour.flatMap((ligne) => {
               const debutMinute = minutes(ligne);
               if (debutMinute === null) return [];
+              if (ligne.type_element !== "audience" && ligne.type_element !== "rendez_vous") return [];
+              if (ligne.origine_calcul !== null) return [];
               return [{ id: ligne.id, debutMinute, dureeMinute: DUREE_AFFICHEE_MINUTES }];
             }),
           );
@@ -577,48 +583,33 @@ export function EcranAgenda({
                   })}
                 </ul>
               ) : null}
-              {duJour.length === 0 ? null : (
-                <ul className="flex flex-wrap gap-2" data-testid="agenda-creneaux">
-                  {duJour.map((ligne) => {
-                    const quand = composantesAffichees(ligne.debut);
-                    const heure =
-                      quand !== null && quand.heure !== null && quand.minute !== null
-                        ? formatHeureMur(quand.heure, quand.minute)
-                        : "";
-                    const place = placeDe(ligne.id);
-                    const attendue = echeanceAttendue(ligne);
-                    return (
-                      <li
-                        key={ligne.id}
-                        className="min-w-0 rounded-[var(--radius-control)] border border-filet p-2"
-                        style={
-                          place && place.colonnes > 1
-                            ? { width: `calc(${String(100 / place.colonnes)}% - 0.5rem)` }
-                            : undefined
-                        }
-                        data-colonne={place?.colonne ?? 0}
-                        data-colonnes={place?.colonnes ?? 1}
-                        data-selected={selection === ligne.id ? "true" : "false"}
-                      >
-                        <button
-                          type="button"
-                          className="flex w-full items-baseline justify-between gap-3 text-left"
-                          onClick={() => {
-                            setSelection(ligne.id);
-                          }}
-                        >
-                          <span>
-                            {fr(
-                              `${LIBELLES_TYPE[ligne.type_element] ?? ligne.type_element} — ${ligne.titre}${ligne.origine_calcul ? " — échéance" : ""}`,
-                            )}
-                          </span>
-                          {heure !== "" ? <span data-testid="agenda-element-heure">{heure}</span> : null}
-                        </button>
-                        {ligne.origine_calcul ? (
-                          <div className="mt-1">
+              <div data-testid="agenda-sans-heure" className="mb-2">
+                <p className="text-graphite">{fr("Sans heure")}</p>
+                <ul className="flex flex-col gap-1">
+                  {duJour
+                    .filter(
+                      (ligne) =>
+                        ligne.type_element === "tache" ||
+                        ligne.origine_calcul !== null ||
+                        minutes(ligne) === null,
+                    )
+                    .map((ligne) => {
+                      const attendue = echeanceAttendue(ligne);
+                      return (
+                        <li key={ligne.id}>
+                          <button
+                            type="button"
+                            className="text-left"
+                            onClick={() => {
+                              setSelection(ligne.id);
+                            }}
+                          >
+                            {fr(ligne.titre)}
+                          </button>
+                          {ligne.origine_calcul ? (
                             <button
                               type="button"
-                              className="font-bold text-encre"
+                              className="ml-2 font-bold text-encre"
                               data-testid="echeance-voir-calcul"
                               aria-expanded={calculOuvert === ligne.id}
                               onClick={() => {
@@ -627,20 +618,77 @@ export function EcranAgenda({
                             >
                               {fr("Voir le calcul")}
                             </button>
-                            {calculOuvert === ligne.id ? (
-                              <p data-testid="echeance-calcul">
-                                {fr(
-                                  `Point de départ ${ligne.origine_calcul}, délai ${String(ligne.jours_calcul ?? 0)} jours, ${String(ligne.mois_calcul ?? 0)} mois, ${String(ligne.annees_calcul ?? 0)} ans. Échéance ${attendue ? formatDateCourte(attendue) : ""}.`,
-                                )}
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </li>
+                          ) : null}
+                          {calculOuvert === ligne.id && ligne.origine_calcul ? (
+                            <p data-testid="echeance-calcul">
+                              {fr(
+                                `Point de départ ${ligne.origine_calcul}, délai ${String(ligne.jours_calcul ?? 0)} jours. Échéance ${attendue ? formatDateCourte(attendue) : ""}.`,
+                              )}
+                            </p>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                </ul>
+              </div>
+              <div
+                className="relative"
+                data-testid="agenda-grille"
+                style={{ height: (GRILLE_FIN - GRILLE_DEBUT) * HAUTEUR_HEURE }}
+              >
+                {Array.from({ length: GRILLE_FIN - GRILLE_DEBUT + 1 }, (_, index) => GRILLE_DEBUT + index).map(
+                  (heureGrille) => (
+                    <span
+                      key={heureGrille}
+                      className="absolute left-0 text-[length:var(--font-size-dense)] text-graphite"
+                      style={{ top: (heureGrille - GRILLE_DEBUT) * HAUTEUR_HEURE }}
+                    >
+                      {fr(`${String(heureGrille)} h`)}
+                    </span>
+                  ),
+                )}
+                {duJour
+                  .filter(
+                    (ligne) =>
+                      (ligne.type_element === "audience" || ligne.type_element === "rendez_vous") &&
+                      ligne.origine_calcul === null &&
+                      minutes(ligne) !== null,
+                  )
+                  .map((ligne) => {
+                    const debut = minutes(ligne);
+                    const place = placeDe(ligne.id);
+                    if (debut === null || !place) return null;
+                    const pos = positionGrille(debut, DUREE_AFFICHEE_MINUTES);
+                    if (!pos) return null;
+                    const quand = composantesAffichees(ligne.debut);
+                    const heure =
+                      quand !== null && quand.heure !== null && quand.minute !== null
+                        ? formatHeureMur(quand.heure, quand.minute)
+                        : "";
+                    return (
+                      <button
+                        key={ligne.id}
+                        type="button"
+                        className="absolute overflow-hidden rounded-[var(--radius-control)] border border-filet bg-page px-1 text-left"
+                        style={{
+                          top: pos.top,
+                          height: pos.hauteur,
+                          left: `calc(3rem + ${String((place.colonne * 100) / place.colonnes)}%)`,
+                          width: `calc(${String(100 / place.colonnes)}% - 3rem)`,
+                        }}
+                        data-colonne={place.colonne}
+                        data-colonnes={place.colonnes}
+                        data-selected={selection === ligne.id ? "true" : "false"}
+                        onClick={() => {
+                          setSelection(ligne.id);
+                        }}
+                      >
+                        <span>{fr(ligne.titre)}</span>
+                        {heure !== "" ? <span data-testid="agenda-element-heure">{heure}</span> : null}
+                      </button>
                     );
                   })}
-                </ul>
-              )}
+              </div>
             </section>
           );
         })}

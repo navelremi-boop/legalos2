@@ -32,4 +32,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, suite du refus visuel (28/10).** L'agenda a un volet d'aperçu (`agenda-apercu`). La journée affiche « Ouvrir l'agenda », « Voir tous les délais », « Ouvrir les mails », « Ouvrir le temps », le bouton Classer, le bouton Saisir, et « Calculé » sur un délai du jeu de galerie. `node tests/recette/coque-app.mjs --captures` exit 0 à nouveau. Le refus du contrôleur n'est pas soldé : grille horaire, fiche Cabinet, blocs de l'aperçu Dossiers. Le jalon n'est pas coché.
 
-**Prochaine action.** Grille horaire de l'agenda, puis les blocs manquants de l'aperçu Dossiers. Le jalon n'est pas coché.
+- **Finition, grille horaire (28/10).** L'agenda affiche les heures de 8 h à 19 h (`agenda-grille`). Audiences et rendez-vous s'y placent, y compris côte à côte s'ils se recouvrent. Tâches et échéances calculées restent dans la bande « Sans heure ». `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/agenda/dispositionAgenda.test.ts` : 7/7. eslint et typecheck : exit 0.
+
+**Prochaine action.** Blocs manquants de l'aperçu Dossiers (procédure, derniers éléments, temps). Le jalon n'est pas coché.

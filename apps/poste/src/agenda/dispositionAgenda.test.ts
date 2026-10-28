@@ -4,7 +4,9 @@ import { grilleMois } from "./navigationAgenda.ts";
 import {
   categorieAgenda,
   placerSimultanes,
+  positionGrille,
   prochainesEcheances,
+  HAUTEUR_HEURE,
 } from "./dispositionAgenda.ts";
 
 describe("grille du mois", () => {
@@ -42,6 +44,18 @@ describe("éléments simultanés", () => {
     assert.equal(places.find((p) => p.id === "b")?.colonne, 1);
     assert.equal(places[0]?.colonnes, 2);
     assert.equal(places[1]?.colonnes, 2);
+  });
+});
+
+describe("grille horaire", () => {
+  it("place 9 h 30 à une heure et demie sous 8 h", () => {
+    const place = positionGrille(9 * 60 + 30, 60);
+    assert.equal(place?.top, 1.5 * HAUTEUR_HEURE);
+    assert.equal(place?.hauteur, HAUTEUR_HEURE - 4);
+  });
+
+  it("écarte un élément entièrement avant 8 h", () => {
+    assert.equal(positionGrille(6 * 60, 30), null);
   });
 });
 
