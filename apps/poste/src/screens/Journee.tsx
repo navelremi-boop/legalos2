@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Feuille } from "@/coque/Feuille";
 import { BarreActions } from "@/coque/BarreActions";
 import { composantesAffichees } from "@/agenda/fuseauParis";
@@ -7,7 +7,9 @@ import { classerMessage } from "@/messagerie/apiMessagerie";
 import { CONDITION_SQL_A_CLASSER } from "@/messagerie/classement";
 import { propositionTemps } from "@/messagerie/tempsMail";
 import { isChemiseId, type ChemiseId } from "@/lib/chemise";
+import { htTempsCentimes, TAUX_PAR_DEFAUT_CENTIMES } from "@/facturation/ecrireTemps";
 import { fr } from "@/lib/fr";
+import { formatDuree, formatMontant } from "@/lib/format";
 import { getPowerSyncDatabase } from "@/sync/database";
 import { joursEntre } from "@/dossiers/listeDossiers";
 import { libelleEcart, libelleHeure, ligneDelai, ligneMail, ligneTemps, partAnneau } from "@/screens/assemblerJournee";
@@ -31,6 +33,7 @@ export type DonneesJournee = {
   delais: LigneJournee[];
   mails: LigneJournee[];
   temps: LigneJournee[];
+  nonFacture: { minutes: number; htCentimes: number };
 };
 
 /** Jeu fictif pour DEV / galerie / captures B9 (§ 7.6). */
@@ -108,12 +111,14 @@ export const JOURNEE_DEMO: DonneesJournee = {
       dossier: { nom: "SCI des Lilas", chemise: "vert-amande" },
     },
   ],
+  nonFacture: { minutes: 90, htCentimes: htTempsCentimes(90, TAUX_PAR_DEFAUT_CENTIMES) },
 };
 
 type JourneeProps = {
   onNouveauDossier: () => void;
   onNouveauMail: () => void;
   onSaisirTemps: () => void;
+  onOuvrirFacturation?: () => void;
   onOuvrirAgenda?: () => void;
   /** Affiche le jeu fictif (galerie). Sans cela, les quatre sections viennent de la base locale. */
   donneesDemo?: boolean;
@@ -175,6 +180,7 @@ function Section({
   onSaisir,
   faites,
   onBasculerTache,
+  annonce,
 }: {
   id: string;
   titre: string;
@@ -186,6 +192,7 @@ function Section({
   onSaisir?: () => void;
   faites?: ReadonlySet<string>;
   onBasculerTache?: (id: string) => void;
+  annonce?: ReactNode;
 }) {
   const evenements = lignes.filter((ligne) => !ligne.tache);
   const taches = lignes.filter((ligne) => ligne.tache);
@@ -199,6 +206,7 @@ function Section({
           </button>
         ) : null}
       </h2>
+      {annonce}
       {lignes.length === 0 ? (
         <p className="text-graphite">{fr(vide)}</p>
       ) : (
@@ -293,6 +301,7 @@ export function Journee({
   onNouveauDossier,
   onNouveauMail,
   onSaisirTemps,
+  onOuvrirFacturation,
   onOuvrirAgenda,
   donneesDemo,
   donnees,
@@ -305,6 +314,7 @@ export function Journee({
   const delais = jeu?.delais ?? [];
   const mails = jeu?.mails ?? [];
   const temps = jeu?.temps ?? [];
+  const nonFacture = jeu?.nonFacture ?? { minutes: 0, htCentimes: 0 };
   const [faites, setFaites] = useState<Set<string>>(() => new Set());
 
   function basculerTache(id: string) {
@@ -323,7 +333,7 @@ export function Journee({
       const aujourd = jourCivil(new Date());
       void getPowerSyncDatabase()
         .then(async (database) => {
-          const [agendas, dossiers, aClasser, classes] = await Promise.all([
+          const [agendas, dossiers, aClasser, classes, saisies, factures] = await Promise.all([
             database.getAll<{
               id: string;
               titre: string;
@@ -348,6 +358,12 @@ export function Journee({
             ),
             database.getAll<{ id: string; dossier_id: string }>(
               "SELECT id, dossier_id FROM messages WHERE etat_classement = 'classe' AND dossier_id IS NOT NULL LIMIT 5",
+            ),
+            database.getAll<{ id: string; minutes: number; ht_centimes: number }>(
+              "SELECT id, minutes, ht_centimes FROM temps_saisis",
+            ),
+            database.getAll<{ temps_id: string | null }>(
+              "SELECT temps_id FROM brouillons_facture WHERE numero IS NOT NULL",
             ),
           ]);
           const parId = new Map(dossiers.map((dossier) => [dossier.id, dossier]));
@@ -442,13 +458,25 @@ export function Journee({
                   });
                 }),
             ],
+            nonFacture: saisies.reduce(
+              (total, ligne) => {
+                if (factures.some((facture) => facture.temps_id === ligne.id)) return total;
+                return {
+                  minutes: total.minutes + ligne.minutes,
+                  htCentimes: total.htCentimes + ligne.ht_centimes,
+                };
+              },
+              { minutes: 0, htCentimes: 0 },
+            ),
           } satisfies DonneesJournee;
         })
         .then((suivant) => {
           if (!stop) setReelles(suivant);
         })
         .catch(() => {
-          if (!stop) setReelles({ audiences: [], delais: [], mails: [], temps: [] });
+          if (!stop) {
+            setReelles({ audiences: [], delais: [], mails: [], temps: [], nonFacture: { minutes: 0, htCentimes: 0 } });
+          }
         });
     };
     charger();
@@ -517,6 +545,22 @@ export function Journee({
             lien="Ouvrir le temps"
             onLien={onSaisirTemps}
             onSaisir={onSaisirTemps}
+            annonce={
+              <p className="mb-2 flex flex-wrap items-baseline gap-3" data-testid="journee-non-facture">
+                <span>
+                  {fr(
+                    `Non facturé : ${formatDuree(nonFacture.minutes * 60)}, soit ${formatMontant(nonFacture.htCentimes)} HT`,
+                  )}
+                </span>
+                <button
+                  type="button"
+                  className="font-bold text-encre"
+                  onClick={onOuvrirFacturation ?? onSaisirTemps}
+                >
+                  {fr("Ce qui reste à facturer")}
+                </button>
+              </p>
+            }
           />
         </div>
       </Feuille>

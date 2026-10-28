@@ -48,4 +48,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, semaine et fiche (28/10).** La semaine aligne lundi à vendredi, et le week-end seulement s'il a un élément. La fiche est à droite de la grille. « Saisir du temps » est de retour dans le dock. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/agenda/navigationAgenda.test.ts` : 9/9. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
 
-**Prochaine action.** Bandeau « non facturé » de La journée, puis le bloc client et adversaire de l'aperçu quand les parties existent. Le jalon n'est pas coché.
+- **Finition, non facturé et parties (28/10).** La journée affiche le temps non facturé et son montant HT, avec « Ce qui reste à facturer ». L'aperçu d'un dossier nomme le client et l'adversaire quand ces rôles existent. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/dossiers/apercuDossier.test.ts` : 5/5. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
+
+**Prochaine action.** Extrait du mail et « Autre dossier » sur La journée, quand le message les porte. Le jalon n'est pas coché.

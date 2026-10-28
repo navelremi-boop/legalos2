@@ -417,6 +417,9 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
           setNav("temps");
           setPanneau("aucun");
         }}
+        onOuvrirFacturation={() => {
+          setNav("facturation");
+        }}
         onOuvrirAgenda={() => {
           setNav("agenda");
         }}
@@ -548,6 +551,9 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
         onSaisirTemps={() => {
           setNav("temps");
           setPanneau("aucun");
+        }}
+        onOuvrirFacturation={() => {
+          setNav("facturation");
         }}
         onOuvrirAgenda={() => {
           setNav("agenda");

@@ -350,6 +350,10 @@ export function GalerieDemo() {
         echeance_titre: "Conclusions",
         echeance_debut: jourDans(9),
         non_lus: 2,
+        parties: [
+          { role: "client", nom: "SAS Ferrand Métal" },
+          { role: "adversaire", nom: "SARL Duclos Industrie" },
+        ],
       },
       {
         id: "lilas",

@@ -67,6 +67,22 @@ export function libelleJoursRestants(jours: number): string {
   return `${String(jours)} jours`;
 }
 
+/** Client et adversaire, mêmes rôles que la fiche du dossier ouvert. */
+export function nomsParties(
+  parties: readonly { role: string | null; nom: string | null }[],
+): { client: string; adversaire: string } {
+  const nom = (partie: { nom: string | null }) => partie.nom?.trim() ?? "";
+  const client =
+    parties.find((partie) => partie.role === "client" && nom(partie) !== "")?.nom?.trim() ??
+    parties.find((partie) => partie.role === "demandeur" && nom(partie) !== "")?.nom?.trim() ??
+    "";
+  const adversaire = parties
+    .filter((partie) => (partie.role === "adversaire" || partie.role === "defendeur") && nom(partie) !== "")
+    .map((partie) => nom(partie))
+    .join(", ");
+  return { client, adversaire };
+}
+
 /** Mails classés dans un dossier et encore non lus. */
 export function nonLusParDossier(
   mails: readonly { dossier_id: string | null; lu: number | boolean | null }[],

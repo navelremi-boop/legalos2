@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { derniersElements, etapesProcedure, libelleJoursRestants, nonLusParDossier, resumeFacturation } from "./apercuDossier.ts";
+import {
+  derniersElements,
+  etapesProcedure,
+  libelleJoursRestants,
+  nomsParties,
+  nonLusParDossier,
+  resumeFacturation,
+} from "./apercuDossier.ts";
 
 describe("aperçu d'un dossier", () => {
   it("place l'étape courante entre les étapes faites et les suivantes", () => {
@@ -42,6 +49,17 @@ describe("aperçu d'un dossier", () => {
     ]);
     assert.equal(comptes.get("a"), 2);
     assert.equal(comptes.has("b"), false);
+  });
+
+  it("sépare le client de l'adversaire", () => {
+    assert.deepEqual(
+      nomsParties([
+        { role: "client", nom: "SAS Ferrand" },
+        { role: "adversaire", nom: "SARL Duclos" },
+        { role: "confrere", nom: "Me Roux" },
+      ]),
+      { client: "SAS Ferrand", adversaire: "SARL Duclos" },
+    );
   });
 
   it("sépare le temps non facturé du montant déjà facturé", () => {

@@ -7,6 +7,7 @@ import {
   derniersElements,
   etapesProcedure,
   libelleJoursRestants,
+  nomsParties,
   nonLusParDossier,
   resumeFacturation,
   type ElementRecent,
@@ -41,6 +42,7 @@ type LigneDossier = {
   echeance_debut?: string | null;
   echeance_titre?: string | null;
   non_lus?: number;
+  parties?: { role: string; nom: string }[];
 };
 
 type EcheanceLocale = {
@@ -136,6 +138,9 @@ export function Dossiers({
     () => new Map(),
   );
   const [parties, setParties] = useState<Map<string, string>>(() => new Map());
+  const [rolesParties, setRolesParties] = useState<Map<string, { client: string; adversaire: string }>>(
+    () => new Map(),
+  );
   const [recents, setRecents] = useState<Map<string, ElementRecent[]>>(() => new Map());
   const [facturation, setFacturation] = useState<
     Map<string, { nonFactureMinutes: number; factureCentimes: number }>
@@ -204,6 +209,14 @@ export function Dossiers({
           }
           const texte = new Map<string, string>();
           for (const [id, liste] of noms) texte.set(id, liste.join(" "));
+          const parRole = new Map<string, { role: string | null; nom: string | null }[]>();
+          for (const role of roles) {
+            const liste = parRole.get(role.dossier_id) ?? [];
+            liste.push(role);
+            parRole.set(role.dossier_id, liste);
+          }
+          const cartes = new Map<string, { client: string; adversaire: string }>();
+          for (const [id, liste] of parRole) cartes.set(id, nomsParties(liste));
           const parDossier = new Map<string, ElementRecent[]>();
           const ajouter = (dossierId: string, element: ElementRecent) => {
             const liste = parDossier.get(dossierId) ?? [];
@@ -244,6 +257,7 @@ export function Dossiers({
           setLignesSync(dossiers);
           setEcheances(prochaines);
           setParties(texte);
+          setRolesParties(cartes);
           setRecents(recentsTries);
           setFacturation(resumes);
           setNonLus(nonLusParDossier(mails));
@@ -265,6 +279,14 @@ export function Dossiers({
     return source.map((ligne) => versBrut(ligne, echeances, parties)).map((brut) => vueDossier(brut, jour));
   }, [lignesFixes, lignesSync, echeances, parties, jour]);
 
+  const cartesParties = useMemo(() => {
+    if (!lignesFixes) return rolesParties;
+    const cartes = new Map(rolesParties);
+    for (const ligne of lignesFixes) {
+      if (ligne.parties) cartes.set(ligne.id, nomsParties(ligne.parties));
+    }
+    return cartes;
+  }, [lignesFixes, rolesParties]);
   const comptesNonLus = useMemo(() => {
     if (!lignesFixes) return nonLus;
     const comptes = new Map(nonLus);
@@ -500,7 +522,21 @@ export function Dossiers({
                     <dd>{fr(choisi.numeroRg)}</dd>
                   </div>
                 ) : null}
-                {choisi.parties !== "" ? (
+                {(cartesParties.get(choisi.id)?.client ?? "") !== "" ? (
+                  <div>
+                    <dt className="text-graphite">{fr("Client")}</dt>
+                    <dd>{fr(cartesParties.get(choisi.id)?.client ?? "")}</dd>
+                  </div>
+                ) : null}
+                {(cartesParties.get(choisi.id)?.adversaire ?? "") !== "" ? (
+                  <div>
+                    <dt className="text-graphite">{fr("Adversaire")}</dt>
+                    <dd>{fr(cartesParties.get(choisi.id)?.adversaire ?? "")}</dd>
+                  </div>
+                ) : null}
+                {choisi.parties !== "" &&
+                (cartesParties.get(choisi.id)?.client ?? "") === "" &&
+                (cartesParties.get(choisi.id)?.adversaire ?? "") === "" ? (
                   <div>
                     <dt className="text-graphite">{fr("Parties")}</dt>
                     <dd>{fr(choisi.parties)}</dd>
