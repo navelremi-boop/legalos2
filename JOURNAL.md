@@ -50,4 +50,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, non facturé et parties (28/10).** La journée affiche le temps non facturé et son montant HT, avec « Ce qui reste à facturer ». L'aperçu d'un dossier nomme le client et l'adversaire quand ces rôles existent. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/dossiers/apercuDossier.test.ts` : 5/5. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
 
-**Prochaine action.** Extrait du mail et « Autre dossier » sur La journée, quand le message les porte. Le jalon n'est pas coché.
+- **Finition, mails de La journée (28/10).** Un mail suggéré montre son extrait quand il en a un, et « Autre dossier » ouvre le choix d'un autre dossier, classé par le même chemin que « Classer ». Pas de motif de suggestion : le message n'en porte pas. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/screens/assemblerJournee.test.ts` : 3/3. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
+
+**Prochaine action.** Capture de l'écran Temps dans la galerie, pour la comparaison. Le jalon n'est pas coché.

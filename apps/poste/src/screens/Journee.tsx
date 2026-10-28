@@ -22,6 +22,7 @@ export type LigneJournee = {
   urgent?: boolean;
   calcule?: boolean;
   classer?: { messageId: string; dossierId: string };
+  extrait?: string;
   saisir?: { minutes: number };
   heure?: string;
   jours?: number;
@@ -85,6 +86,7 @@ export const JOURNEE_DEMO: DonneesJournee = {
       id: "mail-1",
       titre: "Me Dupont — pièces jointes",
       meta: "Suggéré : Ferrand Métal",
+      extrait: "Les pièces 12 et 13 sont jointes.",
       dossier: { nom: "Ferrand Métal", chemise: "kraft" },
       classer: { messageId: "mail-1", dossierId: "ferrand" },
     },
@@ -178,6 +180,10 @@ function Section({
   onLien,
   onClasser,
   onSaisir,
+  dossiersChoix,
+  choixOuvert,
+  onAutre,
+  onAnnulerChoix,
   faites,
   onBasculerTache,
   annonce,
@@ -190,6 +196,10 @@ function Section({
   onLien?: () => void;
   onClasser?: (messageId: string, dossierId: string) => void;
   onSaisir?: () => void;
+  dossiersChoix?: readonly { id: string; nom: string }[];
+  choixOuvert?: string | null;
+  onAutre?: (id: string) => void;
+  onAnnulerChoix?: () => void;
   faites?: ReadonlySet<string>;
   onBasculerTache?: (id: string) => void;
   annonce?: ReactNode;
@@ -233,6 +243,11 @@ function Section({
                     </span>
                   ) : null}
                 </div>
+                {ligne.extrait ? (
+                  <p className="truncate text-[length:var(--font-size-dense)] text-graphite" data-testid="journee-extrait">
+                    {fr(ligne.extrait)}
+                  </p>
+                ) : null}
               </div>
               {ligne.classer ? (
                 <button
@@ -244,6 +259,53 @@ function Section({
                   }}
                 >
                   {fr("Classer")}
+                </button>
+              ) : null}
+              {ligne.classer && choixOuvert === ligne.id ? (
+                <form
+                  className="flex flex-wrap items-center gap-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const choisi = new FormData(event.currentTarget).get("dossier");
+                    if (typeof choisi === "string" && choisi !== "") {
+                      onClasser?.(ligne.classer?.messageId ?? "", choisi);
+                    }
+                    onAnnulerChoix?.();
+                  }}
+                >
+                  <select
+                    name="dossier"
+                    className="rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+                    data-testid="journee-choix-dossier"
+                    defaultValue={ligne.classer.dossierId}
+                  >
+                    {(dossiersChoix ?? []).map((dossier) => (
+                      <option key={dossier.id} value={dossier.id}>
+                        {fr(dossier.nom)}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="submit"
+                    className="rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+                  >
+                    {fr("Classer")}
+                  </button>
+                  <button type="button" className="text-graphite" onClick={onAnnulerChoix}>
+                    {fr("Annuler")}
+                  </button>
+                </form>
+              ) : null}
+              {ligne.classer && choixOuvert !== ligne.id ? (
+                <button
+                  type="button"
+                  className="rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+                  data-testid="journee-autre-dossier"
+                  onClick={() => {
+                    onAutre?.(ligne.id);
+                  }}
+                >
+                  {fr("Autre dossier")}
                 </button>
               ) : null}
               {ligne.jours !== undefined ? (
@@ -316,6 +378,15 @@ export function Journee({
   const temps = jeu?.temps ?? [];
   const nonFacture = jeu?.nonFacture ?? { minutes: 0, htCentimes: 0 };
   const [faites, setFaites] = useState<Set<string>>(() => new Set());
+  const [choixOuvert, setChoixOuvert] = useState<string | null>(null);
+  const [dossiersSync, setDossiersSync] = useState<{ id: string; nom: string }[]>([]);
+  const dossiersChoix = fixe
+    ? [
+        { id: "ferrand", nom: "Ferrand Métal" },
+        { id: "lilas", nom: "SCI des Lilas" },
+        { id: "martin", nom: "Martin / Assurances Loire" },
+      ]
+    : dossiersSync;
 
   function basculerTache(id: string) {
     setFaites((actuel) => {
@@ -351,9 +422,10 @@ export function Journee({
               id: string;
               objet: string | null;
               expediteur: string | null;
+              extrait_texte: string | null;
               suggestion_dossier_id: string | null;
             }>(
-              `SELECT id, objet, expediteur, suggestion_dossier_id FROM messages
+              `SELECT id, objet, expediteur, extrait_texte, suggestion_dossier_id FROM messages
                WHERE ${CONDITION_SQL_A_CLASSER} LIMIT 8`,
             ),
             database.getAll<{ id: string; dossier_id: string }>(
@@ -382,7 +454,7 @@ export function Journee({
             );
           });
           const proposition = propositionTemps([]);
-          return {
+          const journee = {
             audiences: duJour.map((ligne) => {
               const dossier = chemiseDe(ligne.dossier_id);
               const quand = composantesAffichees(ligne.debut);
@@ -427,6 +499,7 @@ export function Journee({
                 id: ligne.id,
                 objet: ligne.objet ?? "",
                 expediteur: ligne.expediteur ?? "",
+                extrait: ligne.extrait_texte,
                 suggestionDossierId: suggere,
                 dossierNom: dossier?.nom,
                 chemise: dossier?.chemise,
@@ -469,9 +542,15 @@ export function Journee({
               { minutes: 0, htCentimes: 0 },
             ),
           } satisfies DonneesJournee;
+          return {
+            journee,
+            dossiers: dossiers.map((dossier) => ({ id: dossier.id, nom: dossier.nom })),
+          };
         })
         .then((suivant) => {
-          if (!stop) setReelles(suivant);
+          if (stop) return;
+          setReelles(suivant.journee);
+          setDossiersSync(suivant.dossiers);
         })
         .catch(() => {
           if (!stop) {
@@ -536,6 +615,12 @@ export function Journee({
             lien="Ouvrir les mails"
             onLien={onNouveauMail}
             onClasser={classer}
+            dossiersChoix={dossiersChoix}
+            choixOuvert={choixOuvert}
+            onAutre={setChoixOuvert}
+            onAnnulerChoix={() => {
+              setChoixOuvert(null);
+            }}
           />
           <Section
             id="temps"

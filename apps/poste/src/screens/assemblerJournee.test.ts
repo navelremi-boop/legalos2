@@ -29,6 +29,14 @@ describe("la journée", () => {
       suggestionDossierId: null,
     });
     assert.equal(sans.classer, undefined);
+    assert.equal(
+      ligneMail({ id: "m3", objet: "Pièces", expediteur: "c@example.com", suggestionDossierId: "d1", extrait: "  Jointes. " }).extrait,
+      "Jointes.",
+    );
+    assert.equal(
+      ligneMail({ id: "m4", objet: "Vide", expediteur: "d@example.com", suggestionDossierId: null, extrait: "   " }).extrait,
+      undefined,
+    );
   });
 
   it("distingue le temps tiré d'un mail de celui tiré de l'agenda", () => {

@@ -7,6 +7,8 @@ export type LigneAssemblee = {
   dossier?: { nom: string; chemise: ChemiseId };
   calcule?: boolean;
   classer?: { messageId: string; dossierId: string };
+  /** Extrait du message, seulement s'il est renseigné. */
+  extrait?: string;
   saisir?: { minutes: number };
   /** Heure murale, « 9 h 30 ». */
   heure?: string;
@@ -30,6 +32,7 @@ export type MailSource = {
   objet: string;
   expediteur: string;
   suggestionDossierId: string | null;
+  extrait?: string | null;
   dossierNom?: string;
   chemise?: ChemiseId;
 };
@@ -83,10 +86,12 @@ export function ligneDelai(source: DelaiSource): LigneAssemblee {
 
 /** Classement en un clic seulement quand une suggestion de dossier existe. */
 export function ligneMail(source: MailSource): LigneAssemblee {
+  const extrait = source.extrait?.trim() ?? "";
   return {
     id: source.id,
     titre: source.objet,
     meta: source.expediteur,
+    extrait: extrait === "" ? undefined : extrait,
     dossier: dossier(source.dossierNom, source.chemise),
     classer:
       source.suggestionDossierId && source.suggestionDossierId !== ""
