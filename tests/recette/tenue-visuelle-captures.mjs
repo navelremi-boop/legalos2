@@ -9,6 +9,12 @@ import { join } from "node:path";
 import { demoEmail, demoPassword, totpSecretB32 } from "./lib/demo-auth.mjs";
 import { creerSession, sleep } from "./lib/poste-session.mjs";
 
+process.env.LEGALOS_INSTANCE_URL ??= "http://127.0.0.1:8188";
+if (new URL(process.env.LEGALOS_INSTANCE_URL).port === "8088") {
+  console.error("tenue-captures: FAIL — les captures visent l'instance des recettes");
+  process.exit(1);
+}
+
 const TAILLES = [
   { largeur: 1366, hauteur: 768 },
   { largeur: 1920, hauteur: 1080 },
@@ -43,8 +49,9 @@ const creds = {
   secret: totpSecretB32,
   nomAppareil: `Captures tenue ${session.marque}`,
   mode: "dev",
+  forcer: true,
 };
-const { child, page } = await session.ouvrirPoste("tvu", "9297", creds);
+const { child, page } = await session.ouvrirPoste("tvd", "9298", creds);
 const send = page.send;
 
 async function attendre(nom, expression, delaiMs = 20_000) {

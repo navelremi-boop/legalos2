@@ -710,7 +710,7 @@ export function EcranAgenda({
       <div
         className="grid min-w-0"
         style={{
-          gridTemplateColumns: `3rem repeat(${String(
+          gridTemplateColumns: `6.5rem repeat(${String(
             (vue === "jour"
               ? [jourRepere]
               : joursSemaineAffiches(
