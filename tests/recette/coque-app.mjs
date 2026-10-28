@@ -316,6 +316,29 @@ async function runCaptures() {
         }
       }
 
+      const etatsConnexion = [
+        ["adresse", "adresse"],
+        ["chiffrement", "chiffrement"],
+        ["connexion", "connexion"],
+        ["mdp", "mdp"],
+        ["otp", "otp"],
+        ["otpe", "otp-refuse"],
+        ["sync", "sync"],
+        ["verrou", "verrou"],
+        ["horsligne", "hors-ligne"],
+        ["revoque", "revoque"],
+        ["trousseau", "trousseau"],
+      ];
+      await commandes.getByRole("button", { name: "Écran de connexion", exact: true }).click();
+      for (const [id, fichier] of etatsConnexion) {
+        await page.getByTestId(`connexion-etat-${id}`).click();
+        await page.waitForSelector(`[data-testid=ecran-connexion][data-etat=${id}]`);
+        await page.waitForTimeout(100);
+        await page.locator("[data-testid=galerie-scene]").screenshot({
+          path: join(outDir, `connexion-${fichier}-${theme === "light" ? "jour" : "nuit"}.png`),
+        });
+      }
+
       // Vue scindée (§ 7.4) : chrono + aperçu, jour et nuit (chemise kraft).
       await commandes.getByRole("button", { name: "Dossier", exact: true }).click();
       await commandes.getByRole("button", { name: "kraft", exact: true }).click();

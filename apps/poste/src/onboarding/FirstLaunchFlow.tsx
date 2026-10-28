@@ -8,6 +8,7 @@ import {
 } from "@/components/onboarding/FormControls";
 import { OnboardingShell } from "@/components/onboarding/OnboardingShell";
 import { SaisieCode } from "@/onboarding/SaisieCode";
+import { contenuConnexion } from "@/onboarding/etatsConnexion";
 import { messageConnexion } from "@/onboarding/codeConnexion";
 import {
   connexion,
@@ -137,6 +138,11 @@ export function FirstLaunchFlow({ initialInstanceUrl, onComplete }: FirstLaunchF
       >
         <form onSubmit={handleInstanceSubmit}>
           {error !== null ? <ErrorMessage message={error} /> : null}
+          <p className="mb-4" role="status" data-testid="connexion-chiffrement">
+            <b>{fr(contenuConnexion("chiffrement").alerte?.titre ?? "")}</b>
+            {" "}
+            {fr(contenuConnexion("chiffrement").alerte?.texte ?? "")}
+          </p>
           <Field
             id="instance-url"
             label="Adresse de l’instance"
@@ -157,7 +163,7 @@ export function FirstLaunchFlow({ initialInstanceUrl, onComplete }: FirstLaunchF
             />
           </Field>
           <PrimaryButton type="submit" disabled={busy}>
-            {fr("Continuer")}
+            {fr("Continuer quand même")}
           </PrimaryButton>
         </form>
       </OnboardingShell>

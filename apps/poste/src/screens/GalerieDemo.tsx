@@ -16,6 +16,12 @@ import type { InvitationLocale } from "@/messagerie/typesMails";
 import type { DemonstrationMessagerie } from "@/messagerie/ReglagesMessagerie";
 import { Dossiers } from "@/screens/Dossiers";
 import { Journee } from "@/screens/Journee";
+import { EcranConnexion } from "@/onboarding/EcranConnexion";
+import {
+  ETATS_CONNEXION,
+  LIBELLES_ETAT_CONNEXION,
+  type EtatConnexion,
+} from "@/onboarding/etatsConnexion";
 import { Reglages } from "@/screens/Reglages";
 import type { ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
@@ -153,8 +159,9 @@ export function GalerieDemo() {
   /** Dernière entrée choisie dans le menu du compte (la galerie n'exécute rien), lue par les recettes. */
   const [dernierChoixCompte, setDernierChoixCompte] = useState("");
   const [vue, setVue] = useState<
-    "dossier" | "journee" | "dossiers" | "mails" | "agenda" | "facturation" | "reglages" | "temps"
+    "dossier" | "journee" | "dossiers" | "mails" | "agenda" | "facturation" | "reglages" | "temps" | "connexion"
   >("dossier");
+  const [etatConnexion, setEtatConnexion] = useState<EtatConnexion>("adresse");
   const [chronoTemps, setChronoTemps] = useState<EtatChrono>({
     phase: "pause",
     secondes: 12 * 60 + 4,
@@ -595,6 +602,7 @@ export function GalerieDemo() {
               ["facturation", "Facturation"],
               ["temps", "Temps"],
               ["reglages", "Réglages"],
+              ["connexion", "Écran de connexion"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -626,6 +634,24 @@ export function GalerieDemo() {
               </button>
             ))
           : null}
+        {vue === "connexion" ? (
+          <div className="flex flex-wrap gap-1">
+            {ETATS_CONNEXION.map((id) => (
+              <button
+                key={id}
+                type="button"
+                data-testid={`connexion-etat-${id}`}
+                aria-pressed={etatConnexion === id}
+                className="rounded-[var(--radius-control)] border border-filet bg-feuille px-2 py-1 text-graphite"
+                onClick={() => {
+                  setEtatConnexion(id);
+                }}
+              >
+                {fr(LIBELLES_ETAT_CONNEXION[id])}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </header>
 
       <div
@@ -634,6 +660,7 @@ export function GalerieDemo() {
         data-theme-capture={theme}
         data-chemise-capture={vue === "dossier" ? chemise : "neutre"}
       >
+        {vue === "connexion" ? null : (
         <BarreHaut
           actif={vue}
           onNaviguer={() => undefined}
@@ -673,6 +700,7 @@ export function GalerieDemo() {
             />
           }
         />
+        )}
         <div className="coque-workspace min-h-0 flex-1">
           <span className="sr-only" data-testid="galerie-menu-dernier-choix">
             {dernierChoixCompte}
@@ -754,6 +782,7 @@ export function GalerieDemo() {
               onSaisirTemps={() => undefined}
             />
           ) : null}
+          {vue === "connexion" ? <EcranConnexion etat={etatConnexion} /> : null}
         </div>
       </div>
     </div>
