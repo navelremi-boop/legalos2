@@ -1,7 +1,15 @@
+import { useEffect, useState } from "react";
 import { Feuille } from "@/coque/Feuille";
 import { BarreActions } from "@/coque/BarreActions";
-import type { ChemiseId } from "@/lib/chemise";
+import { composantesAffichees } from "@/agenda/fuseauParis";
+import { jourCivil } from "@/agenda/navigationAgenda";
+import { classerMessage } from "@/messagerie/apiMessagerie";
+import { CONDITION_SQL_A_CLASSER } from "@/messagerie/classement";
+import { propositionTemps } from "@/messagerie/tempsMail";
+import { isChemiseId, type ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
+import { getPowerSyncDatabase } from "@/sync/database";
+import { ligneDelai, ligneMail, ligneTemps } from "@/screens/assemblerJournee";
 
 export type LigneJournee = {
   id: string;
@@ -9,6 +17,9 @@ export type LigneJournee = {
   meta: string;
   dossier?: { nom: string; chemise: ChemiseId };
   urgent?: boolean;
+  calcule?: boolean;
+  classer?: { messageId: string; dossierId: string };
+  saisir?: { minutes: number };
 };
 
 export type DonneesJournee = {
@@ -84,9 +95,10 @@ type JourneeProps = {
   onNouveauDossier: () => void;
   onNouveauMail: () => void;
   onSaisirTemps: () => void;
-  /** Affiche le jeu fictif (galerie / captures). Défaut : DEV. */
+  /** Affiche le jeu fictif (galerie). Sans cela, les quatre sections viennent de la base locale. */
   donneesDemo?: boolean;
   donnees?: DonneesJournee;
+  instanceUrl?: string;
 };
 
 function Pastille({ chemise }: { chemise: ChemiseId }) {
@@ -105,11 +117,15 @@ function Section({
   titre,
   lignes,
   vide,
+  onClasser,
+  onSaisir,
 }: {
   id: string;
   titre: string;
   lignes: LigneJournee[];
   vide: string;
+  onClasser?: (messageId: string, dossierId: string) => void;
+  onSaisir?: () => void;
 }) {
   return (
     <section data-testid={`section-${id}`}>
@@ -130,8 +146,37 @@ function Section({
                 <div className="truncate font-bold">{fr(ligne.titre)}</div>
                 <div className="truncate text-[length:var(--font-size-dense)] text-graphite">
                   {fr(ligne.meta)}
+                  {ligne.calcule ? (
+                    <span className="ml-2 font-bold text-encre" data-testid="journee-calcule">
+                      {fr("Calculé")}
+                    </span>
+                  ) : null}
                 </div>
               </div>
+              {ligne.classer ? (
+                <button
+                  type="button"
+                  className="rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+                  data-testid="journee-classer"
+                  onClick={() => {
+                    onClasser?.(ligne.classer?.messageId ?? "", ligne.classer?.dossierId ?? "");
+                  }}
+                >
+                  {fr("Classer")}
+                </button>
+              ) : null}
+              {ligne.saisir ? (
+                <button
+                  type="button"
+                  className="rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+                  data-testid="journee-saisir"
+                  onClick={() => {
+                    onSaisir?.();
+                  }}
+                >
+                  {fr(ligne.saisir.minutes > 0 ? `Saisir ${String(ligne.saisir.minutes)} min` : "Saisir")}
+                </button>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -146,13 +191,156 @@ export function Journee({
   onSaisirTemps,
   donneesDemo,
   donnees,
+  instanceUrl,
 }: JourneeProps) {
-  const utiliserDemo = donneesDemo ?? import.meta.env.DEV;
-  const jeu = donnees ?? (utiliserDemo ? JOURNEE_DEMO : undefined);
+  const fixe = donnees ?? (donneesDemo ? JOURNEE_DEMO : null);
+  const [reelles, setReelles] = useState<DonneesJournee | null>(null);
+  const jeu = fixe ?? reelles;
   const audiences = jeu?.audiences ?? [];
   const delais = jeu?.delais ?? [];
   const mails = jeu?.mails ?? [];
   const temps = jeu?.temps ?? [];
+
+  useEffect(() => {
+    if (fixe) return;
+    let stop = false;
+    const charger = () => {
+      const aujourd = jourCivil(new Date());
+      void getPowerSyncDatabase()
+        .then(async (database) => {
+          const [agendas, dossiers, aClasser, classes] = await Promise.all([
+            database.getAll<{
+              id: string;
+              titre: string;
+              type_element: string;
+              debut: string;
+              origine_calcul: string | null;
+              dossier_id: string;
+            }>(
+              "SELECT id, titre, type_element, debut, origine_calcul, dossier_id FROM agenda_elements",
+            ),
+            database.getAll<{ id: string; nom: string; chemise: string }>(
+              "SELECT id, nom, chemise FROM dossiers",
+            ),
+            database.getAll<{
+              id: string;
+              objet: string | null;
+              expediteur: string | null;
+              suggestion_dossier_id: string | null;
+            }>(
+              `SELECT id, objet, expediteur, suggestion_dossier_id FROM messages
+               WHERE ${CONDITION_SQL_A_CLASSER} LIMIT 8`,
+            ),
+            database.getAll<{ id: string; dossier_id: string }>(
+              "SELECT id, dossier_id FROM messages WHERE etat_classement = 'classe' AND dossier_id IS NOT NULL LIMIT 5",
+            ),
+          ]);
+          const parId = new Map(dossiers.map((dossier) => [dossier.id, dossier]));
+          const chemiseDe = (id: string) => {
+            const dossier = parId.get(id);
+            if (!dossier || !isChemiseId(dossier.chemise)) return undefined;
+            return { nom: dossier.nom, chemise: dossier.chemise };
+          };
+          const duJour = agendas.filter((ligne) => {
+            const quand = composantesAffichees(ligne.debut);
+            return (
+              quand?.jour === aujourd &&
+              (ligne.type_element === "audience" ||
+                ligne.type_element === "rendez_vous" ||
+                ligne.type_element === "tache")
+            );
+          });
+          const proposition = propositionTemps([]);
+          return {
+            audiences: duJour.map((ligne) => {
+              const dossier = chemiseDe(ligne.dossier_id);
+              return {
+                id: ligne.id,
+                titre: ligne.titre,
+                meta: "",
+                dossier: dossier ? { nom: dossier.nom, chemise: dossier.chemise } : undefined,
+              };
+            }),
+            delais: agendas
+              .filter((ligne) => {
+                if (!ligne.origine_calcul) return false;
+                const quand = composantesAffichees(ligne.debut);
+                return quand !== null && quand.jour >= aujourd;
+              })
+              .slice(0, 4)
+              .map((ligne) => {
+                const dossier = chemiseDe(ligne.dossier_id);
+                return ligneDelai({
+                  id: ligne.id,
+                  titre: ligne.titre,
+                  origineCalcul: ligne.origine_calcul,
+                  dossierNom: dossier?.nom,
+                  chemise: dossier?.chemise,
+                });
+              }),
+            mails: aClasser.map((ligne) => {
+              const suggere = ligne.suggestion_dossier_id;
+              const dossier = suggere ? chemiseDe(suggere) : undefined;
+              return ligneMail({
+                id: ligne.id,
+                objet: ligne.objet ?? "",
+                expediteur: ligne.expediteur ?? "",
+                suggestionDossierId: suggere,
+                dossierNom: dossier?.nom,
+                chemise: dossier?.chemise,
+              });
+            }),
+            temps: [
+              ...classes.map((ligne) => {
+                const dossier = chemiseDe(ligne.dossier_id);
+                return ligneTemps({
+                  id: ligne.id,
+                  libelle: proposition.libelle,
+                  minutes: proposition.minutes,
+                  origine: "mail",
+                  dossierNom: dossier?.nom,
+                  chemise: dossier?.chemise,
+                });
+              }),
+              ...duJour
+                .filter((ligne) => ligne.type_element === "tache")
+                .map((ligne) => {
+                  const dossier = chemiseDe(ligne.dossier_id);
+                  return ligneTemps({
+                    id: `agenda-${ligne.id}`,
+                    libelle: ligne.titre,
+                    minutes: 0,
+                    origine: "agenda",
+                    dossierNom: dossier?.nom,
+                    chemise: dossier?.chemise,
+                  });
+                }),
+            ],
+          } satisfies DonneesJournee;
+        })
+        .then((suivant) => {
+          if (!stop) setReelles(suivant);
+        })
+        .catch(() => {
+          if (!stop) setReelles({ audiences: [], delais: [], mails: [], temps: [] });
+        });
+    };
+    charger();
+    const timer = window.setInterval(charger, 2_000);
+    return () => {
+      stop = true;
+      window.clearInterval(timer);
+    };
+  }, [fixe]);
+
+  function classer(messageId: string, dossierId: string) {
+    if (!instanceUrl || messageId === "" || dossierId === "") return;
+    void classerMessage(instanceUrl, messageId, dossierId).then(() => {
+      setReelles((actuel) =>
+        actuel ? { ...actuel, mails: actuel.mails.filter((ligne) => ligne.id !== messageId) } : actuel,
+      );
+    });
+  }
 
   return (
     <div
@@ -185,12 +373,14 @@ export function Journee({
             titre="Mails à classer"
             lignes={mails}
             vide="Aucun mail en attente de classement."
+            onClasser={classer}
           />
           <Section
             id="temps"
             titre="Temps à saisir"
             lignes={temps}
             vide="Aucun temps en attente de saisie."
+            onSaisir={onSaisirTemps}
           />
         </div>
       </Feuille>

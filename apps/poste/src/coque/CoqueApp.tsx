@@ -406,6 +406,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
   } else if (nav === "journee") {
     contenu = (
       <Journee
+        instanceUrl={instanceUrl}
         onNouveauDossier={() => {
           setPanneau("dossier-form");
         }}
@@ -540,6 +541,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
   } else {
     contenu = (
       <Journee
+        instanceUrl={instanceUrl}
         onNouveauDossier={() => {
           setPanneau("dossier-form");
         }}

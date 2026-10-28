@@ -24,4 +24,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, écran Temps (28/10).** Le menu Temps ouvre l'écran, plus une fenêtre. Chronomètre : démarrer, pause (le temps ne avance plus), arrêt confirmé en minutes (au moins une), reprendre. La pastille de la barre suit ce chronomètre sur tous les écrans ; la touche T ouvre Temps hors d'un champ. Liste par jour, filtres Toutes, Non facturées, Facturées, Le cabinet et Mes temps, résumé non facturé et sept jours. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/facturation/chronoTemps.test.ts` : 3/3. eslint et typecheck : exit 0. `menu-compte-tauri` attend désormais l'écran. Recette Tauri de l'écran pas rejouée.
 
-**Prochaine action.** Finition des écrans : La journée (quatre sections, classement en un clic, temps à saisir, mention « Calculé »), puis les captures.
+- **Finition, La journée (28/10).** Quatre sections alimentées par la base locale (la galerie garde le jeu fictif). Classement d'un mail suggéré en un clic par `classerMessage`, le même chemin que l'écran Mails. Temps à saisir tirés des mails classés (barème de lecture) et des tâches du jour. Les délais du moteur portent « Calculé ». `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/screens/assemblerJournee.test.ts` : 3/3. eslint et typecheck : exit 0.
+
+**Prochaine action.** Finition des écrans : captures jour et nuit (`node tests/recette/coque-app.mjs --captures`), puis preuve visuelle. Le jalon n'est pas coché.
