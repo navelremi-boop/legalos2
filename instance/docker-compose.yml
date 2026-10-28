@@ -67,7 +67,7 @@ services:
       LEGALOS_OAUTH_GMAIL_CLIENT_ID: ${LEGALOS_OAUTH_GMAIL_CLIENT_ID:-}
       LEGALOS_OAUTH_GMAIL_CLIENT_SECRET: ${LEGALOS_OAUTH_GMAIL_CLIENT_SECRET:-}
       S3_ENDPOINT: http://garage:3900
-      S3_PUBLIC_ENDPOINT: http://127.0.0.1:3900
+      S3_PUBLIC_ENDPOINT: http://127.0.0.1:${GARAGE_HOST_PORT:-3900}
       S3_REGION: garage
       S3_BUCKET: legalos
       PA_BASE_URL: http://simulateur-pa:8090
@@ -190,7 +190,7 @@ services:
       - garage_data:/var/lib/garage/data
       - ./garage/garage.toml:/etc/garage.toml:ro
     ports:
-      - "127.0.0.1:3900:3900"
+      - "127.0.0.1:${GARAGE_HOST_PORT:-3900}:3900"
     expose:
       - "3900"
       - "3901"
@@ -222,8 +222,8 @@ services:
       - "3993"
       - "3995"
     ports:
-      - "127.0.0.1:13025:3025"
-      - "127.0.0.1:13143:3143"
+      - "127.0.0.1:${GREENMAIL_SMTP_PORT:-13025}:3025"
+      - "127.0.0.1:${GREENMAIL_IMAP_PORT:-13143}:3143"
     healthcheck:
       test:
         [
@@ -242,7 +242,7 @@ services:
     image: legalos/simulateur-pa:s9
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8090:8090"
+      - "127.0.0.1:${PA_HOST_PORT:-8090}:8090"
     expose:
       - "8090"
     healthcheck:

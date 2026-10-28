@@ -5,6 +5,7 @@ instance/garage/cles.local
 tests/recette/facturx/factur-x.xml
 !.env.example
 !.env.development.example
+!.env.demo.example
 *.key
 *.pem
 *.p12
