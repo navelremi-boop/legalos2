@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-10-28 (jalon en cours : **Modèles et fusion** ; **Écran de connexion** validé `5b7f36f`, contrôleur [jalon](cc215437-1656-48a9-87be-6f9a5b5689d3), CI [40737316177](https://github.com/navelremi-boop/legalos2/actions/runs/40737316177) ; le crash `0xC0000374` bloque J14).
+Dernière mise à jour : 2026-10-28 (jalon en cours : **Tenue visuelle** ; **Modèles et fusion** validé `6887969`, contrôleur [jalon](d080c260-de76-403c-91e3-48d4cbb3415a), CI [40748763193](https://github.com/navelremi-boop/legalos2/actions/runs/40748763193) ; le crash `0xC0000374` bloque J14).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -222,7 +222,7 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
 
 - [x] **Écran de connexion** — VALIDÉ `5b7f36f` (contrôleur [jalon](cc215437-1656-48a9-87be-6f9a5b5689d3), CI [40737316177](https://github.com/navelremi-boop/legalos2/actions/runs/40737316177))
 
-- [ ] **Modèles et fusion** — § 4.2 n° 7 — critères validés par l'architecte le 04/10/2026
+- [x] **Modèles et fusion** — VALIDÉ `6887969` (contrôleur [jalon](d080c260-de76-403c-91e3-48d4cbb3415a), CI [40748763193](https://github.com/navelremi-boop/legalos2/actions/runs/40748763193)) — § 4.2 n° 7 — critères validés par l'architecte le 04/10/2026
   - **Critères d'acceptation (commandes)** :
     - `node tests/recette/modeles-fusion.mjs` → exit 0 (app Tauri) :
       - un courrier, une convention et un acte sont générés depuis les données du dossier (docxtemplater, cœur gratuit uniquement, aucun module payant) ; format compatible avec l'insertion future de blocs par `{@rawXml}` ;
