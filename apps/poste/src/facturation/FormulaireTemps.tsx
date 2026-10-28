@@ -48,6 +48,7 @@ export function FormulaireTemps({
   const [message, setMessage] = useState("");
   const [brouillon, setBrouillon] = useState<BrouillonLocal | null>(null);
   const [alertePour, setAlertePour] = useState<string | null>(null);
+  const [modeFacture, setModeFacture] = useState<string | null>(null);
   const [cii, setCii] = useState("");
   const [dossiers, setDossiers] = useState<DossierOption[]>([]);
   const [tauxSuggere, setTauxSuggere] = useState(6_000);
@@ -114,7 +115,10 @@ export function FormulaireTemps({
     if (dossierSelect === "") return;
     let stop = false;
     void lireConventions(dossierSelect).then((lignes) => {
-      if (!stop) setAlertePour(alerteDuDossier(lignes, jourCivil(new Date())) ? dossierSelect : null);
+      if (stop) return;
+      const signee = lignes.find((ligne) => ligne.statut === "signee");
+      setModeFacture(signee?.mode ?? null);
+      setAlertePour(alerteDuDossier(lignes, jourCivil(new Date())) ? dossierSelect : null);
     });
     return () => {
       stop = true;
@@ -313,6 +317,17 @@ export function FormulaireTemps({
               `Durées acceptées : 1 h 30, 45 min, 0,75. Taux ${formatMontant(apercu?.taux ?? tauxSuggere)} par heure.`,
             )}
       </p>
+      {modeFacture ? (
+        <p className="mb-3 text-encre" data-testid="convention-mode-facture">
+          {fr(
+            modeFacture === "forfait"
+              ? "Honoraires au forfait."
+              : modeFacture === "resultat"
+                ? "Honoraires au résultat complémentaire."
+                : "Honoraires au temps passé.",
+          )}
+        </p>
+      ) : null}
       {alerteFacture ? (
         <p className="mb-3 text-encre" data-testid="alerte-convention-facture" role="status">
           {fr("Aucune convention d'honoraires signée.")}
