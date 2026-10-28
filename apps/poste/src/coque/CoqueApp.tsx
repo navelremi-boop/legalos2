@@ -56,6 +56,8 @@ type CoqueAppProps = {
   instanceUrl: string;
   onResetSession?: () => void;
   onReconnect?: () => void;
+  /** Verrouiller : écran de reprise, sans effacer les données locales. */
+  onVerrouiller?: () => void;
 };
 
 type DossierLocal = {
@@ -69,7 +71,7 @@ type DossierLocal = {
   etape: string | null;
 };
 
-export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppProps) {
+export function CoqueApp({ instanceUrl, onResetSession, onReconnect, onVerrouiller }: CoqueAppProps) {
   const [nav, setNav] = useState<NavId>("journee");
   const [themeMode, setThemeMode] = useState<ThemeMode>("system");
   /** Onglets ouverts : uniquement des dossiers réels (jamais DOSSIERS_DEMO). */
@@ -576,7 +578,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
       onPalette={() => {
         setPanneau("palette");
       }}
-      onVerrouiller={onReconnect}
+      onVerrouiller={onVerrouiller ?? onReconnect}
       onDeconnecter={
         onResetSession === undefined
           ? undefined

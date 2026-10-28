@@ -8,7 +8,7 @@ import {
 } from "@/components/onboarding/FormControls";
 import { OnboardingShell } from "@/components/onboarding/OnboardingShell";
 import { SaisieCode } from "@/onboarding/SaisieCode";
-import { contenuConnexion } from "@/onboarding/etatsConnexion";
+import { contenuConnexion, type EtatConnexion } from "@/onboarding/etatsConnexion";
 import { messageConnexion } from "@/onboarding/codeConnexion";
 import {
   connexion,
@@ -31,9 +31,11 @@ type Step = "instance" | "connexion" | "totp";
 type FirstLaunchFlowProps = {
   initialInstanceUrl: string;
   onComplete: (result: FirstLaunchComplete) => void;
+  /** Poste révoqué : montrer l'écran, sans effacer les données locales. */
+  onSituation?: (etat: EtatConnexion) => void;
 };
 
-export function FirstLaunchFlow({ initialInstanceUrl, onComplete }: FirstLaunchFlowProps) {
+export function FirstLaunchFlow({ initialInstanceUrl, onComplete, onSituation }: FirstLaunchFlowProps) {
   const [step, setStep] = useState<Step>("instance");
   const [instanceUrl, setInstanceUrl] = useState(initialInstanceUrl);
   const [email, setEmail] = useState("");
@@ -80,6 +82,10 @@ export function FirstLaunchFlow({ initialInstanceUrl, onComplete }: FirstLaunchF
     setBusy(false);
 
     if (!result.ok) {
+      if (result.error.message === "Poste révoqué") {
+        onSituation?.("revoque");
+        return;
+      }
       setError(messageConnexion(result.error.message));
       return;
     }

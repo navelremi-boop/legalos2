@@ -4,7 +4,9 @@ import {
   ETATS_CONNEXION,
   LIBELLES_ETAT_CONNEXION,
   SITUATIONS_CONNEXION,
+  choisirSituation,
   contenuConnexion,
+  lireSituation,
 } from "./etatsConnexion.ts";
 
 describe("états de l'écran de connexion", () => {
@@ -29,6 +31,22 @@ describe("états de l'écran de connexion", () => {
     assert.match(contenuConnexion("horsligne").info?.titre ?? "", /conservées/);
     assert.match(contenuConnexion("trousseau").info?.titre ?? "", /n'ont pas été modifiées/);
     assert.match(contenuConnexion("revoque").info?.texte ?? "", /ne les efface pas/);
+  });
+
+  it("choisit la situation demandée, sans autre effet", () => {
+    const vide = {
+      verrou: false,
+      horsLigneTropLongtemps: false,
+      revoque: false,
+      trousseauRefuse: false,
+    };
+    assert.equal(choisirSituation(vide), null);
+    assert.equal(choisirSituation({ ...vide, verrou: true }), "verrou");
+    assert.equal(choisirSituation({ ...vide, horsLigneTropLongtemps: true }), "horsligne");
+    assert.equal(choisirSituation({ ...vide, revoque: true, verrou: true }), "revoque");
+    assert.equal(choisirSituation({ ...vide, trousseauRefuse: true }), "trousseau");
+    assert.equal(lireSituation("horsligne"), "horsligne");
+    assert.equal(lireSituation("autre"), null);
   });
 
   it("laisse continuer quand le chiffrement du disque n'est pas détecté", () => {

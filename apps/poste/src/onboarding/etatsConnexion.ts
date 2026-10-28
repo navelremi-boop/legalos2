@@ -149,6 +149,32 @@ export function contenuConnexion(etat: EtatConnexion): ContenuConnexion {
   }
 }
 
+export function choisirSituation(demande: {
+  verrou: boolean;
+  horsLigneTropLongtemps: boolean;
+  revoque: boolean;
+  trousseauRefuse: boolean;
+}): EtatConnexion | null {
+  if (demande.revoque) return "revoque";
+  if (demande.trousseauRefuse) return "trousseau";
+  if (demande.horsLigneTropLongtemps) return "horsligne";
+  if (demande.verrou) return "verrou";
+  return null;
+}
+
+/** Valeur lue au démarrage. Toute autre chaîne est ignorée. */
+export function lireSituation(valeur: string | null): EtatConnexion | null {
+  if (
+    valeur === "verrou" ||
+    valeur === "horsligne" ||
+    valeur === "revoque" ||
+    valeur === "trousseau"
+  ) {
+    return valeur;
+  }
+  return null;
+}
+
 export const LIBELLES_ETAT_CONNEXION: Record<EtatConnexion, string> = {
   adresse: "Adresse du serveur",
   chiffrement: "Chiffrement non détecté",

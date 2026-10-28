@@ -4,10 +4,12 @@ import { fr } from "@/lib/fr";
 
 type EcranConnexionProps = {
   etat: EtatConnexion;
+  /** Reprendre sans effacer les données locales. */
+  onContinuer?: () => void;
 };
 
 /** Présentation des onze états. Les recettes de saisie restent dans le parcours réel. */
-export function EcranConnexion({ etat }: EcranConnexionProps) {
+export function EcranConnexion({ etat, onContinuer }: EcranConnexionProps) {
   const contenu = contenuConnexion(etat);
   return (
     <div
@@ -42,6 +44,10 @@ export function EcranConnexion({ etat }: EcranConnexionProps) {
           <button
             type="button"
             className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+            data-testid="connexion-continuer"
+            onClick={() => {
+              onContinuer?.();
+            }}
           >
             {fr(contenu.bouton)}
           </button>

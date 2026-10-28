@@ -10,6 +10,8 @@ import {
 } from "@/lib/session/storage";
 import { DEMO_CABINET_ID } from "@/sync/demoCabinet";
 import { FirstLaunchFlow } from "@/onboarding/FirstLaunchFlow";
+import { EcranConnexion } from "@/onboarding/EcranConnexion";
+import { lireSituation, type EtatConnexion } from "@/onboarding/etatsConnexion";
 import { InitialSyncScreen } from "@/onboarding/InitialSyncScreen";
 import { closePowerSyncDatabase, getPowerSyncDatabase } from "@/sync/database";
 import { ecranDuPoste } from "@/sync/ecranDuPoste";
@@ -33,6 +35,9 @@ function App() {
   const [ecranPret, setEcranPret] = useState(false);
   /** Demande explicite de reconnexion (sinon travail hors ligne sur données locales). */
   const [forceLogin, setForceLogin] = useState(false);
+  const [situation, setSituation] = useState<EtatConnexion | null>(() =>
+    lireSituation(localStorage.getItem("legalos.situation")),
+  );
 
   useEffect(() => {
     void (async () => {
@@ -118,6 +123,11 @@ function App() {
     setAuthenticated(false);
   }, []);
 
+  const handleSituation = useCallback((etat: EtatConnexion) => {
+    localStorage.setItem("legalos.situation", etat);
+    setSituation(etat);
+  }, []);
+
   const ecran = ecranDuPoste({
     ecranPret,
     authenticated,
@@ -129,6 +139,18 @@ function App() {
 
   if (ecran === "attente") return null;
 
+  if (situation !== null) {
+    return (
+      <EcranConnexion
+        etat={situation}
+        onContinuer={() => {
+          localStorage.removeItem("legalos.situation");
+          setSituation(null);
+        }}
+      />
+    );
+  }
+
   // Données locales déjà présentes : la coque s'ouvre tout de suite. L'état du seau
   // (historique compacté ou non) ne retient pas un poste déjà synchronisé.
   if (ecran === "coque") {
@@ -137,6 +159,9 @@ function App() {
         instanceUrl={instanceUrl}
         onResetSession={handleResetSession}
         onReconnect={handleReconnect}
+        onVerrouiller={() => {
+          handleSituation("verrou");
+        }}
       />
     );
   }
@@ -148,6 +173,7 @@ function App() {
         <FirstLaunchFlow
           initialInstanceUrl={instanceUrl}
           onComplete={handleFirstLaunchComplete}
+          onSituation={handleSituation}
         />
       </>
     );
@@ -155,7 +181,11 @@ function App() {
 
   if (ecran === "connexion") {
     return (
-      <FirstLaunchFlow initialInstanceUrl={instanceUrl} onComplete={handleFirstLaunchComplete} />
+      <FirstLaunchFlow
+        initialInstanceUrl={instanceUrl}
+        onComplete={handleFirstLaunchComplete}
+        onSituation={handleSituation}
+      />
     );
   }
 

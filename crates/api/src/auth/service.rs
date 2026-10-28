@@ -281,8 +281,10 @@ async fn enregistrer_poste(
     let poste_id = Uuid::now_v7();
     sqlx::query(
         r#"
-        INSERT INTO postes (id, cabinet_id, utilisateur_id, nom_appareil, derniere_connexion_le)
-        VALUES ($1, $2, $3, $4, NOW())
+        INSERT INTO postes (
+            id, cabinet_id, utilisateur_id, nom_appareil, derniere_connexion_le, chiffrement_disque
+        )
+        VALUES ($1, $2, $3, $4, NOW(), 'non_confirme')
         "#,
     )
     .bind(poste_id)

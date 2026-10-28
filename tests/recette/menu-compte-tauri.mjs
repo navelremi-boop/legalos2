@@ -128,7 +128,11 @@ const creds = { email: demoEmail, password: demoPassword, secret: totpSecretB32,
     );
     if (!(avant >= 1)) fail(`données locales absentes avant Verrouiller (cabinets = ${avant})`);
     await choisir(send, "menu-compte-verrouiller");
-    await attendre("authentification après Verrouiller", formulaireConnexion, send);
+    await attendre(
+      "authentification après Verrouiller",
+      `${formulaireConnexion} || Boolean(document.querySelector("[data-testid=ecran-connexion][data-etat=verrou]"))`,
+      send,
+    );
     const apres = await evaluate(
       send,
       `(async () => { const r = await window.__legalosRecette?.lireSqlite("SELECT COUNT(*) AS n FROM cabinets"); return Number(r?.[0]?.n ?? -1); })()`,

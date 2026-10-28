@@ -234,6 +234,17 @@ async fn auth_flow_totp_et_jwks() {
     let keys = jwks_json["keys"].as_array().expect("keys");
     assert!(!keys.is_empty());
     assert_eq!(keys[0]["alg"], "RS256");
+
+    let pool = sqlx::PgPool::connect(&std::env::var("DATABASE_URL").expect("DATABASE_URL"))
+        .await
+        .expect("postgres");
+    let marque: (String,) =
+        sqlx::query_as("SELECT chiffrement_disque FROM postes WHERE nom_appareil = $1")
+            .bind("test-integration-recette")
+            .fetch_one(&pool)
+            .await
+            .expect("poste inscrit");
+    assert_eq!(marque.0, "non_confirme");
 }
 
 #[tokio::test]
