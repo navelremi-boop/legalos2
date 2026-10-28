@@ -26,4 +26,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, La journée (28/10).** Quatre sections alimentées par la base locale (la galerie garde le jeu fictif). Classement d'un mail suggéré en un clic par `classerMessage`, le même chemin que l'écran Mails. Temps à saisir tirés des mails classés (barème de lecture) et des tâches du jour. Les délais du moteur portent « Calculé ». `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/screens/assemblerJournee.test.ts` : 3/3. eslint et typecheck : exit 0.
 
-**Prochaine action.** Finition des écrans : captures jour et nuit (`node tests/recette/coque-app.mjs --captures`), puis preuve visuelle. Le jalon n'est pas coché.
+- **Finition, captures (28/10).** `node tests/recette/coque-app.mjs --captures` exit 0 (Playwright sur le cache système, pas le cache du bac à sable). Jetons, testids, lint et typecheck verts. Captures rafraîchies : dossiers, agenda (jour et semaine), réglages, jour et nuit. Lecture : Dossiers a la liste, les filtres et l'aperçu ; Agenda a le mois, les filtres, les prochaines échéances et « Voir le calcul » ; Réglages n'a que Cabinet, Messagerie, Apparence et Référence des dossiers. La comparaison du contrôleur aux maquettes n'est pas faite. Le jalon n'est pas coché.
+
+**Prochaine action.** Finition des écrans : le contrôleur compare les captures aux maquettes. Ensuite Écran de connexion. Les dettes ouvertes (crash PowerSync, B6, B7, B8, B15 à B17, B19, B22) ne sont pas le seul travail restant.
