@@ -126,4 +126,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Écran de connexion, captures (28/10).** `node tests/recette/coque-app.mjs --captures` exit 0 en 33 s. Les états otp et otp refusé attendent le lien « code de secours » avant la capture. Le jalon n'est pas coché.
 
+- **Écran de connexion, S2 (28/10).** L'instance API a été reconstruite. `node tests/recette/s2.mjs` exit 0 : TOTP, JWKS, refus « Identifiants invalides » sans distinguer l'adresse du mot de passe, dix codes de secours, usage unique refusé au second essai. Le jalon n'est pas coché.
+
 **Prochaine action.** Nouvelle preuve visuelle des onze états, le lien « code de secours » exigé. Le jalon n'est pas coché.

@@ -103,4 +103,73 @@ if (payloadJson.aud !== expectedAud) {
   fail(`JWT aud attendu ${expectedAud}, reçu ${payloadJson.aud ?? "?"}`);
 }
 
+const mauvaisMotDePasse = await fetch(`${baseUrl}/auth/connexion`, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({
+    email: demoEmail,
+    password: "mot-de-passe-qui-ne-convient-pas",
+    nom_appareil: "recette-s2-refus",
+  }),
+  signal: AbortSignal.timeout(15_000),
+});
+if (mauvaisMotDePasse.status !== 401) {
+  fail(`un mot de passe faux doit répondre 401, reçu ${mauvaisMotDePasse.status}`);
+}
+const refus = await mauvaisMotDePasse.json();
+if (refus.message !== "Identifiants invalides") {
+  fail(`le refus ne doit pas distinguer l'adresse du mot de passe, reçu ${refus.message ?? "?"}`);
+}
+
+const codesReponse = await fetch(`${baseUrl}/auth/codes-secours`, {
+  method: "POST",
+  headers: { authorization: `Bearer ${tokens.access_token}` },
+  signal: AbortSignal.timeout(15_000),
+});
+if (!codesReponse.ok) fail(`POST /auth/codes-secours → ${codesReponse.status}`);
+const codesCorps = await codesReponse.json();
+if (!Array.isArray(codesCorps.codes) || codesCorps.codes.length !== 10) {
+  fail("dix codes de secours attendus, affichés une seule fois");
+}
+
+const deuxieme = await fetch(`${baseUrl}/auth/connexion`, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({
+    email: demoEmail,
+    password: demoPassword,
+    nom_appareil: "recette-s2",
+  }),
+  signal: AbortSignal.timeout(15_000),
+});
+if (!deuxieme.ok) fail(`deuxième connexion → ${deuxieme.status}`);
+const sessionSecours = (await deuxieme.json()).session_token;
+const secours = await fetch(`${baseUrl}/auth/totp/secours`, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ session_token: sessionSecours, code: codesCorps.codes[0] }),
+  signal: AbortSignal.timeout(15_000),
+});
+if (!secours.ok) fail(`POST /auth/totp/secours → ${secours.status}`);
+
+const troisieme = await fetch(`${baseUrl}/auth/connexion`, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({
+    email: demoEmail,
+    password: demoPassword,
+    nom_appareil: "recette-s2",
+  }),
+  signal: AbortSignal.timeout(15_000),
+});
+if (!troisieme.ok) fail(`troisième connexion → ${troisieme.status}`);
+const sessionRejeu = (await troisieme.json()).session_token;
+const rejeu = await fetch(`${baseUrl}/auth/totp/secours`, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ session_token: sessionRejeu, code: codesCorps.codes[0] }),
+  signal: AbortSignal.timeout(15_000),
+});
+if (rejeu.status !== 401) fail(`un code de secours déjà utilisé doit répondre 401, reçu ${rejeu.status}`);
+
 console.log("s2: OK");
