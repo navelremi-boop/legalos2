@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { SubmitEvent } from "react";
+import type { CSSProperties, SubmitEvent } from "react";
 import {
   ecrireElementAgenda,
   modifierElementAgenda,
@@ -15,6 +15,7 @@ import {
   elementsInvitations,
   invitationsDuJour,
   presenterInvitationAgenda,
+  type ElementInvitation,
 } from "@/agenda/invitationsAgenda";
 import {
   categorieAgenda,
@@ -95,6 +96,75 @@ function libelleQuand(debut: string): string {
   if (!mur) return "";
   const heure = mur.heure !== null && mur.minute !== null ? ` ${formatHeureMur(mur.heure, mur.minute)}` : "";
   return `${formatDateLongue(mur.jour)}${heure}`;
+}
+
+function BlocInvitation({
+  element,
+  style,
+  onOuvrirMail,
+}: {
+  element: ElementInvitation;
+  style?: CSSProperties;
+  onOuvrirMail?: (messageId: string) => void;
+}) {
+  const presentation = presenterInvitationAgenda(element);
+  return (
+    <div
+      className={
+        style
+          ? "absolute overflow-hidden rounded-[var(--radius-control)] border border-filet bg-page px-1"
+          : "mb-1"
+      }
+      style={style}
+      data-testid="agenda-invitation"
+      data-invitation-id={element.id}
+      data-uid={element.uid}
+      data-effet={element.effet}
+      data-reponse={element.reponse}
+      data-jour={element.jour}
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <span
+          className={`truncate ${element.annulee ? "text-graphite line-through" : ""}`}
+          data-testid="agenda-invitation-titre"
+        >
+          {fr(presentation.libelle)}
+        </span>
+        {presentation.heure !== "" ? (
+          <span data-testid="agenda-invitation-heure">{presentation.heure}</span>
+        ) : null}
+      </div>
+      <div className="flex flex-wrap items-baseline gap-x-2 text-[length:var(--font-size-meta)] text-graphite">
+        {presentation.etat !== null ? (
+          <span data-testid="agenda-invitation-etat">{fr(presentation.etat)}</span>
+        ) : null}
+        {presentation.reponse !== null ? (
+          <span data-testid="agenda-invitation-reponse">{fr(presentation.reponse)}</span>
+        ) : null}
+        {presentation.fuseau !== null ? (
+          <span data-testid="agenda-invitation-fuseau">{fr(presentation.fuseau)}</span>
+        ) : null}
+        {presentation.organisateur !== "" ? (
+          <span data-testid="agenda-invitation-organisateur">{fr(presentation.organisateur)}</span>
+        ) : null}
+        {presentation.avertissement !== null ? (
+          <span data-testid="agenda-invitation-avertissement">{fr(presentation.avertissement)}</span>
+        ) : null}
+        {element.messageId !== null && onOuvrirMail !== undefined ? (
+          <button
+            type="button"
+            className="font-bold text-encre underline underline-offset-[3px]"
+            data-testid="agenda-invitation-ouvrir"
+            onClick={() => {
+              if (element.messageId !== null) onOuvrirMail(element.messageId);
+            }}
+          >
+            {fr("Ouvrir le mail")}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 function champ(form: FormData, nom: string): string {
@@ -353,8 +423,9 @@ export function EcranAgenda({
           {fr(sousTitre)}
         </p>
       </div>
-      <Feuille className="min-h-[360px]">
-      <aside className="min-h-0 overflow-y-auto border-r border-filet p-[22px]">
+      <Feuille uneColonne className="min-h-[360px]">
+      <div className="grid h-full min-h-0 grid-cols-[15rem_minmax(0,1fr)_16rem]">
+      <aside className="min-h-0 overflow-y-auto border-r border-filet p-3">
         <div className="mb-2 flex items-center justify-between">
           <p className="font-extrabold">{fr(libelleMois(mois))}</p>
           <span className="flex gap-1">
@@ -445,9 +516,9 @@ export function EcranAgenda({
           )}
         </ul>
       </aside>
-      <div className="min-h-0 overflow-y-auto p-[22px] pb-24">
+      <div className="min-h-0 min-w-0 overflow-y-auto p-[22px] pb-24">
       <div className="mb-4">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-nowrap items-center gap-2">
         <button
           type="button"
           className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
@@ -613,28 +684,46 @@ export function EcranAgenda({
           {fr(`Conflit d'agenda : « ${conflit} ».`)}
         </p>
       ) : null}
-      <div className="flex items-start gap-3">
       <div
-        className={vue === "semaine" ? "grid min-w-0 flex-1 gap-2" : "min-w-0 flex-1"}
-        style={
-          vue === "semaine"
-            ? {
-                gridTemplateColumns: `repeat(${String(
-                  joursSemaineAffiches(
-                    semaineDe(jourRepere),
-                    new Set(
-                      lignesVisibles.flatMap((ligne) => {
-                        const jour = composantesAffichees(ligne.debut)?.jour;
-                        return jour ? [jour] : [];
-                      }),
-                    ),
-                  ).length,
-                )}, minmax(0, 1fr))`,
-              }
-            : undefined
-        }
+        className="grid min-w-0"
+        style={{
+          gridTemplateColumns: `3rem repeat(${String(
+            (vue === "jour"
+              ? [jourRepere]
+              : joursSemaineAffiches(
+                  semaineDe(jourRepere),
+                  new Set(
+                    lignesVisibles.flatMap((ligne) => {
+                      const jour = composantesAffichees(ligne.debut)?.jour;
+                      return jour ? [jour] : [];
+                    }),
+                  ),
+                )
+            ).length,
+          )}, minmax(0, 1fr))`,
+          gridTemplateRows: "auto auto auto",
+        }}
         data-testid={vue === "jour" ? "agenda-vue-jour-contenu" : "agenda-vue-semaine-contenu"}
       >
+        <p className="text-graphite" style={{ gridColumn: 1, gridRow: 2 }}>
+          {fr("Sans heure")}
+        </p>
+        <div
+          className="relative"
+          style={{ gridColumn: 1, gridRow: 3, height: (GRILLE_FIN - GRILLE_DEBUT) * HAUTEUR_HEURE }}
+        >
+          {Array.from({ length: GRILLE_FIN - GRILLE_DEBUT + 1 }, (_, index) => GRILLE_DEBUT + index).map(
+            (heureGrille) => (
+              <span
+                key={heureGrille}
+                className="absolute left-0 text-[length:var(--font-size-dense)] text-graphite"
+                style={{ top: (heureGrille - GRILLE_DEBUT) * HAUTEUR_HEURE }}
+              >
+                {fr(`${String(heureGrille)} h`)}
+              </span>
+            ),
+          )}
+        </div>
         {(vue === "jour"
           ? [jourRepere]
           : joursSemaineAffiches(
@@ -647,7 +736,7 @@ export function EcranAgenda({
               ),
             )
         ).map((jour, indexJour) => {
-          const axeHeures = vue === "jour" || indexJour === 0;
+          const colonne = indexJour + 2;
           const duJour = lignesVisibles.filter((ligne) => composantesAffichees(ligne.debut)?.jour === jour);
           const minutes = (ligne: Ligne) => {
             const quand = composantesAffichees(ligne.debut);
@@ -666,78 +755,17 @@ export function EcranAgenda({
           const placeDe = (id: string) => places.find((place) => place.id === id);
           const invitationsDuJourAffichees = invitationsDuJour(elementsInvit, jour);
           return (
-            <section key={jour} className="mb-3 min-w-0 overflow-hidden" data-testid="agenda-jour" data-jour={jour}>
-              <h2 className="truncate text-[length:var(--font-size-dense)] font-extrabold">
+            <section key={jour} className="contents" style={{ display: "contents" }} data-testid="agenda-jour" data-jour={jour}>
+              <h2
+                className="truncate text-[length:var(--font-size-dense)] font-extrabold"
+                style={{ gridColumn: colonne, gridRow: 1 }}
+              >
                 {vue === "semaine" ? formatDateCourte(jour) : formatDateLongue(jour)}
               </h2>
-              {vue === "jour" && duJour.length === 0 && invitationsDuJourAffichees.length === 0 ? (
-                <p className="text-graphite">{fr("Rien ce jour-là.")}</p>
-              ) : null}
-              {invitationsDuJourAffichees.length > 0 ? (
-                <ul data-testid="agenda-invitations">
-                  {invitationsDuJourAffichees.map((element) => {
-                    const presentation = presenterInvitationAgenda(element);
-                    return (
-                      <li
-                        key={element.id}
-                        className="mb-1"
-                        data-testid="agenda-invitation"
-                        data-invitation-id={element.id}
-                        data-uid={element.uid}
-                        data-effet={element.effet}
-                        data-reponse={element.reponse}
-                        data-jour={element.jour}
-                      >
-                        <div className="flex items-baseline justify-between gap-3">
-                          <span
-                            className={`truncate ${element.annulee ? "text-graphite line-through" : ""}`}
-                            data-testid="agenda-invitation-titre"
-                          >
-                            {fr(presentation.libelle)}
-                          </span>
-                          {presentation.heure !== "" ? (
-                            <span data-testid="agenda-invitation-heure">{presentation.heure}</span>
-                          ) : null}
-                        </div>
-                        <div
-                          className="flex flex-wrap items-baseline gap-x-3 text-[length:var(--font-size-meta)] text-graphite"
-                          hidden={vue === "semaine"}
-                        >
-                          {presentation.etat !== null ? (
-                            <span data-testid="agenda-invitation-etat">{fr(presentation.etat)}</span>
-                          ) : null}
-                          {presentation.reponse !== null ? (
-                            <span data-testid="agenda-invitation-reponse">{fr(presentation.reponse)}</span>
-                          ) : null}
-                          {presentation.fuseau !== null ? (
-                            <span data-testid="agenda-invitation-fuseau">{fr(presentation.fuseau)}</span>
-                          ) : null}
-                          {presentation.organisateur !== "" ? (
-                            <span data-testid="agenda-invitation-organisateur">{fr(presentation.organisateur)}</span>
-                          ) : null}
-                          {presentation.avertissement !== null ? (
-                            <span data-testid="agenda-invitation-avertissement">{fr(presentation.avertissement)}</span>
-                          ) : null}
-                          {element.messageId !== null && onOuvrirMail !== undefined ? (
-                            <button
-                              type="button"
-                              className="font-bold text-encre underline underline-offset-[3px]"
-                              data-testid="agenda-invitation-ouvrir"
-                              onClick={() => {
-                                if (element.messageId !== null) onOuvrirMail(element.messageId);
-                              }}
-                            >
-                              {fr("Ouvrir le mail")}
-                            </button>
-                          ) : null}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : null}
-              <div data-testid="agenda-sans-heure" className="mb-2">
-                <p className="text-graphite">{fr("Sans heure")}</p>
+              <div data-testid="agenda-sans-heure" style={{ gridColumn: colonne, gridRow: 2 }}>
+                {vue === "jour" && duJour.length === 0 && invitationsDuJourAffichees.length === 0 ? (
+                  <p className="text-graphite">{fr("Rien ce jour-là.")}</p>
+                ) : null}
                 <ul className="flex flex-col gap-1">
                   {duJour
                     .filter(
@@ -782,26 +810,38 @@ export function EcranAgenda({
                         </li>
                       );
                     })}
+                  {invitationsDuJourAffichees
+                    .filter((element) => element.minutes === null)
+                    .map((element) => (
+                      <BlocInvitation key={element.id} element={element} onOuvrirMail={onOuvrirMail} />
+                    ))}
                 </ul>
               </div>
               <div
                 className="relative"
                 data-testid="agenda-grille"
-                style={{ height: (GRILLE_FIN - GRILLE_DEBUT) * HAUTEUR_HEURE }}
+                style={{
+                  gridColumn: colonne,
+                  gridRow: 3,
+                  height: (GRILLE_FIN - GRILLE_DEBUT) * HAUTEUR_HEURE,
+                }}
               >
-                {axeHeures
-                  ? Array.from({ length: GRILLE_FIN - GRILLE_DEBUT + 1 }, (_, index) => GRILLE_DEBUT + index).map(
-                      (heureGrille) => (
-                        <span
-                          key={heureGrille}
-                          className="absolute left-0 text-[length:var(--font-size-dense)] text-graphite"
-                          style={{ top: (heureGrille - GRILLE_DEBUT) * HAUTEUR_HEURE }}
-                        >
-                          {fr(`${String(heureGrille)} h`)}
-                        </span>
-                      ),
-                    )
-                  : null}
+                {invitationsDuJourAffichees
+                  .filter((element) => element.minutes !== null)
+                  .map((element) => {
+                    const debut = element.minutes;
+                    if (debut === null) return null;
+                    const pos = positionGrille(debut, DUREE_AFFICHEE_MINUTES);
+                    if (!pos) return null;
+                    return (
+                      <BlocInvitation
+                        key={element.id}
+                        element={element}
+                        onOuvrirMail={onOuvrirMail}
+                        style={{ top: pos.top, height: pos.hauteur, left: 0, right: 0 }}
+                      />
+                    );
+                  })}
                 {duJour
                   .filter(
                     (ligne) =>
@@ -828,12 +868,8 @@ export function EcranAgenda({
                         style={{
                           top: pos.top,
                           height: pos.hauteur,
-                          left: axeHeures
-                            ? `calc(3rem + ${String((place.colonne * 100) / place.colonnes)}%)`
-                            : `${String((place.colonne * 100) / place.colonnes)}%`,
-                          width: axeHeures
-                            ? `calc(${String(100 / place.colonnes)}% - 3rem)`
-                            : `${String(100 / place.colonnes)}%`,
+                          left: `${String((place.colonne * 100) / place.colonnes)}%`,
+                          width: `${String(100 / place.colonnes)}%`,
                         }}
                         data-colonne={place.colonne}
                         data-colonnes={place.colonnes}
@@ -856,7 +892,8 @@ export function EcranAgenda({
           );
         })}
       </div>
-      <aside className="w-56 shrink-0 rounded-[var(--radius-control)] border border-filet p-3" data-testid="agenda-apercu">
+      </div>
+      <aside className="min-h-0 overflow-y-auto border-l border-filet p-3" data-testid="agenda-apercu">
         {choisi && edition === choisi.id ? (
           <form
             data-testid="agenda-modifier-form"
@@ -1069,7 +1106,6 @@ export function EcranAgenda({
           );
         })}
       </ul>
-      </div>
       </Feuille>
       <BarreActions
         actions={[
