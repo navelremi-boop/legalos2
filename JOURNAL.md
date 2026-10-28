@@ -34,4 +34,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, grille horaire (28/10).** L'agenda affiche les heures de 8 h à 19 h (`agenda-grille`). Audiences et rendez-vous s'y placent, y compris côte à côte s'ils se recouvrent. Tâches et échéances calculées restent dans la bande « Sans heure ». `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/agenda/dispositionAgenda.test.ts` : 7/7. eslint et typecheck : exit 0.
 
-**Prochaine action.** Blocs manquants de l'aperçu Dossiers (procédure, derniers éléments, temps). Le jalon n'est pas coché.
+- **Finition, aperçu Dossiers (28/10).** L'aperçu a la procédure (étape courante entre les faites et les suivantes), les trois derniers éléments, et le temps non facturé à côté du montant facturé. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/dossiers/apercuDossier.test.ts` : 3/3. eslint et typecheck : exit 0.
+
+**Prochaine action.** Fiche Cabinet des réglages (ce qui existe déjà : nom ; le reste de la maquette n'a pas de fonction). Puis nouvelle comparaison visuelle. Le jalon n'est pas coché.

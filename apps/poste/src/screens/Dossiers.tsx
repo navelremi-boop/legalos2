@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BarreActions } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
 import { FormulaireDossier } from "@/dossiers/FormulaireDossier";
+import { derniersElements, etapesProcedure, resumeFacturation, type ElementRecent } from "@/dossiers/apercuDossier";
 import { libelleEtapeDossier, libelleTypeDossier } from "@/dossiers/libellesDossier";
 import {
   compteurs,
@@ -14,7 +15,7 @@ import {
   type TriDossier,
 } from "@/dossiers/listeDossiers";
 import { fr } from "@/lib/fr";
-import { formatDateCourte } from "@/lib/format";
+import { formatDateCourte, formatDuree, formatMontant } from "@/lib/format";
 import { libelleReferenceDossier } from "@/lib/referenceDossier";
 import { getPowerSyncDatabase } from "@/sync/database";
 
@@ -99,6 +100,10 @@ export function Dossiers({
     () => new Map(),
   );
   const [parties, setParties] = useState<Map<string, string>>(() => new Map());
+  const [recents, setRecents] = useState<Map<string, ElementRecent[]>>(() => new Map());
+  const [facturation, setFacturation] = useState<
+    Map<string, { nonFactureMinutes: number; factureCentimes: number }>
+  >(() => new Map());
   const [filtre, setFiltre] = useState<FiltreDossier>("actifs");
   const [tri, setTri] = useState<TriDossier>("echeance");
   const [recherche, setRecherche] = useState("");
@@ -112,7 +117,7 @@ export function Dossiers({
     const tick = () => {
       void getPowerSyncDatabase()
         .then(async (database) => {
-          const [dossiers, agendas, roles] = await Promise.all([
+          const [dossiers, agendas, roles, mails, pieces, temps, factures] = await Promise.all([
             database.getAll<LigneDossier>(
               `SELECT id, nom, chemise, reference, type_dossier, etape, juridiction, numero_rg, restreint, cree_le
                FROM dossiers`,
@@ -121,10 +126,22 @@ export function Dossiers({
               "SELECT dossier_id, titre, debut FROM agenda_elements WHERE debut IS NOT NULL",
             ),
             database.getAll<PartieLocale>("SELECT dossier_id, nom, role FROM parties"),
+            database.getAll<{ id: string; dossier_id: string; objet: string | null; cree_le: string | null }>(
+              "SELECT id, dossier_id, objet, cree_le FROM messages WHERE dossier_id IS NOT NULL",
+            ),
+            database.getAll<{ id: string; dossier_id: string; nom: string | null; cree_le: string | null }>(
+              "SELECT id, dossier_id, nom, cree_le FROM documents WHERE dossier_id IS NOT NULL",
+            ),
+            database.getAll<{ id: string; dossier_id: string; minutes: number; ht_centimes: number }>(
+              "SELECT id, dossier_id, minutes, ht_centimes FROM temps_saisis",
+            ),
+            database.getAll<{ temps_id: string | null }>(
+              "SELECT temps_id FROM brouillons_facture WHERE numero IS NOT NULL",
+            ),
           ]);
-          return { dossiers, agendas, roles };
+          return { dossiers, agendas, roles, mails, pieces, temps, factures };
         })
-        .then(({ dossiers, agendas, roles }) => {
+        .then(({ dossiers, agendas, roles, mails, pieces, temps, factures }) => {
           if (stop) return;
           const prochaines = new Map<string, { debut: string; titre: string | null }>();
           for (const ligne of agendas) {
@@ -144,9 +161,48 @@ export function Dossiers({
           }
           const texte = new Map<string, string>();
           for (const [id, liste] of noms) texte.set(id, liste.join(" "));
+          const parDossier = new Map<string, ElementRecent[]>();
+          const ajouter = (dossierId: string, element: ElementRecent) => {
+            const liste = parDossier.get(dossierId) ?? [];
+            liste.push(element);
+            parDossier.set(dossierId, liste);
+          };
+          for (const mail of mails) {
+            ajouter(mail.dossier_id, {
+              id: mail.id,
+              genre: "mail",
+              titre: mail.objet ?? "",
+              quand: mail.cree_le ?? "",
+            });
+          }
+          for (const piece of pieces) {
+            ajouter(piece.dossier_id, {
+              id: piece.id,
+              genre: "piece",
+              titre: piece.nom ?? "",
+              quand: piece.cree_le ?? "",
+            });
+          }
+          const facturesIds = new Set(factures.map((ligne) => ligne.temps_id).filter((id): id is string => id !== null));
+          const parFacturation = new Map<string, { minutes: number; htCentimes: number; facture: boolean }[]>();
+          for (const ligne of temps) {
+            const liste = parFacturation.get(ligne.dossier_id) ?? [];
+            liste.push({
+              minutes: ligne.minutes,
+              htCentimes: ligne.ht_centimes,
+              facture: facturesIds.has(ligne.id),
+            });
+            parFacturation.set(ligne.dossier_id, liste);
+          }
+          const resumes = new Map<string, { nonFactureMinutes: number; factureCentimes: number }>();
+          for (const [id, liste] of parFacturation) resumes.set(id, resumeFacturation(liste));
+          const recentsTries = new Map<string, ElementRecent[]>();
+          for (const [id, liste] of parDossier) recentsTries.set(id, derniersElements(liste));
           setLignesSync(dossiers);
           setEcheances(prochaines);
           setParties(texte);
+          setRecents(recentsTries);
+          setFacturation(resumes);
         })
         .catch(() => {
           if (!stop) setLignesSync([]);
@@ -388,6 +444,30 @@ export function Dossiers({
               ) : (
                 <p className="mb-4 text-graphite">{fr("Aucune échéance")}</p>
               )}
+              <h3 className="mb-1 font-extrabold">{fr("Procédure")}</h3>
+              <ol className="mb-4" data-testid="dossier-procedure">
+                {etapesProcedure(choisi.typeDossier, choisi.etape).map((etape) => (
+                  <li key={etape.code} data-etat={etape.etat}>
+                    {fr(etape.libelle)}
+                  </li>
+                ))}
+              </ol>
+              <h3 className="mb-1 font-extrabold">{fr("Derniers éléments")}</h3>
+              <ul className="mb-4" data-testid="dossier-recents">
+                {(recents.get(choisi.id) ?? []).length === 0 ? (
+                  <li className="text-graphite">{fr("Aucun élément récent.")}</li>
+                ) : (
+                  (recents.get(choisi.id) ?? []).map((element) => (
+                    <li key={element.id}>{fr(element.titre)}</li>
+                  ))
+                )}
+              </ul>
+              <h3 className="mb-1 font-extrabold">{fr("Temps et facturation")}</h3>
+              <p className="mb-4" data-testid="dossier-temps">
+                {fr(
+                  `${formatDuree((facturation.get(choisi.id)?.nonFactureMinutes ?? 0) * 60)} non facturées, ${formatMontant(facturation.get(choisi.id)?.factureCentimes ?? 0)} facturés`,
+                )}
+              </p>
               <button
                 type="button"
                 className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
