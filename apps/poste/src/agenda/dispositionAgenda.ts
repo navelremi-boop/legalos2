@@ -80,6 +80,8 @@ export type EcheanceProchaine = {
   id: string;
   jour: string;
   debutMinute: number;
+  /** Seules les échéances (pas les audiences ni les rendez-vous) entrent dans la liste. */
+  echeance: boolean;
 };
 
 /** « 1 audience, 1 rendez-vous aujourd'hui », ou « Rien de prévu cette semaine ». */
@@ -105,7 +107,7 @@ export function prochainesEcheances<T extends EcheanceProchaine>(
   limite = 5,
 ): T[] {
   return [...lignes]
-    .filter((ligne) => ligne.jour >= aujourdhui)
+    .filter((ligne) => ligne.echeance && ligne.jour >= aujourdhui)
     .sort((a, b) => a.jour.localeCompare(b.jour) || a.debutMinute - b.debutMinute || a.id.localeCompare(b.id))
     .slice(0, limite);
 }

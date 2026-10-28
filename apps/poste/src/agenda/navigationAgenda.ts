@@ -70,6 +70,9 @@ export function debutMois(jour: string): string {
   return `${jour.slice(0, 7)}-01`;
 }
 
+/** Initiales des jours, lundi en tête, pour le mini-calendrier. */
+export const INITIALES_JOURS = ["L", "M", "M", "J", "V", "S", "D"] as const;
+
 /** Grille du mois, du lundi au dimanche, y compris les jours des mois voisins. */
 export function grilleMois(jour: string): { jour: string; dansMois: boolean }[] {
   const premier = debutMois(jour);

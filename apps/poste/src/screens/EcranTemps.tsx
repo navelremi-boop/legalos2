@@ -8,6 +8,7 @@ import {
   demanderArret,
   minutesConfirmees,
   reprendreChrono,
+  libellePhaseChrono,
   type EtatChrono,
 } from "@/facturation/chronoTemps";
 import { enregistrerTemps, tauxHoraireParDefaut } from "@/facturation/ecrireTemps";
@@ -136,6 +137,7 @@ export function EcranTemps({
   const volet = useMemo(() => voletTemps(lignes, aujourdhui), [lignes, aujourdhui]);
   const dossierChrono = lignes.find((ligne) => ligne.dossierId === chrono.dossierId && ligne.chemise);
   const minutesArret = minutesConfirmees(chrono);
+  const etatChrono = libellePhaseChrono(chrono.phase);
 
   async function enregistrerChrono() {
     const dossierId = chrono.dossierId ?? dossierIdPrefere ?? "";
@@ -156,7 +158,7 @@ export function EcranTemps({
       return;
     }
     onChrono(chronoArrete());
-    setMessage(fr(`${String(minutesArret)} min enregistrées.`));
+    setMessage(fr(`${formatDuree(minutesArret * 60)} enregistrées.`));
   }
 
   return (
@@ -172,14 +174,14 @@ export function EcranTemps({
           </h1>
           <p className="text-graphite">
             {fr(
-              `${String(lignes.filter((ligne) => ligne.jour === aujourdhui).reduce((total, ligne) => total + ligne.minutes, 0))} min saisies aujourd'hui, ${formatDuree(volet.nonFactureMinutes * 60)} non facturées`,
+              `${formatDuree(lignes.filter((ligne) => ligne.jour === aujourdhui).reduce((total, ligne) => total + ligne.minutes, 0) * 60)} saisies aujourd'hui, ${formatDuree(volet.nonFactureMinutes * 60)} non facturées`,
             )}
           </p>
         </div>
         {dossierChrono?.chemise ? (
           <p className="mails-dos" data-testid="temps-chrono-entete" data-chemise={dossierChrono.chemise}>
             <i aria-hidden />
-            {fr(`Chronomètre en cours sur ${libelleReferenceDossier(dossierChrono.reference)}`)}
+            {fr(`${etatChrono} sur ${libelleReferenceDossier(dossierChrono.reference)}`)}
           </p>
         ) : null}
       </div>
@@ -188,9 +190,9 @@ export function EcranTemps({
         <div className="grid gap-6 md:grid-cols-2">
         <section aria-label={fr("Chronomètre")} data-testid="temps-chrono" data-phase={chrono.phase}>
           <h2 className="mb-2 text-[length:var(--font-size-section)] font-extrabold">
-            {fr(chrono.phase === "pause" ? "Chronomètre, en pause" : "Chronomètre")}
+            {fr(etatChrono)}
           </h2>
-          <p className="text-[length:var(--font-size-journee)] font-extrabold tabular-nums">
+          <p className="text-[length:var(--font-size-journee)] font-extrabold">
             {formatDuree(chrono.secondes)}
           </p>
           {dossierChrono?.chemise ? (
@@ -239,7 +241,7 @@ export function EcranTemps({
           {chrono.phase === "confirmation" ? (
             <div className="mt-2">
               <p data-testid="chrono-confirmation">
-                {fr(`Enregistrer ${String(minutesArret)} min ?`)}
+                {fr(`Enregistrer ${formatDuree(minutesArret * 60)} ?`)}
               </p>
               <div className="mt-2 flex gap-2">
                 <button
@@ -312,7 +314,7 @@ export function EcranTemps({
           </div>
           <p className="mb-3 text-graphite" data-testid="temps-resume">
             {fr(
-              `${String(resume.nonFactureMinutes)} min non facturées, ${String(resume.septJoursMinutes)} min sur sept jours`,
+              `${formatDuree(resume.nonFactureMinutes * 60)} non facturées, ${formatDuree(resume.septJoursMinutes * 60)} sur sept jours`,
             )}
           </p>
           <ul data-testid="temps-liste">

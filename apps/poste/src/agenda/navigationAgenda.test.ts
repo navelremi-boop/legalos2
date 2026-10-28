@@ -1,11 +1,17 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { decalerJour, jourCivil, joursSemaineAffiches, semaineDe } from "./navigationAgenda.ts";
+import { decalerJour, INITIALES_JOURS, jourCivil, joursSemaineAffiches, semaineDe } from "./navigationAgenda.ts";
 
 describe("jourCivil", () => {
   it("écrit AAAA-MM-JJ avec des zéros", () => {
     assert.equal(jourCivil(new Date(2026, 0, 5)), "2026-01-05");
     assert.equal(jourCivil(new Date(2026, 11, 31)), "2026-12-31");
+  });
+});
+
+describe("initiales des jours", () => {
+  it("commence le lundi et compte sept lettres", () => {
+    assert.deepEqual([...INITIALES_JOURS], ["L", "M", "M", "J", "V", "S", "D"]);
   });
 });
 

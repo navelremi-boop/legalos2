@@ -9,7 +9,9 @@ import {
   ligneTemps,
   minutesDepuisLibelle,
   partAnneau,
+  delaiAffiche,
 } from "./assemblerJournee.ts";
+import { decalerJour } from "../agenda/navigationAgenda.ts";
 
 describe("la journée", () => {
   it("marque Calculé seulement les délais du moteur", () => {
@@ -21,7 +23,7 @@ describe("la journée", () => {
     assert.equal(ligneDelai({ id: "2", titre: "Note", origineCalcul: null }).calcule, false);
     assert.equal(libelleHeure(9, 30), "9 h 30");
     assert.equal(minutesDepuisLibelle("14 h 00"), 14 * 60);
-    assert.equal(libelleProchainRendezVous(9 * 60, [14 * 60]), "Prochain rendez-vous dans 5 h 00");
+    assert.equal(libelleProchainRendezVous(9 * 60, [14 * 60]).replaceAll("\u00a0", " "), "Prochain rendez-vous dans 5 h");
     assert.equal(libelleProchainRendezVous(15 * 60, [9 * 60 + 30, 14 * 60]), "Plus de rendez-vous aujourd'hui");
     assert.ok(partAnneau(0) > partAnneau(30));
   });
@@ -57,5 +59,24 @@ describe("la journée", () => {
       ligneTemps({ id: "t2", libelle: "Audience", minutes: 30, origine: "agenda" }).meta,
       "Relevé sur votre agenda",
     );
+  });
+
+  it("la date affichée et le nombre de jours restent d'accord au changement de mois et d'heure", () => {
+    const cas = [
+      ["2026-10-28", "2026-10-30", 2, "échéance le 30 oct."],
+      ["2026-09-30", "2026-10-02", 2, "échéance le 2 oct."],
+      ["2026-01-31", "2026-02-01", 1, "échéance le 1er févr."],
+      ["2026-10-24", "2026-10-26", 2, "échéance le 26 oct."],
+      ["2026-03-28", "2026-03-30", 2, "échéance le 30 mars"],
+    ] as const;
+    for (const [page, date, jours, libelle] of cas) {
+      const affiche = delaiAffiche(page, date);
+      assert.equal(affiche?.jours, jours);
+      assert.equal(affiche?.libelle, libelle);
+      assert.equal(decalerJour(page, affiche?.jours ?? -1), date);
+    }
+    const contradictoire = delaiAffiche("2026-10-28", "2026-09-29");
+    assert.notEqual(contradictoire?.jours, 2);
+    assert.equal(contradictoire?.libelle, "échéance le 29 sept.");
   });
 });

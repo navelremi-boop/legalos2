@@ -1,4 +1,6 @@
+import { joursEntre } from "@/dossiers/listeDossiers";
 import type { ChemiseId } from "@/lib/chemise";
+import { formatDateCourte, formatDuree } from "@/lib/format";
 
 export type LigneAssemblee = {
   id: string;
@@ -68,10 +70,21 @@ export function libelleProchainRendezVous(maintenantMinutes: number, heures: rea
   const prochain = [...heures].filter((minute) => minute >= maintenantMinutes).sort((a, b) => a - b)[0];
   if (prochain === undefined) return "Plus de rendez-vous aujourd'hui";
   const ecart = prochain - maintenantMinutes;
-  const heuresEntieres = Math.floor(ecart / 60);
-  const minutes = ecart % 60;
-  if (heuresEntieres === 0) return `Prochain rendez-vous dans ${String(minutes)} min`;
-  return `Prochain rendez-vous dans ${String(heuresEntieres)} h ${String(minutes).padStart(2, "0")}`;
+  return `Prochain rendez-vous dans ${formatDuree(ecart * 60)}`;
+}
+
+/**
+ * Date affichée et nombre de jours d'un même délai. Les deux viennent de la date civile,
+ * donc un libellé ne peut pas contredire le compte à rebours (changement de mois, changement d'heure).
+ */
+export function delaiAffiche(
+  jourPage: string,
+  dateEcheance: string,
+): { jours: number; libelle: string } | null {
+  const jours = joursEntre(jourPage, dateEcheance);
+  const courte = formatDateCourte(dateEcheance);
+  if (jours === null || courte === "") return null;
+  return { jours, libelle: `échéance le ${courte}` };
 }
 
 /** Écart affiché à droite d'un délai. */

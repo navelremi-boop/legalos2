@@ -33,6 +33,7 @@ import {
   decalerJour,
   debutMois,
   grilleMois,
+  INITIALES_JOURS,
   jourCivil,
   joursSemaineAffiches,
   libelleMois,
@@ -394,6 +395,7 @@ export function EcranAgenda({
   const rappelAffiche = choisi ? libelleRappel(choisi.rappel_le) : null;
   const prochaines = prochainesEcheances(
     lignesVisibles.flatMap((ligne) => {
+      if (!ligne.origine_calcul) return [];
       const quand = composantesAffichees(ligne.debut);
       if (!quand) return [];
       return [
@@ -403,6 +405,7 @@ export function EcranAgenda({
           debutMinute: (quand.heure ?? 0) * 60 + (quand.minute ?? 0),
           titre: ligne.titre,
           origine: ligne.origine_calcul,
+          echeance: true as const,
         },
       ];
     }),
@@ -452,6 +455,11 @@ export function EcranAgenda({
               {fr("Suivant")}
             </button>
           </span>
+        </div>
+        <div className="grid grid-cols-7 gap-px text-center text-graphite" data-testid="agenda-mini-initiales" aria-hidden="true">
+          {INITIALES_JOURS.map((initiale, index) => (
+            <span key={`${initiale}-${String(index)}`}>{fr(initiale)}</span>
+          ))}
         </div>
         <div className="grid grid-cols-7 gap-px text-center" data-testid="agenda-mini">
           {casesMois.map((cellule) => (
@@ -956,11 +964,14 @@ export function EcranAgenda({
             </p>
             <p>{fr(libelleQuand(choisi.debut))}</p>
             {ficheDossier ? (
-              <p>
+              <p className="flex flex-wrap items-baseline gap-x-1">
                 <span className="text-graphite">{fr("Dossier")}</span>
-                {" "}
-                {fr(ficheDossier.nom)}
-                {ficheDossier.reference ? fr(`, ${libelleReferenceDossier(ficheDossier.reference)}`) : ""}
+                <span>{fr(ficheDossier.nom)}</span>
+                {ficheDossier.reference ? (
+                  <span className="chiffres-reference whitespace-nowrap">
+                    {fr(libelleReferenceDossier(ficheDossier.reference))}
+                  </span>
+                ) : null}
               </p>
             ) : null}
             {rappelAffiche ? <p data-testid="agenda-rappel-affiche">{fr(`Rappel, ${rappelAffiche}`)}</p> : null}

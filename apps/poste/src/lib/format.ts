@@ -3,13 +3,14 @@ import { fr } from "@/lib/fr";
 const NBSP = "\u00a0";
 
 /**
- * Durée française (§ 7.7) : « 0 h 12 », « 1 h 30 ».
- * Les secondes ne sont pas affichées (formateur maison, pas Intl).
+ * Durée française, le seul formateur de l'application : « 1 h », « 0 h 45 », « 1 h 45 ».
+ * Les minutes nulles ne s'écrivent pas. Les secondes ne sont pas affichées.
  */
 export function formatDuree(totalSeconds: number): string {
   const safe = Math.max(0, Math.floor(totalSeconds));
   const heures = Math.floor(safe / 3600);
   const minutes = Math.floor((safe % 3600) / 60);
+  if (minutes === 0) return fr(`${String(heures)}${NBSP}h`);
   return fr(`${String(heures)}${NBSP}h${NBSP}${String(minutes)}`);
 }
 

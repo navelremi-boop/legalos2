@@ -7,6 +7,14 @@ export type EtatChrono = {
   libelle: string;
 };
 
+/** Un seul libellé par phase : « en pause » et « en cours » ne sont jamais ensemble. */
+export function libellePhaseChrono(phase: PhaseChrono): string {
+  if (phase === "pause") return "Chronomètre en pause";
+  if (phase === "en-cours") return "Chronomètre en cours";
+  if (phase === "confirmation") return "Chronomètre, à confirmer";
+  return "Chronomètre";
+}
+
 export function chronoArrete(): EtatChrono {
   return { phase: "arrete", secondes: 0, dossierId: null, libelle: "" };
 }

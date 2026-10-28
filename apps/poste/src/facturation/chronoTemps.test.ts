@@ -5,6 +5,7 @@ import {
   chronoArrete,
   demarrerChrono,
   demanderArret,
+  libellePhaseChrono,
   minutesConfirmees,
   reprendreChrono,
   ticChrono,
@@ -72,5 +73,12 @@ describe("liste des saisies", () => {
     assert.equal(volet.jours.length, 7);
     assert.equal(volet.jours[6]?.jour, "2026-10-28");
     assert.equal(volet.nonFactureMinutes, 60);
+  });
+
+  it("n'affiche qu'un état à la fois", () => {
+    assert.equal(libellePhaseChrono("pause"), "Chronomètre en pause");
+    assert.equal(libellePhaseChrono("en-cours"), "Chronomètre en cours");
+    assert.equal(libellePhaseChrono("pause").includes("en cours"), false);
+    assert.equal(libellePhaseChrono("en-cours").includes("pause"), false);
   });
 });

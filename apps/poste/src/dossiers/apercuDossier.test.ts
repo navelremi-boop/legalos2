@@ -7,6 +7,7 @@ import {
   nomsParties,
   nonLusParDossier,
   resumeFacturation,
+  texteEncaisses,
 } from "./apercuDossier.ts";
 
 describe("aperçu d'un dossier", () => {
@@ -68,7 +69,10 @@ describe("aperçu d'un dossier", () => {
         { minutes: 45, htCentimes: 10_000, facture: false },
         { minutes: 60, htCentimes: 22_000, facture: true },
       ]),
-      { nonFactureMinutes: 45, factureCentimes: 22_000, encaiseCentimes: 0 },
+      { nonFactureMinutes: 45, factureCentimes: 22_000, encaiseCentimes: null },
     );
+    assert.equal(texteEncaisses(null), "encaissés non disponibles");
+    assert.equal(texteEncaisses(undefined).includes("0,00"), false);
+    assert.match(texteEncaisses(0), /0,00/);
   });
 });

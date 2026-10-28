@@ -10,6 +10,7 @@ import {
   nomsParties,
   nonLusParDossier,
   resumeFacturation,
+  texteEncaisses,
   type ElementRecent,
 } from "@/dossiers/apercuDossier";
 import { libelleEtapeDossier, libelleTypeDossier } from "@/dossiers/libellesDossier";
@@ -143,7 +144,7 @@ export function Dossiers({
   );
   const [recents, setRecents] = useState<Map<string, ElementRecent[]>>(() => new Map());
   const [facturation, setFacturation] = useState<
-    Map<string, { nonFactureMinutes: number; factureCentimes: number; encaiseCentimes: number }>
+    Map<string, { nonFactureMinutes: number; factureCentimes: number; encaiseCentimes: number | null }>
   >(() => new Map());
   const [nonLus, setNonLus] = useState<Map<string, number>>(() => new Map());
   const [filtre, setFiltre] = useState<FiltreDossier>("actifs");
@@ -252,7 +253,7 @@ export function Dossiers({
           }
           const resumes = new Map<
             string,
-            { nonFactureMinutes: number; factureCentimes: number; encaiseCentimes: number }
+            { nonFactureMinutes: number; factureCentimes: number; encaiseCentimes: number | null }
           >();
           for (const [id, liste] of parFacturation) resumes.set(id, resumeFacturation(liste));
           const recentsTries = new Map<string, ElementRecent[]>();
@@ -586,7 +587,7 @@ export function Dossiers({
               <h3 className="mb-1 font-extrabold">{fr("Temps et facturation")}</h3>
               <p className="mb-4" data-testid="dossier-temps">
                 {fr(
-                  `${formatDuree((facturation.get(choisi.id)?.nonFactureMinutes ?? 0) * 60)} non facturées, ${formatMontant(facturation.get(choisi.id)?.factureCentimes ?? 0)} facturés, ${formatMontant(facturation.get(choisi.id)?.encaiseCentimes ?? 0)} encaissés`,
+                  `${formatDuree((facturation.get(choisi.id)?.nonFactureMinutes ?? 0) * 60)} non facturées, ${formatMontant(facturation.get(choisi.id)?.factureCentimes ?? 0)} facturés, ${texteEncaisses(facturation.get(choisi.id)?.encaiseCentimes)}`,
                 )}
               </p>
               <div className="flex flex-wrap gap-2">

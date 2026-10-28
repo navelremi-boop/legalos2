@@ -11,8 +11,8 @@ import { fr } from "@/lib/fr";
 import { JOURNEE_DEMO, type DonneesJournee, type LigneJournee } from "@/screens/journeeDemo";
 import { formatDateLongue, formatDuree, formatMontant } from "@/lib/format";
 import { getPowerSyncDatabase } from "@/sync/database";
-import { joursEntre } from "@/dossiers/listeDossiers";
 import {
+  delaiAffiche,
   libelleEcart,
   libelleHeure,
   libelleProchainRendezVous,
@@ -236,7 +236,7 @@ function Section({
                     onSaisir?.();
                   }}
                 >
-                  {fr(ligne.saisir.minutes > 0 ? `Saisir ${String(ligne.saisir.minutes)} min` : "Saisir")}
+                  {fr(ligne.saisir.minutes > 0 ? `Saisir ${formatDuree(ligne.saisir.minutes * 60)}` : "Saisir")}
                 </button>
               ) : null}
             </li>
@@ -398,12 +398,13 @@ export function Journee({
               .map((ligne) => {
                 const dossier = chemiseDe(ligne.dossier_id);
                 const quand = composantesAffichees(ligne.debut);
-                const ecart = quand ? joursEntre(aujourd, quand.jour) : null;
+                const affiche = quand ? delaiAffiche(aujourd, quand.jour) : null;
                 return ligneDelai({
                   id: ligne.id,
                   titre: ligne.titre,
                   origineCalcul: ligne.origine_calcul,
-                  jours: ecart,
+                  jours: affiche?.jours ?? null,
+                  dateLibelle: affiche?.libelle,
                   dossierNom: dossier?.nom,
                   reference: dossier?.reference,
                   chemise: dossier?.chemise,
@@ -510,7 +511,7 @@ export function Journee({
             {fr("La journée")}
           </h1>
           <p className="text-graphite">
-            {fr(`${formatDateLongue(jourCivil(new Date()))} ${jourCivil(new Date()).slice(0, 4)}`)}
+            {fr(`${formatDateLongue(jeu?.jourPage ?? jourCivil(new Date()))} ${(jeu?.jourPage ?? jourCivil(new Date())).slice(0, 4)}`)}
           </p>
         </div>
         <p className="font-bold text-encre" data-testid="journee-prochain">

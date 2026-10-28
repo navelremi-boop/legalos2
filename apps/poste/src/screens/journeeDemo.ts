@@ -1,3 +1,5 @@
+import { delaiAffiche } from "@/screens/assemblerJournee";
+import { decalerJour } from "@/agenda/navigationAgenda";
 import { htTempsCentimes, TAUX_PAR_DEFAUT_CENTIMES } from "@/facturation/ecrireTemps";
 import type { ChemiseId } from "@/lib/chemise";
 
@@ -17,6 +19,7 @@ export type LigneJournee = {
 };
 
 export type DonneesJournee = {
+  jourPage?: string;
   audiences: LigneJournee[];
   delais: LigneJournee[];
   mails: LigneJournee[];
@@ -24,8 +27,12 @@ export type DonneesJournee = {
   nonFacture: { minutes: number; htCentimes: number };
 };
 
+const JOUR_PAGE_GALERIE = "2026-10-28";
+const APPEL_GALERIE = delaiAffiche(JOUR_PAGE_GALERIE, decalerJour(JOUR_PAGE_GALERIE, 2));
+
 /** Jeu fictif pour DEV / galerie / captures B9 (§ 7.6). */
 export const JOURNEE_DEMO: DonneesJournee = {
+  jourPage: JOUR_PAGE_GALERIE,
   audiences: [
     {
       id: "aud-1",
@@ -62,8 +69,8 @@ export const JOURNEE_DEMO: DonneesJournee = {
     {
       id: "del-2",
       titre: "Appel incident",
-      meta: "échéance le 29 sept.",
-      jours: 2,
+      meta: APPEL_GALERIE?.libelle ?? "",
+      jours: APPEL_GALERIE?.jours,
       dossier: { nom: "Martin / Assurances Loire", chemise: "bleu-classeur", reference: "2026-031" },
       urgent: true,
     },

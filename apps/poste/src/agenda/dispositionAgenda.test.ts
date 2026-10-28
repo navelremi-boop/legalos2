@@ -79,15 +79,21 @@ describe("filtres et prochaines échéances", () => {
 
   it("garde les cinq dates les plus proches, aujourd'hui compris", () => {
     const lignes = [
-      { id: "loin", jour: "2026-12-01", debutMinute: 0 },
-      { id: "passe", jour: "2026-10-01", debutMinute: 0 },
-      { id: "aujourd", jour: "2026-10-09", debutMinute: 600 },
-      { id: "matin", jour: "2026-10-09", debutMinute: 540 },
-      { id: "demain", jour: "2026-10-10", debutMinute: 0 },
+      { id: "loin", jour: "2026-12-01", debutMinute: 0, echeance: true },
+      { id: "passe", jour: "2026-10-01", debutMinute: 0, echeance: true },
+      { id: "aujourd", jour: "2026-10-09", debutMinute: 600, echeance: true },
+      { id: "matin", jour: "2026-10-09", debutMinute: 540, echeance: true },
+      { id: "demain", jour: "2026-10-10", debutMinute: 0, echeance: true },
+      { id: "audience", jour: "2026-10-09", debutMinute: 500, echeance: false },
+      { id: "rdv", jour: "2026-10-11", debutMinute: 0, echeance: false },
     ];
     assert.deepEqual(
       prochainesEcheances(lignes, "2026-10-09", 3).map((l) => l.id),
       ["matin", "aujourd", "demain"],
+    );
+    assert.equal(
+      prochainesEcheances(lignes, "2026-10-09").some((ligne) => ligne.id === "audience" || ligne.id === "rdv"),
+      false,
     );
   });
 });

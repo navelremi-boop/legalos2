@@ -20,7 +20,7 @@ import { EcranAgenda } from "@/agenda/EcranAgenda";
 import { emettreRappelsEchus } from "@/agenda/rappels";
 import { emettreNotificationsArrivee } from "@/messagerie/notificationsArrivee";
 import { EcranFacturation } from "@/facturation/EcranFacturation";
-import { chronoArrete, ticChrono, type EtatChrono } from "@/facturation/chronoTemps";
+import { chronoArrete, libellePhaseChrono, ticChrono, type EtatChrono } from "@/facturation/chronoTemps";
 import { FormulaireDossier } from "@/dossiers/FormulaireDossier";
 import { PaletteCommandes } from "@/dossiers/PaletteCommandes";
 import { isChemiseId } from "@/lib/chemise";
@@ -626,7 +626,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect, onVerrouill
         chronoTitre={
           chrono.phase === "arrete"
             ? fr("Aucun chronomètre en cours")
-            : fr("Chronomètre en cours")
+            : fr(libellePhaseChrono(chrono.phase))
         }
         onChrono={() => {
           setNav("temps");

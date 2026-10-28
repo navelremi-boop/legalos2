@@ -1,3 +1,5 @@
+import { formatDuree } from "@/lib/format";
+
 /**
  * Suggestion de temps tirée d'un mail (J11) : un mail classé dans un dossier, lu ou traité, propose des minutes à saisir
  * sur ce dossier. Fonctions pures, partagées plus tard avec l'écran Temps et La journée.
@@ -59,9 +61,9 @@ export function minutesValides(saisie: string): number | null {
   return minutes >= 1 && minutes <= MINUTES_MAX_PAR_MAIL ? minutes : null;
 }
 
-/** Intitulé du bouton de validation : « Saisir 6 min ». */
+/** Intitulé du bouton de validation : « Saisir 0 h 6 ». */
 export function libelleBoutonSaisie(minutes: number): string {
-  return `Saisir ${String(minutes)} min`;
+  return `Saisir ${formatDuree(minutes * 60)}`;
 }
 
 /**

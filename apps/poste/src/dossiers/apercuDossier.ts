@@ -1,4 +1,5 @@
 import { estLu } from "@/messagerie/classement";
+import { formatMontant } from "@/lib/format";
 
 export type EtatEtape = "fait" | "cours" | "futur";
 
@@ -50,15 +51,21 @@ export function derniersElements(
 
 export function resumeFacturation(
   lignes: readonly { minutes: number; htCentimes: number; facture: boolean }[],
-): { nonFactureMinutes: number; factureCentimes: number; encaiseCentimes: number } {
+): { nonFactureMinutes: number; factureCentimes: number; encaiseCentimes: number | null } {
   let nonFactureMinutes = 0;
   let factureCentimes = 0;
   for (const ligne of lignes) {
     if (ligne.facture) factureCentimes += ligne.htCentimes;
     else nonFactureMinutes += ligne.minutes;
   }
-  // Aucun règlement n'est synchronisé sur le poste : l'encaissé affiché est nul.
-  return { nonFactureMinutes, factureCentimes, encaiseCentimes: 0 };
+  // Aucun règlement n'est synchronisé sur le poste : un montant inconnu n'est pas un zéro.
+  return { nonFactureMinutes, factureCentimes, encaiseCentimes: null };
+}
+
+/** Un montant inconnu ne s'affiche jamais comme zéro. */
+export function texteEncaisses(centimes: number | null | undefined): string {
+  if (centimes === null || centimes === undefined) return "encaissés non disponibles";
+  return `${formatMontant(centimes)} encaissés`;
 }
 
 /** « 1 jour » au singulier, « aujourd'hui » quand l'échéance est le jour même. */

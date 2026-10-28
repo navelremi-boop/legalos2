@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { IconCheck, IconClock } from "@tabler/icons-react";
+import { formatDuree } from "@/lib/format";
 import { fr } from "@/lib/fr";
 import { libelleBoutonSaisie, minutesValides, type PropositionTemps as Proposition } from "@/messagerie/tempsMail";
 
@@ -75,7 +76,7 @@ export function TempsSaisi({ minutes, dossierNom }: TempsSaisiProps) {
   return (
     <p className="mails-temps-saisi" role="status" data-testid="temps-saisi-confirmation">
       <IconCheck stroke={2} aria-hidden size={14} />
-      {fr(`Temps saisi : ${String(minutes)} min sur ${dossierNom}.`)}
+      {fr(`Temps saisi : ${formatDuree(minutes * 60)} sur ${dossierNom}.`)}
     </p>
   );
 }

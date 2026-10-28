@@ -68,9 +68,9 @@ describe("barème de la suggestion de temps (hypothèse produit, à valider par 
     }
   });
 
-  it("bouton de validation : « Saisir 6 min »", () => {
-    assert.equal(libelleBoutonSaisie(6), "Saisir 6 min");
-    assert.equal(libelleBoutonSaisie(propositionTemps(["reponse"]).minutes), "Saisir 12 min");
+  it("bouton de validation : « Saisir 0 h 6 »", () => {
+    assert.equal(libelleBoutonSaisie(6).replaceAll("\u00a0", " "), "Saisir 0 h 6");
+    assert.equal(libelleBoutonSaisie(propositionTemps(["reponse"]).minutes).replaceAll("\u00a0", " "), "Saisir 0 h 12");
   });
 });
 

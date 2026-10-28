@@ -1056,7 +1056,7 @@ async function main() {
     await ouvrirMails();
     await classerDansDossierA(idMessageDeux);
     const p1 = await proposition();
-    verifier("mail lu seulement : 6 minutes, « Saisir 6 min », pré-remplies et modifiables", p1?.minutes === "6" && norm(p1.bouton) === "Saisir 6 min" && p1.saisie === "6", JSON.stringify(p1));
+    verifier("mail lu seulement : 6 minutes, « Saisir 0 h 6 », pré-remplies et modifiables", p1?.minutes === "6" && norm(p1.bouton) === "Saisir 0 h 6" && p1.saisie === "6", JSON.stringify(p1));
     verifier("la proposition nomme le dossier et le motif, et dit que rien n'est enregistré sans accord", norm(p1.texte).includes(`Redaction Alpha ${marque}`) && norm(p1.texte).includes("Lecture d'un mail") && norm(p1.texte).includes("Rien n'est enregistré sans votre accord"), p1.texte);
     await sleep(3000);
     verifier("proposé, jamais enregistré : aucune saisie de temps sur le poste ni au serveur", (await tempsLocal(dossierA)).length === 0 && (await tempsServeur(dossierA)) === "0");
@@ -1076,9 +1076,9 @@ async function main() {
     // Minutes corrigées puis validées.
     await saisir("[data-testid=proposition-temps-minutes]", "7");
     await sleep(150);
-    verifier("le bouton suit les minutes saisies : « Saisir 7 min »", norm(await texteDe("[data-testid=proposition-temps-saisir]")) === "Saisir 7 min" && (await desactive("[data-testid=proposition-temps-saisir]")) === false);
+    verifier("le bouton suit les minutes saisies : « Saisir 0 h 7 »", norm(await texteDe("[data-testid=proposition-temps-saisir]")) === "Saisir 0 h 7" && (await desactive("[data-testid=proposition-temps-saisir]")) === false);
     await cliquer("[data-testid=proposition-temps-saisir]");
-    await attendre("confirmation de la saisie", () => texteDe("[data-testid=temps-saisi-confirmation]"), (t) => norm(t).includes("Temps saisi : 7 min"), 20_000);
+    await attendre("confirmation de la saisie", () => texteDe("[data-testid=temps-saisi-confirmation]"), (t) => norm(t).includes("Temps saisi : 0 h 7"), 20_000);
     verifier("la proposition a disparu une fois le temps saisi", !(await present("[data-testid=proposition-temps]")));
     const ligneTemps = await attendre("saisie de temps sur le poste", () => tempsLocal(dossierA), (r) => Array.isArray(r) && r.length === 1, 20_000);
     const t0 = ligneTemps[0];
@@ -1104,7 +1104,7 @@ async function main() {
     // Mail répondu à tous puis transféré (sections 8 et 9) : 12 + 6 minutes, proposition écartée sans rien saisir.
     await classerDansDossierA(idMessage);
     const p2 = await proposition();
-    verifier("mail répondu et transféré : 18 minutes", p2?.minutes === "18" && norm(p2.bouton) === "Saisir 18 min", JSON.stringify(p2));
+    verifier("mail répondu et transféré : 18 minutes", p2?.minutes === "18" && norm(p2.bouton) === "Saisir 0 h 18", JSON.stringify(p2));
     verifier("le motif nomme la réponse et le transfert", norm(p2.texte).includes("Réponse à un mail et transfert d'un mail"), p2.texte);
     await cliquer("[data-testid=proposition-temps-ecarter]");
     await attendre("proposition écartée", () => present("[data-testid=proposition-temps]"), (v) => v === false, 10_000);

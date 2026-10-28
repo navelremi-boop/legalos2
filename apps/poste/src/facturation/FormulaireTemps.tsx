@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { formatMontant } from "@/lib/format";
+import { formatDuree, formatMontant } from "@/lib/format";
 import { lireDuree } from "@/facturation/lireDuree";
 import type { SubmitEvent } from "react";
 import { apiUrl } from "@/lib/auth/client";
@@ -292,7 +292,7 @@ export function FormulaireTemps({
       <p className="mb-3 text-encre" data-testid="temps-apercu">
         {apercu !== null && apercu.minutes !== null && apercu.ht !== null
           ? fr(
-              `${String(apercu.minutes)} min, ${formatMontant(apercu.ht)}, taux ${formatMontant(apercu.taux)} par heure, figé à l'enregistrement`,
+              `${formatDuree(apercu.minutes * 60)}, ${formatMontant(apercu.ht)}, taux ${formatMontant(apercu.taux)} par heure, figé à l'enregistrement`,
             )
           : fr(
               `Durées acceptées : 1 h 30, 45 min, 0,75. Taux ${formatMontant(apercu?.taux ?? tauxSuggere)} par heure.`,
