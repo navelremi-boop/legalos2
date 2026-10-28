@@ -58,4 +58,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, volet Temps (28/10).** Colonne de droite : durée et montant non facturés, sept jours, total par dossier, « Le taux est figé à la saisie ». Chronomètre et saisie côte à côte. Pastille dans la barre. Dock : Saisir du temps, Facturer. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/facturation/chronoTemps.test.ts` : 3/3. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
 
-**Prochaine action.** Le taux horaire sur chaque ligne de Temps. La suggestion tirée d'un mail reste celle de J11, pas un second moteur. Le jalon n'est pas coché.
+- **Finition, taux sur la ligne (28/10).** Chaque saisie affiche le taux horaire figé, en euros par heure. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
+
+**Prochaine action.** Pastille de dossier sur la ligne de Temps, à partir de la chemise déjà en base. Le jalon n'est pas coché.

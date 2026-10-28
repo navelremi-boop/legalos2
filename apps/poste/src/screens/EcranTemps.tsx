@@ -292,8 +292,11 @@ export function EcranTemps({
                         {fr(ligne.libelle)}
                         {ligne.dossierNom !== "" ? fr(` — ${ligne.dossierNom}`) : ""}
                       </span>
-                      <span>
+                      <span className="text-right">
                         {formatDuree(ligne.minutes * 60)} {formatMontant(ligne.htCentimes)}
+                        <span className="block text-graphite" data-testid="temps-taux">
+                          {fr(`${formatMontant(ligne.tauxCentimesHeure)} par h`)}
+                        </span>
                         {ligne.facturee ? fr(" Facturé") : fr(" Non facturé")}
                       </span>
                     </li>
