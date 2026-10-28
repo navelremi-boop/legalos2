@@ -78,6 +78,13 @@ export function EcranConnexion({ etat, onContinuer }: EcranConnexionProps) {
         {etat === "otp" || etat === "otpe" ? (
           <div className="mt-4">
             <SaisieCode valeur={etat === "otpe" ? "000000" : ""} onChange={() => undefined} />
+            {contenu.lienSecours ? (
+              <p className="mt-3">
+                <button type="button" className="text-encre" data-testid="connexion-secours">
+                  {fr("Utiliser un code de secours")}
+                </button>
+              </p>
+            ) : null}
           </div>
         ) : null}
         {etat === "verrou" ? (

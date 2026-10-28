@@ -3,14 +3,17 @@ use utoipa::OpenApi;
 use crate::error::ApiErrorBody;
 use crate::routes::actions_messages::{ActionMessageResponse, CreerActionRequest};
 use crate::routes::auth::{
-    ConnexionRequest, ConnexionResponse, TotpVerifyRequest, TotpVerifyResponse,
+    CodeSecoursRequest, CodesSecoursResponse, ConnexionRequest, ConnexionResponse,
+    TotpVerifyRequest, TotpVerifyResponse,
 };
 use crate::routes::brouillons::{BrouillonResponse, EcrireBrouillonRequest, PieceBrouillon};
 use crate::routes::cabinets::{
     CabinetResponse, PatchCabinetRequest, PutReferenceRequest, ReferenceCabinetResponse,
     RemiseAZeroApi,
 };
-use crate::routes::collaborateurs::{CollaborateurResponse, CreerCollaborateurRequest};
+use crate::routes::collaborateurs::{
+    CollaborateurCreeResponse, CollaborateurResponse, CreerCollaborateurRequest,
+};
 use crate::routes::destinataires::DestinataireSuggere;
 use crate::routes::documents::{
     CreerDocumentRequest, CreerRepertoireRequest, DepotDocument, DocumentResponse, LectureDocument,
@@ -45,6 +48,8 @@ use crate::routes::redaction::{
         crate::routes::health::health,
         crate::routes::auth::connexion,
         crate::routes::auth::totp_verifier,
+        crate::routes::auth::totp_secours,
+        crate::routes::auth::regenerer_codes_secours,
         crate::routes::auth::rafraichir,
         crate::routes::auth::jwks,
         crate::routes::cabinets::cabinet_me,
@@ -146,6 +151,8 @@ use crate::routes::redaction::{
         ConnexionResponse,
         TotpVerifyRequest,
         TotpVerifyResponse,
+        CodeSecoursRequest,
+        CodesSecoursResponse,
         CabinetResponse,
         PatchCabinetRequest,
         ReferenceCabinetResponse,
@@ -165,6 +172,7 @@ use crate::routes::redaction::{
         DetacherElementRequest,
         CreerCollaborateurRequest,
         CollaborateurResponse,
+        CollaborateurCreeResponse,
         CreerRepertoireRequest,
         PatchRepertoireRequest,
         RepertoireResponse,

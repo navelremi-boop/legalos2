@@ -36,6 +36,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/codes-secours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["regenerer_codes_secours"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/connexion": {
         parameters: {
             query?: never;
@@ -78,6 +94,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["rafraichir"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/totp/secours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["totp_secours"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1487,6 +1519,24 @@ export interface components {
             /** Format: uuid */
             dossier_id: string;
         };
+        CodeSecoursRequest: {
+            /** @description Code de secours à usage unique. */
+            code: string;
+            /** @description Jeton provisoire émis après la première étape de connexion. */
+            session_token: string;
+        };
+        CodesSecoursResponse: {
+            /** @description Dix codes, affichés une seule fois. Les précédents ne valent plus. */
+            codes: string[];
+        };
+        CollaborateurCreeResponse: {
+            /** @description Dix codes, affichés une seule fois. Absents de la liste. */
+            codes_secours: string[];
+            email: string;
+            /** Format: uuid */
+            id: string;
+            role: string;
+        };
         CollaborateurResponse: {
             email: string;
             /** Format: uuid */
@@ -2698,6 +2748,35 @@ export interface operations {
             };
         };
     };
+    regenerer_codes_secours: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Nouveaux codes, affichés une seule fois */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodesSecoursResponse"];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
     connexion: {
         parameters: {
             query?: never;
@@ -2774,6 +2853,39 @@ export interface operations {
                 };
             };
             /** @description Jeton refusé ou poste révoqué */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    totp_secours: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodeSecoursRequest"];
+            };
+        };
+        responses: {
+            /** @description Jetons émis */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TotpVerifyResponse"];
+                };
+            };
+            /** @description Code ou session invalide */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3150,13 +3262,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Collaborateur du cabinet (rôle collaborateur) */
+            /** @description Collaborateur du cabinet (rôle collaborateur) et ses codes de secours, affichés une seule fois */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CollaborateurResponse"];
+                    "application/json": components["schemas"]["CollaborateurCreeResponse"];
                 };
             };
             /** @description Non authentifié */

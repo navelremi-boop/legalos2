@@ -371,3 +371,151 @@ async fn auth_rafraichir_emet_un_acces_et_refuse_un_poste_revoque() {
         .unwrap();
     assert_eq!(refuse_poste.status(), StatusCode::UNAUTHORIZED);
 }
+
+#[tokio::test]
+async fn auth_code_secours_usage_unique_et_regeneration() {
+    ensure_test_env();
+    require_database_url();
+    let app = test_app().await;
+
+    let access = jeton_apres_totp(app.clone()).await;
+    let premiers = demander_codes(&app, &access).await;
+    assert_eq!(premiers.len(), 10);
+
+    let session = session_connexion(app.clone()).await;
+    let accepte = app
+        .clone()
+        .oneshot(requete_secours(&session, &premiers[0]))
+        .await
+        .unwrap();
+    assert_eq!(accepte.status(), StatusCode::OK);
+
+    let session_rejeu = session_connexion(app.clone()).await;
+    let rejeu = app
+        .clone()
+        .oneshot(requete_secours(&session_rejeu, &premiers[0]))
+        .await
+        .unwrap();
+    assert_eq!(rejeu.status(), StatusCode::UNAUTHORIZED);
+
+    let suivants = demander_codes(&app, &access).await;
+    assert_eq!(suivants.len(), 10);
+    assert!(!suivants.contains(&premiers[1]));
+
+    let session_ancien = session_connexion(app.clone()).await;
+    let ancien = app
+        .clone()
+        .oneshot(requete_secours(&session_ancien, &premiers[1]))
+        .await
+        .unwrap();
+    assert_eq!(ancien.status(), StatusCode::UNAUTHORIZED);
+
+    let session_nouveau = session_connexion(app.clone()).await;
+    let nouveau = app
+        .oneshot(requete_secours(&session_nouveau, &suivants[0]))
+        .await
+        .unwrap();
+    assert_eq!(nouveau.status(), StatusCode::OK);
+
+    let pool = sqlx::PgPool::connect(&std::env::var("DATABASE_URL").expect("DATABASE_URL"))
+        .await
+        .expect("postgres");
+    let empreintes: Vec<(String,)> =
+        sqlx::query_as("SELECT empreinte FROM codes_secours WHERE utilisateur_id = $1")
+            .bind(uuid_recette(support::demo_seed::DEMO_USER_ID))
+            .fetch_all(&pool)
+            .await
+            .expect("empreintes");
+    assert_eq!(empreintes.len(), 10);
+    for code in &suivants {
+        let clair = code.replace('-', "");
+        assert!(empreintes.iter().all(|ligne| !ligne.0.contains(&clair)));
+    }
+}
+
+async fn jeton_apres_totp(app: axum::Router) -> String {
+    let session = session_connexion(app.clone()).await;
+    let verify = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/auth/totp/verifier")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "session_token": session,
+                        "code_totp": demo_totp_code()
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(verify.status(), StatusCode::OK);
+    json_body(verify).await["access_token"]
+        .as_str()
+        .expect("access")
+        .to_string()
+}
+
+async fn session_connexion(app: axum::Router) -> String {
+    let connexion = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/auth/connexion")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "email": DEMO_EMAIL,
+                        "password": DEMO_PASSWORD,
+                        "nom_appareil": "test-codes-secours"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(connexion.status(), StatusCode::OK);
+    json_body(connexion).await["session_token"]
+        .as_str()
+        .expect("session")
+        .to_string()
+}
+
+async fn demander_codes(app: &axum::Router, access: &str) -> Vec<String> {
+    let reponse = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/auth/codes-secours")
+                .header("authorization", format!("Bearer {access}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(reponse.status(), StatusCode::OK);
+    json_body(reponse)
+        .await
+        .get("codes")
+        .and_then(|valeur| valeur.as_array())
+        .expect("codes")
+        .iter()
+        .map(|code| code.as_str().expect("code").to_string())
+        .collect()
+}
+
+fn requete_secours(session: &str, code: &str) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri("/auth/totp/secours")
+        .header("content-type", "application/json")
+        .body(Body::from(
+            json!({ "session_token": session, "code": code }).to_string(),
+        ))
+        .unwrap()
+}

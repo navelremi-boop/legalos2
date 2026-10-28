@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::auth::access::AuthAccess;
 use crate::auth::password::hash_password;
+use crate::auth::secours;
 use crate::auth::totp::chiffrer_secret_totp;
 use crate::error::ApiError;
 use crate::state::AppState;
@@ -24,6 +25,15 @@ pub struct CollaborateurResponse {
     pub email: String,
     /// `administrateur` ou `collaborateur`.
     pub role: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct CollaborateurCreeResponse {
+    pub id: Uuid,
+    pub email: String,
+    pub role: String,
+    /// Dix codes, affichés une seule fois. Absents de la liste.
+    pub codes_secours: Vec<String>,
 }
 
 /// Rôle d'un utilisateur du cabinet de l'appelant ; `None` si l'utilisateur n'existe pas dans ce cabinet.
@@ -103,7 +113,7 @@ pub async fn lister_collaborateurs(
     security(("bearer_auth" = [])),
     request_body = CreerCollaborateurRequest,
     responses(
-        (status = 200, description = "Collaborateur du cabinet (rôle collaborateur)", body = CollaborateurResponse),
+        (status = 200, description = "Collaborateur du cabinet (rôle collaborateur) et ses codes de secours, affichés une seule fois", body = CollaborateurCreeResponse),
         (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
         (status = 403, description = "Réservé aux administrateurs du cabinet", body = crate::error::ApiErrorBody),
     )
@@ -112,7 +122,7 @@ pub async fn creer_collaborateur(
     State(state): State<Arc<AppState>>,
     AuthAccess(claims): AuthAccess,
     Json(body): Json<CreerCollaborateurRequest>,
-) -> Result<Json<CollaborateurResponse>, ApiError> {
+) -> Result<Json<CollaborateurCreeResponse>, ApiError> {
     exiger_administrateur(&state.pool, &claims).await?;
     let email = body.email.trim().to_owned();
     if !email.contains('@') || email.len() > 200 {
@@ -148,9 +158,11 @@ pub async fn creer_collaborateur(
     .fetch_one(&state.pool)
     .await
     .map_err(|_| ApiError::internal("création collaborateur"))?;
-    Ok(Json(CollaborateurResponse {
+    let codes = secours::remplacer(&state.pool, row.0, &state.totp_cipher_key).await?;
+    Ok(Json(CollaborateurCreeResponse {
         id: row.0,
         email,
         role: row.1,
+        codes_secours: codes,
     }))
 }

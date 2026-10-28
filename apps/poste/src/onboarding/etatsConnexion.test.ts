@@ -11,11 +11,11 @@ import {
 } from "./etatsConnexion.ts";
 
 describe("états de l'écran de connexion", () => {
-  it("compte les onze états de la maquette, sans code de secours", () => {
+  it("compte les onze états de la maquette et montre le code de secours sur la double authentification", () => {
     assert.equal(ETATS_CONNEXION.length, 11);
     for (const etat of ETATS_CONNEXION) {
       const contenu = contenuConnexion(etat);
-      assert.equal(contenu.lienSecours, false);
+      assert.equal(contenu.lienSecours, etat === "otp" || etat === "otpe");
       assert.equal(contenu.effaceDonneesLocales, false);
       assert.notEqual(LIBELLES_ETAT_CONNEXION[etat], "");
     }

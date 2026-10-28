@@ -5,6 +5,7 @@ use uuid::Uuid;
 
 use crate::auth::jwt::JwtKeys;
 use crate::auth::password;
+use crate::auth::secours;
 use crate::auth::totp;
 use crate::error::ApiError;
 use crate::state::AppState;
@@ -157,31 +158,70 @@ pub async fn verifier_totp(
         return Err(ApiError::unauthorized("Code TOTP invalide"));
     }
 
-    mettre_a_jour_derniere_connexion(&state.pool, claims.poste_id).await?;
+    emettre_jetons(state, user.cabinet_id, user.id, claims.poste_id).await
+}
 
+/// Un code de secours tient lieu du code TOTP. Inconnu ou déjà utilisé : le même refus.
+pub async fn verifier_code_secours(
+    state: &AppState,
+    session_token: &str,
+    code: &str,
+) -> Result<TotpResult, ApiError> {
+    if session_token.trim().is_empty() || code.trim().is_empty() {
+        return Err(ApiError::bad_request("Session ou code manquant"));
+    }
+    let claims = state
+        .jwt
+        .decode_session(&state.jwt_issuer, session_token.trim())
+        .map_err(|_| ApiError::unauthorized("Session expirée ou invalide"))?;
+    if poste_revoque(&state.pool, claims.poste_id).await? {
+        return Err(ApiError::unauthorized("Poste révoqué"));
+    }
+    let user = charger_utilisateur_par_id(&state.pool, claims.sub)
+        .await?
+        .ok_or_else(|| ApiError::unauthorized("Utilisateur introuvable"))?;
+    let accepte = secours::consommer(&state.pool, user.id, code, &state.totp_cipher_key).await?;
+    if !accepte {
+        return Err(ApiError::unauthorized("Code incorrect"));
+    }
+    emettre_jetons(state, user.cabinet_id, user.id, claims.poste_id).await
+}
+
+pub async fn regenerer_codes_secours(
+    state: &AppState,
+    utilisateur_id: uuid::Uuid,
+) -> Result<Vec<String>, ApiError> {
+    secours::remplacer(&state.pool, utilisateur_id, &state.totp_cipher_key).await
+}
+
+async fn emettre_jetons(
+    state: &AppState,
+    cabinet_id: uuid::Uuid,
+    utilisateur_id: uuid::Uuid,
+    poste_id: uuid::Uuid,
+) -> Result<TotpResult, ApiError> {
+    mettre_a_jour_derniere_connexion(&state.pool, poste_id).await?;
     let access_token = state
         .jwt
         .sign_access(
             &state.jwt_issuer,
             &state.jwt_audience,
-            user.id,
-            user.cabinet_id,
-            claims.poste_id,
+            utilisateur_id,
+            cabinet_id,
+            poste_id,
             state.access_token_ttl_secs,
         )
         .map_err(|_| ApiError::internal("Émission du jeton d'accès"))?;
-
     let refresh_token = state
         .jwt
         .sign_refresh(
             &state.jwt_issuer,
-            user.id,
-            user.cabinet_id,
-            claims.poste_id,
+            utilisateur_id,
+            cabinet_id,
+            poste_id,
             state.refresh_token_ttl_secs,
         )
         .map_err(|_| ApiError::internal("Émission du jeton de rafraîchissement"))?;
-
     Ok(TotpResult {
         access_token,
         refresh_token,

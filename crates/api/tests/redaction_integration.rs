@@ -600,6 +600,21 @@ async fn scenario(url_base_jetable: String) {
         json!("collaborateur"),
         "un compte créé par l'API n'est jamais administrateur"
     );
+    assert_eq!(
+        cree["codes_secours"].as_array().map(|codes| codes.len()),
+        Some(10),
+        "dix codes de secours, une seule fois"
+    );
+    let (statut, liste_comptes) = appel(&app, "GET", "/collaborateurs", &a, Value::Null).await;
+    assert_eq!(statut, StatusCode::OK);
+    assert!(
+        liste_comptes
+            .as_array()
+            .expect("liste")
+            .iter()
+            .all(|compte| compte.get("codes_secours").is_none()),
+        "la liste ne redonne pas les codes"
+    );
     let (_, liste_b) = appel(&app, "GET", "/messagerie/modeles", &b, Value::Null).await;
     assert!(liste_b
         .as_array()

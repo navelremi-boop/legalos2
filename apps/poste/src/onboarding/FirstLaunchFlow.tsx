@@ -15,6 +15,7 @@ import {
   DEFAULT_INSTANCE_URL,
   normalizeInstanceUrl,
   verifierTotp,
+  verifierCodeSecours,
 } from "@/lib/auth/client";
 import { fr } from "@/lib/fr";
 import {
@@ -43,6 +44,8 @@ export function FirstLaunchFlow({ initialInstanceUrl, onComplete, onSituation }:
   const [nomAppareil, setNomAppareil] = useState("");
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [codeTotp, setCodeTotp] = useState("");
+  const [secours, setSecours] = useState(false);
+  const [codeSecours, setCodeSecours] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const finishWithTokens = useCallback(
@@ -133,6 +136,28 @@ export function FirstLaunchFlow({ initialInstanceUrl, onComplete, onSituation }:
       return;
     }
 
+    finishWithTokens(result.data.access_token, result.data.refresh_token, url);
+  };
+
+  const handleSecoursSubmit = async (event: SubmitEvent) => {
+    event.preventDefault();
+    if (sessionToken === null) {
+      setError("Session expirée. Recommencez la connexion.");
+      setStep("connexion");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const url = normalizeInstanceUrl(instanceUrl);
+    const result = await verifierCodeSecours(url, {
+      session_token: sessionToken,
+      code: codeSecours.trim(),
+    });
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error.message);
+      return;
+    }
     finishWithTokens(result.data.access_token, result.data.refresh_token, url);
   };
 
@@ -251,18 +276,45 @@ export function FirstLaunchFlow({ initialInstanceUrl, onComplete, onSituation }:
       title="Double authentification"
       subtitle="Saisissez le code à six chiffres de votre application d’authentification."
     >
-      <form onSubmit={(event) => void handleTotpSubmit(event)}>
+      <form onSubmit={(event) => void (secours ? handleSecoursSubmit(event) : handleTotpSubmit(event))}>
         {error !== null ? <ErrorMessage message={error} /> : null}
-        <SaisieCode valeur={codeTotp} onChange={setCodeTotp} />
+        {secours ? (
+          <Field id="code-secours" label="Code de secours">
+            <TextInput
+              id="code-secours"
+              name="codeSecours"
+              type="text"
+              autoComplete="one-time-code"
+              required
+              value={codeSecours}
+              onChange={(event) => {
+                setCodeSecours(event.target.value);
+              }}
+            />
+          </Field>
+        ) : (
+          <SaisieCode valeur={codeTotp} onChange={setCodeTotp} />
+        )}
         <div className="flex flex-col gap-2">
-          <PrimaryButton type="submit" disabled={busy || codeTotp.length !== 6}>
+          <PrimaryButton type="submit" disabled={busy || (!secours && codeTotp.length !== 6)}>
             {busy ? fr("Vérification…") : fr("Vérifier")}
           </PrimaryButton>
           <SecondaryButton
             disabled={busy}
             onClick={() => {
+              setSecours((actuel) => !actuel);
+              setError(null);
+            }}
+          >
+            {fr(secours ? "Utiliser l’application d’authentification" : "Utiliser un code de secours")}
+          </SecondaryButton>
+          <SecondaryButton
+            disabled={busy}
+            onClick={() => {
               setSessionToken(null);
               setCodeTotp("");
+              setCodeSecours("");
+              setSecours(false);
               setError(null);
               setStep("connexion");
             }}

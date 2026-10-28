@@ -23,14 +23,17 @@ export type ContenuConnexion = {
   alerte?: { titre: string; texte: string };
   info?: { titre: string; texte: string };
   bouton: string;
-  /** Tant que la décision sur les codes de secours n'est pas tranchée. */
-  lienSecours: false;
+  /** Le lien « code de secours » sur la double authentification. */
+  lienSecours: boolean;
   /** Afficher l'état n'efface pas la base locale. */
   effaceDonneesLocales: false;
 };
 
 const GARDES: ContenuConnexion["effaceDonneesLocales"] = false;
-const SANS_SECOURS: ContenuConnexion["lienSecours"] = false;
+
+function secours(etat: EtatConnexion): boolean {
+  return etat === "otp" || etat === "otpe";
+}
 
 export function contenuConnexion(etat: EtatConnexion): ContenuConnexion {
   switch (etat) {
@@ -39,7 +42,7 @@ export function contenuConnexion(etat: EtatConnexion): ContenuConnexion {
         titre: "Connecter cette application à votre cabinet",
         sousTitre: "Saisissez l'adresse du serveur de votre cabinet. Votre administrateur vous l'a communiquée.",
         bouton: "Continuer",
-        lienSecours: SANS_SECOURS,
+        lienSecours: secours(etat),
         effaceDonneesLocales: GARDES,
       };
     case "chiffrement":
@@ -51,7 +54,7 @@ export function contenuConnexion(etat: EtatConnexion): ContenuConnexion {
           texte: "Vous pouvez continuer. Le poste sera inscrit « chiffrement non confirmé ».",
         },
         bouton: "Continuer quand même",
-        lienSecours: SANS_SECOURS,
+        lienSecours: secours(etat),
         effaceDonneesLocales: GARDES,
       };
     case "connexion":
@@ -59,7 +62,7 @@ export function contenuConnexion(etat: EtatConnexion): ContenuConnexion {
         titre: "Connexion",
         sousTitre: "Connectez-vous avec votre compte du cabinet.",
         bouton: "Se connecter",
-        lienSecours: SANS_SECOURS,
+        lienSecours: secours(etat),
         effaceDonneesLocales: GARDES,
       };
     case "mdp":
@@ -71,7 +74,7 @@ export function contenuConnexion(etat: EtatConnexion): ContenuConnexion {
           texte: "Vérifiez votre saisie. Après plusieurs essais, le compte est suspendu quelques minutes.",
         },
         bouton: "Se connecter",
-        lienSecours: SANS_SECOURS,
+        lienSecours: secours(etat),
         effaceDonneesLocales: GARDES,
       };
     case "otp":
@@ -79,7 +82,7 @@ export function contenuConnexion(etat: EtatConnexion): ContenuConnexion {
         titre: "Double authentification",
         sousTitre: "Saisissez le code à 6 chiffres affiché par votre application d'authentification.",
         bouton: "Vérifier",
-        lienSecours: SANS_SECOURS,
+        lienSecours: secours(etat),
         effaceDonneesLocales: GARDES,
       };
     case "otpe":
@@ -91,7 +94,7 @@ export function contenuConnexion(etat: EtatConnexion): ContenuConnexion {
           texte: "Un nouveau code apparaît toutes les 30 secondes.",
         },
         bouton: "Vérifier",
-        lienSecours: SANS_SECOURS,
+        lienSecours: secours(etat),
         effaceDonneesLocales: GARDES,
       };
     case "sync":
@@ -99,7 +102,7 @@ export function contenuConnexion(etat: EtatConnexion): ContenuConnexion {
         titre: "Préparation de votre poste",
         sousTitre: "Votre poste télécharge les dossiers auxquels vous avez accès. Ensuite, tout fonctionne hors ligne.",
         bouton: "Ouvrir l'application",
-        lienSecours: SANS_SECOURS,
+        lienSecours: secours(etat),
         effaceDonneesLocales: GARDES,
       };
     case "verrou":
@@ -107,7 +110,7 @@ export function contenuConnexion(etat: EtatConnexion): ContenuConnexion {
         titre: "Reprendre votre travail",
         sousTitre: "Saisissez votre mot de passe. Vos dossiers n'ont pas bougé.",
         bouton: "Déverrouiller",
-        lienSecours: SANS_SECOURS,
+        lienSecours: secours(etat),
         effaceDonneesLocales: GARDES,
       };
     case "horsligne":
@@ -119,7 +122,7 @@ export function contenuConnexion(etat: EtatConnexion): ContenuConnexion {
           texte: "Rien n'est perdu, mais le travail hors ligne est suspendu.",
         },
         bouton: "Réessayer",
-        lienSecours: SANS_SECOURS,
+        lienSecours: secours(etat),
         effaceDonneesLocales: GARDES,
       };
     case "revoque":
@@ -131,7 +134,7 @@ export function contenuConnexion(etat: EtatConnexion): ContenuConnexion {
           texte: "Cet écran ne les efface pas. L'effacement suit la révocation, au jalon prévu.",
         },
         bouton: "Fermer l'application",
-        lienSecours: SANS_SECOURS,
+        lienSecours: secours(etat),
         effaceDonneesLocales: GARDES,
       };
     case "trousseau":
@@ -143,7 +146,7 @@ export function contenuConnexion(etat: EtatConnexion): ContenuConnexion {
           texte: "Reconnectez-vous, puis autorisez l'accès quand le système le demande.",
         },
         bouton: "Se reconnecter",
-        lienSecours: SANS_SECOURS,
+        lienSecours: secours(etat),
         effaceDonneesLocales: GARDES,
       };
   }

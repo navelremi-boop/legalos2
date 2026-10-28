@@ -227,6 +227,41 @@
         ]
       }
     },
+    "/auth/codes-secours": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "regenerer_codes_secours",
+        "responses": {
+          "200": {
+            "description": "Nouveaux codes, affichés une seule fois",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodesSecoursResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/auth/connexion": {
       "post": {
         "tags": [
@@ -316,6 +351,46 @@
           },
           "401": {
             "description": "Jeton refusé ou poste révoqué",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/totp/secours": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "totp_secours",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeSecoursRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Jetons émis",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TotpVerifyResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Code ou session invalide",
             "content": {
               "application/json": {
                 "schema": {
@@ -816,11 +891,11 @@
         },
         "responses": {
           "200": {
-            "description": "Collaborateur du cabinet (rôle collaborateur)",
+            "description": "Collaborateur du cabinet (rôle collaborateur) et ses codes de secours, affichés une seule fois",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CollaborateurResponse"
+                  "$ref": "#/components/schemas/CollaborateurCreeResponse"
                 }
               }
             }
@@ -6072,6 +6147,66 @@
           "dossier_id": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "CodeSecoursRequest": {
+        "type": "object",
+        "required": [
+          "session_token",
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Code de secours à usage unique."
+          },
+          "session_token": {
+            "type": "string",
+            "description": "Jeton provisoire émis après la première étape de connexion."
+          }
+        }
+      },
+      "CodesSecoursResponse": {
+        "type": "object",
+        "required": [
+          "codes"
+        ],
+        "properties": {
+          "codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Dix codes, affichés une seule fois. Les précédents ne valent plus."
+          }
+        }
+      },
+      "CollaborateurCreeResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "role",
+          "codes_secours"
+        ],
+        "properties": {
+          "codes_secours": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Dix codes, affichés une seule fois. Absents de la liste."
+          },
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "type": "string"
           }
         }
       },

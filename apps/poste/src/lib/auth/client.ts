@@ -1,5 +1,6 @@
 import type {
   ApiErrorBody,
+  CodeSecoursRequest,
   ConnexionRequest,
   ConnexionResponse,
   TotpVerifyRequest,
@@ -100,4 +101,11 @@ export function verifierTotp(
   body: TotpVerifyRequest,
 ): Promise<ApiResult<TotpVerifyResponse>> {
   return postJson<TotpVerifyResponse>(instanceUrl, "/auth/totp/verifier", body);
+}
+
+export function verifierCodeSecours(
+  instanceUrl: string,
+  body: CodeSecoursRequest,
+): Promise<ApiResult<TotpVerifyResponse>> {
+  return postJson<TotpVerifyResponse>(instanceUrl, "/auth/totp/secours", body);
 }

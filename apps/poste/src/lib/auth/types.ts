@@ -23,6 +23,11 @@ export type TotpVerifyResponse = {
   refresh_token: string;
 };
 
+export type CodeSecoursRequest = {
+  session_token: string;
+  code: string;
+};
+
 export type ApiErrorBody = {
   code: string;
   message: string;

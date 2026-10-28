@@ -88,6 +88,59 @@ pub async fn totp_verifier(
     }))
 }
 
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct CodeSecoursRequest {
+    /// Jeton provisoire émis après la première étape de connexion.
+    pub session_token: String,
+    /// Code de secours à usage unique.
+    pub code: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct CodesSecoursResponse {
+    /// Dix codes, affichés une seule fois. Les précédents ne valent plus.
+    pub codes: Vec<String>,
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/totp/secours",
+    tag = "auth",
+    request_body = CodeSecoursRequest,
+    responses(
+        (status = 401, description = "Code ou session invalide", body = crate::error::ApiErrorBody),
+        (status = 200, description = "Jetons émis", body = TotpVerifyResponse)
+    )
+)]
+pub async fn totp_secours(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<CodeSecoursRequest>,
+) -> Result<Json<TotpVerifyResponse>, ApiError> {
+    let result = service::verifier_code_secours(&state, &body.session_token, &body.code).await?;
+    Ok(Json(TotpVerifyResponse {
+        access_token: result.access_token,
+        refresh_token: result.refresh_token,
+    }))
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/codes-secours",
+    tag = "auth",
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 200, description = "Nouveaux codes, affichés une seule fois", body = CodesSecoursResponse)
+    )
+)]
+pub async fn regenerer_codes_secours(
+    State(state): State<Arc<AppState>>,
+    crate::auth::access::AuthAccess(claims): crate::auth::access::AuthAccess,
+) -> Result<Json<CodesSecoursResponse>, ApiError> {
+    let codes = service::regenerer_codes_secours(&state, claims.sub).await?;
+    Ok(Json(CodesSecoursResponse { codes }))
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 pub struct JwksResponse {
     pub keys: Vec<serde_json::Value>,
