@@ -42,4 +42,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, dock de l'agenda (28/10).** « Nouvel élément » et « Calculer un délai » sont dans le dock. Le second ouvre le formulaire de calcul déjà utilisé dans un dossier, et inscrit l'échéance si un dossier est sélectionné. Le titre et l'heure d'un créneau sont sur deux lignes. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
 
-**Prochaine action.** Anneau d'échéance sur la ligne d'un dossier, puis comparaison visuelle. Le jalon n'est pas coché.
+- **Finition, ligne de dossier (28/10).** L'anneau, le titre et la date de la prochaine échéance figurent sur la ligne. « 1 jour » au singulier. Le nombre de mails non lus du dossier s'affiche quand il est supérieur à zéro. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/dossiers/apercuDossier.test.ts` : 4/4. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
+
+**Prochaine action.** Comparaison visuelle des captures aux maquettes. Le jalon n'est pas coché.

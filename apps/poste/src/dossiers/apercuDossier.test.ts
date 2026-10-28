@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { derniersElements, etapesProcedure, resumeFacturation } from "./apercuDossier.ts";
+import { derniersElements, etapesProcedure, libelleJoursRestants, nonLusParDossier, resumeFacturation } from "./apercuDossier.ts";
 
 describe("aperçu d'un dossier", () => {
   it("place l'étape courante entre les étapes faites et les suivantes", () => {
@@ -29,6 +29,19 @@ describe("aperçu d'un dossier", () => {
       gardes.map((element) => element.id),
       ["d", "b", "c"],
     );
+  });
+
+  it("compte les mails non lus d'un dossier, au singulier pour un jour", () => {
+    assert.equal(libelleJoursRestants(1), "1 jour");
+    assert.equal(libelleJoursRestants(9), "9 jours");
+    const comptes = nonLusParDossier([
+      { dossier_id: "a", lu: 0 },
+      { dossier_id: "a", lu: 1 },
+      { dossier_id: "a", lu: 0 },
+      { dossier_id: null, lu: 0 },
+    ]);
+    assert.equal(comptes.get("a"), 2);
+    assert.equal(comptes.has("b"), false);
   });
 
   it("sépare le temps non facturé du montant déjà facturé", () => {

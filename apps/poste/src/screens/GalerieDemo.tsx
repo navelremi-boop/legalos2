@@ -5,7 +5,7 @@ import { CHRONO_DEMO } from "@/coque/chrono/donneesDemo";
 import { DossierOuvert, DOSSIERS_DEMO } from "@/screens/DossierOuvert";
 import { EcranAgenda } from "@/agenda/EcranAgenda";
 import { instantPourHeureParis } from "@/agenda/fuseauParis";
-import { jourCivil } from "@/agenda/navigationAgenda";
+import { decalerJour, jourCivil } from "@/agenda/navigationAgenda";
 import { EcranFacturation } from "@/facturation/EcranFacturation";
 import { estAClasser } from "@/messagerie/classement";
 import { EcranMails, type DemonstrationMails } from "@/messagerie/EcranMails";
@@ -16,6 +16,10 @@ import { Journee } from "@/screens/Journee";
 import { Reglages } from "@/screens/Reglages";
 import type { ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
+
+function jourDans(jours: number): string {
+  return decalerJour(jourCivil(new Date()), jours);
+}
 
 /** Données fictives de la rubrique Messagerie des réglages (signature et modèles, sans appel à l'API). */
 const messagerieDemo: DemonstrationMessagerie = {
@@ -343,6 +347,9 @@ export function GalerieDemo() {
         reference: "2026-042",
         type_dossier: "contentieux",
         etape: "instruction",
+        echeance_titre: "Conclusions",
+        echeance_debut: jourDans(9),
+        non_lus: 2,
       },
       {
         id: "lilas",

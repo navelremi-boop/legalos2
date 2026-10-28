@@ -1,3 +1,5 @@
+import { estLu } from "@/messagerie/classement";
+
 export type EtatEtape = "fait" | "cours" | "futur";
 
 export type EtapeProcedure = {
@@ -56,4 +58,23 @@ export function resumeFacturation(
     else nonFactureMinutes += ligne.minutes;
   }
   return { nonFactureMinutes, factureCentimes };
+}
+
+/** « 1 jour » au singulier, « aujourd'hui » quand l'échéance est le jour même. */
+export function libelleJoursRestants(jours: number): string {
+  if (jours <= 0) return "aujourd'hui";
+  if (jours === 1) return "1 jour";
+  return `${String(jours)} jours`;
+}
+
+/** Mails classés dans un dossier et encore non lus. */
+export function nonLusParDossier(
+  mails: readonly { dossier_id: string | null; lu: number | boolean | null }[],
+): Map<string, number> {
+  const comptes = new Map<string, number>();
+  for (const mail of mails) {
+    if (mail.dossier_id === null || mail.dossier_id === "" || estLu(mail)) continue;
+    comptes.set(mail.dossier_id, (comptes.get(mail.dossier_id) ?? 0) + 1);
+  }
+  return comptes;
 }

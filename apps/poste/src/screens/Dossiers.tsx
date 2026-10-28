@@ -2,7 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { BarreActions } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
 import { FormulaireDossier } from "@/dossiers/FormulaireDossier";
-import { derniersElements, etapesProcedure, resumeFacturation, type ElementRecent } from "@/dossiers/apercuDossier";
+import { partAnneau } from "@/screens/assemblerJournee";
+import {
+  derniersElements,
+  etapesProcedure,
+  libelleJoursRestants,
+  nonLusParDossier,
+  resumeFacturation,
+  type ElementRecent,
+} from "@/dossiers/apercuDossier";
 import { libelleEtapeDossier, libelleTypeDossier } from "@/dossiers/libellesDossier";
 import {
   compteurs,
@@ -30,6 +38,9 @@ type LigneDossier = {
   numero_rg?: string | null;
   restreint?: number | null;
   cree_le?: string | null;
+  echeance_debut?: string | null;
+  echeance_titre?: string | null;
+  non_lus?: number;
 };
 
 type EcheanceLocale = {
@@ -52,6 +63,31 @@ type DossiersProps = {
   /** Galerie : liste fixe, sans PowerSync. */
   lignesFixes?: LigneDossier[];
 };
+
+function AnneauEcheance({ jours }: { jours: number }) {
+  const rayon = 15;
+  const tour = 2 * Math.PI * rayon;
+  const part = partAnneau(jours);
+  return (
+    <svg width="38" height="38" viewBox="0 0 38 38" aria-hidden data-testid="dossier-anneau" data-jours={jours}>
+      <circle cx="19" cy="19" r={rayon} fill="none" stroke="var(--arc-piste)" strokeWidth="4" />
+      <circle
+        cx="19"
+        cy="19"
+        r={rayon}
+        fill="none"
+        stroke="var(--encre)"
+        strokeWidth="4"
+        strokeLinecap="round"
+        strokeDasharray={`${String(tour * part)} ${String(tour)}`}
+        transform="rotate(-90 19 19)"
+      />
+      <text x="19" y="23" textAnchor="middle" fontSize="12" fontWeight="800" fill="var(--encre)">
+        {String(jours)}
+      </text>
+    </svg>
+  );
+}
 
 const FILTRES: { id: FiltreDossier; label: string }[] = [
   { id: "actifs", label: "Actifs" },
@@ -83,8 +119,8 @@ function versBrut(
     numeroRg: ligne.numero_rg ?? null,
     restreint: ligne.restreint === 1,
     creeLe: ligne.cree_le ?? null,
-    echeance: echeance?.debut ?? null,
-    echeanceTitre: echeance?.titre ?? null,
+    echeance: echeance?.debut ?? ligne.echeance_debut ?? null,
+    echeanceTitre: echeance?.titre ?? ligne.echeance_titre ?? null,
     parties: parties.get(ligne.id) ?? "",
   };
 }
@@ -104,6 +140,7 @@ export function Dossiers({
   const [facturation, setFacturation] = useState<
     Map<string, { nonFactureMinutes: number; factureCentimes: number }>
   >(() => new Map());
+  const [nonLus, setNonLus] = useState<Map<string, number>>(() => new Map());
   const [filtre, setFiltre] = useState<FiltreDossier>("actifs");
   const [tri, setTri] = useState<TriDossier>("echeance");
   const [recherche, setRecherche] = useState("");
@@ -126,8 +163,14 @@ export function Dossiers({
               "SELECT dossier_id, titre, debut FROM agenda_elements WHERE debut IS NOT NULL",
             ),
             database.getAll<PartieLocale>("SELECT dossier_id, nom, role FROM parties"),
-            database.getAll<{ id: string; dossier_id: string; objet: string | null; cree_le: string | null }>(
-              "SELECT id, dossier_id, objet, cree_le FROM messages WHERE dossier_id IS NOT NULL",
+            database.getAll<{
+              id: string;
+              dossier_id: string;
+              objet: string | null;
+              cree_le: string | null;
+              lu: number | null;
+            }>(
+              "SELECT id, dossier_id, objet, cree_le, lu FROM messages WHERE dossier_id IS NOT NULL",
             ),
             database.getAll<{ id: string; dossier_id: string; nom: string | null; cree_le: string | null }>(
               "SELECT id, dossier_id, nom, cree_le FROM documents WHERE dossier_id IS NOT NULL",
@@ -203,6 +246,7 @@ export function Dossiers({
           setParties(texte);
           setRecents(recentsTries);
           setFacturation(resumes);
+          setNonLus(nonLusParDossier(mails));
         })
         .catch(() => {
           if (!stop) setLignesSync([]);
@@ -221,6 +265,14 @@ export function Dossiers({
     return source.map((ligne) => versBrut(ligne, echeances, parties)).map((brut) => vueDossier(brut, jour));
   }, [lignesFixes, lignesSync, echeances, parties, jour]);
 
+  const comptesNonLus = useMemo(() => {
+    if (!lignesFixes) return nonLus;
+    const comptes = new Map(nonLus);
+    for (const ligne of lignesFixes) {
+      if (ligne.non_lus !== undefined) comptes.set(ligne.id, ligne.non_lus);
+    }
+    return comptes;
+  }, [lignesFixes, nonLus]);
   const nombres = useMemo(() => compteurs(vues), [vues]);
   const visibles = useMemo(() => filtrer(vues, filtre, recherche), [vues, filtre, recherche]);
   const groupes = useMemo(() => grouper(visibles, tri), [visibles, tri]);
@@ -329,6 +381,7 @@ export function Dossiers({
                   <ul className="divide-y divide-filet">
                     {groupe.dossiers.map((ligne) => {
                       const reference = libelleReferenceDossier(ligne.reference);
+                      const lus = comptesNonLus.get(ligne.id) ?? 0;
                       return (
                         <li key={ligne.id}>
                           <button
@@ -367,6 +420,30 @@ export function Dossiers({
                                 {ligne.numeroRg ? fr(`, RG ${ligne.numeroRg}`) : ""}
                               </span>
                             </span>
+                            {ligne.jours !== null && ligne.echeance ? (
+                              <span className="flex shrink-0 items-center gap-2" data-testid="dossier-echeance">
+                                <AnneauEcheance jours={ligne.jours} />
+                                <span className="max-w-40 truncate text-[length:var(--font-size-meta)]">
+                                  <span className="block truncate font-bold">{fr(ligne.echeanceTitre ?? "Échéance")}</span>
+                                  <span className="block truncate text-graphite">
+                                    {fr(`${formatDateCourte(ligne.echeance)}, ${libelleJoursRestants(ligne.jours)}`)}
+                                  </span>
+                                </span>
+                              </span>
+                            ) : ligne.clos ? null : (
+                              <span className="shrink-0 text-[length:var(--font-size-meta)] text-graphite" data-testid="dossier-echeance">
+                                {fr("Aucune échéance")}
+                              </span>
+                            )}
+                            {lus > 0 ? (
+                              <span
+                                className="shrink-0 font-bold"
+                                data-testid="dossier-non-lus"
+                                title={fr(lus > 1 ? `${String(lus)} mails non lus` : "1 mail non lu")}
+                              >
+                                {String(lus)}
+                              </span>
+                            ) : null}
                           </button>
                         </li>
                       );
