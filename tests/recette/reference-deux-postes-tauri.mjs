@@ -65,6 +65,7 @@ function startAppDev(id) {
     cwd: poste,
     env: {
       ...process.env,
+      RUST_BACKTRACE: "1",
       LEGALOS_POSTE_ID: id,
       WEBVIEW2_USER_DATA_FOLDER: dir,
       LIBCLANG_PATH: process.env.LIBCLANG_PATH ?? "C:\\Program Files\\LLVM\\bin",
@@ -100,6 +101,7 @@ function startAppCopie(id) {
     cwd: poste,
     env: {
       ...process.env,
+      RUST_BACKTRACE: "1",
       LEGALOS_POSTE_ID: id,
       WEBVIEW2_USER_DATA_FOLDER: dir,
       WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port} --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`,

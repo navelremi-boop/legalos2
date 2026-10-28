@@ -6,14 +6,13 @@ Une copie ou un portage de code sous MIT, Apache-2.0 ou BSD ajoute ici l'en-têt
 
 ## Code repris dans le dépôt
 
-| Origine | Licence | Emplacement |
-| --- | --- | --- |
-| tauri-plugin-wdio-webdriver 1.4.0, WebdriverIO Community, 2024 | MIT | `apps/poste/src-tauri/patches/tauri-plugin-wdio-webdriver` — dépendance `webview2-com` alignée sur 0.39 (Tauri 2.12) |
+Aucun. `tauri-plugin-wdio-webdriver` est consommé depuis crates.io (1.5.1), sans copie locale.
 
 ## Dépendances figées (pas une copie)
 
 | Crate | Version | Licence | Registre |
 | --- | --- | --- | --- |
+| tauri-plugin-wdio-webdriver | 1.5.1 | MIT | https://crates.io/crates/tauri-plugin-wdio-webdriver/1.5.1 |
 | io-imap | 0.6.1 | MIT OR Apache-2.0 | https://crates.io/crates/io-imap/0.6.1 |
 | imap-codec | 2.0.0-alpha.8 | MIT OR Apache-2.0 | https://crates.io/crates/imap-codec/2.0.0-alpha.8 |
 | notify | 8.2.0 | CC0-1.0 | https://crates.io/crates/notify/8.2.0 |

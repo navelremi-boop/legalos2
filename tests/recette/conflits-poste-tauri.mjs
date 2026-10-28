@@ -167,6 +167,7 @@ function construireModeBuild() {
     cwd: poste,
     env: {
       ...process.env,
+      RUST_BACKTRACE: "1",
       CARGO_TARGET_DIR: cibleBuild,
       VITE_LEGALOS_RECETTE_HOOKS: "1",
       LIBCLANG_PATH: process.env.LIBCLANG_PATH ?? "C:\\Program Files\\LLVM\\bin",
@@ -208,6 +209,7 @@ function startApp(id) {
   writeFileSync(configPath, JSON.stringify(configTauri));
   const envApp = {
     ...process.env,
+    RUST_BACKTRACE: "1",
     LEGALOS_POSTE_ID: id,
     WEBVIEW2_USER_DATA_FOLDER: dir,
     LIBCLANG_PATH: process.env.LIBCLANG_PATH ?? "C:\\Program Files\\LLVM\\bin",

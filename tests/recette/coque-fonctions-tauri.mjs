@@ -108,6 +108,7 @@ function startApp() {
     cwd: poste,
     env: {
       ...process.env,
+      RUST_BACKTRACE: "1",
       LEGALOS_POSTE_ID: posteId,
       WEBVIEW2_USER_DATA_FOLDER: dir,
       CARGO_BUILD_JOBS: process.env.CARGO_BUILD_JOBS ?? "2",

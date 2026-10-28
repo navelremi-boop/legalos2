@@ -136,6 +136,7 @@ function construirePosteConstruit() {
     cwd: poste,
     env: {
       ...process.env,
+      RUST_BACKTRACE: "1",
       CARGO_TARGET_DIR: cibleBuild,
       VITE_LEGALOS_RECETTE_HOOKS: "1",
       LIBCLANG_PATH: process.env.LIBCLANG_PATH ?? "C:\\Program Files\\LLVM\\bin",

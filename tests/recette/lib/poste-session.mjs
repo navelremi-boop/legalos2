@@ -292,9 +292,10 @@ export function creerSession(etiquette) {
   }
 
   /**
-   * Filet de recette (consigne du 27/10/2026) : attache cdb au processus déjà créé.
+   * Filet de recette (consigne du 27/10/2026, étendue le 28/10) : attache cdb au processus déjà créé.
    * Lancer le poste sous le débogueur activerait le tas de débogage ; l'attache, non.
-   * Sur `c0000374`, écrit un cliché complet puis quitte. Le fichier n'existe qu'en cas d'exception.
+   * Sur `c0000374` (corruption du tas) et `c0000409` (arrêt sur panique), écrit un cliché complet puis quitte.
+   * Le fichier n'existe qu'en cas d'exception.
    */
   function attacherFiletCdb(pid) {
     if (process.platform !== "win32") return null;
@@ -309,7 +310,13 @@ export function creerSession(etiquette) {
     const symboles = dirname(cheminBinairePoste());
     // `c0000374` est précédé d'un `int 3`. `sxi bpe` laisse passer ces interruptions ; l'exception,
     // elle, écrit le cliché. Un `g` dans la commande d'interruption fait quitter le débogueur (0xC0000354).
-    const commande = `.echo CDB_ATTACHE; sxi bpe; sxe -c ".echo CRASH_C0000374; .dump /ma ${cliche}; ~*kn 80; lmv; !heap -s; q" c0000374; g`;
+    const commande = [
+      ".echo CDB_ATTACHE",
+      "sxi bpe",
+      `sxe -c ".echo CRASH_C0000374; .dump /ma ${cliche}; ~*kn 80; lmv; !heap -s; q" c0000374`,
+      `sxe -c ".echo CRASH_C0000409; .dump /ma ${cliche}; ~*kn 80; lmv; !heap -s; q" c0000409`,
+      "g",
+    ].join("; ");
     const filet = spawn(cdb, ["-p", String(pid), "-logo", journal, "-y", symboles, "-c", commande], {
       stdio: "ignore",
       windowsHide: true,
@@ -377,6 +384,7 @@ export function creerSession(etiquette) {
     mkdirSync(dir, { recursive: true });
     const env = {
       ...process.env,
+      RUST_BACKTRACE: "1",
       LEGALOS_POSTE_ID: id,
       WEBVIEW2_USER_DATA_FOLDER: dir,
       CARGO_BUILD_JOBS: process.env.CARGO_BUILD_JOBS ?? "2",
@@ -425,6 +433,37 @@ export function creerSession(etiquette) {
         .filter((l) => l.trim() !== "" && !/Building \[|Compiling/.test(l))
         .join(" ⏎ ")
         .slice(-n);
+    child.on("exit", (code) => {
+      if (code === null || code === 0 || code === 1) return;
+      const u = code < 0 ? code + 2 ** 32 : code;
+      if (u < 0x80000000) return;
+      setTimeout(() => {
+        let pile = "";
+        try {
+          if (child.filet?.journal && existsSync(child.filet.journal)) {
+            pile = readFileSync(child.filet.journal, "utf8")
+              .split(/\r?\n/u)
+              .map((l) => l.trim())
+              .filter((l) => l.includes("!") && !/cdb|DbgBreak|DebugBreak/u.test(l))
+              .slice(0, 3)
+              .map((l) => l.slice(0, 90))
+              .join(" ; ");
+          }
+        } catch {
+          /* journal pas encore lisible */
+        }
+        if (pile === "") {
+          pile = child
+            .logTail()
+            .split(/\r?\n/u)
+            .filter((l) => /panic|stack backtrace|^\s+\d+:/u.test(l))
+            .slice(0, 3)
+            .join(" ; ")
+            .slice(0, 240);
+        }
+        console.error(`${etiquette}: mort 0x${u.toString(16)} (${u})${pile ? ` — ${pile}` : ""}`);
+      }, 2_000);
+    });
     return child;
   }
 

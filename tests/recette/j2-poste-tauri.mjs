@@ -51,6 +51,7 @@ function startApp() {
   );
   const env = {
     ...process.env,
+    RUST_BACKTRACE: "1",
     LIBCLANG_PATH: process.env.LIBCLANG_PATH ?? "C:\\Program Files\\LLVM\\bin",
   };
   const child = spawn("cmd.exe", ["/d", "/s", "/c", `pnpm tauri dev --config ${configPath}`], {

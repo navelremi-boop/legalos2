@@ -101,6 +101,7 @@ function startApp() {
     cwd: poste,
     env: {
       ...process.env,
+      RUST_BACKTRACE: "1",
       LEGALOS_POSTE_ID: posteId,
       WEBVIEW2_USER_DATA_FOLDER: dir,
       LIBCLANG_PATH: process.env.LIBCLANG_PATH ?? "C:\\Program Files\\LLVM\\bin",
