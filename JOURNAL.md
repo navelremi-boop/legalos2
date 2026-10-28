@@ -98,4 +98,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, agenda en trois colonnes (28/10).** Contrôleur [visuel](c86e0b8d-44a6-4c25-849b-2560a2f1b699) sur `a10d471` : Dossiers, Réglages, La journée et Temps validés. Agenda refusé : le rail prenait la moitié de la feuille, les heures de la semaine ne s'alignaient pas, les invitations restaient une liste au-dessus de la grille. La feuille d'agenda est maintenant un rail, une grille et une fiche. Les heures partagent un axe. Les invitations horaires sont des blocs dans la grille. `node tests/recette/coque-app.mjs --captures` exit 0. Le jalon n'est pas coché.
 
-**Prochaine action.** Relancer le contrôleur visuel sur l'agenda. Le jalon n'est pas coché.
+- **Finition, agenda validé visuellement (28/10).** Contrôleur [agenda](4e510c83-edb2-4e81-aea8-61b2e48dc1e1) sur `649d244` : jour et semaine, jour et nuit, VALIDÉS. Le rail, la grille et la fiche sont en place. Les heures de la semaine partagent un axe. Les invitations sont des blocs dans la grille. Dettes : fiche plus étroite que la maquette, blocs sans la couleur de chemise. Le jalon n'est pas coché.
+
+**Prochaine action.** Relancer les recettes du jalon sur `649d244` (`node tests/recette/agenda-tauri.mjs`, `node tests/recette/s5-sync-streams.mjs`, `pnpm --filter @legal-os/poste lint:ci`), puis le contrôleur de fin de jalon. Pas de coche avant le § 4.4.
