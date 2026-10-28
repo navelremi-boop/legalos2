@@ -124,4 +124,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Écran de connexion, codes de secours (28/10).** Dix codes `XXXX-XXXX`, affichés une seule fois à la création du compte et à la régénération, stockés en HMAC-SHA256. Un code consommé ou remplacé est refusé. Le lien « Utiliser un code de secours » est sur la double authentification. `cargo test -p legalos-api --lib auth::secours` : 2/2. `cargo test -p legalos-api --test auth_integration auth_code_secours_usage_unique_et_regeneration` : ok en 2,15 s. `cargo clippy -p legalos-api --all-targets -- -D warnings` exit 0. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/onboarding/etatsConnexion.test.ts` : 4/4. `pnpm --filter @legal-os/poste typecheck` exit 0. Le jalon n'est pas coché.
 
+- **Écran de connexion, captures (28/10).** `node tests/recette/coque-app.mjs --captures` exit 0 en 33 s. Les états otp et otp refusé attendent le lien « code de secours » avant la capture. Le jalon n'est pas coché.
+
 **Prochaine action.** Nouvelle preuve visuelle des onze états, le lien « code de secours » exigé. Le jalon n'est pas coché.

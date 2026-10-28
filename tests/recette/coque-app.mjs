@@ -333,6 +333,9 @@ async function runCaptures() {
       for (const [id, fichier] of etatsConnexion) {
         await page.getByTestId(`connexion-etat-${id}`).click();
         await page.waitForSelector(`[data-testid=ecran-connexion][data-etat=${id}]`);
+        if (id === "otp" || id === "otpe") {
+          await page.getByTestId("connexion-secours").waitFor();
+        }
         await page.waitForTimeout(100);
         await page.locator("[data-testid=galerie-scene]").screenshot({
           path: join(outDir, `connexion-${fichier}-${theme === "light" ? "jour" : "nuit"}.png`),
