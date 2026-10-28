@@ -4,7 +4,7 @@ export type LigneAssemblee = {
   id: string;
   titre: string;
   meta: string;
-  dossier?: { nom: string; chemise: ChemiseId };
+  dossier?: { nom: string; chemise: ChemiseId; reference?: string | null };
   calcule?: boolean;
   classer?: { messageId: string; dossierId: string };
   /** Extrait du message, seulement s'il est renseigné. */
@@ -23,6 +23,7 @@ export type DelaiSource = {
   origineCalcul: string | null;
   dossierNom?: string;
   chemise?: ChemiseId;
+  reference?: string | null;
   jours?: number | null;
   dateLibelle?: string;
 };
@@ -35,6 +36,7 @@ export type MailSource = {
   extrait?: string | null;
   dossierNom?: string;
   chemise?: ChemiseId;
+  reference?: string | null;
 };
 
 export type TempsSource = {
@@ -44,6 +46,7 @@ export type TempsSource = {
   origine: "mail" | "agenda";
   dossierNom?: string;
   chemise?: ChemiseId;
+  reference?: string | null;
 };
 
 /** « 9 h 30 », heure sans zéro de tête. */
@@ -66,9 +69,9 @@ export function partAnneau(jours: number): number {
   return Math.max(0.1, Math.min(1, 1 - jours / 60));
 }
 
-function dossier(nom?: string, chemise?: ChemiseId): LigneAssemblee["dossier"] {
+function dossier(nom?: string, chemise?: ChemiseId, reference?: string | null): LigneAssemblee["dossier"] {
   if (!nom || !chemise) return undefined;
-  return { nom, chemise };
+  return { nom, chemise, reference };
 }
 
 /** Un délai du moteur porte la mention « Calculé ». L'écart en jours alimente l'anneau. */
@@ -80,7 +83,7 @@ export function ligneDelai(source: DelaiSource): LigneAssemblee {
     meta: source.dateLibelle ?? "",
     calcule: Boolean(source.origineCalcul),
     jours,
-    dossier: dossier(source.dossierNom, source.chemise),
+    dossier: dossier(source.dossierNom, source.chemise, source.reference),
   };
 }
 
@@ -92,7 +95,7 @@ export function ligneMail(source: MailSource): LigneAssemblee {
     titre: source.objet,
     meta: source.expediteur,
     extrait: extrait === "" ? undefined : extrait,
-    dossier: dossier(source.dossierNom, source.chemise),
+    dossier: dossier(source.dossierNom, source.chemise, source.reference),
     classer:
       source.suggestionDossierId && source.suggestionDossierId !== ""
         ? { messageId: source.id, dossierId: source.suggestionDossierId }
@@ -105,7 +108,7 @@ export function ligneTemps(source: TempsSource): LigneAssemblee {
     id: source.id,
     titre: source.libelle,
     meta: source.origine === "mail" ? "Relevé sur vos mails" : "Relevé sur votre agenda",
-    dossier: dossier(source.dossierNom, source.chemise),
+    dossier: dossier(source.dossierNom, source.chemise, source.reference),
     saisir: { minutes: source.minutes },
   };
 }

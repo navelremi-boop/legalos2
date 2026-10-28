@@ -560,7 +560,12 @@ export function Dossiers({
               <h3 className="mb-1 font-extrabold">{fr("Procédure")}</h3>
               <ol className="mb-4" data-testid="dossier-procedure">
                 {etapesProcedure(choisi.typeDossier, choisi.etape).map((etape) => (
-                  <li key={etape.code} data-etat={etape.etat}>
+                  <li
+                    key={etape.code}
+                    data-etat={etape.etat}
+                    className={etape.etat === "cours" ? "font-extrabold" : "text-graphite"}
+                  >
+                    {etape.etat === "fait" ? fr("Fait, ") : etape.etat === "cours" ? fr("En cours, ") : null}
                     {fr(etape.libelle)}
                   </li>
                 ))}
@@ -581,16 +586,36 @@ export function Dossiers({
                   `${formatDuree((facturation.get(choisi.id)?.nonFactureMinutes ?? 0) * 60)} non facturées, ${formatMontant(facturation.get(choisi.id)?.factureCentimes ?? 0)} facturés`,
                 )}
               </p>
-              <button
-                type="button"
-                className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
-                data-testid="dossier-ouvrir"
-                onClick={() => {
-                  onOuvrirDossier?.(choisi.id, choisi.nom, choisi.chemise, choisi.reference);
-                }}
-              >
-                {fr("Ouvrir le dossier")}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                  data-testid="dossier-ouvrir"
+                  onClick={() => {
+                    onOuvrirDossier?.(choisi.id, choisi.nom, choisi.chemise, choisi.reference);
+                  }}
+                >
+                  {fr("Ouvrir le dossier")}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                  onClick={() => {
+                    onNouveauMail?.();
+                  }}
+                >
+                  {fr("Nouveau mail")}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                  onClick={() => {
+                    onSaisirTemps?.();
+                  }}
+                >
+                  {fr("Saisir du temps")}
+                </button>
+              </div>
             </div>
           ) : (
             <p className="text-graphite">{fr("Aucun dossier à afficher.")}</p>

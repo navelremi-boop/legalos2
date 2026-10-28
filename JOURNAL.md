@@ -80,4 +80,8 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, colonne Temps (28/10).** Le volet reste à droite, séparé par un filet, avec la référence du dossier. La pastille « Chronomètre en cours sur … » est sous le titre. La pilule de la barre précède Synchronisé et prend la chemise du dossier. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
 
-**Prochaine action.** Le contrôleur de fin de jalon n'est pas lancé : la comparaison de Temps vient d'être corrigée, les autres écrans n'ont pas été revus ensemble. Le jalon n'est pas coché.
+- **Finition, comparaison commune (28/10).** Contrôleur [écrans](a0b3f4f1-d09e-4e02-a252-5b87404ffb50) sur `6bc950d` : Réglages conforme. Dossiers, Agenda, La journée et Temps refusés, jour et nuit. Il n'y a pas de montant encaissé en base. Le jalon n'est pas coché.
+
+- **Finition, pastilles et procédure (28/10).** La procédure marque l'étape faite et l'étape en cours. L'aperçu a Nouveau mail et Saisir du temps. La journée montre la référence dans la pastille et la pilule du chronomètre. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/screens/assemblerJournee.test.ts` : 3/3. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
+
+**Prochaine action.** La fiche d'agenda reste courte (pas de lieu ni de rappel affichés). Le jalon n'est pas coché.

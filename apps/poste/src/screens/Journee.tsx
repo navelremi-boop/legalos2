@@ -18,7 +18,7 @@ export type LigneJournee = {
   id: string;
   titre: string;
   meta: string;
-  dossier?: { nom: string; chemise: ChemiseId };
+  dossier?: { nom: string; chemise: ChemiseId; reference?: string | null };
   urgent?: boolean;
   calcule?: boolean;
   classer?: { messageId: string; dossierId: string };
@@ -45,21 +45,21 @@ export const JOURNEE_DEMO: DonneesJournee = {
       titre: "Audience de mise en état",
       meta: "TJ Nanterre",
       heure: "9 h 30",
-      dossier: { nom: "Ferrand Métal", chemise: "kraft" },
+      dossier: { nom: "Ferrand Métal", chemise: "kraft", reference: "2026-042" },
     },
     {
       id: "aud-2",
       titre: "Rendez-vous client",
       meta: "Cabinet",
       heure: "14 h 00",
-      dossier: { nom: "SCI des Lilas", chemise: "vert-amande" },
+      dossier: { nom: "SCI des Lilas", chemise: "vert-amande", reference: "2026-038" },
     },
     {
       id: "tache-1",
       titre: "Relire le projet d'assignation",
       meta: "À faire aujourd'hui",
       tache: true,
-      dossier: { nom: "Ferrand Métal", chemise: "kraft" },
+      dossier: { nom: "Ferrand Métal", chemise: "kraft", reference: "2026-042" },
     },
   ],
   delais: [
@@ -69,7 +69,7 @@ export const JOURNEE_DEMO: DonneesJournee = {
       meta: "",
       jours: 5,
       calcule: true,
-      dossier: { nom: "Ferrand Métal", chemise: "kraft" },
+      dossier: { nom: "Ferrand Métal", chemise: "kraft", reference: "2026-042" },
       urgent: false,
     },
     {
@@ -77,7 +77,7 @@ export const JOURNEE_DEMO: DonneesJournee = {
       titre: "Appel incident",
       meta: "échéance le 29 sept.",
       jours: 2,
-      dossier: { nom: "Martin / Assurances Loire", chemise: "bleu-classeur" },
+      dossier: { nom: "Martin / Assurances Loire", chemise: "bleu-classeur", reference: "2026-031" },
       urgent: true,
     },
   ],
@@ -87,14 +87,14 @@ export const JOURNEE_DEMO: DonneesJournee = {
       titre: "Me Dupont — pièces jointes",
       meta: "Suggéré : Ferrand Métal",
       extrait: "Les pièces 12 et 13 sont jointes.",
-      dossier: { nom: "Ferrand Métal", chemise: "kraft" },
+      dossier: { nom: "Ferrand Métal", chemise: "kraft", reference: "2026-042" },
       classer: { messageId: "mail-1", dossierId: "ferrand" },
     },
     {
       id: "mail-2",
       titre: "Assurances Loire — mise en demeure",
       meta: "Suggéré : Martin / Assurances Loire",
-      dossier: { nom: "Martin / Assurances Loire", chemise: "bleu-classeur" },
+      dossier: { nom: "Martin / Assurances Loire", chemise: "bleu-classeur", reference: "2026-031" },
     },
   ],
   temps: [
@@ -103,14 +103,14 @@ export const JOURNEE_DEMO: DonneesJournee = {
       titre: "Préparation audience",
       meta: "Relevé sur vos mails",
       saisir: { minutes: 45 },
-      dossier: { nom: "Ferrand Métal", chemise: "kraft" },
+      dossier: { nom: "Ferrand Métal", chemise: "kraft", reference: "2026-042" },
     },
     {
       id: "tps-2",
       titre: "Entretien téléphonique",
       meta: "Relevé sur votre agenda",
       saisir: { minutes: 20 },
-      dossier: { nom: "SCI des Lilas", chemise: "vert-amande" },
+      dossier: { nom: "SCI des Lilas", chemise: "vert-amande", reference: "2026-038" },
     },
   ],
   nonFacture: { minutes: 90, htCentimes: htTempsCentimes(90, TAUX_PAR_DEFAUT_CENTIMES) },
@@ -160,7 +160,15 @@ function AnneauJours({ jours }: { jours: number }) {
   );
 }
 
-function Pastille({ chemise }: { chemise: ChemiseId }) {
+function Pastille({ chemise, reference }: { chemise: ChemiseId; reference?: string | null }) {
+  if (reference) {
+    return (
+      <span className="mails-dos" data-testid="pastille-dossier" data-chemise={chemise}>
+        <i aria-hidden />
+        {fr(reference)}
+      </span>
+    );
+  }
   return (
     <span
       className="ligne-journee__pastille"
@@ -232,7 +240,7 @@ function Section({
                   {fr(ligne.heure)}
                 </span>
               ) : null}
-              {ligne.dossier ? <Pastille chemise={ligne.dossier.chemise} /> : null}
+              {ligne.dossier ? <Pastille chemise={ligne.dossier.chemise} reference={ligne.dossier.reference} /> : null}
               <div className="min-w-0 flex-1">
                 <div className="truncate font-bold">{fr(ligne.titre)}</div>
                 <div className="truncate text-[length:var(--font-size-dense)] text-graphite">
@@ -345,7 +353,7 @@ function Section({
                     onBasculerTache?.(ligne.id);
                   }}
                 />
-                {ligne.dossier ? <Pastille chemise={ligne.dossier.chemise} /> : null}
+                {ligne.dossier ? <Pastille chemise={ligne.dossier.chemise} reference={ligne.dossier.reference} /> : null}
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-bold">{fr(ligne.titre)}</div>
                   <div className="truncate text-[length:var(--font-size-dense)] text-graphite">{fr(ligne.meta)}</div>
@@ -415,8 +423,8 @@ export function Journee({
             }>(
               "SELECT id, titre, type_element, debut, origine_calcul, dossier_id FROM agenda_elements",
             ),
-            database.getAll<{ id: string; nom: string; chemise: string }>(
-              "SELECT id, nom, chemise FROM dossiers",
+            database.getAll<{ id: string; nom: string; chemise: string; reference: string | null }>(
+              "SELECT id, nom, chemise, reference FROM dossiers",
             ),
             database.getAll<{
               id: string;
@@ -442,7 +450,7 @@ export function Journee({
           const chemiseDe = (id: string) => {
             const dossier = parId.get(id);
             if (!dossier || !isChemiseId(dossier.chemise)) return undefined;
-            return { nom: dossier.nom, chemise: dossier.chemise };
+            return { nom: dossier.nom, chemise: dossier.chemise, reference: dossier.reference };
           };
           const duJour = agendas.filter((ligne) => {
             const quand = composantesAffichees(ligne.debut);
@@ -469,7 +477,9 @@ export function Journee({
                 meta: tache ? "À faire aujourd'hui" : "",
                 heure: tache ? undefined : heure,
                 tache,
-                dossier: dossier ? { nom: dossier.nom, chemise: dossier.chemise } : undefined,
+                dossier: dossier
+                  ? { nom: dossier.nom, chemise: dossier.chemise, reference: dossier.reference }
+                  : undefined,
               };
             }),
             delais: agendas
@@ -489,6 +499,7 @@ export function Journee({
                   origineCalcul: ligne.origine_calcul,
                   jours: ecart,
                   dossierNom: dossier?.nom,
+                  reference: dossier?.reference,
                   chemise: dossier?.chemise,
                 });
               }),
@@ -502,6 +513,7 @@ export function Journee({
                 extrait: ligne.extrait_texte,
                 suggestionDossierId: suggere,
                 dossierNom: dossier?.nom,
+                reference: dossier?.reference,
                 chemise: dossier?.chemise,
               });
             }),
@@ -514,6 +526,7 @@ export function Journee({
                   minutes: proposition.minutes,
                   origine: "mail",
                   dossierNom: dossier?.nom,
+                  reference: dossier?.reference,
                   chemise: dossier?.chemise,
                 });
               }),
@@ -527,6 +540,7 @@ export function Journee({
                     minutes: 0,
                     origine: "agenda",
                     dossierNom: dossier?.nom,
+                    reference: dossier?.reference,
                     chemise: dossier?.chemise,
                   });
                 }),

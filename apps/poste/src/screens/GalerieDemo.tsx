@@ -638,15 +638,15 @@ export function GalerieDemo() {
           ongletActifId={vue === "dossier" ? dossier.id : null}
           sync={{ kind: "synchronise" }}
           chronoSecondes={
-            vue === "temps" ? chronoTemps.secondes : vue === "dossier" ? 12 * 60 + 4 : undefined
+            vue === "temps" || vue === "journee" || vue === "dossier" ? chronoTemps.secondes : undefined
           }
           chronoTitre={
-            vue === "temps"
+            vue === "temps" || vue === "journee"
               ? fr("Chronomètre en pause sur 2026-042")
               : undefined
           }
-          chronoChemise={vue === "temps" ? "kraft" : undefined}
-          onChrono={vue === "temps" || vue === "dossier" ? () => undefined : undefined}
+          chronoChemise={vue === "temps" || vue === "journee" ? "kraft" : undefined}
+          onChrono={vue === "temps" || vue === "journee" || vue === "dossier" ? () => undefined : undefined}
           onPalette={() => undefined}
           mailsCompteur={aClasser}
           compteMenu={
