@@ -86,4 +86,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, fiche d'agenda (28/10).** La fiche montre le dossier, sa référence, le rappel enregistré et « Ouvrir le dossier ». Il n'y a pas de colonne lieu. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
 
-**Prochaine action.** Le formulaire de Temps affiche encore « Enregistrer hors ligne » et « Valider en ligne ». Le jalon n'est pas coché.
+- **Finition, bouton Enregistrer (28/10).** La saisie de temps a un bouton « Enregistrer ». « Valider » n'apparaît qu'une fois le brouillon écrit ; `s9-poste-tauri` le clique par son identifiant. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
+
+**Prochaine action.** L'aperçu du montant n'apparaît qu'une fois la durée saisie. Le jalon n'est pas coché.

@@ -281,16 +281,18 @@ export function FormulaireTemps({
         type="submit"
         className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
       >
-        {fr("Enregistrer hors ligne")}
+        {fr("Enregistrer")}
       </button>
-      <button
-        id="valider-facture"
-        type="button"
-        className="ml-2 rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
-        onClick={() => void validerEnLigne()}
-      >
-        {fr("Valider en ligne")}
-      </button>
+      {brouillon !== null ? (
+        <button
+          id="valider-facture"
+          type="button"
+          className="ml-2 rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+          onClick={() => void validerEnLigne()}
+        >
+          {fr("Valider")}
+        </button>
+      ) : null}
       <p className="mt-2 text-[length:var(--font-size-dense)] text-encre" data-testid="brouillon-hors-ligne">
         {message}
       </p>
