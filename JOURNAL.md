@@ -100,4 +100,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, agenda validé visuellement (28/10).** Contrôleur [agenda](4e510c83-edb2-4e81-aea8-61b2e48dc1e1) sur `649d244` : jour et semaine, jour et nuit, VALIDÉS. Le rail, la grille et la fiche sont en place. Les heures de la semaine partagent un axe. Les invitations sont des blocs dans la grille. Dettes : fiche plus étroite que la maquette, blocs sans la couleur de chemise. Le jalon n'est pas coché.
 
-**Prochaine action.** Relancer les recettes du jalon sur `649d244` (`node tests/recette/agenda-tauri.mjs`, `node tests/recette/s5-sync-streams.mjs`, `pnpm --filter @legal-os/poste lint:ci`), puis le contrôleur de fin de jalon. Pas de coche avant le § 4.4.
+- **Finition, recettes (28/10).** `pnpm --filter @legal-os/poste lint:ci` exit 0. `node tests/recette/s5-sync-streams.mjs` exit 0. Tests unitaires des écrans (durée, chronomètre, journée, dossiers, agenda, réglages) : 35/35. `node tests/recette/agenda-tauri.mjs` exit 0 en 215 s, « tous les critères », 0 relance de lancement. Deux copies du poste sont sorties `0xc0000354` (le débogueur qui quitte, pile dans les notifications Windows) ; la recette a continué. Le premier essai s'était arrêté : `CARGO_TARGET_DIR` pointait vers un cache sans le binaire ; relancé sans cette variable, le binaire du dépôt. Le jalon n'est pas coché.
+
+**Prochaine action.** Contrôleur de fin de jalon, puis CI de ce commit. Pas de coche avant le § 4.4.
