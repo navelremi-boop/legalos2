@@ -822,3 +822,22 @@ La copie `patches/powersync` est retirée. Le poste reprend `powersync` 0.1.1 pu
 15 305s 1 non
 
 **Prochaine action.** Une série qui atteint 10 passes vertes hors `0xC0000374`. J11 n'est pas coché.
+
+2026-10-28 — Série officielle sur le binaire `powersync_core` 0.5.3 (code de `1ebfac5`, seuls des journaux ont suivi). Une commande, exit 0, 1 784 s. Dix passes vertes. Deux tuées par `0xC0000374`, non comptées.
+
+1 142s 0 non
+2 140s 0 non
+3 145s 0 non
+4 140s 0 non
+5 141s 0 non
+6 213s 1 oui — cliché `legal-os-poste-28476`, `c0000374`, `StreamingSyncIteration::apply_transition`
+7 142s 0 non
+8 149s 1 oui — cliché `legal-os-poste-10432`, `c0000374`
+9 141s 0 non
+10 140s 0 non
+11 145s 0 non
+12 145s 0 non
+
+Pas de panique `Rc` cette fois. Contrôleur relancé. J11 n'est pas coché.
+
+**Prochaine action.** Verdict du contrôleur. J11 n'est pas coché.
