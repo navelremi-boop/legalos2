@@ -14,6 +14,7 @@ export type SaisieTemps = {
   reference?: string | null;
   chemise?: ChemiseId;
   intervenantId: string;
+  intervenantNom?: string;
   tauxCentimesHeure: number;
   htCentimes: number;
   facturee: boolean;

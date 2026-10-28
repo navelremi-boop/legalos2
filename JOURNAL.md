@@ -74,4 +74,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, CI (28/10).** Le job rust de [40688866767](https://github.com/navelremi-boop/legalos2/actions/runs/40688866767) (`5e5a71b`) a d'abord échoué : `install_demarre_en_production_sans_demo`, l'instance ne répond pas. Relance du job : exit 0, rust et s1 verts. La CI de `3ae7bac` [40692356106](https://github.com/navelremi-boop/legalos2/actions/runs/40692356106) est verte (frontend, gouvernance, périmètre) ; rust et s1 sont sautés, le commit ne touche que le journal. Le jalon n'est pas coché.
 
-**Prochaine action.** Le contrôleur de fin de jalon attend encore : la comparaison visuelle reste un refus, l'intervenant n'est pas une liste livrée, la suggestion de temps reste sur l'écran Mails. Le jalon n'est pas coché.
+- **Finition, nom sur la ligne (28/10).** La ligne de temps montre le nom déjà enregistré de l'intervenant. Le chronomètre en cours porte la référence du dossier. Pas de liste pour choisir un autre intervenant. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
+
+**Prochaine action.** Nouvelle comparaison visuelle de Temps. Le jalon n'est pas coché.

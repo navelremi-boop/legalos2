@@ -49,6 +49,7 @@ type LigneSql = {
   dossier_nom: string | null;
   dossier_chemise: string | null;
   dossier_reference: string | null;
+  intervenant_nom: string | null;
 };
 
 const FILTRES: { id: FiltreSaisie; label: string }[] = [
@@ -82,9 +83,11 @@ export function EcranTemps({
           const temps = await database.getAll<LigneSql>(
             `SELECT t.id, t.cree_le, t.minutes, t.libelle, t.dossier_id, t.intervenant_id,
                     t.taux_centimes_heure, t.ht_centimes, d.nom AS dossier_nom,
-                    d.chemise AS dossier_chemise, d.reference AS dossier_reference
+                    d.chemise AS dossier_chemise, d.reference AS dossier_reference,
+                    u.display_name AS intervenant_nom
              FROM temps_saisis t
-             LEFT JOIN dossiers d ON d.id = t.dossier_id`,
+             LEFT JOIN dossiers d ON d.id = t.dossier_id
+             LEFT JOIN users u ON u.id = t.intervenant_id`,
           );
           const factures = await database.getAll<{ temps_id: string }>(
             "SELECT temps_id FROM brouillons_facture WHERE numero IS NOT NULL",
@@ -103,6 +106,7 @@ export function EcranTemps({
                 : undefined,
             reference: ligne.dossier_reference,
             intervenantId: ligne.intervenant_id,
+            intervenantNom: ligne.intervenant_nom ?? undefined,
             tauxCentimesHeure: ligne.taux_centimes_heure,
             htCentimes: ligne.ht_centimes,
             facturee: facturesIds.has(ligne.id),
@@ -130,6 +134,7 @@ export function EcranTemps({
   const groupes = useMemo(() => grouperParJour(visibles), [visibles]);
   const resume = useMemo(() => resumeTemps(lignes, aujourdhui), [lignes, aujourdhui]);
   const volet = useMemo(() => voletTemps(lignes, aujourdhui), [lignes, aujourdhui]);
+  const dossierChrono = lignes.find((ligne) => ligne.dossierId === chrono.dossierId && ligne.chemise);
   const minutesArret = minutesConfirmees(chrono);
 
   async function enregistrerChrono() {
@@ -178,6 +183,12 @@ export function EcranTemps({
           <p className="text-[length:var(--font-size-journee)] font-extrabold tabular-nums">
             {formatDuree(chrono.secondes)}
           </p>
+          {dossierChrono?.chemise ? (
+            <span className="mails-dos" data-testid="chrono-dossier" data-chemise={dossierChrono.chemise}>
+              <i aria-hidden />
+              {fr(libelleReferenceDossier(dossierChrono.reference))}
+            </span>
+          ) : null}
           {chrono.libelle !== "" ? <p>{fr(chrono.libelle)}</p> : null}
           {chrono.phase === "arrete" ? (
             <button
@@ -310,9 +321,15 @@ export function EcranTemps({
                             {fr(libelleReferenceDossier(ligne.reference))}
                           </span>
                         ) : null}
-                        <span className="truncate">
-                          {fr(ligne.libelle)}
-                          {ligne.dossierNom !== "" ? fr(` — ${ligne.dossierNom}`) : ""}
+                        <span className="min-w-0 truncate">
+                          <span className="block truncate">{fr(ligne.libelle)}</span>
+                          {ligne.dossierNom !== "" || ligne.intervenantNom ? (
+                            <span className="block truncate text-graphite">
+                              {fr(
+                                [ligne.dossierNom, ligne.intervenantNom ?? ""].filter((partie) => partie !== "").join(", "),
+                              )}
+                            </span>
+                          ) : null}
                         </span>
                       </span>
                       <span className="text-right">

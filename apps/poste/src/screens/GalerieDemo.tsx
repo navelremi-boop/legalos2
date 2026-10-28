@@ -176,6 +176,7 @@ export function GalerieDemo() {
         reference: "2026-042",
         chemise: "kraft" as const,
         intervenantId: "demo-moi",
+        intervenantNom: "Me Julien Marchal",
         tauxCentimesHeure: taux,
         htCentimes: htTempsCentimes(45, taux),
         facturee: false,
@@ -190,6 +191,7 @@ export function GalerieDemo() {
         reference: "2026-038",
         chemise: "vert-amande" as const,
         intervenantId: "autre",
+        intervenantNom: "Me Camille Roux",
         tauxCentimesHeure: taux,
         htCentimes: htTempsCentimes(60, taux),
         facturee: true,
@@ -637,6 +639,11 @@ export function GalerieDemo() {
           sync={{ kind: "synchronise" }}
           chronoSecondes={
             vue === "temps" ? chronoTemps.secondes : vue === "dossier" ? 12 * 60 + 4 : undefined
+          }
+          chronoTitre={
+            vue === "temps"
+              ? fr("Chronomètre en pause sur 2026-042")
+              : undefined
           }
           onChrono={vue === "temps" || vue === "dossier" ? () => undefined : undefined}
           onPalette={() => undefined}
