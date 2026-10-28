@@ -68,4 +68,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, pastille et histogramme (28/10).** La pastille porte la référence du dossier. Le volet montre le montant non facturé par dossier et les sept jours en barres. Sous le titre : minutes du jour et durée non facturée. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
 
-**Prochaine action.** `pnpm --filter @legal-os/poste lint:ci`, puis les recettes encore exigées par le jalon. Le jalon n'est pas coché.
+- **Finition, lint et flux (28/10).** `pnpm --filter @legal-os/poste lint:ci` exit 0. `node tests/recette/s5-sync-streams.mjs` exit 0 (dossier restreint : flux `dossier_acces`). Le jalon n'est pas coché.
+
+**Prochaine action.** `node tests/recette/agenda-tauri.mjs`. Le jalon n'est pas coché.
