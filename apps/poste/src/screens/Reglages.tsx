@@ -18,6 +18,7 @@ import {
 import { clearSession } from "@/lib/session/storage";
 import { ReglagesMessagerie, type DemonstrationMessagerie } from "@/messagerie/ReglagesMessagerie";
 import { ConstructeurReference } from "@/screens/ConstructeurReference";
+import { sectionsVisibles } from "@/screens/sectionsReglages";
 import { DEMO_CABINET_ID } from "@/sync/demoCabinet";
 import { getPowerSyncDatabase } from "@/sync/database";
 
@@ -229,7 +230,19 @@ export function Reglages({
       </h1>
       <Feuille uneColonne className="min-h-[360px]">
         <div className="space-y-6 p-[22px] pb-16">
-          <div>
+          <nav aria-label={fr("Sections des réglages")} data-testid="reglages-nav" className="flex flex-wrap gap-2">
+            {sectionsVisibles().map((section) => (
+              <a
+                key={section.id}
+                href={`#reglages-${section.id}`}
+                className="rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-1 text-encre"
+                data-testid={`reglages-section-${section.id}`}
+              >
+                {fr(section.titre)}
+              </a>
+            ))}
+          </nav>
+          <div id="reglages-apparence">
             <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="theme">
               {fr("Thème")}
             </label>
@@ -247,7 +260,7 @@ export function Reglages({
             </select>
           </div>
 
-          <form
+          <form id="reglages-cabinet"
             onSubmit={(event) => {
               event.preventDefault();
               const formulaire = new FormData(event.currentTarget);
@@ -325,7 +338,7 @@ export function Reglages({
             </button>
           </form>
 
-          <section className="space-y-3">
+          <section id="reglages-reference" className="space-y-3">
             <h2 className="text-[length:var(--font-size-section)] font-extrabold text-encre">
               {fr("Référence des dossiers")}
             </h2>
@@ -417,7 +430,9 @@ export function Reglages({
             ) : null}
           </section>
 
-          <ReglagesMessagerie instanceUrl={instanceUrl} horsLigne={horsLigne} demonstration={messagerieDemo} />
+          <div id="reglages-messagerie">
+            <ReglagesMessagerie instanceUrl={instanceUrl} horsLigne={horsLigne} demonstration={messagerieDemo} />
+          </div>
 
           {refusMessage !== null ? (
             <p
