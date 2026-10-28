@@ -11,6 +11,7 @@ export type SaisieTemps = {
   libelle: string;
   dossierId: string;
   dossierNom: string;
+  reference?: string | null;
   chemise?: ChemiseId;
   intervenantId: string;
   tauxCentimesHeure: number;

@@ -21,6 +21,7 @@ import {
   type SaisieTemps,
 } from "@/facturation/listeTemps";
 import { isChemiseId } from "@/lib/chemise";
+import { libelleReferenceDossier } from "@/lib/referenceDossier";
 import { formatDateCourte, formatDateLongue, formatDuree, formatMontant } from "@/lib/format";
 import { fr } from "@/lib/fr";
 import { getPowerSyncDatabase } from "@/sync/database";
@@ -47,6 +48,7 @@ type LigneSql = {
   ht_centimes: number;
   dossier_nom: string | null;
   dossier_chemise: string | null;
+  dossier_reference: string | null;
 };
 
 const FILTRES: { id: FiltreSaisie; label: string }[] = [
@@ -80,7 +82,7 @@ export function EcranTemps({
           const temps = await database.getAll<LigneSql>(
             `SELECT t.id, t.cree_le, t.minutes, t.libelle, t.dossier_id, t.intervenant_id,
                     t.taux_centimes_heure, t.ht_centimes, d.nom AS dossier_nom,
-                    d.chemise AS dossier_chemise
+                    d.chemise AS dossier_chemise, d.reference AS dossier_reference
              FROM temps_saisis t
              LEFT JOIN dossiers d ON d.id = t.dossier_id`,
           );
@@ -99,6 +101,7 @@ export function EcranTemps({
               ligne.dossier_chemise !== null && isChemiseId(ligne.dossier_chemise)
                 ? ligne.dossier_chemise
                 : undefined,
+            reference: ligne.dossier_reference,
             intervenantId: ligne.intervenant_id,
             tauxCentimesHeure: ligne.taux_centimes_heure,
             htCentimes: ligne.ht_centimes,
@@ -157,9 +160,14 @@ export function EcranTemps({
       data-testid="ecran-temps"
       data-fond="neutre"
     >
-      <h1 className="mb-4 text-[length:var(--font-size-journee)] font-extrabold text-sur-chemise">
+      <h1 className="text-[length:var(--font-size-journee)] font-extrabold text-sur-chemise">
         {fr("Temps")}
       </h1>
+      <p className="mb-4 text-graphite">
+        {fr(
+          `${String(lignes.filter((ligne) => ligne.jour === aujourdhui).reduce((total, ligne) => total + ligne.minutes, 0))} min saisies aujourd'hui, ${formatDuree(volet.nonFactureMinutes * 60)} non facturées`,
+        )}
+      </p>
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_17rem] gap-4 overflow-hidden pb-16">
         <div className="min-h-0 space-y-6 overflow-y-auto">
         <div className="grid gap-6 md:grid-cols-2">
@@ -297,12 +305,10 @@ export function EcranTemps({
                     <li key={ligne.id} className="flex items-baseline justify-between gap-3 py-1" data-facturee={ligne.facturee ? "true" : "false"}>
                       <span className="flex min-w-0 items-baseline gap-2">
                         {ligne.chemise ? (
-                          <span
-                            className="ligne-journee__pastille"
-                            data-testid="temps-pastille"
-                            data-chemise={ligne.chemise}
-                            aria-hidden
-                          />
+                          <span className="mails-dos" data-testid="temps-pastille" data-chemise={ligne.chemise}>
+                            <i aria-hidden />
+                            {fr(libelleReferenceDossier(ligne.reference))}
+                          </span>
                         ) : null}
                         <span className="truncate">
                           {fr(ligne.libelle)}
@@ -339,13 +345,21 @@ export function EcranTemps({
             {fr("Voir ce qui reste à facturer")}
           </button>
           <h2 className="mb-1 font-extrabold">{fr("Sept derniers jours")}</h2>
-          <ul className="mb-4" data-testid="temps-sept-jours">
-            {volet.jours.map((jour) => (
-              <li key={jour.jour} className="flex justify-between gap-2">
-                <span>{formatDateCourte(jour.jour)}</span>
-                <span>{formatDuree(jour.minutes * 60)}</span>
-              </li>
-            ))}
+          <ul className="mb-4 flex items-end gap-1" data-testid="temps-sept-jours">
+            {volet.jours.map((jour) => {
+              const plafond = Math.max(1, ...volet.jours.map((autre) => autre.minutes));
+              const hauteur = Math.round((jour.minutes / plafond) * 48);
+              return (
+                <li key={jour.jour} className="flex min-w-0 flex-1 flex-col items-center gap-1">
+                  <span
+                    className="w-full bg-encre"
+                    style={{ height: hauteur }}
+                    title={formatDuree(jour.minutes * 60)}
+                  />
+                  <span className="text-[length:var(--font-size-meta)] text-graphite">{formatDateCourte(jour.jour)}</span>
+                </li>
+              );
+            })}
           </ul>
           <h2 className="mb-1 font-extrabold">{fr("Par dossier, non facturé")}</h2>
           <ul data-testid="temps-par-dossier">
@@ -355,7 +369,10 @@ export function EcranTemps({
               volet.dossiers.map((dossier) => (
                 <li key={dossier.nom} className="flex justify-between gap-2">
                   <span className="truncate">{fr(dossier.nom)}</span>
-                  <span>{formatDuree(dossier.minutes * 60)}</span>
+                  <span className="text-right">
+                    {formatDuree(dossier.minutes * 60)}
+                    <span className="block">{formatMontant(dossier.centimes)}</span>
+                  </span>
                 </li>
               ))
             )}

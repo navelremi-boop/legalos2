@@ -64,4 +64,8 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, taux en euros (28/10).** Le champ de saisie demande des euros par heure (« 60 » ou « 60,50 »). L'enregistrement reste en centimes. `s9-poste-tauri` saisit « 60 », qui vaut 6 000 centimes. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/messagerie/tempsMail.test.ts` : 22/22. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
 
-**Prochaine action.** Nouvelle comparaison visuelle de Temps, après le volet, le taux et la pastille. Le jalon n'est pas coché.
+- **Finition, comparaison Temps, suite (28/10).** Contrôleur [Temps](217ce991-88ae-4b3e-99cc-e14695f7d94f) : refus, jour et nuit. Le volet, le taux en euros et le dock sont en place. Il manquait la référence dans la pastille, le montant par dossier et l'histogramme des sept jours. Pas d'intervenant dans le formulaire : la liste des collaborateurs n'est pas livrée. La suggestion de temps reste celle de J11, sur l'écran Mails. Le jalon n'est pas coché.
+
+- **Finition, pastille et histogramme (28/10).** La pastille porte la référence du dossier. Le volet montre le montant non facturé par dossier et les sept jours en barres. Sous le titre : minutes du jour et durée non facturée. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
+
+**Prochaine action.** `pnpm --filter @legal-os/poste lint:ci`, puis les recettes encore exigées par le jalon. Le jalon n'est pas coché.
