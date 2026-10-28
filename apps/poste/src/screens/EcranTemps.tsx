@@ -396,7 +396,7 @@ export function EcranTemps({
               <li className="text-graphite">{fr("Rien à facturer.")}</li>
             ) : (
               volet.dossiers.map((dossier) => (
-                <li key={dossier.nom} className="flex justify-between gap-2">
+                <li key={dossier.id} className="flex justify-between gap-2">
                   <span className="flex min-w-0 items-center gap-2">
                     {dossier.chemise ? (
                       <span className="mails-dos" data-chemise={dossier.chemise}>

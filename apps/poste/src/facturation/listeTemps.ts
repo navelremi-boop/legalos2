@@ -67,6 +67,7 @@ export type VoletTemps = {
   nonFactureCentimes: number;
   jours: { jour: string; minutes: number }[];
   dossiers: {
+    id: string;
     nom: string;
     reference: string | null;
     chemise?: ChemiseId;
@@ -85,7 +86,7 @@ export function voletTemps(lignes: readonly SaisieTemps[], aujourdhui: string): 
   let nonFactureCentimes = 0;
   const parDossier = new Map<
     string,
-    { nom: string; reference: string | null; chemise?: ChemiseId; minutes: number; centimes: number }
+    { id: string; nom: string; reference: string | null; chemise?: ChemiseId; minutes: number; centimes: number }
   >();
   for (const ligne of lignes) {
     const cellule = jours.find((jour) => jour.jour === ligne.jour);
@@ -94,6 +95,7 @@ export function voletTemps(lignes: readonly SaisieTemps[], aujourdhui: string): 
     nonFactureMinutes += ligne.minutes;
     nonFactureCentimes += ligne.htCentimes;
     const deja = parDossier.get(ligne.dossierId) ?? {
+      id: ligne.dossierId,
       nom: ligne.dossierNom === "" ? "Sans dossier" : ligne.dossierNom,
       reference: ligne.reference ?? null,
       chemise: ligne.chemise,
