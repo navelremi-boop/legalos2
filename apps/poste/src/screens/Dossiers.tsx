@@ -1,9 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BarreActions } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
+import { FormulaireDossier } from "@/dossiers/FormulaireDossier";
 import { libelleEtapeDossier, libelleTypeDossier } from "@/dossiers/libellesDossier";
-import { PaletteCommandes } from "@/dossiers/PaletteCommandes";
+import {
+  compteurs,
+  filtrer,
+  grouper,
+  panneauDroit,
+  vueDossier,
+  type DossierBrut,
+  type FiltreDossier,
+  type TriDossier,
+} from "@/dossiers/listeDossiers";
 import { fr } from "@/lib/fr";
+import { formatDateCourte } from "@/lib/format";
 import { libelleReferenceDossier } from "@/lib/referenceDossier";
 import { getPowerSyncDatabase } from "@/sync/database";
 
@@ -14,15 +25,26 @@ type LigneDossier = {
   reference: string | null;
   type_dossier?: string | null;
   etape?: string | null;
+  juridiction?: string | null;
+  numero_rg?: string | null;
+  restreint?: number | null;
+  cree_le?: string | null;
+};
+
+type EcheanceLocale = {
+  dossier_id: string;
+  titre: string | null;
+  debut: string | null;
+};
+
+type PartieLocale = {
+  dossier_id: string;
+  nom: string | null;
+  role: string | null;
 };
 
 type DossiersProps = {
-  onOuvrirDossier?: (
-    id: string,
-    nom: string,
-    chemise: string,
-    reference?: string | null,
-  ) => void;
+  onOuvrirDossier?: (id: string, nom: string, chemise: string, reference?: string | null) => void;
   onNouveauDossier?: () => void;
   onNouveauMail?: () => void;
   onSaisirTemps?: () => void;
@@ -30,28 +52,101 @@ type DossiersProps = {
   lignesFixes?: LigneDossier[];
 };
 
+const FILTRES: { id: FiltreDossier; label: string }[] = [
+  { id: "actifs", label: "Actifs" },
+  { id: "proche", label: "Échéance proche" },
+  { id: "restreints", label: "Restreints" },
+  { id: "clos", label: "Clos" },
+];
+
+function aujourdhuiIso(maintenant = new Date()): string {
+  const mois = String(maintenant.getMonth() + 1).padStart(2, "0");
+  const jour = String(maintenant.getDate()).padStart(2, "0");
+  return `${String(maintenant.getFullYear())}-${mois}-${jour}`;
+}
+
+function versBrut(
+  ligne: LigneDossier,
+  echeances: Map<string, { debut: string; titre: string | null }>,
+  parties: Map<string, string>,
+): DossierBrut {
+  const echeance = echeances.get(ligne.id);
+  return {
+    id: ligne.id,
+    nom: ligne.nom,
+    chemise: ligne.chemise,
+    reference: ligne.reference,
+    typeDossier: ligne.type_dossier ?? null,
+    etape: ligne.etape ?? null,
+    juridiction: ligne.juridiction ?? null,
+    numeroRg: ligne.numero_rg ?? null,
+    restreint: ligne.restreint === 1,
+    creeLe: ligne.cree_le ?? null,
+    echeance: echeance?.debut ?? null,
+    echeanceTitre: echeance?.titre ?? null,
+    parties: parties.get(ligne.id) ?? "",
+  };
+}
+
 export function Dossiers({
   onOuvrirDossier,
-  onNouveauDossier,
   onNouveauMail,
   onSaisirTemps,
   lignesFixes,
 }: DossiersProps) {
   const [lignesSync, setLignesSync] = useState<LigneDossier[]>([]);
-  const lignes = lignesFixes ?? lignesSync;
+  const [echeances, setEcheances] = useState<Map<string, { debut: string; titre: string | null }>>(
+    () => new Map(),
+  );
+  const [parties, setParties] = useState<Map<string, string>>(() => new Map());
+  const [filtre, setFiltre] = useState<FiltreDossier>("actifs");
+  const [tri, setTri] = useState<TriDossier>("echeance");
+  const [recherche, setRecherche] = useState("");
+  const [creation, setCreation] = useState(false);
+  const [selection, setSelection] = useState<string | null>(null);
+  const jour = aujourdhuiIso();
 
   useEffect(() => {
     if (lignesFixes) return;
     let stop = false;
     const tick = () => {
       void getPowerSyncDatabase()
-        .then((database) =>
-          database.getAll<LigneDossier>(
-            "SELECT id, nom, chemise, reference, type_dossier, etape FROM dossiers ORDER BY nom LIMIT 50",
-          ),
-        )
-        .then((rows) => {
-          if (!stop) setLignesSync(rows);
+        .then(async (database) => {
+          const [dossiers, agendas, roles] = await Promise.all([
+            database.getAll<LigneDossier>(
+              `SELECT id, nom, chemise, reference, type_dossier, etape, juridiction, numero_rg, restreint, cree_le
+               FROM dossiers`,
+            ),
+            database.getAll<EcheanceLocale>(
+              "SELECT dossier_id, titre, debut FROM agenda_elements WHERE debut IS NOT NULL",
+            ),
+            database.getAll<PartieLocale>("SELECT dossier_id, nom, role FROM parties"),
+          ]);
+          return { dossiers, agendas, roles };
+        })
+        .then(({ dossiers, agendas, roles }) => {
+          if (stop) return;
+          const prochaines = new Map<string, { debut: string; titre: string | null }>();
+          for (const ligne of agendas) {
+            if (!ligne.debut || ligne.debut.slice(0, 10) < jour) continue;
+            const deja = prochaines.get(ligne.dossier_id);
+            if (!deja || ligne.debut < deja.debut) {
+              prochaines.set(ligne.dossier_id, { debut: ligne.debut, titre: ligne.titre });
+            }
+          }
+          const noms = new Map<string, string[]>();
+          for (const role of roles) {
+            const nom = role.nom?.trim() ?? "";
+            if (nom === "") continue;
+            const liste = noms.get(role.dossier_id) ?? [];
+            liste.push(role.role ? `${role.role} ${nom}` : nom);
+            noms.set(role.dossier_id, liste);
+          }
+          const texte = new Map<string, string>();
+          for (const [id, liste] of noms) texte.set(id, liste.join(" "));
+          setLignesSync(dossiers);
+          setEcheances(prochaines);
+          setParties(texte);
         })
         .catch(() => {
           if (!stop) setLignesSync([]);
@@ -63,7 +158,18 @@ export function Dossiers({
       stop = true;
       window.clearInterval(timer);
     };
-  }, [lignesFixes]);
+  }, [lignesFixes, jour]);
+
+  const vues = useMemo(() => {
+    const source = lignesFixes ?? lignesSync;
+    return source.map((ligne) => versBrut(ligne, echeances, parties)).map((brut) => vueDossier(brut, jour));
+  }, [lignesFixes, lignesSync, echeances, parties, jour]);
+
+  const nombres = useMemo(() => compteurs(vues), [vues]);
+  const visibles = useMemo(() => filtrer(vues, filtre, recherche), [vues, filtre, recherche]);
+  const groupes = useMemo(() => grouper(visibles, tri), [visibles, tri]);
+  const choisi = visibles.find((dossier) => dossier.id === selection) ?? visibles[0] ?? null;
+  const panneau = panneauDroit(creation);
 
   return (
     <div
@@ -71,106 +177,264 @@ export function Dossiers({
       data-testid="ecran-dossiers"
       data-fond="neutre"
     >
-      <h1 className="mb-4 text-[length:var(--font-size-journee)] font-extrabold text-sur-chemise">
-        {fr("Dossiers")}
-      </h1>
-      <Feuille uneColonne className="min-h-[420px]">
-        <div className="space-y-8 p-[22px] pb-16">
-          <div className="flex flex-wrap items-center gap-3">
-            <PaletteCommandes
-              onChoisirDossier={onOuvrirDossier}
-              onNouveauDossier={onNouveauDossier}
+      <div className="mb-4 flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-[length:var(--font-size-journee)] font-extrabold text-sur-chemise">
+            {fr("Dossiers")}
+          </h1>
+          <p className="text-graphite">
+            {fr(
+              `${String(nombres.actifs)} dossiers actifs, ${String(vues.filter((d) => !d.clos && d.jours !== null && d.jours <= 7).length)} échéances cette semaine`,
+            )}
+          </p>
+        </div>
+        <p className="text-[length:var(--font-size-dense)] text-graphite">
+          {fr(`${String(nombres.restreints)} dossiers restreints accessibles`)}
+        </p>
+      </div>
+      <Feuille className="min-h-0 flex-1">
+        <div className="flex min-h-0 flex-col overflow-hidden p-[22px]">
+          <label className="mb-3 block">
+            <span className="sr-only">{fr("Rechercher un dossier")}</span>
+            <input
+              type="search"
+              className="w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+              placeholder={fr("Rechercher un dossier : nom, référence, numéro RG, client, adversaire")}
+              aria-label={fr("Rechercher un dossier")}
+              data-testid="dossiers-recherche"
+              value={recherche}
+              onChange={(event) => {
+                setRecherche(event.target.value);
+              }}
             />
-            {onNouveauDossier !== undefined ? (
+          </label>
+          <div className="mb-3 flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap gap-1" role="group" aria-label={fr("Filtrer les dossiers")}>
+              {FILTRES.map((entree) => {
+                const presse = recherche.trim() === "" && filtre === entree.id;
+                const compte =
+                  entree.id === "actifs"
+                    ? nombres.actifs
+                    : entree.id === "proche"
+                      ? nombres.proche
+                      : entree.id === "restreints"
+                        ? nombres.restreints
+                        : nombres.clos;
+                return (
+                  <button
+                    key={entree.id}
+                    type="button"
+                    className="rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+                    aria-pressed={presse}
+                    data-testid={`dossiers-filtre-${entree.id}`}
+                    onClick={() => {
+                      setFiltre(entree.id);
+                      setRecherche("");
+                    }}
+                  >
+                    {fr(entree.label)} <b>{compte}</b>
+                  </button>
+                );
+              })}
+            </div>
+            <label className="text-graphite">
+              {fr("Trier par")}{" "}
+              <select
+                className="rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+                aria-label={fr("Trier les dossiers")}
+                data-testid="dossiers-tri"
+                value={tri}
+                onChange={(event) => {
+                  const valeur = event.target.value;
+                  if (valeur === "echeance" || valeur === "activite" || valeur === "reference") setTri(valeur);
+                }}
+              >
+                <option value="echeance">{fr("Prochaine échéance")}</option>
+                <option value="activite">{fr("Dernière activité")}</option>
+                <option value="reference">{fr("Référence")}</option>
+              </select>
+            </label>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto" data-testid="dossiers-liste">
+            {visibles.length === 0 ? (
+              <p className="text-graphite">
+                {recherche.trim() !== ""
+                  ? fr("Aucun dossier ne correspond. Essayez un nom, une référence, un numéro RG ou un adversaire.")
+                  : fr("Aucun dossier ici. Changez de filtre, ou créez un dossier avec « Nouveau dossier ».")}
+              </p>
+            ) : (
+              groupes.map((groupe) => (
+                <section key={groupe.titre || "tous"}>
+                  {groupe.titre !== "" ? (
+                    <h2 className="mb-2 mt-4 text-[length:var(--font-size-section)] font-extrabold">
+                      {fr(groupe.titre)} <span className="text-graphite">{groupe.dossiers.length}</span>
+                    </h2>
+                  ) : null}
+                  <ul className="divide-y divide-filet">
+                    {groupe.dossiers.map((ligne) => {
+                      const reference = libelleReferenceDossier(ligne.reference);
+                      return (
+                        <li key={ligne.id}>
+                          <button
+                            type="button"
+                            className="flex min-h-11 w-full items-center gap-3 px-2 py-2 text-left hover:bg-survol"
+                            data-chemise={ligne.chemise}
+                            data-reference={reference}
+                            data-testid="liste-dossier"
+                            data-dossier-id={ligne.id}
+                            data-selected={choisi?.id === ligne.id ? "true" : "false"}
+                            onMouseEnter={() => {
+                              setSelection(ligne.id);
+                            }}
+                            onClick={() => {
+                              setSelection(ligne.id);
+                              onOuvrirDossier?.(ligne.id, ligne.nom, ligne.chemise, ligne.reference);
+                            }}
+                          >
+                            <span
+                              className="h-[13px] w-[9px] shrink-0 rounded-[2px] bg-chemise-bande"
+                              aria-hidden
+                            />
+                            <span className="shrink-0 text-[length:var(--font-size-meta)] font-bold text-graphite">
+                              {fr(reference)}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate font-bold">{fr(ligne.nom)}</span>
+                              <span className="block truncate text-[length:var(--font-size-meta)] text-graphite">
+                                <span data-testid="dossier-libelle-type">
+                                  {fr(libelleTypeDossier(ligne.typeDossier))}
+                                </span>
+                                {", "}
+                                <span data-testid="dossier-libelle-etape">
+                                  {fr(libelleEtapeDossier(ligne.etape))}
+                                </span>
+                                {ligne.numeroRg ? fr(`, RG ${ligne.numeroRg}`) : ""}
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ))
+            )}
+          </div>
+        </div>
+        <aside className="min-h-0 overflow-y-auto border-l border-filet p-[22px]" aria-live="polite">
+          {panneau === "creation" ? (
+            <div data-testid="dossiers-creation">
+              <button
+                type="button"
+                className="mb-3 text-graphite"
+                data-testid="dossiers-annuler"
+                onClick={() => {
+                  setCreation(false);
+                }}
+              >
+                {fr("Annuler")}
+              </button>
+              <FormulaireDossier
+                onCree={({ id, nom, chemise, reference }) => {
+                  setCreation(false);
+                  onOuvrirDossier?.(id, nom, chemise, reference);
+                }}
+              />
+            </div>
+          ) : choisi ? (
+            <div data-testid="dossiers-apercu" data-dossier-id={choisi.id}>
+              <p className="text-[length:var(--font-size-meta)] font-bold text-graphite">
+                {fr(libelleReferenceDossier(choisi.reference))}
+              </p>
+              <h2 className="mb-3 text-[length:var(--font-size-section)] font-extrabold">{fr(choisi.nom)}</h2>
+              <dl className="mb-4 space-y-1 text-encre">
+                <div>
+                  <dt className="text-graphite">{fr("Type")}</dt>
+                  <dd>{fr(libelleTypeDossier(choisi.typeDossier))}</dd>
+                </div>
+                <div>
+                  <dt className="text-graphite">{fr("Étape")}</dt>
+                  <dd>{fr(libelleEtapeDossier(choisi.etape))}</dd>
+                </div>
+                {choisi.juridiction ? (
+                  <div>
+                    <dt className="text-graphite">{fr("Juridiction")}</dt>
+                    <dd>{fr(choisi.juridiction)}</dd>
+                  </div>
+                ) : null}
+                {choisi.numeroRg ? (
+                  <div>
+                    <dt className="text-graphite">{fr("N° RG")}</dt>
+                    <dd>{fr(choisi.numeroRg)}</dd>
+                  </div>
+                ) : null}
+                {choisi.parties !== "" ? (
+                  <div>
+                    <dt className="text-graphite">{fr("Parties")}</dt>
+                    <dd>{fr(choisi.parties)}</dd>
+                  </div>
+                ) : null}
+              </dl>
+              {choisi.restreint ? <p className="mb-3 font-bold">{fr("Dossier restreint")}</p> : null}
+              {choisi.jours !== null && choisi.echeance ? (
+                <p className="mb-4">
+                  {fr(choisi.echeanceTitre ?? "Échéance")}
+                  {", "}
+                  {formatDateCourte(choisi.echeance)}
+                </p>
+              ) : choisi.clos ? (
+                <p className="mb-4 text-graphite">
+                  {fr("Dossier clos. Les pièces, mails et factures restent consultables.")}
+                </p>
+              ) : (
+                <p className="mb-4 text-graphite">{fr("Aucune échéance")}</p>
+              )}
               <button
                 type="button"
                 className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
-                data-testid="dossiers-nouveau"
-                onClick={onNouveauDossier}
+                data-testid="dossier-ouvrir"
+                onClick={() => {
+                  onOuvrirDossier?.(choisi.id, choisi.nom, choisi.chemise, choisi.reference);
+                }}
               >
-                {fr("Nouveau dossier")}
+                {fr("Ouvrir le dossier")}
               </button>
-            ) : null}
-          </div>
-          <section>
-            <h2 className="mb-3 text-[length:var(--font-size-section)] font-extrabold">
-              {fr("Dossiers du cabinet")}
-            </h2>
-            {lignes.length === 0 ? (
-              <p className="text-graphite">{fr("Aucun dossier pour l'instant.")}</p>
-            ) : (
-              <ul className="divide-y divide-filet">
-                {lignes.map((ligne) => {
-                  const reference = libelleReferenceDossier(ligne.reference);
-                  return (
-                    <li key={ligne.id}>
-                      <button
-                        type="button"
-                        className="flex h-11 w-full items-center gap-3 px-2 text-left hover:bg-survol"
-                        data-chemise={ligne.chemise}
-                        data-reference={reference}
-                        data-testid="liste-dossier"
-                        data-dossier-id={ligne.id}
-                        onClick={() => {
-                          onOuvrirDossier?.(ligne.id, ligne.nom, ligne.chemise, ligne.reference);
-                        }}
-                      >
-                        <span
-                          className="h-[13px] w-[9px] shrink-0 rounded-[2px] bg-chemise-bande"
-                          aria-hidden
-                        />
-                        <span className="min-w-0 flex-1 truncate">
-                          <span className="text-[length:var(--font-size-meta)] font-bold text-graphite">
-                            {fr(reference)}
-                          </span>
-                          <span className="mx-2 text-filet" aria-hidden>
-                            —
-                          </span>
-                          <span>{fr(ligne.nom)}</span>
-                          <span className="mx-2 text-filet" aria-hidden>
-                            —
-                          </span>
-                          <span data-testid="dossier-libelle-type">{fr(libelleTypeDossier(ligne.type_dossier))}</span>
-                          <span className="mx-2 text-filet" aria-hidden>
-                            —
-                          </span>
-                          <span data-testid="dossier-libelle-etape">{fr(libelleEtapeDossier(ligne.etape))}</span>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-        </div>
+            </div>
+          ) : (
+            <p className="text-graphite">{fr("Aucun dossier à afficher.")}</p>
+          )}
+        </aside>
       </Feuille>
-      <BarreActions
-        actions={[
-          {
-            id: "nouveau-dossier",
-            primaire: true,
-            label: "Nouveau dossier",
-            onClick: () => {
-              onNouveauDossier?.();
+      {creation ? null : (
+        <BarreActions
+          actions={[
+            {
+              id: "nouveau-dossier",
+              primaire: true,
+              label: "Nouveau dossier",
+              testId: "dossiers-nouveau",
+              onClick: () => {
+                setCreation(true);
+              },
             },
-          },
-          {
-            id: "nouveau-mail",
-            label: "Nouveau mail",
-            onClick: () => {
-              onNouveauMail?.();
+            {
+              id: "nouveau-mail",
+              label: "Nouveau mail",
+              onClick: () => {
+                onNouveauMail?.();
+              },
             },
-          },
-          {
-            id: "saisir-temps",
-            label: "Saisir du temps",
-            onClick: () => {
-              onSaisirTemps?.();
+            {
+              id: "saisir-temps",
+              label: "Saisir du temps",
+              raccourci: "T",
+              onClick: () => {
+                onSaisirTemps?.();
+              },
             },
-          },
-        ]}
-      />
+          ]}
+        />
+      )}
     </div>
   );
 }

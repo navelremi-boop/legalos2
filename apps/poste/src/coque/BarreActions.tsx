@@ -14,6 +14,7 @@ export type ActionBarre = {
   label: string;
   primaire?: boolean;
   raccourci?: string;
+  testId?: string;
   onClick: () => void;
 };
 
@@ -51,6 +52,7 @@ export function BarreActions({ actions }: BarreActionsProps) {
           className={
             action.primaire ? "barre-actions__btn barre-actions__btn--prim" : "barre-actions__btn"
           }
+          data-testid={action.testId}
           onClick={action.onClick}
         >
           <IconeAction id={action.id} />

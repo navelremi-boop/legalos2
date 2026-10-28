@@ -12,4 +12,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 - **CI** : l'état d'un run se lit par `gh run view` à chaque fois ; attendre = `gh run watch <id> --exit-status`.
 - **Gouvernance de `PLAN.md`** : règle de l'ordre § 4.4 ; contrôle `tests/recette/plan-gouvernance.mjs`.
 
-**Prochaine action.** Finition des écrans : liste des dossiers d'après `design/maquettes/prototype-dossiers.html` (la liste reste visible, création dans le panneau de droite, tri par prochaine échéance, filtres avec compteurs, recherche y compris les clos).
+- **Finition, écran Dossiers (28/10).** La liste n'est plus coupée à 50. Filtres Actifs, Échéance proche, Restreints et Clos avec compteurs ; tri par prochaine échéance en groupes ; recherche sur tous les dossiers, clos compris ; aperçu à droite ; création dans le panneau de droite, la liste restant visible. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/dossiers/listeDossiers.test.ts` : 5/5. `pnpm --filter @legal-os/poste typecheck` exit 0. Le préfixe « 000 » des dossiers de `tests/recette/agenda-tauri.mjs` est retiré. Recettes Tauri et captures pas encore rejouées.
+
+**Prochaine action.** Finition des écrans : rejouer une recette qui crée et ouvre un dossier (`reference-dossier-ecran` ou `agenda-tauri`), puis l'écran Agenda d'après `design/maquettes/prototype-agenda.html`. CI du plugin WebDriver : run [40671226903](https://github.com/navelremi-boop/legalos2/actions/runs/40671226903), en cours au moment de cette entrée.

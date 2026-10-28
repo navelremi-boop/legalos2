@@ -38,9 +38,7 @@ if (refuse.status !== 403 && refuse.status !== 404 && refuse.status !== 400) {
 const creeR = await session.apiJson(jeton, "POST", "/dossiers", {
   id: dossierR,
   idempotence_cle: `ag-dr-${dossierR}`,
-  // « 000 » : la liste des dossiers du poste est limitée à 50 par ordre alphabétique (Dossiers.tsx, repris par la
-  // Finition des écrans) ; sur une instance chargée par les recettes de volume, le dossier ne serait pas listé.
-  nom: `000 Restreint agenda ${session.marque}`,
+  nom: `Restreint agenda ${session.marque}`,
   chemise: "gris-perle",
   juridiction: "TJ Paris",
   numero_rg: `AR${session.marque}`,
@@ -94,7 +92,7 @@ try {
   const a = await session.connectCdp(posteA.port);
   await session.login(a.send, demoEmail, demoPassword, totpSecretB32, `Agenda A ${session.marque}`);
   dossierPublic = await session.creerDossier(a.send, {
-    nom: `000 Dossier agenda ${session.marque}`,
+    nom: `Dossier agenda ${session.marque}`,
     juridiction: "TJ Lyon",
     rg: `AG${session.marque}`,
     partie: `Client ${session.marque}`,
