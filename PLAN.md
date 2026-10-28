@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-10-28 (jalon en cours : **Finition des écrans** ; **J11** validé `1ebfac5`, CI [40590037375](https://github.com/navelremi-boop/legalos2/actions/runs/40590037375) ; le crash `0xC0000374` bloque J14).
+Dernière mise à jour : 2026-10-28 (jalon en cours : **Écran de connexion** ; **Finition des écrans** validée `1fa6e2a`, CI [40713792209](https://github.com/navelremi-boop/legalos2/actions/runs/40713792209) ; le crash `0xC0000374` bloque J14).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -164,7 +164,7 @@ Ordre architecte (révisé 2026-10-04) : **Migration Sync Streams** → **J8** �
 - [x] **Avant J12** (consigne de l'architecte du 24/10/2026) : D9, types TypeScript générés depuis `/openapi.json` (outil figé dans `docs/versions.md`), utilisés par les fichiers `api*.ts`, contrôle en CI que les types générés sont à jour ; l'architecte adapte `.cursor/rules/11-api.mdc`.
 - [x] **Avant J12** (consigne de l'architecte du 24/10/2026) : D8, écran Réglages des identifiants d'application OAuth, réservé au rôle administrateur (dépend de la dette « rôle administrateur » ci-dessus).
 - [ ] **Avant J12** (consigne de l'architecte du 24/10/2026) : D11, recette de la mesure des 50 000 messages réparée (`node tests/recette/s7-synchro.mjs`), exécutée par un workflow hebdomadaire avec déclenchement manuel ; durée consignée.
-- [ ] **Avant la fin de la Finition des écrans** (décision de l'architecte du 14/10/2026) : la liste des dossiers du poste est limitée à 50 sur 3 522 (`Dossiers.tsx`, `ORDER BY nom LIMIT 50`) ; retirer le préfixe « 000 » des dossiers de `tests/recette/agenda-tauri.mjs` une fois la liste corrigée.
+- [x] **Avant la fin de la Finition des écrans** (décision de l'architecte du 14/10/2026) : la liste des dossiers du poste est limitée à 50 sur 3 522 (`Dossiers.tsx`, `ORDER BY nom LIMIT 50`) ; retirer le préfixe « 000 » des dossiers de `tests/recette/agenda-tauri.mjs` une fois la liste corrigée.
 - [ ] **Mensuel** : avis de sécurité PowerSync (GHSA, édition 3) relus et consignés dans `docs/versions.md`.
 - [x] **Avant le premier compte réel (B8)** : échecs de connexion IMAP — temporisation croissante ; après un refus d'authentification, arrêt des tentatives et état « identifiants refusés » visible par le titulaire ; aucune boucle sans délai. Essai négatif compris — `node tests/recette/s7-connexions.mjs`.
 - [x] **Avant le premier compte réel (B8)** : veille IDLE renouvelée avant 29 minutes (RFC 2177) ; une session de relève réutilisée pour tous les dossiers ; relève au réveil et au plus toutes les 10 minutes sans réveil — `node tests/recette/s7-connexions.mjs`.
@@ -218,15 +218,7 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
 
 - [x] **J11** — VALIDÉ `1ebfac5` (contrôleur [série 0.5.3](f7264e1e-6b4b-4eb7-8c5f-813f260ff3f0), CI [40590037375](https://github.com/navelremi-boop/legalos2/actions/runs/40590037375))
 
-- [ ] **Finition des écrans** — après J11 — critères validés par l'architecte le 07/10/2026
-  - **Critères d'acceptation (commandes)** :
-    - Dossiers (`design/maquettes/prototype-dossiers.html`) : la liste est l'écran ; création dans un panneau à droite, la liste restant visible (test) ; tri par prochaine échéance avec groupes ; filtres Actifs, Échéance proche, Restreints, Clos avec compteurs ; recherche sur tous les dossiers, clos compris ; aperçu à droite ; un dossier restreint n'apparaît qu'aux personnes autorisées (`node tests/recette/s5-sync-streams.mjs` → exit 0).
-    - Agenda (`design/maquettes/prototype-agenda.html`) : vues Jour et Semaine, mini-calendrier, filtres par type, prochaines échéances ; éléments simultanés lisibles ; échéance calculée avec « Voir le calcul » ; suppression d'une échéance calculée confirmée et tracée ; création à la demande dans un panneau. Les critères d'Agenda du 29/09 restent verts (`node tests/recette/agenda-tauri.mjs` → exit 0).
-    - Réglages (`design/maquettes/prototype-reglages.html`) : une section dont la fonction n'existe pas encore n'est pas affichée.
-    - Temps, écran du menu du compte (`design/maquettes/prototype-temps.html`, consigne du 10/10/2026) : chronomètre avec pause et arrêt confirmé en minutes ; saisie manuelle acceptant « 1 h 30 », « 45 min », « 0,75 » (tests unitaires du lecteur de durée, cas limites compris) ; montant et taux affichés avant enregistrement ; liste par jour ; filtres Toutes, Non facturées, Facturées et Le cabinet, Mes temps ; résumé (non facturé, sept derniers jours, par dossier) ; une saisie facturée est verrouillée (la modification est refusée par l'API, test) ; le taux est figé à l'enregistrement (changer un taux ne change pas une saisie, test) ; la saisie fonctionne hors ligne ; le chronomètre est visible dans la barre de tous les écrans, avec la pastille du dossier, raccourci T. La suggestion de temps tirée d'un mail est livrée avec J11.
-    - La journée (`design/maquettes/prototype-journee.html`, consigne du 10/10/2026) : quatre sections ; classement en un clic par le même chemin que l'écran Mails ; temps à saisir tirés des mails et de l'agenda ; délais avec la mention « Calculé » pour ceux du moteur.
-    - Captures jour et nuit des états principaux (`node tests/recette/coque-app.mjs --captures` → exit 0) comparées aux maquettes ; tests existants verts ; preuve visuelle commune.
-    - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+- [x] **Finition des écrans** — VALIDÉ `1fa6e2a` (contrôleur [finition](b956d982-b60e-4da1-9fa6-bb344c7fc8ca), CI [40713792209](https://github.com/navelremi-boop/legalos2/actions/runs/40713792209))
 
 - [ ] **Écran de connexion** — après la Finition des écrans — critères validés par l'architecte le 07/10/2026
   - **Critères d'acceptation (commandes)** :
