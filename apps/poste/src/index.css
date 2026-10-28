@@ -427,6 +427,17 @@
     transition: background-color var(--duration-dossier) ease;
   }
 
+  .tenue-cadre,
+  .feuille-pile {
+    width: min(100%, 1120px);
+    margin-inline: auto;
+  }
+
+  .tenue-cadre > .feuille-pile {
+    width: 100%;
+    margin-inline: 0;
+  }
+
   .feuille-pile {
     position: relative;
     margin-top: 26px;

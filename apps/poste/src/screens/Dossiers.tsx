@@ -430,12 +430,29 @@ export function Dossiers({
                               className="h-[13px] w-[9px] shrink-0 rounded-[2px] bg-chemise-bande"
                               aria-hidden
                             />
-                            <span className="shrink-0 text-[length:var(--font-size-meta)] font-bold text-graphite">
+                            <span className="chiffres-reference shrink-0 text-[length:var(--font-size-meta)] font-bold text-graphite">
                               {fr(reference)}
                             </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate font-bold">{fr(ligne.nom)}</span>
-                              <span className="block truncate text-[length:var(--font-size-meta)] text-graphite">
+                            <span className="min-w-0">
+                              <span className="flex items-baseline gap-3">
+                                <span className="font-bold" data-testid="dossier-nom-ligne">{fr(ligne.nom)}</span>
+                                {ligne.jours !== null && ligne.echeance ? (
+                                  <span className="flex shrink-0 items-center gap-2" data-testid="dossier-echeance">
+                                    <AnneauEcheance jours={ligne.jours} />
+                                    <span className="text-[length:var(--font-size-meta)]">
+                                      <span className="block font-bold">{fr(ligne.echeanceTitre ?? "Échéance")}</span>
+                                      <span className="block text-graphite">
+                                        {fr(`${formatDateCourte(ligne.echeance)}, ${libelleJoursRestants(ligne.jours)}`)}
+                                      </span>
+                                    </span>
+                                  </span>
+                                ) : ligne.clos ? null : (
+                                  <span className="shrink-0 text-[length:var(--font-size-meta)] text-graphite" data-testid="dossier-echeance">
+                                    {fr("Aucune échéance")}
+                                  </span>
+                                )}
+                              </span>
+                              <span className="block text-[length:var(--font-size-meta)] text-graphite">
                                 <span data-testid="dossier-libelle-type">
                                   {fr(libelleTypeDossier(ligne.typeDossier))}
                                 </span>
@@ -446,21 +463,6 @@ export function Dossiers({
                                 {ligne.numeroRg ? fr(`, RG ${ligne.numeroRg}`) : ""}
                               </span>
                             </span>
-                            {ligne.jours !== null && ligne.echeance ? (
-                              <span className="flex shrink-0 items-center gap-2" data-testid="dossier-echeance">
-                                <AnneauEcheance jours={ligne.jours} />
-                                <span className="max-w-40 truncate text-[length:var(--font-size-meta)]">
-                                  <span className="block truncate font-bold">{fr(ligne.echeanceTitre ?? "Échéance")}</span>
-                                  <span className="block truncate text-graphite">
-                                    {fr(`${formatDateCourte(ligne.echeance)}, ${libelleJoursRestants(ligne.jours)}`)}
-                                  </span>
-                                </span>
-                              </span>
-                            ) : ligne.clos ? null : (
-                              <span className="shrink-0 text-[length:var(--font-size-meta)] text-graphite" data-testid="dossier-echeance">
-                                {fr("Aucune échéance")}
-                              </span>
-                            )}
                             {lus > 0 ? (
                               <span
                                 className="shrink-0 font-bold"

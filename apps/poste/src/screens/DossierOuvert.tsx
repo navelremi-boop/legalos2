@@ -305,7 +305,7 @@ export function DossierOuvert({
         )}
       </div>
 
-      <div className="relative mt-6 min-h-0 flex-1">
+      <div className="tenue-cadre relative mt-6 min-h-0 flex-1">
         <Feuille uneColonne={!chronoActif} className="h-full min-h-[360px]">
           {chronoActif ? (
             <VueScindee items={chronoItems} />

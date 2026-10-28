@@ -368,15 +368,22 @@ export function EcranAgenda({
   const titreBarre =
     vue === "jour" || debutBarre === finBarre
       ? `${formatDateLongue(debutBarre)} ${debutBarre.slice(0, 4)}`
-      : `${formatDateCourte(debutBarre)} au ${formatDateCourte(finBarre)} ${finBarre.slice(0, 4)}`;
+      : `${formatDateLongue(debutBarre)} au ${formatDateLongue(finBarre)} ${finBarre.slice(0, 4)}`;
   const mois = moisAffiche ?? debutMois(jourRepere);
   const casesMois = grilleMois(mois);
   const lignesVisibles = lignes.filter((ligne) => filtres[categorieAgenda(ligne.type_element, ligne.origine_calcul)]);
   const comptesPeriode = { audience: 0, rendez_vous: 0, echeance: 0 };
-  for (const ligne of lignesVisibles) {
+  const comptesFiltres: Record<CategorieAgenda, number> = {
+    audience: 0,
+    rendez_vous: 0,
+    tache: 0,
+    echeance: 0,
+  };
+  for (const ligne of lignes) {
     const jour = composantesAffichees(ligne.debut)?.jour;
     if (!jour || !joursBarre.includes(jour)) continue;
     const categorie = categorieAgenda(ligne.type_element, ligne.origine_calcul);
+    comptesFiltres[categorie] += 1;
     if (categorie === "tache") continue;
     comptesPeriode[categorie] += 1;
   }
@@ -390,7 +397,12 @@ export function EcranAgenda({
         ? "cette semaine"
         : `la semaine du ${formatDateCourte(debutBarre)}`;
   const sousTitre = sousTitrePeriode(comptesPeriode, quandPeriode);
-  const choisi = lignesVisibles.find((ligne) => ligne.id === selection) ?? lignesVisibles[0] ?? null;
+  const choisi =
+    lignesVisibles.find((ligne) => {
+      if (ligne.id !== selection) return false;
+      const jour = composantesAffichees(ligne.debut)?.jour;
+      return jour !== undefined && joursBarre.includes(jour);
+    }) ?? null;
   const ficheDossier = choisi ? dossiersAffiches.get(choisi.dossier_id) : undefined;
   const rappelAffiche = choisi ? libelleRappel(choisi.rappel_le) : null;
   const prochaines = prochainesEcheances(
@@ -466,10 +478,11 @@ export function EcranAgenda({
             <button
               key={cellule.jour}
               type="button"
-              className="rounded-[var(--radius-control)] px-0 py-1 text-[length:var(--font-size-dense)]"
+              className={`rounded-[var(--radius-control)] px-0 py-1 text-[length:var(--font-size-dense)] ${cellule.dansMois ? "" : "text-graphite opacity-40"} ${cellule.jour === aujourdhui ? "bg-feuille-2 font-extrabold" : ""}`}
               data-testid="agenda-mini-jour"
               data-jour={cellule.jour}
               data-dans-mois={cellule.dansMois ? "true" : "false"}
+              data-aujourdhui={cellule.jour === aujourdhui ? "true" : "false"}
               aria-pressed={cellule.jour === jourRepere}
               onClick={() => {
                 setAncre(cellule.jour);
@@ -482,9 +495,7 @@ export function EcranAgenda({
         </div>
         <div className="mt-4 flex flex-wrap gap-1" role="group" aria-label={fr("Types d'éléments")}>
           {CATEGORIES_AGENDA.map((categorie) => {
-            const compte = lignes.filter(
-              (ligne) => categorieAgenda(ligne.type_element, ligne.origine_calcul) === categorie,
-            ).length;
+            const compte = comptesFiltres[categorie];
             return (
               <button
                 key={categorie}
@@ -688,7 +699,11 @@ export function EcranAgenda({
         </div>
       ) : null}
       {conflit !== "" ? (
-        <p data-testid="agenda-conflit" role="status">
+        <p
+          className="mb-3 rounded-[var(--radius-control)] bg-feuille-2 px-3 py-2"
+          data-testid="agenda-conflit"
+          role="status"
+        >
           {fr(`Conflit d'agenda : « ${conflit} ».`)}
         </p>
       ) : null}
@@ -713,7 +728,11 @@ export function EcranAgenda({
         }}
         data-testid={vue === "jour" ? "agenda-vue-jour-contenu" : "agenda-vue-semaine-contenu"}
       >
-        <p className="text-graphite" style={{ gridColumn: 1, gridRow: 2 }}>
+        <p
+          className="whitespace-nowrap text-graphite"
+          style={{ gridColumn: 1, gridRow: 2 }}
+          data-testid="agenda-sans-heure-titre"
+        >
           {fr("Sans heure")}
         </p>
         <div
@@ -765,10 +784,10 @@ export function EcranAgenda({
           return (
             <section key={jour} className="contents" style={{ display: "contents" }} data-testid="agenda-jour" data-jour={jour}>
               <h2
-                className="truncate text-[length:var(--font-size-dense)] font-extrabold"
+                className="text-[length:var(--font-size-dense)] font-extrabold"
                 style={{ gridColumn: colonne, gridRow: 1 }}
               >
-                {vue === "semaine" ? formatDateCourte(jour) : formatDateLongue(jour)}
+                {formatDateLongue(jour)}
               </h2>
               <div data-testid="agenda-sans-heure" style={{ gridColumn: colonne, gridRow: 2 }}>
                 {vue === "jour" && duJour.length === 0 && invitationsDuJourAffichees.length === 0 ? (
@@ -834,6 +853,14 @@ export function EcranAgenda({
                   height: (GRILLE_FIN - GRILLE_DEBUT) * HAUTEUR_HEURE,
                 }}
               >
+                {Array.from({ length: GRILLE_FIN - GRILLE_DEBUT }, (_, index) => (
+                  <span
+                    key={index}
+                    data-testid="agenda-ligne-heure"
+                    className="absolute right-0 left-0 border-t border-filet"
+                    style={{ top: (index + 1) * HAUTEUR_HEURE }}
+                  />
+                ))}
                 {invitationsDuJourAffichees
                   .filter((element) => element.minutes !== null)
                   .map((element) => {

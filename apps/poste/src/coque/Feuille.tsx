@@ -12,7 +12,7 @@ export function Feuille({ children, uneColonne = false, className = "" }: Feuill
       <div className="feuille-pile__carte feuille-pile__carte--loin" aria-hidden />
       <div className="feuille-pile__carte feuille-pile__carte--proche" aria-hidden />
       <div
-        className={`feuille-surface relative z-[1] min-h-0 h-full overflow-hidden ${uneColonne ? "" : "grid grid-cols-[1.12fr_1fr]"}`}
+        className={`feuille-surface relative z-[1] min-h-0 h-full overflow-hidden ${uneColonne ? "" : "grid grid-cols-[minmax(0,1fr)_22rem]"}`}
         data-testid="feuille"
       >
         {children}
