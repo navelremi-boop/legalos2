@@ -45,6 +45,7 @@ type BarreHautProps = {
   chronoLibelle?: string;
   chronoSecondes?: number;
   chronoTitre?: string;
+  chronoChemise?: string;
   onChrono?: () => void;
   onPalette?: () => void;
   mailsCompteur?: number;
@@ -75,6 +76,7 @@ export function BarreHaut({
   chronoLibelle,
   chronoSecondes,
   chronoTitre,
+  chronoChemise,
   onChrono,
   onPalette,
   mailsCompteur = 0,
@@ -315,11 +317,6 @@ export function BarreHaut({
         ref={droiteRef}
         className="mb-3 flex shrink-0 items-center gap-2 self-center text-[length:var(--font-size-dense)] text-barre-texte-muet"
       >
-        <span className="mr-1 flex items-center gap-1.5 text-[12px]" data-testid="indicateur-sync" role="status">
-          <i className="barre-haut__sync-point" aria-hidden />
-          {syncTexte}
-        </span>
-
         {onChrono !== undefined ? (
           <button
             type="button"
@@ -328,11 +325,17 @@ export function BarreHaut({
             aria-label={fr("Chronomètre")}
             title={chronoTitre}
             data-testid="chrono-barre"
+            data-chemise={chronoChemise}
           >
             <span className="barre-haut__chrono-point" aria-hidden />
             <b className="font-bold text-barre-pilule">{chronoAffiche}</b>
           </button>
         ) : null}
+
+        <span className="mr-1 flex items-center gap-1.5 text-[12px]" data-testid="indicateur-sync" role="status">
+          <i className="barre-haut__sync-point" aria-hidden />
+          {syncTexte}
+        </span>
 
         {onPalette !== undefined ? (
           <button

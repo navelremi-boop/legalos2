@@ -645,6 +645,7 @@ export function GalerieDemo() {
               ? fr("Chronomètre en pause sur 2026-042")
               : undefined
           }
+          chronoChemise={vue === "temps" ? "kraft" : undefined}
           onChrono={vue === "temps" || vue === "dossier" ? () => undefined : undefined}
           onPalette={() => undefined}
           mailsCompteur={aClasser}

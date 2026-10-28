@@ -76,4 +76,8 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, nom sur la ligne (28/10).** La ligne de temps montre le nom déjà enregistré de l'intervenant. Le chronomètre en cours porte la référence du dossier. Pas de liste pour choisir un autre intervenant. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
 
-**Prochaine action.** Nouvelle comparaison visuelle de Temps. Le jalon n'est pas coché.
+- **Finition, comparaison Temps (28/10), suite.** Contrôleur [Temps](66699bc0-50e6-4ba6-b2ba-cf1cd35eb779) : refus, jour et nuit. Le volet, le taux, les pastilles, les noms et le dock sont en place. Bloquant : la liste passait sous le volet, pas de pastille « Chronomètre en cours », la ligne par dossier sans référence, la pilule de la barre après Synchronisé et sans la chemise. Le jalon n'est pas coché.
+
+- **Finition, colonne Temps (28/10).** Le volet reste à droite, séparé par un filet, avec la référence du dossier. La pastille « Chronomètre en cours sur … » est sous le titre. La pilule de la barre précède Synchronisé et prend la chemise du dossier. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
+
+**Prochaine action.** Le contrôleur de fin de jalon n'est pas lancé : la comparaison de Temps vient d'être corrigée, les autres écrans n'ont pas été revus ensemble. Le jalon n'est pas coché.

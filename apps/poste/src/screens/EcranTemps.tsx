@@ -165,15 +165,25 @@ export function EcranTemps({
       data-testid="ecran-temps"
       data-fond="neutre"
     >
-      <h1 className="text-[length:var(--font-size-journee)] font-extrabold text-sur-chemise">
-        {fr("Temps")}
-      </h1>
-      <p className="mb-4 text-graphite">
-        {fr(
-          `${String(lignes.filter((ligne) => ligne.jour === aujourdhui).reduce((total, ligne) => total + ligne.minutes, 0))} min saisies aujourd'hui, ${formatDuree(volet.nonFactureMinutes * 60)} non facturées`,
-        )}
-      </p>
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_17rem] gap-4 overflow-hidden pb-16">
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-[length:var(--font-size-journee)] font-extrabold text-sur-chemise">
+            {fr("Temps")}
+          </h1>
+          <p className="text-graphite">
+            {fr(
+              `${String(lignes.filter((ligne) => ligne.jour === aujourdhui).reduce((total, ligne) => total + ligne.minutes, 0))} min saisies aujourd'hui, ${formatDuree(volet.nonFactureMinutes * 60)} non facturées`,
+            )}
+          </p>
+        </div>
+        {dossierChrono?.chemise ? (
+          <p className="mails-dos" data-testid="temps-chrono-entete" data-chemise={dossierChrono.chemise}>
+            <i aria-hidden />
+            {fr(`Chronomètre en cours sur ${libelleReferenceDossier(dossierChrono.reference)}`)}
+          </p>
+        ) : null}
+      </div>
+      <div className="grid min-h-0 flex-1 items-stretch grid-cols-[minmax(0,1fr)_17rem] gap-4 overflow-hidden pb-16">
         <div className="min-h-0 space-y-6 overflow-y-auto">
         <div className="grid gap-6 md:grid-cols-2">
         <section aria-label={fr("Chronomètre")} data-testid="temps-chrono" data-phase={chrono.phase}>
@@ -347,7 +357,7 @@ export function EcranTemps({
           </ul>
         </section>
         </div>
-        <aside className="min-h-0 overflow-y-auto" data-testid="temps-volet">
+        <aside className="min-h-0 overflow-y-auto border-l border-filet pl-4" data-testid="temps-volet">
           <p className="text-[length:var(--font-size-section)] font-extrabold">
             {formatDuree(volet.nonFactureMinutes * 60)}
           </p>
@@ -385,7 +395,15 @@ export function EcranTemps({
             ) : (
               volet.dossiers.map((dossier) => (
                 <li key={dossier.nom} className="flex justify-between gap-2">
-                  <span className="truncate">{fr(dossier.nom)}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    {dossier.chemise ? (
+                      <span className="mails-dos" data-chemise={dossier.chemise}>
+                        <i aria-hidden />
+                        {fr(libelleReferenceDossier(dossier.reference))}
+                      </span>
+                    ) : null}
+                    <span className="truncate">{fr(dossier.nom)}</span>
+                  </span>
                   <span className="text-right">
                     {formatDuree(dossier.minutes * 60)}
                     <span className="block">{formatMontant(dossier.centimes)}</span>
