@@ -101,9 +101,10 @@ if (presents >= NOMS.length) {
   if (parties < NOMS.length || agenda < NOMS.length || temps < NOMS.length) {
     fail(`jeu incomplet (parties ${parties}, agenda ${agenda}, temps ${temps})`);
   }
-  ok(`jeu déjà chargé (${deja} dossiers)`);
-  process.exit(0);
+  ok(`jeu déjà chargé (${presents} dossiers)`);
 }
+await assurerMails();
+if (presents >= NOMS.length) process.exit(0);
 
 const jeton = await demoAccessToken(demoApi, "tenue-demo");
 async function creer(chemin, corps) {
@@ -179,3 +180,46 @@ const comptes = await sql(
           (SELECT COUNT(*) FROM temps_saisis t JOIN dossiers d ON d.id = t.dossier_id WHERE d.nom LIKE 'Tenue — %')`,
 );
 ok(`jeu chargé sur l'instance de démonstration (${comptes})`);
+await assurerMails();
+
+async function assurerMails() {
+  const compte = "0195e100-0000-7000-8000-000000000001";
+  await sql(
+    `INSERT INTO comptes_mail (id, cabinet_id, type_compte, titulaire_id, adresse, secret_ref)
+     SELECT '${compte}', c.id, 'classement', u.id, 'demo@cabinet-fictif.example', 'demo-local'
+     FROM cabinets c
+     JOIN utilisateurs u ON u.cabinet_id = c.id AND u.email = 'demo@cabinet-fictif.example'
+     ON CONFLICT (id) DO NOTHING`,
+  );
+  const ajoutes = await sql(
+    `WITH manquants AS (
+       SELECT d.id, d.cabinet_id, d.nom,
+              row_number() OVER (ORDER BY d.nom) AS n
+       FROM dossiers d
+       WHERE d.nom LIKE 'Tenue — %'
+         AND NOT EXISTS (SELECT 1 FROM messages m WHERE m.dossier_id = d.id)
+     ), base AS (
+       SELECT COALESCE(MAX(uid), 0) AS dernier FROM messages WHERE compte_id = '${compte}'
+     )
+     INSERT INTO messages (
+       id, cabinet_id, compte_id, dossier_id, message_id, uid_validity, uid,
+       objet, expediteur, etat_classement, visibilite, restreint, extrait_texte, date_entete, lu
+     )
+     SELECT gen_random_uuid(), m.cabinet_id, '${compte}', m.id,
+            '<tenue-' || m.id || '@cabinet-fictif.example>',
+            1, base.dernier + m.n,
+            'Au sujet de ' || m.nom,
+            'greffe@example.com',
+            'classe', 'public', false,
+            'Message fictif, pour la tenue visuelle.',
+            timestamptz '2026-10-01' + ((m.n % 21) * interval '1 day'),
+            false
+     FROM manquants m CROSS JOIN base
+     RETURNING id`,
+  );
+  const total = await sql(
+    `SELECT COUNT(*) FROM messages m JOIN dossiers d ON d.id = m.dossier_id WHERE d.nom LIKE 'Tenue — %'`,
+  );
+  if (Number(total) < NOMS.length) fail(`mails du jeu : ${total}`);
+  ok(`mails classés du jeu : ${total}${ajoutes ? ` (ajoutés ${ajoutes.split("\n").filter(Boolean).length})` : ""}`);
+}
