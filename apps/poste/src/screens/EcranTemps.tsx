@@ -18,7 +18,7 @@ import {
   type PerimetreSaisie,
   type SaisieTemps,
 } from "@/facturation/listeTemps";
-import { formatDuree, formatMontant } from "@/lib/format";
+import { formatDateLongue, formatDuree, formatMontant } from "@/lib/format";
 import { fr } from "@/lib/fr";
 import { getPowerSyncDatabase } from "@/sync/database";
 
@@ -28,6 +28,8 @@ type EcranTempsProps = {
   moiId: string | null;
   chrono: EtatChrono;
   onChrono: (etat: EtatChrono) => void;
+  /** Galerie : liste fixe, sans lecture de la base. */
+  lignesFixes?: SaisieTemps[];
 };
 
 type LigneSql = {
@@ -48,14 +50,23 @@ const FILTRES: { id: FiltreSaisie; label: string }[] = [
   { id: "facturees", label: "Facturées" },
 ];
 
-export function EcranTemps({ instanceUrl, dossierIdPrefere, moiId, chrono, onChrono }: EcranTempsProps) {
-  const [lignes, setLignes] = useState<SaisieTemps[]>([]);
+export function EcranTemps({
+  instanceUrl,
+  dossierIdPrefere,
+  moiId,
+  chrono,
+  onChrono,
+  lignesFixes,
+}: EcranTempsProps) {
+  const [lignesSync, setLignesSync] = useState<SaisieTemps[]>([]);
+  const lignes = lignesFixes ?? lignesSync;
   const [filtre, setFiltre] = useState<FiltreSaisie>("toutes");
   const [perimetre, setPerimetre] = useState<PerimetreSaisie>("cabinet");
   const [message, setMessage] = useState("");
   const aujourdhui = new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
+    if (lignesFixes) return;
     let stop = false;
     const charger = () => {
       void getPowerSyncDatabase()
@@ -84,10 +95,10 @@ export function EcranTemps({ instanceUrl, dossierIdPrefere, moiId, chrono, onChr
           }));
         })
         .then((saisies) => {
-          if (!stop) setLignes(saisies);
+          if (!stop) setLignesSync(saisies);
         })
         .catch(() => {
-          if (!stop) setLignes([]);
+          if (!stop) setLignesSync([]);
         });
     };
     charger();
@@ -96,7 +107,7 @@ export function EcranTemps({ instanceUrl, dossierIdPrefere, moiId, chrono, onChr
       stop = true;
       window.clearInterval(timer);
     };
-  }, []);
+  }, [lignesFixes]);
 
   const visibles = useMemo(
     () => filtrerSaisies(lignes, filtre, perimetre, moiId),
@@ -263,7 +274,7 @@ export function EcranTemps({ instanceUrl, dossierIdPrefere, moiId, chrono, onChr
             {groupes.map((groupe) => (
               <li key={groupe.jour} className="mb-4">
                 <h3 className="font-extrabold">
-                  {fr(groupe.jour)} <span className="text-graphite">{formatDuree(groupe.minutes * 60)}</span>
+                  {formatDateLongue(groupe.jour)} <span className="text-graphite">{formatDuree(groupe.minutes * 60)}</span>
                 </h3>
                 <ul>
                   {groupe.saisies.map((ligne) => (

@@ -7,6 +7,9 @@ import { EcranAgenda } from "@/agenda/EcranAgenda";
 import { instantPourHeureParis } from "@/agenda/fuseauParis";
 import { decalerJour, jourCivil } from "@/agenda/navigationAgenda";
 import { EcranFacturation } from "@/facturation/EcranFacturation";
+import { EcranTemps } from "@/screens/EcranTemps";
+import { htTempsCentimes } from "@/facturation/ecrireTemps";
+import type { EtatChrono } from "@/facturation/chronoTemps";
 import { estAClasser } from "@/messagerie/classement";
 import { EcranMails, type DemonstrationMails } from "@/messagerie/EcranMails";
 import type { InvitationLocale } from "@/messagerie/typesMails";
@@ -150,8 +153,45 @@ export function GalerieDemo() {
   /** Dernière entrée choisie dans le menu du compte (la galerie n'exécute rien), lue par les recettes. */
   const [dernierChoixCompte, setDernierChoixCompte] = useState("");
   const [vue, setVue] = useState<
-    "dossier" | "journee" | "dossiers" | "mails" | "agenda" | "facturation" | "reglages"
+    "dossier" | "journee" | "dossiers" | "mails" | "agenda" | "facturation" | "reglages" | "temps"
   >("dossier");
+  const [chronoTemps, setChronoTemps] = useState<EtatChrono>({
+    phase: "pause",
+    secondes: 12 * 60 + 4,
+    dossierId: "ferrand",
+    libelle: "Préparation",
+  });
+  const tempsDemo = useMemo(() => {
+    const aujourd = new Date().toISOString().slice(0, 10);
+    const hier = decalerJour(aujourd, -1);
+    const taux = 6_000;
+    return [
+      {
+        id: "t1",
+        jour: aujourd,
+        minutes: 45,
+        libelle: "Préparation audience",
+        dossierId: "ferrand",
+        dossierNom: "Ferrand Métal",
+        intervenantId: "demo-moi",
+        tauxCentimesHeure: taux,
+        htCentimes: htTempsCentimes(45, taux),
+        facturee: false,
+      },
+      {
+        id: "t2",
+        jour: hier,
+        minutes: 60,
+        libelle: "Entretien téléphonique",
+        dossierId: "lilas",
+        dossierNom: "SCI des Lilas",
+        intervenantId: "autre",
+        tauxCentimesHeure: taux,
+        htCentimes: htTempsCentimes(60, taux),
+        facturee: true,
+      },
+    ];
+  }, []);
 
   const mailsDemo = useMemo<DemonstrationMails>(() => {
     // Jeu fictif de la maquette prototype-mails, daté d'après un instant fixe pour des captures stables.
@@ -544,6 +584,7 @@ export function GalerieDemo() {
               ["mails", "Mails"],
               ["agenda", "Agenda"],
               ["facturation", "Facturation"],
+              ["temps", "Temps"],
               ["reglages", "Réglages"],
             ] as const
           ).map(([id, label]) => (
@@ -661,6 +702,15 @@ export function GalerieDemo() {
               invitationsFixes={invitationsAgendaDemo}
               onOuvrirMail={() => undefined}
               onSaisirTemps={() => undefined}
+            />
+          ) : null}
+          {vue === "temps" ? (
+            <EcranTemps
+              instanceUrl="http://127.0.0.1:8088"
+              moiId="demo-moi"
+              chrono={chronoTemps}
+              onChrono={setChronoTemps}
+              lignesFixes={tempsDemo}
             />
           ) : null}
           {vue === "facturation" ? (

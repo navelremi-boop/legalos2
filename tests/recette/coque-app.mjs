@@ -277,6 +277,7 @@ async function runCaptures() {
         ["Mails", "ecran-mails", "mails"],
         ["Agenda", "ecran-agenda", "agenda"],
         ["Facturation", "ecran-facturation", "facturation"],
+        ["Temps", "ecran-temps", "temps"],
         ["Réglages", "ecran-reglages", "reglages"],
       ];
       for (const [nom, testid, fichier] of horsDossier) {
