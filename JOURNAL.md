@@ -72,4 +72,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, agenda Tauri (28/10).** `node tests/recette/agenda-tauri.mjs` exit 0 en 225 s (échéance recalculée, suppression confirmée et tracée, conflit signalé, restreint absent du second poste). Deux postes de copie sont sortis `0xc0000354` (le débogueur qui quitte, pile dans les notifications Windows). La recette a continué jusqu'à « tous les critères ». Le jalon n'est pas coché.
 
-**Prochaine action.** Lire la CI du dernier push sur main. Le jalon n'est pas coché.
+- **Finition, CI (28/10).** Le job rust de [40688866767](https://github.com/navelremi-boop/legalos2/actions/runs/40688866767) (`5e5a71b`) a d'abord échoué : `install_demarre_en_production_sans_demo`, l'instance ne répond pas. Relance du job : exit 0, rust et s1 verts. La CI de `3ae7bac` [40692356106](https://github.com/navelremi-boop/legalos2/actions/runs/40692356106) est verte (frontend, gouvernance, périmètre) ; rust et s1 sont sautés, le commit ne touche que le journal. Le jalon n'est pas coché.
+
+**Prochaine action.** Le contrôleur de fin de jalon attend encore : la comparaison visuelle reste un refus, l'intervenant n'est pas une liste livrée, la suggestion de temps reste sur l'écran Mails. Le jalon n'est pas coché.
