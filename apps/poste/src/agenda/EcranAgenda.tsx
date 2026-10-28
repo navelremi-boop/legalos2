@@ -117,6 +117,7 @@ export function EcranAgenda({
   });
   const [moisAffiche, setMoisAffiche] = useState<string | null>(null);
   const [calculOuvert, setCalculOuvert] = useState<string | null>(null);
+  const [selection, setSelection] = useState<string | null>(null);
 
   useEffect(() => {
     if (invitationsFixes) return;
@@ -205,6 +206,7 @@ export function EcranAgenda({
   const mois = moisAffiche ?? debutMois(jourRepere);
   const casesMois = grilleMois(mois);
   const lignesVisibles = lignes.filter((ligne) => filtres[categorieAgenda(ligne.type_element, ligne.origine_calcul)]);
+  const choisi = lignesVisibles.find((ligne) => ligne.id === selection) ?? lignesVisibles[0] ?? null;
   const prochaines = prochainesEcheances(
     lignesVisibles.flatMap((ligne) => {
       const quand = composantesAffichees(ligne.debut);
@@ -596,15 +598,22 @@ export function EcranAgenda({
                         }
                         data-colonne={place?.colonne ?? 0}
                         data-colonnes={place?.colonnes ?? 1}
+                        data-selected={selection === ligne.id ? "true" : "false"}
                       >
-                        <div className="flex items-baseline justify-between gap-3">
+                        <button
+                          type="button"
+                          className="flex w-full items-baseline justify-between gap-3 text-left"
+                          onClick={() => {
+                            setSelection(ligne.id);
+                          }}
+                        >
                           <span>
                             {fr(
                               `${LIBELLES_TYPE[ligne.type_element] ?? ligne.type_element} — ${ligne.titre}${ligne.origine_calcul ? " — échéance" : ""}`,
                             )}
                           </span>
                           {heure !== "" ? <span data-testid="agenda-element-heure">{heure}</span> : null}
-                        </div>
+                        </button>
                         {ligne.origine_calcul ? (
                           <div className="mt-1">
                             <button
@@ -636,6 +645,19 @@ export function EcranAgenda({
           );
         })}
       </div>
+      <aside className="mt-4 rounded-[var(--radius-control)] border border-filet p-3" data-testid="agenda-apercu">
+        {choisi ? (
+          <>
+            <h2 className="font-extrabold">{fr(choisi.titre)}</h2>
+            <p className="text-graphite">
+              {fr(LIBELLES_TYPE[choisi.type_element] ?? choisi.type_element)}
+              {choisi.origine_calcul ? fr(", calculé") : ""}
+            </p>
+          </>
+        ) : (
+          <p className="text-graphite">{fr("Aucun élément sélectionné.")}</p>
+        )}
+      </aside>
       <ul data-testid="agenda-liste" className="sr-only">
         {lignes.map((ligne) => {
           const attendue = echeanceAttendue(ligne);

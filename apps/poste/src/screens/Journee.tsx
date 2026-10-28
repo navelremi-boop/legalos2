@@ -49,7 +49,8 @@ export const JOURNEE_DEMO: DonneesJournee = {
     {
       id: "del-1",
       titre: "Conclusions adverses",
-      meta: "échéance le 3 oct., dans 5 jours",
+      meta: "dans 5 jours",
+      calcule: true,
       dossier: { nom: "Ferrand Métal", chemise: "kraft" },
       urgent: false,
     },
@@ -67,6 +68,7 @@ export const JOURNEE_DEMO: DonneesJournee = {
       titre: "Me Dupont — pièces jointes",
       meta: "Suggéré : Ferrand Métal",
       dossier: { nom: "Ferrand Métal", chemise: "kraft" },
+      classer: { messageId: "mail-1", dossierId: "ferrand" },
     },
     {
       id: "mail-2",
@@ -79,13 +81,15 @@ export const JOURNEE_DEMO: DonneesJournee = {
     {
       id: "tps-1",
       titre: "Préparation audience",
-      meta: "0 h 45, brouillon",
+      meta: "Relevé sur vos mails",
+      saisir: { minutes: 45 },
       dossier: { nom: "Ferrand Métal", chemise: "kraft" },
     },
     {
       id: "tps-2",
       titre: "Entretien téléphonique",
-      meta: "0 h 20, brouillon",
+      meta: "Relevé sur votre agenda",
+      saisir: { minutes: 20 },
       dossier: { nom: "SCI des Lilas", chemise: "vert-amande" },
     },
   ],
@@ -95,6 +99,7 @@ type JourneeProps = {
   onNouveauDossier: () => void;
   onNouveauMail: () => void;
   onSaisirTemps: () => void;
+  onOuvrirAgenda?: () => void;
   /** Affiche le jeu fictif (galerie). Sans cela, les quatre sections viennent de la base locale. */
   donneesDemo?: boolean;
   donnees?: DonneesJournee;
@@ -117,6 +122,8 @@ function Section({
   titre,
   lignes,
   vide,
+  lien,
+  onLien,
   onClasser,
   onSaisir,
 }: {
@@ -124,13 +131,20 @@ function Section({
   titre: string;
   lignes: LigneJournee[];
   vide: string;
+  lien?: string;
+  onLien?: () => void;
   onClasser?: (messageId: string, dossierId: string) => void;
   onSaisir?: () => void;
 }) {
   return (
     <section data-testid={`section-${id}`}>
-      <h2 className="mb-2 text-[length:var(--font-size-section)] font-extrabold">
-        {fr(titre)}
+      <h2 className="mb-2 flex items-baseline gap-3 text-[length:var(--font-size-section)] font-extrabold">
+        <span>{fr(titre)}</span>
+        {lien !== undefined ? (
+          <button type="button" className="ml-auto text-[length:var(--font-size-dense)] font-bold text-encre" onClick={onLien}>
+            {fr(lien)}
+          </button>
+        ) : null}
       </h2>
       {lignes.length === 0 ? (
         <p className="text-graphite">{fr(vide)}</p>
@@ -189,6 +203,7 @@ export function Journee({
   onNouveauDossier,
   onNouveauMail,
   onSaisirTemps,
+  onOuvrirAgenda,
   donneesDemo,
   donnees,
   instanceUrl,
@@ -358,21 +373,27 @@ export function Journee({
         <div className="grid gap-8 p-[22px] pb-24 md:grid-cols-2">
           <Section
             id="audiences"
-            titre="Audiences et rendez-vous du jour"
+            titre="Aujourd'hui"
             lignes={audiences}
             vide="Aucune audience ni rendez-vous aujourd'hui."
+            lien="Ouvrir l'agenda"
+            onLien={onOuvrirAgenda}
           />
           <Section
             id="delais"
             titre="Délais"
             lignes={delais}
             vide="Aucun délai à surveiller pour le moment."
+            lien="Voir tous les délais"
+            onLien={onOuvrirAgenda}
           />
           <Section
             id="mails"
             titre="Mails à classer"
             lignes={mails}
             vide="Aucun mail en attente de classement."
+            lien="Ouvrir les mails"
+            onLien={onNouveauMail}
             onClasser={classer}
           />
           <Section
@@ -380,6 +401,8 @@ export function Journee({
             titre="Temps à saisir"
             lignes={temps}
             vide="Aucun temps en attente de saisie."
+            lien="Ouvrir le temps"
+            onLien={onSaisirTemps}
             onSaisir={onSaisirTemps}
           />
         </div>

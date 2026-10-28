@@ -417,6 +417,9 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
           setNav("temps");
           setPanneau("aucun");
         }}
+        onOuvrirAgenda={() => {
+          setNav("agenda");
+        }}
       />
     );
   } else if (nav === "dossiers") {
@@ -551,6 +554,9 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
         onSaisirTemps={() => {
           setNav("temps");
           setPanneau("aucun");
+        }}
+        onOuvrirAgenda={() => {
+          setNav("agenda");
         }}
       />
     );
