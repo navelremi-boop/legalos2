@@ -21,5 +21,6 @@ export function libelleReferenceDossier(reference: string | null | undefined): s
 /** Ligne de l’étiquette : « Dossier 2026/042 » ou « Référence en attente ». */
 export function libelleEtiquetteReference(reference: string | null | undefined): string {
   const texte = reference?.trim() ?? "";
-  return texte.length > 0 ? `Dossier ${texte}` : REFERENCE_EN_ATTENTE;
+  if (texte.length === 0 || texte === REFERENCE_EN_ATTENTE) return REFERENCE_EN_ATTENTE;
+  return `Dossier ${texte}`;
 }

@@ -23,7 +23,8 @@ const posteId = "r";
 const port = "9242";
 const captures = join(root, "target", "controle-reference");
 const EN_ATTENTE = "Référence en attente";
-const MOTIF = /^\d{4}-\d{3,}$/;
+/** Année-numéro historique, ou forme cabinet actuelle (un « / », ex. RN/26/20260983). */
+const MOTIF = /^(?:\d{4}-\d{3,}|[^/\s]+\/\d{2}\/\d+)$/;
 
 function fail(message) {
   console.error(`reference-dossier-ecran: FAIL — ${message}`);
@@ -380,7 +381,8 @@ try {
   let ecran = toujours;
   while (Date.now() - debut < 120_000) {
     const local = await sqliteLocal(`SELECT reference FROM dossiers WHERE id = '${idDossier}'`).catch(() => "");
-    refServeur = /'(\d{4}-\d{3,})'/.exec(local)?.[1] ?? "";
+    refServeur = /\('([^']+)',\)/.exec(local)?.[1] ?? "";
+    if (refServeur === EN_ATTENTE) refServeur = "";
     if (refServeur) {
       ecran = await lireEcran(send, nom);
       if (ecran.etiquette === `Dossier ${refServeur}` && ongletAffiche(ecran, refServeur)) break;

@@ -195,6 +195,9 @@ if (libelleEtiquetteReference("2026/042") !== "Dossier 2026/042") {
 if (libelleEtiquetteReference(null) !== REFERENCE_EN_ATTENTE) {
   fail("étiquette null");
 }
+if (libelleEtiquetteReference(REFERENCE_EN_ATTENTE) !== REFERENCE_EN_ATTENTE) {
+  fail("étiquette : le libellé d'attente ne prend pas le préfixe Dossier");
+}
 if (libelleReferenceDossier("RN/26/0007") !== "RN/26/0007") {
   fail("libellé RN/26/0007");
 }

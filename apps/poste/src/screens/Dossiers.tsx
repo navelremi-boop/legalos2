@@ -335,9 +335,8 @@ export function Dossiers({
                 {fr("Annuler")}
               </button>
               <FormulaireDossier
-                onCree={({ id, nom, chemise, reference }) => {
-                  setCreation(false);
-                  onOuvrirDossier?.(id, nom, chemise, reference);
+                onCree={({ id }) => {
+                  setSelection(id);
                 }}
               />
             </div>
