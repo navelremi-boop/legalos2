@@ -427,6 +427,13 @@
     transition: background-color var(--duration-dossier) ease;
   }
 
+  .ecran-dossier {
+    /* À gauche, au moins 42 px ; à droite, la place des intercalaires.
+       Dès que l'écran le permet, les deux marges s'égalisent et la feuille est au centre. */
+    padding-left: max(42px, calc((100% - 1120px) / 2));
+    padding-right: max(168px, calc((100% - 1120px) / 2));
+  }
+
   .tenue-cadre,
   .feuille-pile {
     width: min(100%, 1120px);

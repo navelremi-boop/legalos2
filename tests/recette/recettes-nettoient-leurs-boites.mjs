@@ -17,7 +17,10 @@ import { fileURLToPath } from "node:url";
 const racine = join(dirname(fileURLToPath(import.meta.url)), "../..");
 
 /** Recettes qui ne créent que la boîte de classement du cabinet (partagée, jamais retirée). */
-const EXEMPTEES = new Map([["tests/recette/j10-ecrans-tauri.mjs", "crée seulement la boîte de classement du cabinet, partagée"]]);
+const EXEMPTEES = new Map([
+  ["tests/recette/j10-ecrans-tauri.mjs", "crée seulement la boîte de classement du cabinet, partagée"],
+  ["tests/recette/tenue-demo.mjs", "crée seulement la boîte de classement du cabinet sur l'instance de démonstration, partagée par le jeu"],
+]);
 
 const CREATION = /INSERT INTO comptes_mail|["'`]\/messagerie\/comptes["'`]\s*,\s*[^)]*["']POST["']|POST["'`]?\s*,?\s*["'`]\/messagerie\/comptes["'`]/u;
 const SUPPRESSION = /DELETE FROM comptes_mail|retirerBoites(?:ParAdresse|SansEchec)|retirerComptes\s*\(/u;

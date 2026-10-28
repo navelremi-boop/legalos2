@@ -248,7 +248,7 @@ export function DossierOuvert({
 
   return (
     <div
-      className="fond-chemise relative flex h-full min-h-0 flex-col pr-[168px] pl-[42px] pt-[28px]"
+      className="fond-chemise ecran-dossier relative flex h-full min-h-0 flex-col pt-[28px]"
       data-chemise={dossier.chemise}
       data-testid="ecran-dossier"
       data-dossier-id={dossier.id}
