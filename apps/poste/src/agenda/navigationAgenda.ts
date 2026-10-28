@@ -34,3 +34,46 @@ export function semaineDe(jour: string): string[] {
   const lundi = decalerJour(jour, -decalage);
   return Array.from({ length: 7 }, (_, index) => decalerJour(lundi, index));
 }
+
+const MOIS = [
+  "janvier",
+  "février",
+  "mars",
+  "avril",
+  "mai",
+  "juin",
+  "juillet",
+  "août",
+  "septembre",
+  "octobre",
+  "novembre",
+  "décembre",
+] as const;
+
+/** « octobre 2026 », à passer par `fr()` à l'affichage. */
+export function libelleMois(jour: string): string {
+  const [annee, mois] = jour.split("-");
+  const nom = MOIS[(Number(mois) || 1) - 1] ?? "";
+  return `${nom} ${annee ?? ""}`;
+}
+
+/** Premier jour du mois de `jour`. */
+export function debutMois(jour: string): string {
+  return `${jour.slice(0, 7)}-01`;
+}
+
+/** Grille du mois, du lundi au dimanche, y compris les jours des mois voisins. */
+export function grilleMois(jour: string): { jour: string; dansMois: boolean }[] {
+  const premier = debutMois(jour);
+  const mois = premier.slice(0, 7);
+  const suivant = decalerJour(premier, 32).slice(0, 7);
+  const dernier = decalerJour(`${suivant}-01`, -1);
+  const debut = semaineDe(premier)[0] ?? premier;
+  const fin = semaineDe(dernier)[6] ?? dernier;
+  const cases: { jour: string; dansMois: boolean }[] = [];
+  for (let curseur = debut; curseur <= fin; curseur = decalerJour(curseur, 1)) {
+    cases.push({ jour: curseur, dansMois: curseur.slice(0, 7) === mois });
+    if (cases.length > 42) break;
+  }
+  return cases;
+}

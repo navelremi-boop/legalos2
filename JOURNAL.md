@@ -16,4 +16,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, recette dossiers (28/10).** `node tests/recette/reference-dossier-ecran.mjs` exit 0. Hors ligne : liste, étiquette et onglet « Référence en attente », SQLite NULL. Après le retour du réseau : étiquette « Dossier RN/26/20260984 », onglet « RN/26/20260984 ». L'étiquette ne préfixe plus « Dossier » devant le libellé d'attente. La création laisse le formulaire et la liste visibles. `node --import ./tests/recette/lib/enregistrer-alias.mjs tests/recette/reference-modele-poste.mjs` exit 0.
 
-**Prochaine action.** Finition des écrans : écran Agenda d'après `design/maquettes/prototype-agenda.html` (mini-calendrier, filtres par type, prochaines échéances, « Voir le calcul », éléments simultanés). Les recettes `agenda-tauri` restent à rejouer.
+- **Finition, écran Agenda (28/10).** Mini-calendrier, filtres par type avec compteurs, prochaines échéances, éléments simultanés côte à côte, « Voir le calcul » sur une échéance calculée. La liste lue par les recettes et la suppression confirmée restent en place. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/agenda/dispositionAgenda.test.ts apps/poste/src/agenda/navigationAgenda.test.ts` : 13/13. `pnpm --filter @legal-os/poste typecheck` et eslint de ces fichiers : exit 0. `agenda-tauri` pas encore rejoué.
+
+**Prochaine action.** Rejouer `node tests/recette/agenda-tauri.mjs`, puis Réglages (masquer une section dont la fonction n'existe pas) et l'écran Temps.

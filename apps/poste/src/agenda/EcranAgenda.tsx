@@ -10,7 +10,14 @@ import {
   invitationsDuJour,
   presenterInvitationAgenda,
 } from "@/agenda/invitationsAgenda";
-import { decalerJour, jourCivil, semaineDe } from "@/agenda/navigationAgenda";
+import {
+  categorieAgenda,
+  CATEGORIES_AGENDA,
+  placerSimultanes,
+  prochainesEcheances,
+  type CategorieAgenda,
+} from "@/agenda/dispositionAgenda";
+import { decalerJour, debutMois, grilleMois, jourCivil, libelleMois, semaineDe } from "@/agenda/navigationAgenda";
 import { calculerDelaiComplet } from "@/delais/moteur";
 import { formatDateCourte, formatDateLongue, formatHeureMur } from "@/lib/format";
 import { fr } from "@/lib/fr";
@@ -58,7 +65,10 @@ const LIBELLES_TYPE: Record<string, string> = {
   audience: "Audience",
   rendez_vous: "Rendez-vous",
   tache: "Tâche",
+  echeance: "Échéances",
 };
+
+const DUREE_AFFICHEE_MINUTES = 60;
 
 const DELAIS_RAPPEL = [
   { id: "0", libelle: "Au moment de l'élément" },
@@ -99,6 +109,14 @@ export function EcranAgenda({
   const [conflit, setConflit] = useState("");
   const [creation, setCreation] = useState(false);
   const [vue, setVue] = useState<"jour" | "semaine">("jour");
+  const [filtres, setFiltres] = useState<Record<CategorieAgenda, boolean>>({
+    audience: true,
+    rendez_vous: true,
+    tache: true,
+    echeance: true,
+  });
+  const [moisAffiche, setMoisAffiche] = useState<string | null>(null);
+  const [calculOuvert, setCalculOuvert] = useState<string | null>(null);
 
   useEffect(() => {
     if (invitationsFixes) return;
@@ -183,6 +201,27 @@ export function EcranAgenda({
     }
   }
 
+  const jourRepere = ancre ?? jourCivil(new Date());
+  const mois = moisAffiche ?? debutMois(jourRepere);
+  const casesMois = grilleMois(mois);
+  const lignesVisibles = lignes.filter((ligne) => filtres[categorieAgenda(ligne.type_element, ligne.origine_calcul)]);
+  const prochaines = prochainesEcheances(
+    lignesVisibles.flatMap((ligne) => {
+      const quand = composantesAffichees(ligne.debut);
+      if (!quand) return [];
+      return [
+        {
+          id: ligne.id,
+          jour: quand.jour,
+          debutMinute: (quand.heure ?? 0) * 60 + (quand.minute ?? 0),
+          titre: ligne.titre,
+          origine: ligne.origine_calcul,
+        },
+      ];
+    }),
+    jourCivil(new Date()),
+  );
+
   return (
     <div
       className="fond-neutre relative flex h-full min-h-0 flex-col px-[30px] pt-[28px]"
@@ -192,8 +231,99 @@ export function EcranAgenda({
       <h1 className="mb-4 text-[length:var(--font-size-journee)] font-extrabold text-texte-sur-neutre">
         {fr("Agenda")}
       </h1>
-      <Feuille uneColonne className="min-h-[360px]">
-      <div className="p-[22px] pb-24">
+      <Feuille className="min-h-[360px]">
+      <aside className="min-h-0 overflow-y-auto border-r border-filet p-[22px]">
+        <div className="mb-2 flex items-center justify-between">
+          <p className="font-extrabold">{fr(libelleMois(mois))}</p>
+          <span className="flex gap-1">
+            <button
+              type="button"
+              className="rounded-[var(--radius-control)] border border-filet px-2 py-1"
+              aria-label={fr("Mois précédent")}
+              data-testid="agenda-mini-precedent"
+              onClick={() => {
+                setMoisAffiche(decalerJour(debutMois(mois), -1).slice(0, 7) + "-01");
+              }}
+            >
+              {fr("Précédent")}
+            </button>
+            <button
+              type="button"
+              className="rounded-[var(--radius-control)] border border-filet px-2 py-1"
+              aria-label={fr("Mois suivant")}
+              data-testid="agenda-mini-suivant"
+              onClick={() => {
+                setMoisAffiche(decalerJour(`${mois.slice(0, 7)}-28`, 7).slice(0, 7) + "-01");
+              }}
+            >
+              {fr("Suivant")}
+            </button>
+          </span>
+        </div>
+        <div className="grid grid-cols-7 gap-px text-center" data-testid="agenda-mini">
+          {casesMois.map((cellule) => (
+            <button
+              key={cellule.jour}
+              type="button"
+              className="rounded-[var(--radius-control)] px-0 py-1 text-[length:var(--font-size-dense)]"
+              data-testid="agenda-mini-jour"
+              data-jour={cellule.jour}
+              data-dans-mois={cellule.dansMois ? "true" : "false"}
+              aria-pressed={cellule.jour === jourRepere}
+              onClick={() => {
+                setAncre(cellule.jour);
+                setMoisAffiche(debutMois(cellule.jour));
+              }}
+            >
+              {cellule.jour.slice(8)}
+            </button>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-1" role="group" aria-label={fr("Types d'éléments")}>
+          {CATEGORIES_AGENDA.map((categorie) => {
+            const compte = lignes.filter(
+              (ligne) => categorieAgenda(ligne.type_element, ligne.origine_calcul) === categorie,
+            ).length;
+            return (
+              <button
+                key={categorie}
+                type="button"
+                className="rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+                aria-pressed={filtres[categorie]}
+                data-testid={`agenda-filtre-${categorie}`}
+                onClick={() => {
+                  setFiltres((actuel) => ({ ...actuel, [categorie]: !actuel[categorie] }));
+                }}
+              >
+                {fr(LIBELLES_TYPE[categorie] ?? categorie)} <b>{compte}</b>
+              </button>
+            );
+          })}
+        </div>
+        <h2 className="mb-2 mt-4 text-[length:var(--font-size-section)] font-extrabold">
+          {fr("Prochaines échéances")}
+        </h2>
+        <ul data-testid="agenda-prochaines">
+          {prochaines.length === 0 ? (
+            <li className="text-graphite">{fr("Aucune échéance à venir.")}</li>
+          ) : (
+            prochaines.map((ligne) => (
+              <li key={ligne.id}>
+                <button
+                  type="button"
+                  className="w-full py-1 text-left"
+                  onClick={() => {
+                    setAncre(ligne.jour);
+                  }}
+                >
+                  {fr(`${formatDateCourte(ligne.jour)} — ${ligne.titre}`)}
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      </aside>
+      <div className="min-h-0 overflow-y-auto p-[22px] pb-24">
       <div className="mb-4 flex gap-2">
         <button
           type="button"
@@ -258,7 +388,12 @@ export function EcranAgenda({
           {fr("Nouvel élément")}
         </button>
       </div>
-      <form className={creation ? "mb-6 max-w-xl" : "hidden"} onSubmit={(event) => void ajouter(event)}>
+      <form
+        className={creation ? "mb-6 max-w-xl rounded-[var(--radius-control)] border border-filet p-3" : "hidden"}
+        data-testid="agenda-panneau-creation"
+        hidden={!creation}
+        onSubmit={(event) => void ajouter(event)}
+      >
         <select
           id="agenda-type"
           name="type_element"
@@ -358,8 +493,21 @@ export function EcranAgenda({
         </p>
       ) : null}
       <div data-testid={vue === "jour" ? "agenda-vue-jour-contenu" : "agenda-vue-semaine-contenu"}>
-        {(vue === "jour" ? [ancre ?? jourCivil(new Date())] : semaineDe(ancre ?? jourCivil(new Date()))).map((jour) => {
-          const duJour = lignes.filter((ligne) => composantesAffichees(ligne.debut)?.jour === jour);
+        {(vue === "jour" ? [jourRepere] : semaineDe(jourRepere)).map((jour) => {
+          const duJour = lignesVisibles.filter((ligne) => composantesAffichees(ligne.debut)?.jour === jour);
+          const minutes = (ligne: Ligne) => {
+            const quand = composantesAffichees(ligne.debut);
+            if (!quand || quand.heure === null || quand.minute === null) return null;
+            return quand.heure * 60 + quand.minute;
+          };
+          const places = placerSimultanes(
+            duJour.flatMap((ligne) => {
+              const debutMinute = minutes(ligne);
+              if (debutMinute === null) return [];
+              return [{ id: ligne.id, debutMinute, dureeMinute: DUREE_AFFICHEE_MINUTES }];
+            }),
+          );
+          const placeDe = (id: string) => places.find((place) => place.id === id);
           const invitationsDuJourAffichees = invitationsDuJour(elementsInvit, jour);
           return (
             <section key={jour} className="mb-3" data-testid="agenda-jour" data-jour={jour}>
@@ -428,19 +576,57 @@ export function EcranAgenda({
                 </ul>
               ) : null}
               {duJour.length === 0 ? null : (
-                <ul>
+                <ul className="flex flex-wrap gap-2" data-testid="agenda-creneaux">
                   {duJour.map((ligne) => {
                     const quand = composantesAffichees(ligne.debut);
                     const heure =
                       quand !== null && quand.heure !== null && quand.minute !== null
                         ? formatHeureMur(quand.heure, quand.minute)
                         : "";
+                    const place = placeDe(ligne.id);
+                    const attendue = echeanceAttendue(ligne);
                     return (
-                      <li key={ligne.id} className="flex items-baseline justify-between gap-3">
-                        {fr(
-                          `${LIBELLES_TYPE[ligne.type_element] ?? ligne.type_element} — ${ligne.titre}${ligne.origine_calcul ? " — échéance" : ""}`,
-                        )}
-                        {heure !== "" ? <span data-testid="agenda-element-heure">{heure}</span> : null}
+                      <li
+                        key={ligne.id}
+                        className="min-w-0 rounded-[var(--radius-control)] border border-filet p-2"
+                        style={
+                          place && place.colonnes > 1
+                            ? { width: `calc(${String(100 / place.colonnes)}% - 0.5rem)` }
+                            : undefined
+                        }
+                        data-colonne={place?.colonne ?? 0}
+                        data-colonnes={place?.colonnes ?? 1}
+                      >
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span>
+                            {fr(
+                              `${LIBELLES_TYPE[ligne.type_element] ?? ligne.type_element} — ${ligne.titre}${ligne.origine_calcul ? " — échéance" : ""}`,
+                            )}
+                          </span>
+                          {heure !== "" ? <span data-testid="agenda-element-heure">{heure}</span> : null}
+                        </div>
+                        {ligne.origine_calcul ? (
+                          <div className="mt-1">
+                            <button
+                              type="button"
+                              className="font-bold text-encre"
+                              data-testid="echeance-voir-calcul"
+                              aria-expanded={calculOuvert === ligne.id}
+                              onClick={() => {
+                                setCalculOuvert((actuel) => (actuel === ligne.id ? null : ligne.id));
+                              }}
+                            >
+                              {fr("Voir le calcul")}
+                            </button>
+                            {calculOuvert === ligne.id ? (
+                              <p data-testid="echeance-calcul">
+                                {fr(
+                                  `Point de départ ${ligne.origine_calcul}, délai ${String(ligne.jours_calcul ?? 0)} jours, ${String(ligne.mois_calcul ?? 0)} mois, ${String(ligne.annees_calcul ?? 0)} ans. Échéance ${attendue ? formatDateCourte(attendue) : ""}.`,
+                                )}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </li>
                     );
                   })}
