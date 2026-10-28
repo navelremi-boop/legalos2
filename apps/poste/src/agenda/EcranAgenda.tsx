@@ -25,6 +25,7 @@ import {
   placerSimultanes,
   positionGrille,
   prochainesEcheances,
+  sousTitrePeriode,
   type CategorieAgenda,
 } from "@/agenda/dispositionAgenda";
 import {
@@ -300,6 +301,24 @@ export function EcranAgenda({
   const mois = moisAffiche ?? debutMois(jourRepere);
   const casesMois = grilleMois(mois);
   const lignesVisibles = lignes.filter((ligne) => filtres[categorieAgenda(ligne.type_element, ligne.origine_calcul)]);
+  const comptesPeriode = { audience: 0, rendez_vous: 0, echeance: 0 };
+  for (const ligne of lignesVisibles) {
+    const jour = composantesAffichees(ligne.debut)?.jour;
+    if (!jour || !joursBarre.includes(jour)) continue;
+    const categorie = categorieAgenda(ligne.type_element, ligne.origine_calcul);
+    if (categorie === "tache") continue;
+    comptesPeriode[categorie] += 1;
+  }
+  const aujourdhui = jourCivil(new Date());
+  const quandPeriode =
+    vue === "jour"
+      ? jourRepere === aujourdhui
+        ? "aujourd'hui"
+        : `le ${formatDateLongue(jourRepere)}`
+      : joursBarre.includes(aujourdhui)
+        ? "cette semaine"
+        : `la semaine du ${formatDateCourte(debutBarre)}`;
+  const sousTitre = sousTitrePeriode(comptesPeriode, quandPeriode);
   const choisi = lignesVisibles.find((ligne) => ligne.id === selection) ?? lignesVisibles[0] ?? null;
   const ficheDossier = choisi ? dossiersAffiches.get(choisi.dossier_id) : undefined;
   const rappelAffiche = choisi ? libelleRappel(choisi.rappel_le) : null;
@@ -326,9 +345,14 @@ export function EcranAgenda({
       data-testid="ecran-agenda"
       data-fond="neutre"
     >
-      <h1 className="mb-4 text-[length:var(--font-size-journee)] font-extrabold text-texte-sur-neutre">
-        {fr("Agenda")}
-      </h1>
+      <div className="mb-4">
+        <h1 className="text-[length:var(--font-size-journee)] font-extrabold text-texte-sur-neutre">
+          {fr("Agenda")}
+        </h1>
+        <p className="text-graphite" data-testid="agenda-sous-titre">
+          {fr(sousTitre)}
+        </p>
+      </div>
       <Feuille className="min-h-[360px]">
       <aside className="min-h-0 overflow-y-auto border-r border-filet p-[22px]">
         <div className="mb-2 flex items-center justify-between">

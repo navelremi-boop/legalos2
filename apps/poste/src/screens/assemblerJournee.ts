@@ -54,6 +54,26 @@ export function libelleHeure(heure: number, minute: number): string {
   return `${String(heure)} h ${String(minute).padStart(2, "0")}`;
 }
 
+/** Minutes murales d'un libellé « 9 h 30 ». */
+export function minutesDepuisLibelle(heure: string): number | null {
+  const lu = /^(\d{1,2}) h (\d{2})$/.exec(heure);
+  const heures = lu?.[1];
+  const minutes = lu?.[2];
+  if (heures === undefined || minutes === undefined) return null;
+  return Number(heures) * 60 + Number(minutes);
+}
+
+/** Pastille de l'en-tête : le prochain rendez-vous encore devant, sinon la fin de journée. */
+export function libelleProchainRendezVous(maintenantMinutes: number, heures: readonly number[]): string {
+  const prochain = [...heures].filter((minute) => minute >= maintenantMinutes).sort((a, b) => a - b)[0];
+  if (prochain === undefined) return "Plus de rendez-vous aujourd'hui";
+  const ecart = prochain - maintenantMinutes;
+  const heuresEntieres = Math.floor(ecart / 60);
+  const minutes = ecart % 60;
+  if (heuresEntieres === 0) return `Prochain rendez-vous dans ${String(minutes)} min`;
+  return `Prochain rendez-vous dans ${String(heuresEntieres)} h ${String(minutes).padStart(2, "0")}`;
+}
+
 /** Écart affiché à droite d'un délai. */
 export function libelleEcart(jours: number): string {
   if (jours <= 0) return "aujourd'hui";

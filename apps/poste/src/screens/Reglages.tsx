@@ -226,9 +226,14 @@ export function Reglages({
       data-testid="ecran-reglages"
       data-fond="neutre"
     >
-      <h1 className="mb-4 text-[length:var(--font-size-journee)] font-extrabold text-sur-chemise">
-        {fr("Réglages")}
-      </h1>
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <h1 className="text-[length:var(--font-size-journee)] font-extrabold text-sur-chemise">
+          {fr("Réglages")}
+        </h1>
+        <p className="font-bold text-encre" data-testid="reglages-administrateurs">
+          {fr("Réservé aux administrateurs")}
+        </p>
+      </div>
       <Feuille uneColonne className="min-h-[360px]">
         <div className="flex h-full min-h-[360px]">
           <nav

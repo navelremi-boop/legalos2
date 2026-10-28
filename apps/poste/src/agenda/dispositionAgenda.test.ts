@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { grilleMois } from "./navigationAgenda.ts";
 import {
   categorieAgenda,
+  sousTitrePeriode,
   placerSimultanes,
   positionGrille,
   prochainesEcheances,
@@ -60,6 +61,17 @@ describe("grille horaire", () => {
 });
 
 describe("filtres et prochaines échéances", () => {
+  it("résume la période, au singulier", () => {
+    assert.equal(
+      sousTitrePeriode({ audience: 1, rendez_vous: 1, echeance: 0 }, "aujourd'hui"),
+      "1 audience, 1 rendez-vous aujourd'hui",
+    );
+    assert.equal(
+      sousTitrePeriode({ audience: 0, rendez_vous: 0, echeance: 0 }, "cette semaine"),
+      "Rien de prévu cette semaine",
+    );
+  });
+
   it("range une échéance calculée à part de son type", () => {
     assert.equal(categorieAgenda("audience", "2026-01-06"), "echeance");
     assert.equal(categorieAgenda("rendez_vous", null), "rendez_vous");

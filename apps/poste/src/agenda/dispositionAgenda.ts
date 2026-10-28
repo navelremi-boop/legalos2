@@ -82,6 +82,22 @@ export type EcheanceProchaine = {
   debutMinute: number;
 };
 
+/** « 1 audience, 1 rendez-vous aujourd'hui », ou « Rien de prévu cette semaine ». */
+export function sousTitrePeriode(
+  comptes: { audience: number; rendez_vous: number; echeance: number },
+  quand: string,
+): string {
+  const morceaux: string[] = [];
+  const ajouter = (nombre: number, un: string, plusieurs: string) => {
+    if (nombre === 1) morceaux.push(`1 ${un}`);
+    else if (nombre > 1) morceaux.push(`${String(nombre)} ${plusieurs}`);
+  };
+  ajouter(comptes.audience, "audience", "audiences");
+  ajouter(comptes.rendez_vous, "rendez-vous", "rendez-vous");
+  ajouter(comptes.echeance, "échéance", "échéances");
+  return `${morceaux.length > 0 ? morceaux.join(", ") : "Rien de prévu"} ${quand}`;
+}
+
 /** Les prochaines dates à partir d'aujourd'hui, les plus proches d'abord. */
 export function prochainesEcheances<T extends EcheanceProchaine>(
   lignes: readonly T[],

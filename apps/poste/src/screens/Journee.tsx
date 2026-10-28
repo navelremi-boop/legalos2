@@ -9,11 +9,19 @@ import { propositionTemps } from "@/messagerie/tempsMail";
 import { isChemiseId, type ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
 import { JOURNEE_DEMO, type DonneesJournee, type LigneJournee } from "@/screens/journeeDemo";
-import { formatDuree, formatMontant } from "@/lib/format";
+import { formatDateLongue, formatDuree, formatMontant } from "@/lib/format";
 import { getPowerSyncDatabase } from "@/sync/database";
 import { joursEntre } from "@/dossiers/listeDossiers";
-import { libelleEcart, libelleHeure, ligneDelai, ligneMail, ligneTemps, partAnneau } from "@/screens/assemblerJournee";
-
+import {
+  libelleEcart,
+  libelleHeure,
+  libelleProchainRendezVous,
+  ligneDelai,
+  ligneMail,
+  ligneTemps,
+  minutesDepuisLibelle,
+  partAnneau,
+} from "@/screens/assemblerJournee";
 type JourneeProps = {
   onNouveauDossier: () => void;
   onNouveauMail: () => void;
@@ -496,9 +504,28 @@ export function Journee({
       <div className="sr-only" data-testid="fond-neutre">
         {fr("Fond neutre")}
       </div>
-      <h1 className="mb-4 text-[length:var(--font-size-journee)] font-extrabold text-texte-sur-neutre">
-        {fr("La journée")}
-      </h1>
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-[length:var(--font-size-journee)] font-extrabold text-texte-sur-neutre">
+            {fr("La journée")}
+          </h1>
+          <p className="text-graphite">
+            {fr(`${formatDateLongue(jourCivil(new Date()))} ${jourCivil(new Date()).slice(0, 4)}`)}
+          </p>
+        </div>
+        <p className="font-bold text-encre" data-testid="journee-prochain">
+          {fr(
+            libelleProchainRendezVous(
+              new Date().getHours() * 60 + new Date().getMinutes(),
+              audiences.flatMap((ligne) => {
+                if (ligne.tache || !ligne.heure) return [];
+                const minutes = minutesDepuisLibelle(ligne.heure);
+                return minutes === null ? [] : [minutes];
+              }),
+            ),
+          )}
+        </p>
+      </div>
       <Feuille uneColonne className="min-h-[420px]">
         <div className="grid gap-8 p-[22px] pb-24 md:grid-cols-2">
           <Section

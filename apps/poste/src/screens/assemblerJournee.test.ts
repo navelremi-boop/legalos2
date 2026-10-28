@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { libelleEcart, libelleHeure, ligneDelai, ligneMail, ligneTemps, partAnneau } from "./assemblerJournee.ts";
+import {
+  libelleEcart,
+  libelleHeure,
+  libelleProchainRendezVous,
+  ligneDelai,
+  ligneMail,
+  ligneTemps,
+  minutesDepuisLibelle,
+  partAnneau,
+} from "./assemblerJournee.ts";
 
 describe("la journée", () => {
   it("marque Calculé seulement les délais du moteur", () => {
@@ -11,6 +20,9 @@ describe("la journée", () => {
     assert.equal(libelleEcart(1), "dans 1 jour");
     assert.equal(ligneDelai({ id: "2", titre: "Note", origineCalcul: null }).calcule, false);
     assert.equal(libelleHeure(9, 30), "9 h 30");
+    assert.equal(minutesDepuisLibelle("14 h 00"), 14 * 60);
+    assert.equal(libelleProchainRendezVous(9 * 60, [14 * 60]), "Prochain rendez-vous dans 5 h 00");
+    assert.equal(libelleProchainRendezVous(15 * 60, [9 * 60 + 30, 14 * 60]), "Plus de rendez-vous aujourd'hui");
     assert.ok(partAnneau(0) > partAnneau(30));
   });
 
