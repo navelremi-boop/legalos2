@@ -84,4 +84,6 @@ Synthèse au 28/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Finition, pastilles et procédure (28/10).** La procédure marque l'étape faite et l'étape en cours. L'aperçu a Nouveau mail et Saisir du temps. La journée montre la référence dans la pastille et la pilule du chronomètre. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/screens/assemblerJournee.test.ts` : 3/3. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
 
-**Prochaine action.** La fiche d'agenda reste courte (pas de lieu ni de rappel affichés). Le jalon n'est pas coché.
+- **Finition, fiche d'agenda (28/10).** La fiche montre le dossier, sa référence, le rappel enregistré et « Ouvrir le dossier ». Il n'y a pas de colonne lieu. `node tests/recette/coque-app.mjs --captures` exit 0. eslint et typecheck : exit 0.
+
+**Prochaine action.** Le formulaire de Temps affiche encore « Enregistrer hors ligne » et « Valider en ligne ». Le jalon n'est pas coché.

@@ -428,7 +428,10 @@ export function GalerieDemo() {
         type_element: "audience",
         titre: "Mise en état",
         debut: iso(9),
-        rappel_le: null,
+        rappel_le: "1 heure avant",
+        dossier_nom: "Ferrand Métal",
+        dossier_reference: "2026-042",
+        dossier_chemise: "kraft",
         origine_calcul: null,
         jours_calcul: null,
         mois_calcul: null,
@@ -715,6 +718,7 @@ export function GalerieDemo() {
               lignesFixes={agendaDemo}
               invitationsFixes={invitationsAgendaDemo}
               onOuvrirMail={() => undefined}
+              onOuvrirDossier={() => undefined}
               onSaisirTemps={() => undefined}
             />
           ) : null}

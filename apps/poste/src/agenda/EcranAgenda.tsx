@@ -32,8 +32,10 @@ import {
 } from "@/agenda/navigationAgenda";
 import { FormulaireDelai } from "@/delais/FormulaireDelai";
 import { calculerDelaiComplet } from "@/delais/moteur";
+import { isChemiseId } from "@/lib/chemise";
 import { formatDateCourte, formatDateLongue, formatHeureMur } from "@/lib/format";
 import { fr } from "@/lib/fr";
+import { libelleReferenceDossier } from "@/lib/referenceDossier";
 import type { InvitationLocale } from "@/messagerie/typesMails";
 import { getPowerSyncDatabase } from "@/sync/database";
 
@@ -44,6 +46,10 @@ type Ligne = {
   titre: string;
   debut: string;
   rappel_le: string | null;
+  /** Galerie seulement : le nom n'est pas une colonne de l'élément. */
+  dossier_nom?: string | null;
+  dossier_reference?: string | null;
+  dossier_chemise?: string | null;
   origine_calcul: string | null;
   jours_calcul: number | null;
   mois_calcul: number | null;
@@ -68,6 +74,14 @@ function echeanceAttendue(ligne: Ligne): string | null {
 }
 
 const TYPES: TypeAgenda[] = ["audience", "rendez_vous", "tache"];
+
+function libelleRappel(rappel: string | null): string | null {
+  if (!rappel || rappel.trim() === "") return null;
+  const mur = composantesAffichees(rappel);
+  if (!mur) return rappel.trim();
+  const heure = mur.heure !== null && mur.minute !== null ? ` ${formatHeureMur(mur.heure, mur.minute)}` : "";
+  return `${formatDateLongue(mur.jour)}${heure}`;
+}
 
 function libelleQuand(debut: string): string {
   const mur = composantesAffichees(debut);
@@ -102,6 +116,7 @@ type EcranAgendaProps = {
   onSaisirTemps?: () => void;
   /** Ouvre l'écran Mails sur le message dont l'en-tête Message-ID est donné (lien « Ouvrir le mail » d'une invitation). */
   onOuvrirMail?: (messageId: string) => void;
+  onOuvrirDossier?: (id: string, nom: string, chemise: string, reference?: string | null) => void;
   /** Galerie : pas de PowerSync. */
   lignesFixes?: Ligne[];
   invitationsFixes?: InvitationLocale[];
@@ -110,10 +125,14 @@ type EcranAgendaProps = {
 export function EcranAgenda({
   onSaisirTemps,
   onOuvrirMail,
+  onOuvrirDossier,
   lignesFixes,
   invitationsFixes,
 }: EcranAgendaProps) {
   const [lignesSync, setLignesSync] = useState<Ligne[]>([]);
+  const [dossiersConnus, setDossiersConnus] = useState<
+    Map<string, { nom: string; reference: string | null; chemise: string | null }>
+  >(() => new Map());
   const lignes = lignesFixes ?? lignesSync;
   const [invitationsSync, setInvitationsSync] = useState<InvitationLocale[]>([]);
   const invitations = invitationsFixes ?? invitationsSync;
@@ -158,6 +177,20 @@ export function EcranAgenda({
     };
   }, [invitationsFixes]);
 
+  const dossiersGalerie = useMemo(() => {
+    const cartes = new Map<string, { nom: string; reference: string | null; chemise: string | null }>();
+    for (const ligne of lignesFixes ?? []) {
+      if (!ligne.dossier_nom) continue;
+      cartes.set(ligne.dossier_id, {
+        nom: ligne.dossier_nom,
+        reference: ligne.dossier_reference ?? null,
+        chemise: ligne.dossier_chemise ?? null,
+      });
+    }
+    return cartes;
+  }, [lignesFixes]);
+  const dossiersAffiches = lignesFixes ? dossiersGalerie : dossiersConnus;
+
   useEffect(() => {
     if (lignesFixes) return;
     const etat = { stop: false };
@@ -175,6 +208,13 @@ export function EcranAgenda({
           if (arrete()) return;
           setLignesSync(rows);
           const database = await getPowerSyncDatabase();
+          const connus = await database.getAll<{ id: string; nom: string; reference: string | null; chemise: string | null }>(
+            "SELECT id, nom, reference, chemise FROM dossiers",
+          );
+          if (arrete()) return;
+          setDossiersConnus(
+            new Map(connus.map((dossier) => [dossier.id, { nom: dossier.nom, reference: dossier.reference, chemise: dossier.chemise }])),
+          );
           const journaux = await database.getAll<{ valeur_appliquee: string | null }>(
             `SELECT valeur_appliquee FROM journal_modifications
              WHERE table_cible = 'agenda_elements' AND conflit = 1
@@ -224,6 +264,8 @@ export function EcranAgenda({
   const casesMois = grilleMois(mois);
   const lignesVisibles = lignes.filter((ligne) => filtres[categorieAgenda(ligne.type_element, ligne.origine_calcul)]);
   const choisi = lignesVisibles.find((ligne) => ligne.id === selection) ?? lignesVisibles[0] ?? null;
+  const ficheDossier = choisi ? dossiersAffiches.get(choisi.dossier_id) : undefined;
+  const rappelAffiche = choisi ? libelleRappel(choisi.rappel_le) : null;
   const prochaines = prochainesEcheances(
     lignesVisibles.flatMap((ligne) => {
       const quand = composantesAffichees(ligne.debut);
@@ -758,6 +800,25 @@ export function EcranAgenda({
               {choisi.origine_calcul ? fr(", calculé") : ""}
             </p>
             <p>{fr(libelleQuand(choisi.debut))}</p>
+            {ficheDossier ? (
+              <p>
+                {fr(ficheDossier.nom)}
+                {ficheDossier.reference ? fr(`, ${libelleReferenceDossier(ficheDossier.reference)}`) : ""}
+              </p>
+            ) : null}
+            {rappelAffiche ? <p data-testid="agenda-rappel-affiche">{fr(`Rappel, ${rappelAffiche}`)}</p> : null}
+            {onOuvrirDossier && ficheDossier?.chemise && isChemiseId(ficheDossier.chemise) ? (
+              <button
+                type="button"
+                className="mt-3 rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                onClick={() => {
+                  if (!ficheDossier.chemise) return;
+                  onOuvrirDossier(choisi.dossier_id, ficheDossier.nom, ficheDossier.chemise, ficheDossier.reference);
+                }}
+              >
+                {fr("Ouvrir le dossier")}
+              </button>
+            ) : null}
           </>
         ) : (
           <p className="text-graphite">{fr("Aucun élément sélectionné.")}</p>

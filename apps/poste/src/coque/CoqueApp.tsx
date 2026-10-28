@@ -515,6 +515,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect }: CoqueAppP
           setNav("temps");
           setPanneau("aucun");
         }}
+        onOuvrirDossier={ouvrirDossier}
       />
     );
   } else if (nav === "facturation") {
