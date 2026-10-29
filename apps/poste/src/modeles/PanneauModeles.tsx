@@ -87,7 +87,7 @@ export function PanneauModeles() {
         <select
           id="fusion-genre"
           data-testid="fusion-genre"
-          className="mt-1 block w-full max-w-xs rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+          className="champ mt-1 max-w-xs"
           value={genre}
           onChange={(event) => {
             const valeur = event.target.value;
@@ -140,7 +140,7 @@ export function PanneauModeles() {
         <select
           id="fusion-dossier"
           data-testid="fusion-dossier"
-          className="mt-1 block w-full max-w-md rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+          className="champ mt-1 block w-full max-w-md"
           value={dossierId}
           onChange={(event) => {
             setDossierId(event.target.value);
@@ -156,7 +156,7 @@ export function PanneauModeles() {
       <button
         type="button"
         data-testid="fusion-produire"
-        className="rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+        className="bouton"
         onClick={() => {
           setMessage("");
           setResultat(null);
@@ -191,7 +191,7 @@ export function PanneauModeles() {
       <button
         type="button"
         data-testid="fusion-reprendre"
-        className="rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+        className="bouton"
         onClick={() => {
           void reprendreDepots().then((nombre) => {
             setMessage(

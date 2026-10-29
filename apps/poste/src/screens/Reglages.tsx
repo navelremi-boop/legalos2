@@ -223,7 +223,7 @@ export function Reglages({
 
   return (
     <div
-      className="fond-neutre relative flex h-full min-h-0 flex-col px-[30px] pt-[28px]"
+      className="fond-neutre relative flex h-full min-h-0 flex-col ecran"
       data-testid="ecran-reglages"
       data-fond="neutre"
     >
@@ -270,7 +270,7 @@ export function Reglages({
             </label>
             <select
               id="theme"
-              className="mt-1 w-full max-w-xs rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+              className="champ mt-1 w-full max-w-xs"
               value={themeMode}
               onChange={(event) => {
                 onThemeChange(event.target.value as ThemeMode);
@@ -342,7 +342,7 @@ export function Reglages({
             <input
               id="cabinet-nom"
               name="nom"
-              className="mt-1 mb-3 block w-full max-w-md rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+              className="champ mt-1 mb-3 block w-full max-w-md"
               value={nom}
               onChange={(event) => {
                 setNom(event.target.value);
@@ -354,7 +354,7 @@ export function Reglages({
             <input
               id="cabinet-slug"
               name="slug"
-              className="mt-1 mb-3 block w-full max-w-md rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+              className="champ mt-1 mb-3 block w-full max-w-md"
               value={slug}
               onChange={(event) => {
                 setSlug(event.target.value);
@@ -362,7 +362,7 @@ export function Reglages({
             />
             <button
               type="submit"
-              className="rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+              className="bouton"
             >
               {fr("Enregistrer")}
             </button>
@@ -375,7 +375,7 @@ export function Reglages({
             </h2>
             {horsLigne ? (
               <p
-                className="rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-4 py-3 text-encre"
+                className="message-info"
                 role="status"
                 data-testid="reglages-reference-hors-ligne"
               >
@@ -388,7 +388,7 @@ export function Reglages({
             <input
               id="reference-modele"
               data-testid="reglages-reference-modele"
-              className="mt-1 mb-3 w-full max-w-md rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+              className="champ mt-1 mb-3 w-full max-w-md"
               value={modeleReference}
               onChange={(event) => {
                 setModeleReference(event.target.value);
@@ -404,7 +404,7 @@ export function Reglages({
             <select
               id="reference-politique"
               data-testid="reglages-reference-politique"
-              className="mt-1 mb-3 w-full max-w-xs rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+              className="champ mt-1 mb-3 w-full max-w-xs"
               value={remiseAZero}
               onChange={(event) => {
                 const valeur = event.target.value;
@@ -422,7 +422,7 @@ export function Reglages({
               data-testid="reglages-reference-numero-depart"
               type="number"
               min={1}
-              className="mt-1 mb-3 w-full max-w-xs rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+              className="champ mt-1 mb-3 w-full max-w-xs"
               value={numeroDepart}
               onChange={(event) => {
                 setNumeroDepart(event.target.value);
@@ -437,7 +437,7 @@ export function Reglages({
             <button
               type="button"
               data-testid="reglages-reference-enregistrer"
-              className="rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+              className="bouton"
               disabled={horsLigne}
               onClick={() => {
                 void enregistrerReference();
@@ -467,7 +467,7 @@ export function Reglages({
 
           {refusMessage !== null ? (
             <p
-              className="rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-4 py-3 text-encre"
+              className="message-info"
               role="status"
               data-testid="refus-sync"
             >
@@ -477,7 +477,7 @@ export function Reglages({
 
           {conflits > 0 ? (
             <p
-              className="rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-4 py-3 text-encre"
+              className="message-info"
               role="status"
               data-testid="conflit-sync"
             >
@@ -491,7 +491,7 @@ export function Reglages({
             {onReconnect !== undefined ? (
               <button
                 type="button"
-                className="rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-[length:var(--font-size-dense)] text-graphite"
+                className="bouton text-graphite"
                 data-testid="se-reconnecter"
                 onClick={onReconnect}
               >
@@ -501,7 +501,7 @@ export function Reglages({
             {onResetSession !== undefined ? (
               <button
                 type="button"
-                className="rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-[length:var(--font-size-dense)] text-graphite"
+                className="bouton"
                 onClick={() => {
                   void clearSession().then(() => {
                     onResetSession();

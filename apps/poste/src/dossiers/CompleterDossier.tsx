@@ -3,6 +3,7 @@ import type { SubmitEvent } from "react";
 import { ajouterPartie, ecrireContact, lierDossiers } from "@/dossiers/ecrireContact";
 import type { NatureContact, RolePartie, TypeClient } from "@/dossiers/ecrireContact";
 import { majusculeInitiale } from "@/dossiers/majusculeInitiale";
+import { PanneauLateral } from "@/coque/PanneauLateral";
 import { fr } from "@/lib/fr";
 import { libelleReferenceDossier } from "@/lib/referenceDossier";
 import { getPowerSyncDatabase } from "@/sync/database";
@@ -26,7 +27,7 @@ type DossierLien = { id: string; nom: string; reference: string | null };
 
 export function CompleterDossier({ dossierId }: { dossierId: string }) {
   const [message, setMessage] = useState("");
-  const [ouvert, setOuvert] = useState(true);
+  const [ouvert, setOuvert] = useState(false);
   const [recherche, setRecherche] = useState("");
   const [dossiers, setDossiers] = useState<DossierLien[]>([]);
   const [choisiId, setChoisiId] = useState("");
@@ -116,32 +117,37 @@ export function CompleterDossier({ dossierId }: { dossierId: string }) {
   }
 
   return (
-    <aside
-      className="mt-4 max-w-md rounded-[var(--radius-control)] border border-filet bg-feuille p-4 text-encre"
-      data-testid="panneau-parties"
-    >
+    <div className="contents" data-testid="panneau-parties">
       <button
         type="button"
-        className="font-extrabold"
+        className="bouton-chemise"
         data-testid="panneau-parties-ouvrir"
         aria-expanded={ouvert}
         onClick={() => {
-          setOuvert((actuel) => !actuel);
+          setOuvert(true);
         }}
       >
         {fr("Parties et dossiers liés")}
       </button>
-      {ouvert ? (
-        <div className="mt-3" data-testid="completer-dossier">
-          <form onSubmit={(event) => void ajouter(event)}>
-            <label className="block text-[length:var(--font-size-dense)] text-graphite" htmlFor="partie-role">
+      <PanneauLateral
+        ouvert={ouvert}
+        titre="Parties et dossiers liés"
+        sousTitre="Ajouter une partie au dossier ou le lier à un autre dossier."
+        onFermer={() => {
+          setOuvert(false);
+        }}
+      >
+        <div data-testid="completer-dossier">
+          <form className="panneau-lateral__section" onSubmit={(event) => void ajouter(event)}>
+            <h3 className="feuille-titre mb-3">{fr("Ajouter une partie")}</h3>
+            <label className="etiquette-champ" htmlFor="partie-role">
               {fr("Rôle")}
             </label>
             <select
               id="partie-role"
               name="role"
               data-testid="partie-role"
-              className="mt-1 mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+              className="champ mb-3"
               defaultValue="adversaire"
             >
               {ROLES.map((role) => (
@@ -150,7 +156,7 @@ export function CompleterDossier({ dossierId }: { dossierId: string }) {
                 </option>
               ))}
             </select>
-            <label className="block text-[length:var(--font-size-dense)] text-graphite" htmlFor="partie-nom">
+            <label className="etiquette-champ" htmlFor="partie-nom">
               {fr("Nom de la partie")}
             </label>
             <input
@@ -158,16 +164,16 @@ export function CompleterDossier({ dossierId }: { dossierId: string }) {
               name="nom"
               required
               data-testid="partie-nom"
-              className="mt-1 mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+              className="champ mb-3"
             />
-            <label className="block text-[length:var(--font-size-dense)] text-graphite" htmlFor="contact-nature">
+            <label className="etiquette-champ" htmlFor="contact-nature">
               {fr("Nature")}
             </label>
             <select
               id="contact-nature"
               name="nature"
               data-testid="contact-nature"
-              className="mt-1 mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+              className="champ mb-3"
               defaultValue="morale"
             >
               {NATURES.map((nature) => (
@@ -176,41 +182,41 @@ export function CompleterDossier({ dossierId }: { dossierId: string }) {
                 </option>
               ))}
             </select>
-            <label className="block text-[length:var(--font-size-dense)] text-graphite" htmlFor="contact-nom">
+            <label className="etiquette-champ" htmlFor="contact-nom">
               {fr("Contact")}
             </label>
             <input
               id="contact-nom"
               name="contact_nom"
               data-testid="contact-nom"
-              className="mt-1 mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+              className="champ mb-3"
             />
-            <label className="block text-[length:var(--font-size-dense)] text-graphite" htmlFor="contact-siren">
+            <label className="etiquette-champ" htmlFor="contact-siren">
               {fr("SIREN")}
             </label>
             <input
               id="contact-siren"
               name="siren"
               data-testid="contact-siren"
-              className="mt-1 mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+              className="champ mb-3"
             />
-            <label className="block text-[length:var(--font-size-dense)] text-graphite" htmlFor="contact-tva">
+            <label className="etiquette-champ" htmlFor="contact-tva">
               {fr("Numéro de TVA")}
             </label>
             <input
               id="contact-tva"
               name="numero_tva"
               data-testid="contact-tva"
-              className="mt-1 mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+              className="champ mb-3"
             />
-            <label className="block text-[length:var(--font-size-dense)] text-graphite" htmlFor="contact-type">
+            <label className="etiquette-champ" htmlFor="contact-type">
               {fr("Type de client")}
             </label>
             <select
               id="contact-type"
               name="type_client"
               data-testid="contact-type"
-              className="mt-1 mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+              className="champ mb-3"
               defaultValue="professionnel"
             >
               {TYPES.map((type) => (
@@ -222,20 +228,23 @@ export function CompleterDossier({ dossierId }: { dossierId: string }) {
             <button
               type="submit"
               data-testid="partie-ajouter"
-              className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+              className="bouton bouton--prim"
             >
               {fr("Ajouter la partie")}
             </button>
           </form>
-          <form className="mt-3" onSubmit={(event) => void lier(event)}>
-            <label className="block text-[length:var(--font-size-dense)] text-graphite" htmlFor="lien-recherche">
+          <form className="panneau-lateral__section" onSubmit={(event) => void lier(event)}>
+            <h3 className="feuille-titre mb-3">{fr("Lier un autre dossier")}</h3>
+            <label className="etiquette-champ" htmlFor="lien-recherche">
               {fr("Dossier lié")}
             </label>
             <input
               id="lien-recherche"
               data-testid="lien-recherche"
               value={recherche}
-              className="mt-1 mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+              placeholder={fr("Nom ou référence du dossier")}
+              autoComplete="off"
+              className="champ"
               onChange={(event) => {
                 setRecherche(event.target.value);
                 setChoisiId("");
@@ -251,12 +260,14 @@ export function CompleterDossier({ dossierId }: { dossierId: string }) {
                 setChoisiId(event.target.value);
               }}
             />
-            <ul data-testid="lien-resultats">
+            <ul className="choix-dossier__liste mb-3" role="listbox" data-testid="lien-resultats">
               {trouves.slice(0, 8).map((ligne) => (
-                <li key={ligne.id}>
+                <li key={ligne.id} role="presentation">
                   <button
                     type="button"
-                    className="block w-full py-1 text-left"
+                    className="choix-dossier__option"
+                    role="option"
+                    aria-selected={choisiId === ligne.id}
                     data-testid="lien-resultat"
                     onClick={() => {
                       setChoisiId(ligne.id);
@@ -273,7 +284,7 @@ export function CompleterDossier({ dossierId }: { dossierId: string }) {
             <button
               type="submit"
               data-testid="lien-ajouter"
-              className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+              className="bouton"
             >
               {fr("Lier les dossiers")}
             </button>
@@ -282,7 +293,7 @@ export function CompleterDossier({ dossierId }: { dossierId: string }) {
             {message}
           </p>
         </div>
-      ) : null}
-    </aside>
+      </PanneauLateral>
+    </div>
   );
 }

@@ -237,23 +237,23 @@ export function FormulaireTemps({
 
   return (
     <form
-      className="mb-8"
+      className="temps-formulaire"
       onSubmit={(event) => void soumettre(event)}
       onInput={(event) => {
         relireApercu(event.currentTarget);
       }}
     >
-      <h2 className="mb-3 text-[length:var(--font-size-section)] font-bold">{fr("Saisir du temps")}</h2>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <h2 className="feuille-titre mb-3">{fr("Saisir du temps")}</h2>
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
         <div>
-          <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="temps-dossier">
+          <label className="etiquette-champ" htmlFor="temps-dossier">
             {fr("Dossier")}
           </label>
           <select
             id="temps-dossier"
             name="dossier_id"
             required
-            className="mt-1 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+            className="champ w-full"
             data-testid="temps-dossier"
             value={dossierSelect}
             onChange={(event) => {
@@ -269,7 +269,7 @@ export function FormulaireTemps({
           </select>
         </div>
         <div>
-          <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="temps-minutes">
+          <label className="etiquette-champ" htmlFor="temps-minutes">
             {fr("Durée")}
           </label>
           <input
@@ -278,11 +278,11 @@ export function FormulaireTemps({
             type="text"
             required
             placeholder={fr("1 h 30, 45 min ou 0,75")}
-            className="mt-1 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+            className="champ w-full"
           />
         </div>
       </div>
-      <label className="mt-3 block text-[length:var(--font-size-dense)] text-graphite" htmlFor="temps-libelle">
+      <label className="etiquette-champ mt-3" htmlFor="temps-libelle">
         {fr("Description")}
       </label>
       <input
@@ -290,10 +290,10 @@ export function FormulaireTemps({
         name="libelle"
         required
         placeholder={fr("Ce que vous avez fait")}
-        className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+        className="champ mb-3 w-full"
       />
-      <div className="mb-3 flex items-center gap-2">
-        <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="temps-taux">
+      <div className="mb-3 flex items-center gap-3">
+        <label className="etiquette-champ mb-0" htmlFor="temps-taux">
           {fr("Taux, euros par heure")}
         </label>
         <input
@@ -305,10 +305,10 @@ export function FormulaireTemps({
           required
           placeholder={fr("60 ou 60,50")}
           defaultValue={eurosDepuisCentimes(tauxSuggere)}
-          className="w-28 rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+          className="champ w-28"
         />
       </div>
-      <p className="mb-3 text-encre" data-testid="temps-apercu">
+      <p className="mb-3 text-[length:var(--font-size-dense)] text-graphite" data-testid="temps-apercu">
         {apercu !== null && apercu.minutes !== null && apercu.ht !== null
           ? fr(
               `${formatDuree(apercu.minutes * 60)}, ${formatMontant(apercu.ht)}, taux ${formatMontant(apercu.taux)} par heure, figé à l'enregistrement`,
@@ -318,7 +318,7 @@ export function FormulaireTemps({
             )}
       </p>
       {modeFacture ? (
-        <p className="mb-3 text-encre" data-testid="convention-mode-facture">
+        <p className="mb-3 text-[length:var(--font-size-dense)]" data-testid="convention-mode-facture">
           {fr(
             modeFacture === "forfait"
               ? "Honoraires au forfait."
@@ -329,13 +329,13 @@ export function FormulaireTemps({
         </p>
       ) : null}
       {alerteFacture ? (
-        <p className="mb-3 text-encre" data-testid="alerte-convention-facture" role="status">
+        <p className="message-info mb-3" data-testid="alerte-convention-facture" role="status">
           {fr("Aucune convention d'honoraires signée.")}
         </p>
       ) : null}
       <button
         type="submit"
-        className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+        className="bouton bouton--prim"
       >
         {fr("Enregistrer")}
       </button>
@@ -343,7 +343,7 @@ export function FormulaireTemps({
         <button
           id="valider-facture"
           type="button"
-          className="ml-2 rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+          className="bouton ml-2"
           onClick={() => void validerEnLigne()}
         >
           {fr("Valider")}

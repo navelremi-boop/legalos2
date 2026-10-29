@@ -37,7 +37,7 @@ export const JOURNEE_DEMO: DonneesJournee = {
     {
       id: "aud-1",
       titre: "Audience de mise en état",
-      meta: "TJ Nanterre",
+      meta: "Tribunal judiciaire de Nanterre",
       heure: "9 h 30",
       dossier: { nom: "Ferrand Métal", chemise: "kraft", reference: "2026-042" },
     },
@@ -59,7 +59,7 @@ export const JOURNEE_DEMO: DonneesJournee = {
   delais: [
     {
       id: "del-1",
-      titre: "Conclusions adverses",
+      titre: "Conclusions en réplique",
       meta: "",
       jours: 5,
       calcule: true,
@@ -71,14 +71,14 @@ export const JOURNEE_DEMO: DonneesJournee = {
       titre: "Appel incident",
       meta: APPEL_GALERIE?.libelle ?? "",
       jours: APPEL_GALERIE?.jours,
-      dossier: { nom: "Martin / Assurances Loire", chemise: "bleu-classeur", reference: "2026-031" },
+      dossier: { nom: "Martin c/ Assurances Loire", chemise: "bleu-classeur", reference: "2026-031" },
       urgent: true,
     },
   ],
   mails: [
     {
       id: "mail-1",
-      titre: "Me Dupont — pièces jointes",
+      titre: "Pièces n° 12 et 13, de Me Vasseur",
       meta: "Suggéré : Ferrand Métal",
       extrait: "Les pièces 12 et 13 sont jointes.",
       dossier: { nom: "Ferrand Métal", chemise: "kraft", reference: "2026-042" },
@@ -86,9 +86,9 @@ export const JOURNEE_DEMO: DonneesJournee = {
     },
     {
       id: "mail-2",
-      titre: "Assurances Loire — mise en demeure",
-      meta: "Suggéré : Martin / Assurances Loire",
-      dossier: { nom: "Martin / Assurances Loire", chemise: "bleu-classeur", reference: "2026-031" },
+      titre: "Mise en demeure, SA Assurances Loire",
+      meta: "Suggéré : Martin c/ Assurances Loire",
+      dossier: { nom: "Martin c/ Assurances Loire", chemise: "bleu-classeur", reference: "2026-031" },
       classer: { messageId: "mail-2", dossierId: "martin" },
     },
   ],

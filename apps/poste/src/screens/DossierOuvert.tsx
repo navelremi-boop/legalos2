@@ -26,6 +26,8 @@ import { CompleterDossier } from "@/dossiers/CompleterDossier";
 import type { ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
 import { getPowerSyncDatabase } from "@/sync/database";
+import { decalerJour, jourCivil } from "@/agenda/navigationAgenda";
+import { formatDateCourte } from "@/lib/format";
 
 export type DossierVue = {
   id: string;
@@ -254,8 +256,8 @@ export function DossierOuvert({
       data-testid="ecran-dossier"
       data-dossier-id={dossier.id}
     >
-      <div className="grid grid-cols-[1fr_auto] items-start gap-7">
-        <div>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-6">
+        <div className="min-w-0">
           <EtiquetteDossier reference={dossier.reference} nom={dossier.nom} />
           <InfosDossier
             juridiction={dossier.juridiction}
@@ -267,29 +269,31 @@ export function DossierOuvert({
             etape={dossier.etape}
             lies={dossier.lies}
           />
-          <PanneauConvention dossierId={dossier.id} />
+          <div className="dossier-tete__actions">
+            <PanneauConvention dossierId={dossier.id} />
+            {intercalairesSync ? <CompleterDossier dossierId={dossier.id} /> : null}
+          </div>
           {conflitDossier ? (
-            <p data-testid="dossier-conflit" role="status">
+            <p className="message-info mt-3 max-w-[var(--lecture-max)]" data-testid="dossier-conflit" role="status">
               {fr(
                 `Conflit sur ${conflitDossier.champ} : « ${conflitDossier.valeur_remplacee ?? ""} » remplacé par « ${conflitDossier.valeur_appliquee ?? ""} ».`,
               )}
             </p>
           ) : null}
           {conflitContact ? (
-            <p data-testid="contact-conflit" role="status">
+            <p className="message-info mt-2 max-w-[var(--lecture-max)]" data-testid="contact-conflit" role="status">
               {fr(
                 `Conflit de contact sur ${conflitContact.champ} : « ${conflitContact.valeur_remplacee ?? ""} » remplacé par « ${conflitContact.valeur_appliquee ?? ""} ».`,
               )}
             </p>
           ) : null}
-          <ul data-testid="contact-historique">
+          <ul className="mt-2 text-[length:var(--font-size-dense)] text-sur-chemise" data-testid="contact-historique">
             {historique.map((ligne, index) => (
               <li key={`${ligne.champ}-${String(index)}`}>
                 {fr(`${ligne.champ} : ${ligne.valeur_appliquee ?? ""}`)}
               </li>
             ))}
           </ul>
-          {intercalairesSync ? <CompleterDossier dossierId={dossier.id} /> : null}
         </div>
         {dossier.echeanceDemo ? (
           <JaugeEcheance
@@ -315,7 +319,7 @@ export function DossierOuvert({
             <div className="p-[22px] pb-24" data-testid="vue-intercalaire-perso">
               {conflits.length > 0 ? (
                 <div
-                  className="mb-4 rounded-[var(--radius-control)] bg-survol px-3 py-2 text-[length:var(--font-size-dense)]"
+                  className="message-info mb-4"
                   data-testid="intercalaire-conflit"
                   role="status"
                 >
@@ -324,11 +328,12 @@ export function DossierOuvert({
                   )}
                 </div>
               ) : null}
-              <label className="mb-2 block text-[length:var(--font-size-dense)] text-graphite">
+              <label className="etiquette-champ" htmlFor="intercalaire-renommer">
                 {fr("Nom de l'intercalaire")}
               </label>
               <input
-                className="mb-4 w-full max-w-md rounded-[var(--radius-control)] border border-filet bg-feuille px-3 py-2 text-encre"
+                id="intercalaire-renommer"
+                className="champ mb-4 max-w-md"
                 data-testid="intercalaire-renommer"
                 value={nomEdition}
                 maxLength={24}
@@ -351,7 +356,7 @@ export function DossierOuvert({
                   }
                 }}
               />
-              <p className="mb-4 text-graphite">
+              <p className="mb-4 max-w-[var(--lecture-max)] text-graphite">
                 {fr(
                   "Intercalaire créé pour ce dossier. Rattachez-y des éléments du chrono : ils resteront aussi visibles dans le chrono.",
                 )}
@@ -363,7 +368,7 @@ export function DossierOuvert({
                   elementsActifs.map((el) => (
                     <li
                       key={el.id}
-                      className="rounded-[var(--radius-control)] border border-filet px-3 py-2"
+                      className="liste-element"
                       data-testid="intercalaire-element"
                       data-element-id={el.element_id}
                       data-type={el.type_element}
@@ -376,7 +381,7 @@ export function DossierOuvert({
               </ul>
               <button
                 type="button"
-                className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                className="bouton"
                 data-testid="intercalaire-rattacher-note"
                 onClick={() => {
                   void rattacherElement({
@@ -394,10 +399,10 @@ export function DossierOuvert({
             <ArborescencePieces dossierId={dossier.id} />
           ) : (
             <div className="p-[22px] pb-24">
-              <h3 className="mb-2 text-[length:var(--font-size-section)] font-extrabold">
+              <h3 className="feuille-titre mb-2">
                 {fr(titreStandard)}
               </h3>
-              <p className="text-graphite">
+              <p className="etat-vide">
                 {fr("Vue non détaillée dans cette version.")}
               </p>
             </div>
@@ -446,69 +451,68 @@ export function DossierOuvert({
 /** Jeu fictif pour démonstration / captures (trois chemises du prototype). */
 export type DossierDemo = DossierVue;
 
+/** Échéance fictive à `jours` du jour courant, pour des captures toujours datées dans le futur. */
+function echeanceDemo(jours: number, partEcoulee: number, intitule: string): DossierVue["echeanceDemo"] {
+  const jour = decalerJour(jourCivil(new Date()), jours);
+  return { joursRestants: jours, partEcoulee, intitule, dateLibelle: `échéance le ${formatDateCourte(jour)}` };
+}
+
 export const DOSSIERS_DEMO: DossierDemo[] = [
   {
     id: "demo-kraft",
     reference: "2026-042",
     nom: "Ferrand Métal",
     chemise: "kraft",
-    juridiction: "TJ Nanterre",
+    juridiction: "Tribunal judiciaire de Nanterre",
     numeroRg: "24/03812",
     client: "SAS Ferrand Métal",
-    adversaire: "Sté Dupuis Outillage",
-    echeanceDemo: {
-      joursRestants: 5,
-      partEcoulee: 0.62,
-      intitule: "Conclusions adverses",
-      dateLibelle: "échéance le 3 oct.",
-    },
+    adversaire: "SARL Dupuis Outillage",
+    confrere: "Me Clément Vasseur",
+    typeDossier: "contentieux",
+    etape: "instruction",
+    lies: "2026-019, recouvrement Ferrand Métal",
+    echeanceDemo: echeanceDemo(5, 0.62, "Conclusions en réplique"),
   },
   {
     id: "demo-bleu",
-    reference: "2026-018",
-    nom: "Martin / Assurances Loire",
+    reference: "2026-031",
+    nom: "Martin c/ Assurances Loire",
     chemise: "bleu-classeur",
-    juridiction: "CA Paris",
+    juridiction: "Cour d'appel de Lyon",
     numeroRg: "25/00441",
-    client: "Me Martin",
-    adversaire: "Assurances Loire",
-    echeanceDemo: {
-      joursRestants: 2,
-      partEcoulee: 0.8,
-      intitule: "Appel incident",
-      dateLibelle: "échéance le 29 sept.",
-    },
+    client: "M. Paul Martin",
+    adversaire: "SA Assurances Loire",
+    confrere: "Me Anne Perrin",
+    typeDossier: "contentieux",
+    etape: "plaidoirie",
+    echeanceDemo: echeanceDemo(2, 0.8, "Appel incident"),
   },
   {
     id: "demo-amande",
-    reference: "2026-007",
+    reference: "2026-038",
     nom: "SCI des Lilas",
     chemise: "vert-amande",
-    juridiction: "TJ Lyon",
+    juridiction: "Tribunal judiciaire de Lyon",
     numeroRg: "23/01990",
     client: "SCI des Lilas",
-    adversaire: "M. Durand",
-    echeanceDemo: {
-      joursRestants: 12,
-      partEcoulee: 0.35,
-      intitule: "Mémoire ampliatif",
-      dateLibelle: "échéance le 15 oct.",
-    },
+    adversaire: "M. Henri Durand",
+    confrere: "Me Sophie Roche",
+    typeDossier: "contentieux",
+    etape: "ouverture",
+    echeanceDemo: echeanceDemo(12, 0.35, "Mémoire en réponse"),
   },
   {
     id: "demo-lilas",
-    reference: "2026-031",
-    nom: "Époux Bernard",
+    reference: "2026-057",
+    nom: "Succession Moreau",
     chemise: "lilas",
-    juridiction: "TJ Bordeaux",
-    numeroRg: "25/01102",
-    client: "Époux Bernard",
-    adversaire: "Banque Atlantique",
-    echeanceDemo: {
-      joursRestants: 8,
-      partEcoulee: 0.45,
-      intitule: "Conclusions",
-      dateLibelle: "échéance le 10 oct.",
-    },
+    juridiction: "Tribunal judiciaire de Lyon",
+    numeroRg: "26/00718",
+    client: "Mme Claire Moreau",
+    adversaire: "M. Julien Moreau",
+    confrere: "Me Lucas Garnier",
+    typeDossier: "conseil",
+    etape: "instruction",
+    echeanceDemo: echeanceDemo(8, 0.45, "Projet d'acte de partage"),
   },
 ];

@@ -157,7 +157,7 @@ export function ArborescencePieces({ dossierId }: ArborescencePiecesProps) {
         ) : null}
         <button
           type="button"
-          className="rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-[length:var(--font-size-dense)] text-encre"
+          className="bouton bouton--petit"
           data-testid="ouvrir-document"
           data-document-id={doc.id}
           onClick={() => {
@@ -200,7 +200,7 @@ export function ArborescencePieces({ dossierId }: ArborescencePiecesProps) {
       <input
         id="recherche-documents"
         data-testid="recherche-documents"
-        className="mb-4 w-full max-w-md rounded-[var(--radius-control)] border border-filet bg-feuille px-3 py-2 text-encre"
+        className="champ mb-4 max-w-md"
         value={recherche}
         onChange={(event) => {
           const valeur = event.target.value;

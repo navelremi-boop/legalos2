@@ -8,7 +8,7 @@ import {
 import { fr } from "@/lib/fr";
 
 const champClass =
-  "mt-1 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre";
+  "champ mt-1";
 
 type EcranConnexionProps = {
   etat: EtatConnexion;
@@ -107,7 +107,7 @@ export function EcranConnexion({ etat, onContinuer }: EcranConnexionProps) {
         <p className="mt-4">
           <button
             type="button"
-            className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+            className="bouton"
             data-testid="connexion-continuer"
             onClick={() => {
               onContinuer?.();

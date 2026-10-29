@@ -76,7 +76,7 @@ export function PaletteCommandes({
       <button
         type="button"
         id="ouvrir-palette"
-        className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+        className="bouton"
         onClick={() => {
           setOuverte(true);
         }}
@@ -93,7 +93,7 @@ export function PaletteCommandes({
       </label>
       <input
         id="palette-recherche"
-        className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+        className="champ mt-1 mb-3 w-full"
         value={requete}
         onChange={(event) => {
           setRequete(event.target.value);

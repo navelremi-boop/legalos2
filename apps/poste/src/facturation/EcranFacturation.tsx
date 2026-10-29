@@ -26,7 +26,7 @@ export function EcranFacturation({
 }: EcranFacturationProps) {
   return (
     <div
-      className="fond-neutre relative flex h-full min-h-0 flex-col px-[30px] pt-[28px]"
+      className="fond-neutre relative flex h-full min-h-0 flex-col ecran"
       data-testid="ecran-facturation"
       data-fond="neutre"
     >

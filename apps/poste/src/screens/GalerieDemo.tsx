@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BarreHaut } from "@/coque/BarreHaut";
 import { MenuCompte } from "@/coque/MenuCompte";
 import { CHRONO_DEMO } from "@/coque/chrono/donneesDemo";
@@ -154,6 +154,15 @@ const messagerieDemo: DemonstrationMessagerie = {
  * Absente des builds distribués. Inclut la barre du haut pour comparer au prototype.
  */
 export function GalerieDemo() {
+  /** `&plein=1` : la scène occupe toute la fenêtre (captures à 1366, 1920 et 2560 px), les commandes passent dessous. */
+  const plein = new URLSearchParams(window.location.search).has("plein");
+  useEffect(() => {
+    if (!plein) return;
+    document.documentElement.classList.add("galerie-plein");
+    return () => {
+      document.documentElement.classList.remove("galerie-plein");
+    };
+  }, [plein]);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [chemise, setChemise] = useState<ChemiseId>("kraft");
   /** Dernière entrée choisie dans le menu du compte (la galerie n'exécute rien), lue par les recettes. */
@@ -219,9 +228,9 @@ export function GalerieDemo() {
         { id: "compte-partage", adresse: "contact@cabinet-marchal.example", type_compte: "partage" },
       ],
       dossiers: [
-        { id: "d-tilleuls", nom: "SCI Les Tilleuls", chemise: "kraft", reference: "2026-042" },
-        { id: "d-ferrand", nom: "Ferrand Métal", chemise: "bleu-classeur", reference: "2026-031" },
-        { id: "d-moreau", nom: "Succession Moreau", chemise: "vert-amande", reference: "2026-057" },
+        { id: "d-tilleuls", nom: "SCI Les Tilleuls", chemise: "jaune-paille", reference: "2026-044" },
+        { id: "d-ferrand", nom: "Ferrand Métal", chemise: "kraft", reference: "2026-042" },
+        { id: "d-moreau", nom: "Succession Moreau", chemise: "lilas", reference: "2026-057" },
       ],
       file: [
         {
@@ -409,12 +418,48 @@ export function GalerieDemo() {
         ],
       },
       {
+        id: "martin",
+        nom: "Martin c/ Assurances Loire",
+        chemise: "bleu-classeur",
+        reference: "2026-031",
+        type_dossier: "contentieux",
+        etape: "plaidoirie",
+        echeance_titre: "Appel incident",
+        echeance_debut: jourDans(2),
+        non_lus: 1,
+        parties: [
+          { role: "client", nom: "M. Paul Martin" },
+          { role: "adversaire", nom: "SA Assurances Loire" },
+        ],
+      },
+      {
+        id: "moreau",
+        nom: "Succession Moreau",
+        chemise: "lilas",
+        reference: "2026-057",
+        type_dossier: "conseil",
+        etape: "instruction",
+        echeance_titre: "Projet d'acte de partage",
+        echeance_debut: jourDans(8),
+        parties: [{ role: "client", nom: "Mme Claire Moreau" }],
+      },
+      {
         id: "lilas",
         nom: "SCI des Lilas",
         chemise: "vert-amande",
         reference: "2026-038",
         type_dossier: "conseil",
         etape: "ouverture",
+      },
+      {
+        id: "tilleuls",
+        nom: "SCI Les Tilleuls",
+        chemise: "jaune-paille",
+        reference: "2026-044",
+        type_dossier: "contentieux",
+        etape: "jugement",
+        echeance_titre: "Signification du jugement",
+        echeance_debut: jourDans(23),
       },
     ],
     [],
@@ -524,7 +569,7 @@ export function GalerieDemo() {
           reference: "2026-042",
           nom: "Ferrand Métal",
           chemise,
-          juridiction: "TJ Nanterre",
+          juridiction: "Tribunal judiciaire de Nanterre",
           numeroRg: "24/03812",
           client: "SAS Ferrand Métal",
           adversaire: "Sté Dupuis Outillage",
@@ -543,9 +588,9 @@ export function GalerieDemo() {
   );
 
   return (
-    <div className="min-h-screen bg-page p-6" data-testid="galerie-demo">
+    <div className={plein ? "flex flex-col bg-page" : "min-h-screen bg-page p-6"} data-testid="galerie-demo">
       <header
-        className="mb-4 flex flex-wrap items-center gap-3"
+        className={plein ? "order-2 flex flex-wrap items-center gap-3 p-4" : "mb-4 flex flex-wrap items-center gap-3"}
         data-testid="galerie-commandes"
       >
         <h1 className="text-[length:var(--font-size-section)] font-extrabold text-encre">
@@ -655,7 +700,11 @@ export function GalerieDemo() {
       </header>
 
       <div
-        className="coque-app mx-auto h-[800px] max-w-[1240px] overflow-hidden rounded-[14px]"
+        className={
+          plein
+            ? "coque-app order-1 h-screen w-screen overflow-hidden"
+            : "coque-app mx-auto h-[800px] max-w-[1240px] overflow-hidden rounded-[14px]"
+        }
         data-testid="galerie-scene"
         data-theme-capture={theme}
         data-chemise-capture={vue === "dossier" ? chemise : "neutre"}

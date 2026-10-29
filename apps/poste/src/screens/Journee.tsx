@@ -166,7 +166,7 @@ function Section({
               {ligne.classer ? (
                 <button
                   type="button"
-                  className="rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+                  className="bouton bouton--petit"
                   data-testid="journee-classer"
                   onClick={() => {
                     onClasser?.(ligne.classer?.messageId ?? "", ligne.classer?.dossierId ?? "");
@@ -189,7 +189,7 @@ function Section({
                 >
                   <select
                     name="dossier"
-                    className="rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+                    className="champ"
                     data-testid="journee-choix-dossier"
                     defaultValue={ligne.classer.dossierId}
                   >
@@ -201,7 +201,7 @@ function Section({
                   </select>
                   <button
                     type="submit"
-                    className="rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+                    className="bouton bouton--petit"
                   >
                     {fr("Classer")}
                   </button>
@@ -213,7 +213,7 @@ function Section({
               {ligne.classer && choixOuvert !== ligne.id ? (
                 <button
                   type="button"
-                  className="rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+                  className="bouton bouton--petit"
                   data-testid="journee-autre-dossier"
                   onClick={() => {
                     onAutre?.(ligne.id);
@@ -230,7 +230,7 @@ function Section({
               {ligne.saisir ? (
                 <button
                   type="button"
-                  className="rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+                  className="bouton bouton--petit"
                   data-testid="journee-saisir"
                   onClick={() => {
                     onSaisir?.();
@@ -498,7 +498,7 @@ export function Journee({
 
   return (
     <div
-      className="fond-neutre relative flex h-full min-h-0 flex-col px-[30px] pt-[28px] pb-0"
+      className="fond-neutre relative flex h-full min-h-0 flex-col ecran pb-0"
       data-testid="ecran-journee"
       data-fond="neutre"
     >

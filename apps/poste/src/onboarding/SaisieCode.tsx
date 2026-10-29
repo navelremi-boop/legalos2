@@ -2,7 +2,7 @@ import { chiffresCode, repartirCode } from "@/onboarding/codeConnexion";
 import { fr } from "@/lib/fr";
 
 const caseClass =
-  "w-10 rounded-[var(--radius-control)] border border-filet bg-feuille px-0 py-2 text-center text-encre";
+  "champ w-10 px-0 text-center";
 
 type SaisieCodeProps = {
   valeur: string;

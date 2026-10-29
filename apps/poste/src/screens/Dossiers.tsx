@@ -307,7 +307,7 @@ export function Dossiers({
 
   return (
     <div
-      className="fond-neutre relative flex h-full min-h-0 flex-col px-[30px] pt-[28px]"
+      className="fond-neutre relative flex h-full min-h-0 flex-col ecran"
       data-testid="ecran-dossiers"
       data-fond="neutre"
     >
@@ -332,7 +332,7 @@ export function Dossiers({
             <span className="sr-only">{fr("Rechercher un dossier")}</span>
             <input
               type="search"
-              className="w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+              className="champ w-full"
               placeholder={fr("Rechercher un dossier : nom, référence, numéro RG, client, adversaire")}
               aria-label={fr("Rechercher un dossier")}
               data-testid="dossiers-recherche"
@@ -358,7 +358,7 @@ export function Dossiers({
                   <button
                     key={entree.id}
                     type="button"
-                    className="rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+                    className="bouton bouton--petit"
                     aria-pressed={presse}
                     data-testid={`dossiers-filtre-${entree.id}`}
                     onClick={() => {
@@ -374,7 +374,7 @@ export function Dossiers({
             <label className="text-graphite">
               {fr("Trier par")}{" "}
               <select
-                className="rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+                className="champ"
                 aria-label={fr("Trier les dossiers")}
                 data-testid="dossiers-tri"
                 value={tri}
@@ -595,7 +595,7 @@ export function Dossiers({
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                  className="bouton"
                   data-testid="dossier-ouvrir"
                   onClick={() => {
                     onOuvrirDossier?.(choisi.id, choisi.nom, choisi.chemise, choisi.reference);
@@ -605,7 +605,7 @@ export function Dossiers({
                 </button>
                 <button
                   type="button"
-                  className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                  className="bouton"
                   onClick={() => {
                     onNouveauMail?.();
                   }}
@@ -614,7 +614,7 @@ export function Dossiers({
                 </button>
                 <button
                   type="button"
-                  className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                  className="bouton"
                   onClick={() => {
                     onSaisirTemps?.();
                   }}

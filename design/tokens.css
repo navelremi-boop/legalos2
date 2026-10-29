@@ -3,9 +3,20 @@
  * Couleurs autorisées uniquement ici ; Tailwind les réexpose via apps/poste/src/index.css.
  */
 
-/* --- Atkinson Hyperlegible Next (OFL 1.1), fichier variable officiel — pas de Google Fonts en prod --- */
+/* --- Atkinson Hyperlegible Next (OFL 1.1) — pas de Google Fonts en prod ---
+   Interface : variante au zéro sans barre (design/fonts/zero-sans-barre.py).
+   Références (dossier, RG, facture) : fichier d'origine, zéro barré (docs/design.md, Chiffres). */
 @font-face {
   font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/fonts/atkinson-hyperlegible-next/AtkinsonHyperlegibleNext-Interface-Variable.ttf")
+    format("truetype");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next Reference";
   font-style: normal;
   font-weight: 400 800;
   font-display: swap;
@@ -41,6 +52,24 @@
   --ok: #2f7d4b;
   --attente: #9a6a12;
   --focus: #141a1c;
+  /* Contrôles (docs/design.md, Composants) */
+  --champ-fond: #ffffff;
+  --champ-bord: #cdd5d3;
+  --champ-bord-survol: #9aa6a9;
+  --bouton-fond: #ffffff;
+  --bouton-survol: #eef2f1;
+  --bouton-prim-fond: #141a1c;
+  --bouton-prim-texte: #f2f5f4;
+  --bouton-prim-survol: #2c3538;
+  --selection-fond: #e9eeec;
+  --anneau-focus: 0 0 0 3px rgb(20 26 28 / 0.16);
+  --erreur-bord: #b42318;
+  --aujourdhui: #141a1c;
+  --ligne-heure: #edf0ef;
+  --panneau-ombre: -24px 0 48px -24px rgb(0 0 0 / 0.35);
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235a6569' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --voile-leger: rgb(16 21 23 / 0.28);
+  --segment-ombre: 0 1px 2px rgb(0 0 0 / 0.08), inset 0 0 0 1px var(--filet);
 
   /* Chrome barre / dock : barre claire en jour (texte sombre sur --barre), sombre en nuit */
   --barre-texte: #141a1c;
@@ -105,6 +134,7 @@
 
   --font-family: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI",
     sans-serif;
+  --font-reference: "Atkinson Hyperlegible Next Reference", var(--font-family);
   --font-size-meta: 12px;
   --font-size-dense: 13px;
   --font-size-base: 14px;
@@ -114,6 +144,27 @@
   --font-size-journee: 28px;
   --line-height-base: 1.45;
   --line-height-mail: 1.6;
+
+  /* Échelle des espacements (docs/design.md) : multiples de 4 px */
+  --espace-1: 4px;
+  --espace-2: 8px;
+  --espace-3: 12px;
+  --espace-4: 16px;
+  --espace-5: 24px;
+  --espace-6: 32px;
+  --espace-7: 48px;
+  --espace-8: 64px;
+
+  /* Grille : une colonne centrée, des gouttières qui grandissent avec l'écran */
+  --gouttiere: clamp(24px, 2.2vw, 48px);
+  --colonne-max: 1440px;
+  --intercalaires-largeur: 136px;
+  --lecture-max: 68ch;
+  --formulaire-max: 520px;
+  --panneau-largeur: 440px;
+  --hauteur-controle: 34px;
+  --hauteur-controle-petit: 28px;
+  --hauteur-ligne-agenda: 52px;
 
   --space-unit: 4px;
   --space-chemise-top: 28px;
@@ -156,6 +207,24 @@
   --sur-chemise: #f2f5f4;
   --texte-sur-neutre: #f2f5f4;
   --focus: #e8eeec;
+  /* Contrôles (docs/design.md, Composants) */
+  --champ-fond: #151b1d;
+  --champ-bord: #3a4549;
+  --champ-bord-survol: #56646a;
+  --bouton-fond: #232b2e;
+  --bouton-survol: #2c3538;
+  --bouton-prim-fond: #e8eeec;
+  --bouton-prim-texte: #141a1c;
+  --bouton-prim-survol: #ffffff;
+  --selection-fond: #273034;
+  --anneau-focus: 0 0 0 3px rgb(232 238 236 / 0.2);
+  --erreur-bord: #f07a6a;
+  --aujourdhui: #e8eeec;
+  --ligne-heure: #232b2e;
+  --panneau-ombre: -24px 0 48px -16px rgb(0 0 0 / 0.7);
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%239ca8ac%27 stroke-width=%272.5%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpath d=%27m6 9 6 6 6-6%27/%3E%3C/svg%3E");
+  --voile-leger: rgb(16 21 23 / 0.5);
+  --segment-ombre: inset 0 0 0 1px rgb(255 255 255 / 0.08);
   --neutre-teinte: #25323a;
   --neutre-encre: #d5e1e5;
   --neutre-accent: #8fb6c6;
@@ -240,6 +309,24 @@
     --sur-chemise: #f2f5f4;
     --texte-sur-neutre: #f2f5f4;
     --focus: #e8eeec;
+    /* Contrôles (docs/design.md, Composants) */
+    --champ-fond: #151b1d;
+    --champ-bord: #3a4549;
+    --champ-bord-survol: #56646a;
+    --bouton-fond: #232b2e;
+    --bouton-survol: #2c3538;
+    --bouton-prim-fond: #e8eeec;
+    --bouton-prim-texte: #141a1c;
+    --bouton-prim-survol: #ffffff;
+    --selection-fond: #273034;
+    --anneau-focus: 0 0 0 3px rgb(232 238 236 / 0.2);
+    --erreur-bord: #f07a6a;
+    --aujourdhui: #e8eeec;
+    --ligne-heure: #232b2e;
+    --panneau-ombre: -24px 0 48px -16px rgb(0 0 0 / 0.7);
+    --chevron: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%239ca8ac%27 stroke-width=%272.5%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpath d=%27m6 9 6 6 6-6%27/%3E%3C/svg%3E");
+    --voile-leger: rgb(16 21 23 / 0.5);
+    --segment-ombre: inset 0 0 0 1px rgb(255 255 255 / 0.08);
     --neutre-teinte: #25323a;
     --neutre-encre: #d5e1e5;
     --neutre-accent: #8fb6c6;

@@ -10,15 +10,23 @@ import {
   MODES_CONVENTION,
   type ConventionDossier,
   type ModeConvention,
+  type StatutConvention,
 } from "@/conventions/stockConvention";
 import { MOTIFS_LEVEE, type MotifLevee } from "@/conventions/alerteConvention";
 import { fr } from "@/lib/fr";
 import { jourCivil } from "@/agenda/navigationAgenda";
+import { PanneauLateral } from "@/coque/PanneauLateral";
 
 const LIBELLE_MODE: Record<ModeConvention, string> = {
   temps: "Temps passé",
   forfait: "Forfait",
   resultat: "Résultat complémentaire",
+};
+
+const LIBELLE_STATUT: Record<StatutConvention, string> = {
+  brouillon: "Brouillon, à envoyer",
+  envoyee: "Envoyée, en attente de signature",
+  signee: "Signée",
 };
 
 const LIBELLE_MOTIF: Record<MotifLevee, string> = {
@@ -35,6 +43,7 @@ export function PanneauConvention({ dossierId }: { dossierId: string }) {
   const [motif, setMotif] = useState<MotifLevee>("urgence");
   const [dateHors, setDateHors] = useState("");
   const [message, setMessage] = useState("");
+  const [ouvert, setOuvert] = useState(false);
   const aujourdhui = jourCivil(new Date());
   const alerte = alerteDuDossier(conventions, aujourdhui);
 
@@ -53,107 +62,152 @@ export function PanneauConvention({ dossierId }: { dossierId: string }) {
   }, [dossierId]);
 
   return (
-    <section className="mt-4 max-w-md space-y-2 text-encre" data-testid="panneau-convention">
+    <section className="contents" data-testid="panneau-convention">
       {alerte ? (
-        <p className="rounded-[var(--radius-control)] bg-feuille px-3 py-2" data-testid="alerte-convention" role="status">
+        <p className="alerte-chemise" data-testid="alerte-convention" role="status">
           {fr("Aucune convention d'honoraires signée.")}
         </p>
       ) : null}
-      <label className="block text-[length:var(--font-size-dense)] text-graphite" htmlFor="convention-mode">
-        {fr("Mode d'honoraires")}
-        <select
-          id="convention-mode"
-          data-testid="convention-mode"
-          className="mt-1 block w-full rounded-[var(--radius-control)] border border-filet bg-feuille px-3 py-2"
-          value={mode}
-          onChange={(event) => {
-            const valeur = event.target.value;
-            if (valeur === "temps" || valeur === "forfait" || valeur === "resultat") setMode(valeur);
-          }}
-        >
-          {MODES_CONVENTION.map((entree) => (
-            <option key={entree} value={entree}>
-              {fr(LIBELLE_MODE[entree])}
-            </option>
-          ))}
-        </select>
-      </label>
       <button
         type="button"
-        data-testid="convention-produire"
-        className="rounded-[var(--radius-control)] border border-filet bg-feuille px-3 py-2"
+        className="bouton-chemise"
+        data-testid="convention-ouvrir"
+        aria-expanded={ouvert}
         onClick={() => {
-          void produireDocument(dossierId, "convention")
-            .then((produit) => creerConvention(dossierId, mode, produit.documentId))
-            .then(() => {
-              return recharger();
-            })
-            .then(() => {
-              setMessage(fr("Convention produite."));
-            })
-            .catch(() => {
-              setMessage(fr("La convention n'a pas pu être produite."));
-            });
+          setOuvert(true);
         }}
       >
-        {fr("Produire la convention")}
+        {fr("Convention d'honoraires")}
       </button>
-      <ul data-testid="convention-liste">
-        {conventions
-          .filter((convention) => convention.documentId)
-          .map((convention) => (
-            <li key={convention.id} data-testid="convention-ligne" data-statut={convention.statut} data-mode={convention.mode}>
-              <span>{fr(`${LIBELLE_MODE[convention.mode]}, ${convention.statut}`)}</span>
-              {convention.statut === "brouillon" ? (
-                <button
-                  type="button"
-                  data-testid="convention-envoyer"
-                  className="ml-2"
-                  onClick={() => {
-                    void marquerEnvoyee(convention.id).then(() => {
-                      return recharger();
-                    });
-                  }}
+      <PanneauLateral
+        ouvert={ouvert}
+        titre="Convention d'honoraires"
+        sousTitre="Produire la convention, la marquer envoyée, déposer l'exemplaire signé."
+        onFermer={() => {
+          setOuvert(false);
+        }}
+      >
+        <div className="panneau-lateral__section">
+          <label className="etiquette-champ" htmlFor="convention-mode">
+            {fr("Mode d'honoraires")}
+          </label>
+          <select
+            id="convention-mode"
+            data-testid="convention-mode"
+            className="champ"
+            value={mode}
+            onChange={(event) => {
+              const valeur = event.target.value;
+              if (valeur === "temps" || valeur === "forfait" || valeur === "resultat") setMode(valeur);
+            }}
+          >
+            {MODES_CONVENTION.map((entree) => (
+              <option key={entree} value={entree}>
+                {fr(LIBELLE_MODE[entree])}
+              </option>
+            ))}
+          </select>
+          <div className="formulaire-actions">
+            <button
+              type="button"
+              data-testid="convention-produire"
+              className="bouton bouton--prim"
+              onClick={() => {
+                void produireDocument(dossierId, "convention")
+                  .then((produit) => creerConvention(dossierId, mode, produit.documentId))
+                  .then(() => {
+                    return recharger();
+                  })
+                  .then(() => {
+                    setMessage(fr("Convention produite."));
+                  })
+                  .catch(() => {
+                    setMessage(fr("La convention n'a pas pu être produite."));
+                  });
+              }}
+            >
+              {fr("Produire la convention")}
+            </button>
+          </div>
+          <ul className="convention-liste" data-testid="convention-liste">
+            {conventions
+              .filter((convention) => convention.documentId)
+              .map((convention) => (
+                <li
+                  key={convention.id}
+                  className="convention-liste__ligne"
+                  data-testid="convention-ligne"
+                  data-statut={convention.statut}
+                  data-mode={convention.mode}
                 >
-                  {fr("Marquer envoyée")}
-                </button>
-              ) : null}
-              {convention.statut === "envoyee" ? (
-                <label className="ml-2" htmlFor={`convention-signe-${convention.id}`}>
-                  {fr("Exemplaire signé")}
-                  <input
-                    id={`convention-signe-${convention.id}`}
-                    data-testid="convention-signe"
-                    type="file"
-                    onChange={(event) => {
-                      const fichier = event.target.files?.[0];
-                      if (!fichier) return;
-                      void deposerSigne(convention.id, fichier.name).then(() => {
-                        return recharger();
-                      });
-                    }}
-                  />
-                </label>
-              ) : null}
-              {convention.signeNom ? <span data-testid="convention-signe-nom">{fr(convention.signeNom)}</span> : null}
-            </li>
-          ))}
-      </ul>
-      {alerte ? (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            void leverAlerte(dossierId, motif, aujourdhui, motif === "hors_application" ? dateHors : null).then(() => {
-              return recharger();
-            });
-          }}
-        >
-          <label className="block text-[length:var(--font-size-dense)] text-graphite" htmlFor="convention-motif">
-            {fr("Lever l'alerte")}
+                  <span>
+                    <b>{fr(LIBELLE_MODE[convention.mode])}</b>
+                    <span className="block text-[length:var(--font-size-meta)] text-graphite">
+                      {fr(LIBELLE_STATUT[convention.statut])}
+                    </span>
+                  </span>
+                  {convention.statut === "brouillon" ? (
+                    <button
+                      type="button"
+                      data-testid="convention-envoyer"
+                      className="bouton bouton--petit"
+                      onClick={() => {
+                        void marquerEnvoyee(convention.id).then(() => {
+                          return recharger();
+                        });
+                      }}
+                    >
+                      {fr("Marquer envoyée")}
+                    </button>
+                  ) : null}
+                  {convention.statut === "envoyee" ? (
+                    <label className="convention-liste__fichier" htmlFor={`convention-signe-${convention.id}`}>
+                      {fr("Déposer l'exemplaire signé")}
+                      <input
+                        id={`convention-signe-${convention.id}`}
+                        data-testid="convention-signe"
+                        type="file"
+                        className="sr-only"
+                        onChange={(event) => {
+                          const fichier = event.target.files?.[0];
+                          if (!fichier) return;
+                          void deposerSigne(convention.id, fichier.name).then(() => {
+                            return recharger();
+                          });
+                        }}
+                      />
+                    </label>
+                  ) : null}
+                  {convention.signeNom ? (
+                    <span className="truncate text-[length:var(--font-size-dense)]" data-testid="convention-signe-nom">
+                      {fr(convention.signeNom)}
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+          </ul>
+        </div>
+        {alerte ? (
+          <form
+            className="panneau-lateral__section"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void leverAlerte(dossierId, motif, aujourdhui, motif === "hors_application" ? dateHors : null).then(() => {
+                return recharger();
+              });
+            }}
+          >
+            <h3 className="feuille-titre mb-1">{fr("Lever l'alerte")}</h3>
+            <p className="mb-3 text-[length:var(--font-size-dense)] text-graphite">
+              {fr("Sans convention signée, indiquez ce qui dispense de l'alerte.")}
+            </p>
+            <label className="etiquette-champ" htmlFor="convention-motif">
+              {fr("Motif")}
+            </label>
             <select
               id="convention-motif"
               data-testid="convention-motif"
-              className="mt-1 block w-full rounded-[var(--radius-control)] border border-filet bg-feuille px-3 py-2"
+              className="champ"
               value={motif}
               onChange={(event) => {
                 const valeur = event.target.value;
@@ -174,31 +228,35 @@ export function PanneauConvention({ dossierId }: { dossierId: string }) {
                 </option>
               ))}
             </select>
-          </label>
-          {motif === "hors_application" ? (
-            <label className="mt-2 block text-[length:var(--font-size-dense)] text-graphite" htmlFor="convention-date-hors">
-              {fr("Date de la convention")}
-              <input
-                id="convention-date-hors"
-                data-testid="convention-date-hors"
-                type="date"
-                required
-                className="mt-1 block"
-                value={dateHors}
-                onChange={(event) => {
-                  setDateHors(event.target.value);
-                }}
-              />
-            </label>
-          ) : null}
-          <button type="submit" data-testid="convention-lever" className="mt-2">
-            {fr("Consigner la levée")}
-          </button>
-        </form>
-      ) : null}
-      <p data-testid="convention-message" role="status">
-        {message}
-      </p>
+            {motif === "hors_application" ? (
+              <div className="mt-3">
+                <label className="etiquette-champ" htmlFor="convention-date-hors">
+                  {fr("Date de la convention")}
+                </label>
+                <input
+                  id="convention-date-hors"
+                  data-testid="convention-date-hors"
+                  type="date"
+                  required
+                  className="champ champ--court"
+                  value={dateHors}
+                  onChange={(event) => {
+                    setDateHors(event.target.value);
+                  }}
+                />
+              </div>
+            ) : null}
+            <div className="formulaire-actions">
+              <button type="submit" data-testid="convention-lever" className="bouton">
+                {fr("Consigner la levée")}
+              </button>
+            </div>
+          </form>
+        ) : null}
+        <p className="mt-4 text-[length:var(--font-size-dense)] text-graphite" data-testid="convention-message" role="status">
+          {message}
+        </p>
+      </PanneauLateral>
     </section>
   );
 }

@@ -2,7 +2,7 @@ import type { InputHTMLAttributes, ReactNode } from "react";
 import { fr } from "@/lib/fr";
 
 const fieldClass =
-  "mt-1 w-full rounded-[var(--radius-control)] border border-filet bg-feuille px-3 py-2 text-encre";
+  "champ mt-1";
 
 type FieldProps = {
   id: string;
@@ -66,7 +66,7 @@ export function SecondaryButton({ children, disabled = false, onClick }: Seconda
     <button
       type="button"
       disabled={disabled}
-      className="inline-flex h-[30px] w-full items-center justify-center rounded-[var(--radius-control)] border border-filet bg-feuille px-3 text-[length:var(--font-size-dense)] text-encre hover:border-graphite disabled:cursor-not-allowed disabled:opacity-50"
+      className="bouton inline-flex h-[30px] w-full items-center justify-center hover:border-graphite disabled:cursor-not-allowed disabled:opacity-50"
       onClick={onClick}
     >
       {children}
@@ -77,7 +77,7 @@ export function SecondaryButton({ children, disabled = false, onClick }: Seconda
 export function ErrorMessage({ message }: { message: string }) {
   return (
     <p
-      className="mb-4 rounded-[var(--radius-control)] border border-filet bg-echeance-fond px-3 py-2 text-[length:var(--font-size-dense)] text-echeance"
+      className="message-erreur mb-4"
       role="alert"
     >
       {fr(message)}

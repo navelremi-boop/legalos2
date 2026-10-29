@@ -106,7 +106,7 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
       <select
         id="delai-type"
         name="type"
-        className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+        className="champ mt-1 mb-3"
         value={typeId}
         onChange={(event) => {
           const valeur = event.target.value;
@@ -128,7 +128,7 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
       <select
         id="delai-siege"
         name="siege"
-        className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+        className="champ mt-1 mb-3 w-full"
         value={siege}
         onChange={(event) => {
           setSiege(event.target.value as SiegeJuridiction);
@@ -153,7 +153,7 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
             inputMode="numeric"
             placeholder={fr("ex. 971")}
             required
-            className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+            className="champ mt-1 mb-3 w-full"
             data-testid="delai-departement-siege"
           />
         </>
@@ -164,7 +164,7 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
       <select
         id="delai-lieu"
         name="lieu"
-        className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+        className="champ mt-1 mb-3 w-full"
         value={lieu}
         onChange={(event) => {
           setLieu(event.target.value as LieuPartie);
@@ -189,7 +189,7 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
             type="text"
             inputMode="numeric"
             placeholder={fr("ex. 976, 977")}
-            className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+            className="champ mt-1 mb-3 w-full"
             data-testid="delai-departement-partie"
           />
         </>
@@ -205,7 +205,7 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
           <select
             id="delai-role"
             name="rolePartie"
-            className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+            className="champ mt-1 mb-3 w-full"
             defaultValue=""
             data-testid="delai-role"
           >
@@ -223,7 +223,7 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
             id="delai-expedition"
             name="dateExpedition"
             type="date"
-            className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+            className="champ mt-1 mb-3 w-full"
             data-testid="delai-expedition"
           />
           <label
@@ -236,7 +236,7 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
             id="delai-remise"
             name="dateRemise"
             type="date"
-            className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+            className="champ mt-1 mb-3 w-full"
             data-testid="delai-remise"
           />
         </>
@@ -249,7 +249,7 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
         name="origine"
         type="date"
         required
-        className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+        className="champ mt-1 mb-3 w-full"
       />
       {typeId === "libre" ? (
         <>
@@ -262,7 +262,7 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
             type="number"
             min={0}
             defaultValue={0}
-            className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+            className="champ mt-1 mb-3 w-full"
           />
           <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="delai-mois">
             {fr("Mois")}
@@ -273,7 +273,7 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
             type="number"
             min={0}
             defaultValue={0}
-            className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+            className="champ mt-1 mb-3 w-full"
           />
           <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="delai-annees">
             {fr("Années")}
@@ -284,7 +284,7 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
             type="number"
             min={0}
             defaultValue={0}
-            className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+            className="champ mt-1 mb-3 w-full"
           />
         </>
       ) : null}
@@ -295,7 +295,7 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
       </p>
       <button
         type="submit"
-        className="rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-3 py-2 text-encre"
+        className="bouton"
       >
         {fr("Calculer l'échéance")}
       </button>
@@ -310,7 +310,7 @@ export function FormulaireDelai({ dossierId }: { dossierId?: string | null } = {
         <button
           type="button"
           data-testid="delai-inscrire"
-          className="mt-3 rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+          className="bouton mt-3"
           onClick={() => {
             void ecrireElementAgenda({
               dossierId,

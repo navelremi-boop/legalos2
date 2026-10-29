@@ -426,7 +426,7 @@ export function EcranAgenda({
 
   return (
     <div
-      className="fond-neutre relative flex h-full min-h-0 flex-col px-[30px] pt-[28px]"
+      className="fond-neutre relative flex h-full min-h-0 flex-col ecran"
       data-testid="ecran-agenda"
       data-fond="neutre"
     >
@@ -446,7 +446,7 @@ export function EcranAgenda({
           <span className="flex gap-1">
             <button
               type="button"
-              className="rounded-[var(--radius-control)] border border-filet px-2 py-1"
+              className="bouton bouton--petit"
               aria-label={fr("Mois précédent")}
               data-testid="agenda-mini-precedent"
               onClick={() => {
@@ -457,7 +457,7 @@ export function EcranAgenda({
             </button>
             <button
               type="button"
-              className="rounded-[var(--radius-control)] border border-filet px-2 py-1"
+              className="bouton bouton--petit"
               aria-label={fr("Mois suivant")}
               data-testid="agenda-mini-suivant"
               onClick={() => {
@@ -500,7 +500,7 @@ export function EcranAgenda({
               <button
                 key={categorie}
                 type="button"
-                className="rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+                className="bouton bouton--petit"
                 aria-pressed={filtres[categorie]}
                 data-testid={`agenda-filtre-${categorie}`}
                 onClick={() => {
@@ -540,7 +540,7 @@ export function EcranAgenda({
       <div className="flex flex-nowrap items-center gap-2">
         <button
           type="button"
-          className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
+          className="bouton bouton--petit"
           data-testid="agenda-precedent"
           onClick={() => {
             setAncre(decalerJour(ancre ?? jourCivil(new Date()), vue === "jour" ? -1 : -7));
@@ -550,7 +550,7 @@ export function EcranAgenda({
         </button>
         <button
           type="button"
-          className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
+          className="bouton bouton--petit"
           data-testid="agenda-suivant"
           onClick={() => {
             setAncre(decalerJour(ancre ?? jourCivil(new Date()), vue === "jour" ? 1 : 7));
@@ -560,7 +560,7 @@ export function EcranAgenda({
         </button>
         <button
           type="button"
-          className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
+          className="bouton bouton--petit"
           data-testid="agenda-aujourdhui"
           onClick={() => {
             setAncre(null);
@@ -571,7 +571,7 @@ export function EcranAgenda({
         <span className="flex-1" />
         <button
           type="button"
-          className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
+          className="bouton bouton--petit"
           data-testid="agenda-vue-jour"
           aria-pressed={vue === "jour"}
           onClick={() => {
@@ -582,7 +582,7 @@ export function EcranAgenda({
         </button>
         <button
           type="button"
-          className="rounded-[var(--radius-control)] border border-filet px-3 py-1"
+          className="bouton bouton--petit"
           data-testid="agenda-vue-semaine"
           aria-pressed={vue === "semaine"}
           onClick={() => {
@@ -604,7 +604,7 @@ export function EcranAgenda({
           id="agenda-type"
           name="type_element"
           data-testid="agenda-type"
-          className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+          className="champ mb-2 w-full"
           defaultValue="audience"
         >
           {TYPES.map((type) => (
@@ -619,7 +619,7 @@ export function EcranAgenda({
           required
           data-testid="agenda-dossier"
           placeholder={fr("Dossier")}
-          className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+          className="champ mb-2 w-full"
         />
         <input
           id="agenda-titre"
@@ -627,14 +627,14 @@ export function EcranAgenda({
           required
           data-testid="agenda-titre"
           placeholder={fr("Titre")}
-          className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+          className="champ mb-2 w-full"
         />
         <div className="mb-2 flex gap-2">
           <input
             type="date"
             data-testid="agenda-date"
             aria-label={fr("Date")}
-            className="w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+            className="champ"
             onChange={(event) => {
               const heure = document.getElementById("agenda-heure");
               const debut = document.getElementById("agenda-debut");
@@ -649,7 +649,7 @@ export function EcranAgenda({
             type="time"
             data-testid="agenda-heure"
             aria-label={fr("Heure")}
-            className="w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+            className="champ"
             onChange={(event) => {
               const date = document.querySelector("[data-testid=agenda-date]");
               const debut = document.getElementById("agenda-debut");
@@ -667,7 +667,7 @@ export function EcranAgenda({
         <select
           id="agenda-rappel-liste"
           data-testid="agenda-rappel-liste"
-          className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+          className="champ mb-2 w-full"
           defaultValue="60"
           onChange={(event) => {
             const rappel = document.getElementById("agenda-rappel");
@@ -685,7 +685,7 @@ export function EcranAgenda({
         <button
           type="submit"
           data-testid="agenda-ajouter"
-          className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+          className="bouton"
         >
           {fr("Ajouter")}
         </button>
@@ -943,7 +943,7 @@ export function EcranAgenda({
               name="titre"
               required
               defaultValue={choisi.titre}
-              className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+              className="champ mb-2 w-full"
             />
             <label className="text-graphite" htmlFor="agenda-mod-debut">
               {fr("Début")}
@@ -953,7 +953,7 @@ export function EcranAgenda({
               name="debut"
               required
               defaultValue={choisi.debut}
-              className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+              className="champ mb-2 w-full"
             />
             <label className="text-graphite" htmlFor="agenda-mod-rappel">
               {fr("Rappel")}
@@ -962,18 +962,18 @@ export function EcranAgenda({
               id="agenda-mod-rappel"
               name="rappel_le"
               defaultValue={choisi.rappel_le ?? ""}
-              className="mb-2 w-full rounded-[var(--radius-control)] border border-filet bg-page px-2 py-1 text-encre"
+              className="champ mb-2 w-full"
             />
             <div className="flex flex-wrap gap-2">
               <button
                 type="submit"
-                className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                className="bouton"
               >
                 {fr("Enregistrer")}
               </button>
               <button
                 type="button"
-                className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                className="bouton"
                 onClick={() => {
                   setEdition("");
                 }}
@@ -1006,7 +1006,7 @@ export function EcranAgenda({
               {onOuvrirDossier && ficheDossier?.chemise && isChemiseId(ficheDossier.chemise) ? (
                 <button
                   type="button"
-                  className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                  className="bouton"
                   onClick={() => {
                     if (!ficheDossier.chemise) return;
                     onOuvrirDossier(choisi.dossier_id, ficheDossier.nom, ficheDossier.chemise, ficheDossier.reference);
@@ -1017,7 +1017,7 @@ export function EcranAgenda({
               ) : null}
               <button
                 type="button"
-                className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                className="bouton"
                 data-testid="agenda-modifier"
                 onClick={() => {
                   setEdition(choisi.id);
@@ -1029,7 +1029,7 @@ export function EcranAgenda({
                 <>
                   <button
                     type="button"
-                    className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                    className="bouton"
                     onClick={() => {
                       void retirerEcheance(choisi.id).then(() => {
                         setConfirmation("");
@@ -1041,7 +1041,7 @@ export function EcranAgenda({
                   </button>
                   <button
                     type="button"
-                    className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                    className="bouton"
                     onClick={() => {
                       setConfirmation("");
                     }}
@@ -1052,7 +1052,7 @@ export function EcranAgenda({
               ) : (
                 <button
                   type="button"
-                  className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+                  className="bouton"
                   data-testid="agenda-fiche-supprimer"
                   onClick={() => {
                     setConfirmation(choisi.id);

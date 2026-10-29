@@ -15,7 +15,7 @@ const SEPARATEURS = [
 ] as const;
 
 const champ =
-  "rounded-[var(--radius-control)] border border-filet bg-feuille-2 px-2 py-1 text-encre";
+  "champ champ--court";
 
 type ConstructeurReferenceProps = {
   blocs: readonly Bloc[];

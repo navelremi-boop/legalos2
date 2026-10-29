@@ -156,7 +156,7 @@ export function FormulaireDossier({
         id="dossier-nom"
         name="nom"
         required
-        className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+        className="champ mt-1 mb-3 w-full"
       />
       <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="dossier-chemise">
         {fr("Couleur de chemise")}
@@ -165,7 +165,7 @@ export function FormulaireDossier({
         id="dossier-chemise"
         name="chemise"
         required
-        className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+        className="champ mt-1 mb-3 w-full"
         defaultValue="bleu-classeur"
       >
         {CHEMISE_IDS.map((id) => (
@@ -187,7 +187,7 @@ export function FormulaireDossier({
             name="responsable_id"
             data-testid="dossier-responsable"
             required
-            className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+            className="champ mt-1 mb-3 w-full"
             value={responsableId}
             onChange={(event) => {
               setResponsableId(event.target.value);
@@ -210,7 +210,7 @@ export function FormulaireDossier({
         id="dossier-juridiction"
         name="juridiction"
         required
-        className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+        className="champ mt-1 mb-3 w-full"
       />
       <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="dossier-rg">
         {fr("Numéro RG")}
@@ -219,7 +219,7 @@ export function FormulaireDossier({
         id="dossier-rg"
         name="numero_rg"
         required
-        className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+        className="champ mt-1 mb-3 w-full"
       />
       <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="dossier-type">
         {fr("Type de dossier")}
@@ -228,7 +228,7 @@ export function FormulaireDossier({
         id="dossier-type"
         name="type_dossier"
         data-testid="dossier-type"
-        className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+        className="champ mt-1 mb-3 w-full"
         defaultValue="contentieux"
       >
         <option value="contentieux">{fr("Contentieux")}</option>
@@ -242,7 +242,7 @@ export function FormulaireDossier({
         id="dossier-etape"
         name="etape"
         data-testid="dossier-etape"
-        className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+        className="champ mt-1 mb-3 w-full"
         defaultValue="instruction"
       >
         <option value="ouverture">{fr("Ouverture")}</option>
@@ -259,7 +259,7 @@ export function FormulaireDossier({
         id="dossier-partie"
         name="partie"
         required
-        className="mt-1 mb-3 w-full rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+        className="champ mt-1 mb-3 w-full"
       />
       <label className="mb-3 flex items-center gap-2 text-[length:var(--font-size-dense)] text-encre">
         <input id="dossier-restreint" name="restreint" type="checkbox" />
@@ -267,7 +267,7 @@ export function FormulaireDossier({
       </label>
       <button
         type="submit"
-        className="rounded-[var(--radius-control)] border border-filet bg-page px-3 py-2 text-encre"
+        className="bouton"
       >
         {fr("Créer le dossier")}
       </button>
