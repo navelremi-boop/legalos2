@@ -9,6 +9,10 @@ import {
 } from "@/agenda/ecrireAgenda";
 import { BarreActions } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
+import { PanneauLateral } from "@/coque/PanneauLateral";
+import { ChoixDossier } from "@/dossiers/ChoixDossier";
+import { lireDossiersChoix } from "@/dossiers/lireDossiersChoix";
+import type { DossierChoix } from "@/dossiers/rechercheDossier";
 import { lireInvitations } from "@/agenda/donneesInvitations";
 import { composantesAffichees } from "@/agenda/fuseauParis";
 import {
@@ -113,8 +117,8 @@ function BlocInvitation({
     <div
       className={
         style
-          ? "absolute overflow-hidden rounded-[var(--radius-control)] border border-filet bg-page px-1"
-          : "mb-1"
+          ? "agenda-bloc agenda-bloc--invitation absolute"
+          : "agenda-sans-heure__element"
       }
       style={style}
       data-testid="agenda-invitation"
@@ -154,7 +158,7 @@ function BlocInvitation({
         {element.messageId !== null && onOuvrirMail !== undefined ? (
           <button
             type="button"
-            className="font-bold text-encre underline underline-offset-[3px]"
+            className="lien-action text-[length:var(--font-size-meta)]"
             data-testid="agenda-invitation-ouvrir"
             onClick={() => {
               if (element.messageId !== null) onOuvrirMail(element.messageId);
@@ -223,6 +227,22 @@ export function EcranAgenda({
   const [conflit, setConflit] = useState("");
   const [creation, setCreation] = useState(false);
   const [calcul, setCalcul] = useState(false);
+  const [dossierCreation, setDossierCreation] = useState("");
+  const [dossiersChoix, setDossiersChoix] = useState<DossierChoix[]>([]);
+  useEffect(() => {
+    if (!creation) return;
+    let stop = false;
+    void lireDossiersChoix()
+      .then((lignes) => {
+        if (!stop) setDossiersChoix(lignes);
+      })
+      .catch(() => {
+        if (!stop) setDossiersChoix([]);
+      });
+    return () => {
+      stop = true;
+    };
+  }, [creation]);
   const [vue, setVue] = useState<"jour" | "semaine">("jour");
   const [filtres, setFiltres] = useState<Record<CategorieAgenda, boolean>>({
     audience: true,
@@ -333,6 +353,7 @@ export function EcranAgenda({
       });
       setMessage(fr("Élément inscrit à l'agenda."));
       event.currentTarget.reset();
+      setDossierCreation("");
     } catch (err) {
       setMessage(err instanceof Error ? err.message : fr("Enregistrement impossible."));
     }
@@ -426,27 +447,27 @@ export function EcranAgenda({
 
   return (
     <div
-      className="fond-neutre relative flex h-full min-h-0 flex-col ecran"
+      className="fond-neutre relative flex h-full min-h-0 flex-col ecran ecran--large"
       data-testid="ecran-agenda"
       data-fond="neutre"
     >
-      <div className="mb-4">
-        <h1 className="text-[length:var(--font-size-journee)] font-extrabold text-texte-sur-neutre">
-          {fr("Agenda")}
-        </h1>
-        <p className="text-graphite" data-testid="agenda-sous-titre">
-          {fr(sousTitre)}
-        </p>
-      </div>
+      <header className="ecran-tete">
+        <div>
+          <h1 className="ecran-tete__titre">{fr("Agenda")}</h1>
+          <p className="ecran-tete__sous-titre" data-testid="agenda-sous-titre">
+            {fr(sousTitre)}
+          </p>
+        </div>
+      </header>
       <Feuille uneColonne className="min-h-[360px]">
-      <div className="grid h-full min-h-0 grid-cols-[15rem_minmax(0,1fr)_16rem]">
-      <aside className="min-h-0 overflow-y-auto border-r border-filet p-3">
-        <div className="mb-2 flex items-center justify-between">
-          <p className="font-extrabold">{fr(libelleMois(mois))}</p>
+      <div className="grid h-full min-h-0 grid-cols-[17.5rem_minmax(0,1fr)_17rem]">
+      <aside className="agenda-volet min-h-0 overflow-y-auto border-r border-filet">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="agenda-mois">{fr(libelleMois(mois))}</p>
           <span className="flex gap-1">
             <button
               type="button"
-              className="bouton bouton--petit"
+              className="bouton bouton--discret bouton--petit"
               aria-label={fr("Mois précédent")}
               data-testid="agenda-mini-precedent"
               onClick={() => {
@@ -457,7 +478,7 @@ export function EcranAgenda({
             </button>
             <button
               type="button"
-              className="bouton bouton--petit"
+              className="bouton bouton--discret bouton--petit"
               aria-label={fr("Mois suivant")}
               data-testid="agenda-mini-suivant"
               onClick={() => {
@@ -468,17 +489,17 @@ export function EcranAgenda({
             </button>
           </span>
         </div>
-        <div className="grid grid-cols-7 gap-px text-center text-graphite" data-testid="agenda-mini-initiales" aria-hidden="true">
+        <div className="agenda-mini__initiales" data-testid="agenda-mini-initiales" aria-hidden="true">
           {INITIALES_JOURS.map((initiale, index) => (
             <span key={`${initiale}-${String(index)}`}>{fr(initiale)}</span>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-px text-center" data-testid="agenda-mini">
+        <div className="agenda-mini" data-testid="agenda-mini">
           {casesMois.map((cellule) => (
             <button
               key={cellule.jour}
               type="button"
-              className={`rounded-[var(--radius-control)] px-0 py-1 text-[length:var(--font-size-dense)] ${cellule.dansMois ? "" : "text-graphite opacity-40"} ${cellule.jour === aujourdhui ? "bg-feuille-2 font-extrabold" : ""}`}
+              className="agenda-mini__jour"
               data-testid="agenda-mini-jour"
               data-jour={cellule.jour}
               data-dans-mois={cellule.dansMois ? "true" : "false"}
@@ -493,42 +514,41 @@ export function EcranAgenda({
             </button>
           ))}
         </div>
-        <div className="mt-4 flex flex-wrap gap-1" role="group" aria-label={fr("Types d'éléments")}>
+        <div className="filtres mt-5" role="group" aria-label={fr("Types d'éléments")}>
           {CATEGORIES_AGENDA.map((categorie) => {
             const compte = comptesFiltres[categorie];
             return (
               <button
                 key={categorie}
                 type="button"
-                className="bouton bouton--petit"
+                className="filtre"
                 aria-pressed={filtres[categorie]}
                 data-testid={`agenda-filtre-${categorie}`}
                 onClick={() => {
                   setFiltres((actuel) => ({ ...actuel, [categorie]: !actuel[categorie] }));
                 }}
               >
-                {fr(LIBELLES_TYPE[categorie] ?? categorie)} <b>{compte}</b>
+                {fr(LIBELLES_TYPE[categorie] ?? categorie)} <b className="filtre__compte">{compte}</b>
               </button>
             );
           })}
         </div>
-        <h2 className="mb-2 mt-4 text-[length:var(--font-size-section)] font-extrabold">
-          {fr("Prochaines échéances")}
-        </h2>
-        <ul data-testid="agenda-prochaines">
+        <h2 className="feuille-sous-titre mt-6 mb-2">{fr("Prochaines échéances")}</h2>
+        <ul className="agenda-prochaines" data-testid="agenda-prochaines">
           {prochaines.length === 0 ? (
-            <li className="text-graphite">{fr("Aucune échéance à venir.")}</li>
+            <li className="text-[length:var(--font-size-dense)] text-graphite">{fr("Aucune échéance à venir.")}</li>
           ) : (
             prochaines.map((ligne) => (
               <li key={ligne.id}>
                 <button
                   type="button"
-                  className="w-full py-1 text-left"
+                  className="agenda-prochaines__ligne"
                   onClick={() => {
                     setAncre(ligne.jour);
                   }}
                 >
-                  {fr(`${formatDateCourte(ligne.jour)} — ${ligne.titre}`)}
+                  <span className="agenda-prochaines__date">{fr(formatDateCourte(ligne.jour))}</span>
+                  <span className="min-w-0">{fr(ligne.titre)}</span>
                 </button>
               </li>
             ))
@@ -536,11 +556,11 @@ export function EcranAgenda({
         </ul>
       </aside>
       <div className="min-h-0 min-w-0 overflow-y-auto p-[22px] pb-24">
-      <div className="mb-4">
-      <div className="flex flex-nowrap items-center gap-2">
+      <div className="agenda-nav">
+      <div className="flex flex-nowrap items-center gap-1">
         <button
           type="button"
-          className="bouton bouton--petit"
+          className="bouton bouton--discret bouton--petit"
           data-testid="agenda-precedent"
           onClick={() => {
             setAncre(decalerJour(ancre ?? jourCivil(new Date()), vue === "jour" ? -1 : -7));
@@ -550,7 +570,7 @@ export function EcranAgenda({
         </button>
         <button
           type="button"
-          className="bouton bouton--petit"
+          className="bouton bouton--discret bouton--petit"
           data-testid="agenda-suivant"
           onClick={() => {
             setAncre(decalerJour(ancre ?? jourCivil(new Date()), vue === "jour" ? 1 : 7));
@@ -568,10 +588,11 @@ export function EcranAgenda({
         >
           {fr("Aujourd'hui")}
         </button>
-        <span className="flex-1" />
+      </div>
+      <h2 className="agenda-nav__titre">{fr(titreBarre)}</h2>
+      <div className="segment" role="group" aria-label={fr("Affichage")}>
         <button
           type="button"
-          className="bouton bouton--petit"
           data-testid="agenda-vue-jour"
           aria-pressed={vue === "jour"}
           onClick={() => {
@@ -582,7 +603,6 @@ export function EcranAgenda({
         </button>
         <button
           type="button"
-          className="bouton bouton--petit"
           data-testid="agenda-vue-semaine"
           aria-pressed={vue === "semaine"}
           onClick={() => {
@@ -592,44 +612,63 @@ export function EcranAgenda({
           {fr("Semaine")}
         </button>
       </div>
-      <h2 className="mt-2 text-center text-[length:var(--font-size-section)] font-extrabold">{fr(titreBarre)}</h2>
       </div>
+      <PanneauLateral
+        ouvert={creation}
+        titre="Nouvel élément d'agenda"
+        sousTitre="Audience, rendez-vous ou tâche, rattaché à un dossier."
+        onFermer={() => {
+          setCreation(false);
+        }}
+      >
       <form
-        className={creation ? "mb-6 max-w-xl rounded-[var(--radius-control)] border border-filet p-3" : "hidden"}
         data-testid="agenda-panneau-creation"
-        hidden={!creation}
         onSubmit={(event) => void ajouter(event)}
       >
+        <label className="etiquette-champ" htmlFor="agenda-type">
+          {fr("Type")}
+        </label>
         <select
           id="agenda-type"
           name="type_element"
           data-testid="agenda-type"
-          className="champ mb-2 w-full"
+          className="champ mb-4"
           defaultValue="audience"
         >
           {TYPES.map((type) => (
             <option key={type} value={type}>
-              {fr(type === "rendez_vous" ? "rendez-vous" : type === "tache" ? "tâche" : "audience")}
+              {fr(type === "rendez_vous" ? "Rendez-vous" : type === "tache" ? "Tâche" : "Audience")}
             </option>
           ))}
         </select>
-        <input
-          id="agenda-dossier"
-          name="dossier_id"
-          required
-          data-testid="agenda-dossier"
-          placeholder={fr("Dossier")}
-          className="champ mb-2 w-full"
-        />
+        <label className="etiquette-champ" htmlFor="agenda-dossier-recherche">
+          {fr("Dossier")}
+        </label>
+        <div className="mb-4">
+          <ChoixDossier
+            id="agenda-dossier"
+            name="dossier_id"
+            testId="agenda-dossier"
+            support="champ"
+            dossiers={dossiersChoix}
+            valeur={dossierCreation}
+            onChange={setDossierCreation}
+            required
+          />
+        </div>
+        <label className="etiquette-champ" htmlFor="agenda-titre">
+          {fr("Titre")}
+        </label>
         <input
           id="agenda-titre"
           name="titre"
           required
           data-testid="agenda-titre"
-          placeholder={fr("Titre")}
-          className="champ mb-2 w-full"
+          placeholder={fr("Audience de mise en état, rendez-vous client…")}
+          className="champ mb-4"
         />
-        <div className="mb-2 flex gap-2">
+        <p className="etiquette-champ">{fr("Date et heure")}</p>
+        <div className="mb-4 flex gap-2">
           <input
             type="date"
             data-testid="agenda-date"
@@ -661,13 +700,13 @@ export function EcranAgenda({
           />
         </div>
         <input id="agenda-debut" name="debut" required data-testid="agenda-debut" className="hidden" />
-        <label className="mb-1 block text-[length:var(--font-size-dense)] text-graphite" htmlFor="agenda-rappel-liste">
+        <label className="etiquette-champ" htmlFor="agenda-rappel-liste">
           {fr("Rappel")}
         </label>
         <select
           id="agenda-rappel-liste"
           data-testid="agenda-rappel-liste"
-          className="champ mb-2 w-full"
+          className="champ mb-4"
           defaultValue="60"
           onChange={(event) => {
             const rappel = document.getElementById("agenda-rappel");
@@ -682,25 +721,37 @@ export function EcranAgenda({
           ))}
         </select>
         <input id="agenda-rappel" name="rappel_le" data-testid="agenda-rappel" className="hidden" />
-        <button
-          type="submit"
-          data-testid="agenda-ajouter"
-          className="bouton"
-        >
-          {fr("Ajouter")}
-        </button>
-        <p className="mt-2 text-[length:var(--font-size-meta)] text-graphite" data-testid="agenda-message">
+        <div className="formulaire-actions">
+          <button
+            type="submit"
+            data-testid="agenda-ajouter"
+            className="bouton bouton--prim"
+          >
+            {fr("Ajouter à l'agenda")}
+          </button>
+        </div>
+        <p className="mt-3 text-[length:var(--font-size-dense)] text-graphite" data-testid="agenda-message">
           {message}
         </p>
       </form>
-      {calcul ? (
-        <div className="mb-6 max-w-xl" data-testid="agenda-calcul-delai">
-          <FormulaireDelai dossierId={choisi?.dossier_id} />
-        </div>
-      ) : null}
+      </PanneauLateral>
+      <PanneauLateral
+        ouvert={calcul}
+        titre="Calculer un délai"
+        sousTitre="Point de départ, durée et report au premier jour ouvrable."
+        onFermer={() => {
+          setCalcul(false);
+        }}
+      >
+        {calcul ? (
+          <div data-testid="agenda-calcul-delai">
+            <FormulaireDelai dossierId={choisi?.dossier_id} />
+          </div>
+        ) : null}
+      </PanneauLateral>
       {conflit !== "" ? (
         <p
-          className="mb-3 rounded-[var(--radius-control)] bg-feuille-2 px-3 py-2"
+          className="message-attention mb-4"
           data-testid="agenda-conflit"
           role="status"
         >
@@ -729,7 +780,7 @@ export function EcranAgenda({
         data-testid={vue === "jour" ? "agenda-vue-jour-contenu" : "agenda-vue-semaine-contenu"}
       >
         <p
-          className="whitespace-nowrap text-graphite"
+          className="agenda-sans-heure-titre whitespace-nowrap"
           style={{ gridColumn: 1, gridRow: 2 }}
           data-testid="agenda-sans-heure-titre"
         >
@@ -743,7 +794,7 @@ export function EcranAgenda({
             (heureGrille) => (
               <span
                 key={heureGrille}
-                className="absolute left-0 text-[length:var(--font-size-dense)] text-graphite"
+                className="agenda-heure"
                 style={{ top: (heureGrille - GRILLE_DEBUT) * HAUTEUR_HEURE }}
               >
                 {fr(`${String(heureGrille)} h`)}
@@ -784,14 +835,15 @@ export function EcranAgenda({
           return (
             <section key={jour} className="contents" style={{ display: "contents" }} data-testid="agenda-jour" data-jour={jour}>
               <h2
-                className="text-[length:var(--font-size-dense)] font-extrabold"
+                className="agenda-jour__titre"
                 style={{ gridColumn: colonne, gridRow: 1 }}
+                data-aujourdhui={jour === aujourdhui ? "true" : "false"}
               >
-                {formatDateLongue(jour)}
+                {fr(formatDateLongue(jour))}
               </h2>
-              <div data-testid="agenda-sans-heure" style={{ gridColumn: colonne, gridRow: 2 }}>
+              <div className="agenda-sans-heure" data-testid="agenda-sans-heure" style={{ gridColumn: colonne, gridRow: 2 }}>
                 {vue === "jour" && duJour.length === 0 && invitationsDuJourAffichees.length === 0 ? (
-                  <p className="text-graphite">{fr("Rien ce jour-là.")}</p>
+                  <p className="text-[length:var(--font-size-dense)] text-graphite">{fr("Rien ce jour-là.")}</p>
                 ) : null}
                 <ul className="flex flex-col gap-1">
                   {duJour
@@ -804,10 +856,10 @@ export function EcranAgenda({
                     .map((ligne) => {
                       const attendue = echeanceAttendue(ligne);
                       return (
-                        <li key={ligne.id}>
+                        <li key={ligne.id} className="agenda-sans-heure__element">
                           <button
                             type="button"
-                            className="block w-full truncate text-left"
+                            className="block w-full truncate text-left font-bold"
                             onClick={() => {
                               setSelection(ligne.id);
                             }}
@@ -817,7 +869,7 @@ export function EcranAgenda({
                           {ligne.origine_calcul ? (
                             <button
                               type="button"
-                              className="ml-2 font-bold text-encre"
+                              className="lien-action text-[length:var(--font-size-meta)]"
                               data-testid="echeance-voir-calcul"
                               aria-expanded={calculOuvert === ligne.id}
                               onClick={() => {
@@ -828,7 +880,7 @@ export function EcranAgenda({
                             </button>
                           ) : null}
                           {calculOuvert === ligne.id && ligne.origine_calcul ? (
-                            <p data-testid="echeance-calcul">
+                            <p className="mt-1 text-[length:var(--font-size-meta)] text-graphite" data-testid="echeance-calcul">
                               {fr(
                                 `Point de départ ${ligne.origine_calcul}, délai ${String(ligne.jours_calcul ?? 0)} jours. Échéance ${attendue ? formatDateCourte(attendue) : ""}.`,
                               )}
@@ -845,7 +897,8 @@ export function EcranAgenda({
                 </ul>
               </div>
               <div
-                className="relative"
+                className="agenda-grille relative"
+                data-aujourdhui={jour === aujourdhui ? "true" : "false"}
                 data-testid="agenda-grille"
                 style={{
                   gridColumn: colonne,
@@ -857,7 +910,7 @@ export function EcranAgenda({
                   <span
                     key={index}
                     data-testid="agenda-ligne-heure"
-                    className="absolute right-0 left-0 border-t border-filet"
+                    className="agenda-ligne-heure"
                     style={{ top: (index + 1) * HAUTEUR_HEURE }}
                   />
                 ))}
@@ -899,7 +952,8 @@ export function EcranAgenda({
                       <button
                         key={ligne.id}
                         type="button"
-                        className="absolute overflow-hidden rounded-[var(--radius-control)] border border-filet bg-page px-1 text-left"
+                        className="agenda-bloc absolute text-left"
+                        data-chemise={ligne.dossier_chemise ?? undefined}
                         style={{
                           top: pos.top,
                           height: pos.hauteur,
@@ -913,9 +967,9 @@ export function EcranAgenda({
                           setSelection(ligne.id);
                         }}
                       >
-                        <span className="block truncate">{fr(ligne.titre)}</span>
+                        <span className="block truncate font-bold">{fr(ligne.titre)}</span>
                         {heure !== "" ? (
-                          <span className="block text-graphite" data-testid="agenda-element-heure">
+                          <span className="block truncate text-graphite" data-testid="agenda-element-heure">
                             {heure}
                           </span>
                         ) : null}
@@ -928,14 +982,14 @@ export function EcranAgenda({
         })}
       </div>
       </div>
-      <aside className="min-h-0 overflow-y-auto border-l border-filet p-3" data-testid="agenda-apercu">
+      <aside className="agenda-volet min-h-0 overflow-y-auto border-l border-filet" data-testid="agenda-apercu">
         {choisi && edition === choisi.id ? (
           <form
             data-testid="agenda-modifier-form"
             onSubmit={(event) => void modifier(event, choisi.id)}
           >
-            <h2 className="mb-2 font-extrabold">{fr("Modifier")}</h2>
-            <label className="text-graphite" htmlFor="agenda-mod-titre">
+            <h2 className="feuille-titre mb-3">{fr("Modifier")}</h2>
+            <label className="etiquette-champ" htmlFor="agenda-mod-titre">
               {fr("Titre")}
             </label>
             <input
@@ -943,9 +997,9 @@ export function EcranAgenda({
               name="titre"
               required
               defaultValue={choisi.titre}
-              className="champ mb-2 w-full"
+              className="champ mb-3"
             />
-            <label className="text-graphite" htmlFor="agenda-mod-debut">
+            <label className="etiquette-champ" htmlFor="agenda-mod-debut">
               {fr("Début")}
             </label>
             <input
@@ -953,16 +1007,16 @@ export function EcranAgenda({
               name="debut"
               required
               defaultValue={choisi.debut}
-              className="champ mb-2 w-full"
+              className="champ mb-3"
             />
-            <label className="text-graphite" htmlFor="agenda-mod-rappel">
+            <label className="etiquette-champ" htmlFor="agenda-mod-rappel">
               {fr("Rappel")}
             </label>
             <input
               id="agenda-mod-rappel"
               name="rappel_le"
               defaultValue={choisi.rappel_le ?? ""}
-              className="champ mb-2 w-full"
+              className="champ mb-3"
             />
             <div className="flex flex-wrap gap-2">
               <button
@@ -984,8 +1038,8 @@ export function EcranAgenda({
           </form>
         ) : choisi ? (
           <>
-            <h2 className="font-extrabold">{fr(choisi.titre)}</h2>
-            <p className="text-graphite">
+            <h2 className="feuille-titre">{fr(choisi.titre)}</h2>
+            <p className="mb-3 text-[length:var(--font-size-dense)] text-graphite">
               {fr(LIBELLES_TYPE[choisi.type_element] ?? choisi.type_element)}
               {choisi.origine_calcul ? fr(", calculé") : ""}
             </p>
@@ -1064,7 +1118,7 @@ export function EcranAgenda({
             </div>
           </>
         ) : (
-          <p className="text-graphite">{fr("Aucun élément sélectionné.")}</p>
+          <p className="etat-vide">{fr("Choisissez un élément de l'agenda pour en voir le détail.")}</p>
         )}
       </aside>
       </div>

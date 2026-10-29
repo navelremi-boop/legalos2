@@ -409,12 +409,12 @@ export function GalerieDemo() {
         reference: "2026-042",
         type_dossier: "contentieux",
         etape: "instruction",
-        echeance_titre: "Conclusions",
-        echeance_debut: jourDans(9),
+        echeance_titre: "Conclusions en réplique",
+        echeance_debut: jourDans(5),
         non_lus: 2,
         parties: [
           { role: "client", nom: "SAS Ferrand Métal" },
-          { role: "adversaire", nom: "SARL Duclos Industrie" },
+          { role: "adversaire", nom: "SARL Dupuis Outillage" },
         ],
       },
       {

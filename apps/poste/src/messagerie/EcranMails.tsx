@@ -701,7 +701,7 @@ export function EcranMails({
 
   return (
     <div
-      className="fond-neutre relative flex h-full max-h-[calc(100vh-58px)] min-h-0 flex-col overflow-hidden ecran"
+      className="fond-neutre relative flex h-full max-h-[calc(100vh-58px)] min-h-0 flex-col overflow-hidden ecran ecran--large"
       data-testid="ecran-mails"
       data-fond="neutre"
     >

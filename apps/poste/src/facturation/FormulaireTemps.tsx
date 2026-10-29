@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { formatDuree, formatMontant } from "@/lib/format";
 import { lireDuree } from "@/facturation/lireDuree";
+import { ChoixDossier } from "@/dossiers/ChoixDossier";
 import type { SubmitEvent } from "react";
 import { apiUrl } from "@/lib/auth/client";
 import { jourCivil } from "@/agenda/navigationAgenda";
@@ -246,27 +247,18 @@ export function FormulaireTemps({
       <h2 className="feuille-titre mb-3">{fr("Saisir du temps")}</h2>
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
         <div>
-          <label className="etiquette-champ" htmlFor="temps-dossier">
+          <label className="etiquette-champ" htmlFor="temps-dossier-recherche">
             {fr("Dossier")}
           </label>
-          <select
+          <ChoixDossier
             id="temps-dossier"
             name="dossier_id"
+            testId="temps-dossier"
+            dossiers={dossiers}
+            valeur={dossierSelect}
+            onChange={setDossierChoisi}
             required
-            className="champ w-full"
-            data-testid="temps-dossier"
-            value={dossierSelect}
-            onChange={(event) => {
-              setDossierChoisi(event.target.value);
-            }}
-          >
-            <option value="">{fr("Choisir un dossier")}</option>
-            {dossiers.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.nom}
-              </option>
-            ))}
-          </select>
+          />
         </div>
         <div>
           <label className="etiquette-champ" htmlFor="temps-minutes">

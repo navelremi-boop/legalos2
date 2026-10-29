@@ -311,23 +311,21 @@ export function Dossiers({
       data-testid="ecran-dossiers"
       data-fond="neutre"
     >
-      <div className="mb-4 flex items-end justify-between gap-4">
+      <header className="ecran-tete">
         <div>
-          <h1 className="text-[length:var(--font-size-journee)] font-extrabold text-sur-chemise">
-            {fr("Dossiers")}
-          </h1>
-          <p className="text-graphite">
+          <h1 className="ecran-tete__titre">{fr("Dossiers")}</h1>
+          <p className="ecran-tete__sous-titre">
             {fr(
               `${String(nombres.actifs)} dossiers actifs, ${String(vues.filter((d) => !d.clos && d.jours !== null && d.jours <= 7).length)} échéances cette semaine`,
             )}
           </p>
         </div>
-        <p className="text-[length:var(--font-size-dense)] text-graphite">
+        <p className="ecran-tete__aside">
           {fr(`${String(nombres.restreints)} dossiers restreints accessibles`)}
         </p>
-      </div>
+      </header>
       <Feuille className="min-h-0 flex-1">
-        <div className="flex min-h-0 flex-col overflow-hidden p-[22px]">
+        <div className="flex min-h-0 flex-col overflow-hidden px-[22px] pt-[22px]">
           <label className="mb-3 block">
             <span className="sr-only">{fr("Rechercher un dossier")}</span>
             <input
@@ -342,8 +340,8 @@ export function Dossiers({
               }}
             />
           </label>
-          <div className="mb-3 flex flex-wrap items-center gap-3">
-            <div className="flex flex-wrap gap-1" role="group" aria-label={fr("Filtrer les dossiers")}>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+            <div className="filtres" role="group" aria-label={fr("Filtrer les dossiers")}>
               {FILTRES.map((entree) => {
                 const presse = recherche.trim() === "" && filtre === entree.id;
                 const compte =
@@ -358,7 +356,7 @@ export function Dossiers({
                   <button
                     key={entree.id}
                     type="button"
-                    className="bouton bouton--petit"
+                    className="filtre"
                     aria-pressed={presse}
                     data-testid={`dossiers-filtre-${entree.id}`}
                     onClick={() => {
@@ -366,15 +364,15 @@ export function Dossiers({
                       setRecherche("");
                     }}
                   >
-                    {fr(entree.label)} <b>{compte}</b>
+                    {fr(entree.label)} <span className="filtre__compte">{compte}</span>
                   </button>
                 );
               })}
             </div>
-            <label className="text-graphite">
-              {fr("Trier par")}{" "}
+            <label className="flex items-center gap-2 text-[length:var(--font-size-dense)] text-graphite">
+              {fr("Trier par")}
               <select
-                className="champ"
+                className="champ champ--court"
                 aria-label={fr("Trier les dossiers")}
                 data-testid="dossiers-tri"
                 value={tri}
@@ -389,9 +387,9 @@ export function Dossiers({
               </select>
             </label>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto" data-testid="dossiers-liste">
+          <div className="min-h-0 flex-1 overflow-y-auto pb-24" data-testid="dossiers-liste">
             {visibles.length === 0 ? (
-              <p className="text-graphite">
+              <p className="etat-vide">
                 {recherche.trim() !== ""
                   ? fr("Aucun dossier ne correspond. Essayez un nom, une référence, un numéro RG ou un adversaire.")
                   : fr("Aucun dossier ici. Changez de filtre, ou créez un dossier avec « Nouveau dossier ».")}
@@ -400,11 +398,11 @@ export function Dossiers({
               groupes.map((groupe) => (
                 <section key={groupe.titre || "tous"}>
                   {groupe.titre !== "" ? (
-                    <h2 className="mb-2 mt-4 text-[length:var(--font-size-section)] font-extrabold">
+                    <h2 className="dossiers-groupe">
                       {fr(groupe.titre)} <span className="text-graphite">{groupe.dossiers.length}</span>
                     </h2>
                   ) : null}
-                  <ul className="divide-y divide-filet">
+                  <ul className="dossiers-lignes">
                     {groupe.dossiers.map((ligne) => {
                       const reference = libelleReferenceDossier(ligne.reference);
                       const lus = comptesNonLus.get(ligne.id) ?? 0;
@@ -412,7 +410,7 @@ export function Dossiers({
                         <li key={ligne.id}>
                           <button
                             type="button"
-                            className="flex min-h-11 w-full items-center gap-3 px-2 py-2 text-left hover:bg-survol"
+                            className="dossiers-ligne"
                             data-chemise={ligne.chemise}
                             data-reference={reference}
                             data-testid="liste-dossier"
@@ -430,11 +428,11 @@ export function Dossiers({
                               className="h-[13px] w-[9px] shrink-0 rounded-[2px] bg-chemise-bande"
                               aria-hidden
                             />
-                            <span className="chiffres-reference shrink-0 text-[length:var(--font-size-meta)] font-bold text-graphite">
+                            <span className="chiffres-reference dossiers-ligne__ref">
                               {fr(reference)}
                             </span>
-                            <span className="min-w-0">
-                              <span className="flex items-baseline gap-3">
+                            <span className="min-w-0 flex-1">
+                              <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
                                 <span className="font-bold" data-testid="dossier-nom-ligne">{fr(ligne.nom)}</span>
                                 {ligne.jours !== null && ligne.echeance ? (
                                   <span className="flex shrink-0 items-center gap-2" data-testid="dossier-echeance">
@@ -465,7 +463,7 @@ export function Dossiers({
                             </span>
                             {lus > 0 ? (
                               <span
-                                className="shrink-0 font-bold"
+                                className="dossiers-ligne__non-lus"
                                 data-testid="dossier-non-lus"
                                 title={fr(lus > 1 ? `${String(lus)} mails non lus` : "1 mail non lu")}
                               >
@@ -482,12 +480,12 @@ export function Dossiers({
             )}
           </div>
         </div>
-        <aside className="min-h-0 overflow-y-auto border-l border-filet p-[22px]" aria-live="polite">
+        <aside className="dossiers-apercu min-h-0 overflow-y-auto border-l border-filet p-[22px] pb-24" aria-live="polite">
           {panneau === "creation" ? (
             <div data-testid="dossiers-creation">
               <button
                 type="button"
-                className="mb-3 text-graphite"
+                className="bouton bouton--discret bouton--petit mb-3"
                 data-testid="dossiers-annuler"
                 onClick={() => {
                   setCreation(false);
@@ -503,40 +501,40 @@ export function Dossiers({
             </div>
           ) : choisi ? (
             <div data-testid="dossiers-apercu" data-dossier-id={choisi.id}>
-              <p className="text-[length:var(--font-size-meta)] font-bold text-graphite">
+              <p className="chiffres-reference text-[length:var(--font-size-meta)] font-bold text-graphite">
                 {fr(libelleReferenceDossier(choisi.reference))}
               </p>
-              <h2 className="mb-3 text-[length:var(--font-size-section)] font-extrabold">{fr(choisi.nom)}</h2>
-              <dl className="mb-4 space-y-1 text-encre">
+              <h2 className="feuille-titre mb-4">{fr(choisi.nom)}</h2>
+              <dl className="fiche-infos mb-4">
                 <div>
-                  <dt className="text-graphite">{fr("Type")}</dt>
+                  <dt>{fr("Type")}</dt>
                   <dd>{fr(libelleTypeDossier(choisi.typeDossier))}</dd>
                 </div>
                 <div>
-                  <dt className="text-graphite">{fr("Étape")}</dt>
+                  <dt>{fr("Étape")}</dt>
                   <dd>{fr(libelleEtapeDossier(choisi.etape))}</dd>
                 </div>
                 {choisi.juridiction ? (
                   <div>
-                    <dt className="text-graphite">{fr("Juridiction")}</dt>
+                    <dt>{fr("Juridiction")}</dt>
                     <dd>{fr(choisi.juridiction)}</dd>
                   </div>
                 ) : null}
                 {choisi.numeroRg ? (
                   <div>
-                    <dt className="text-graphite">{fr("N° RG")}</dt>
+                    <dt>{fr("N° RG")}</dt>
                     <dd>{fr(choisi.numeroRg)}</dd>
                   </div>
                 ) : null}
                 {(cartesParties.get(choisi.id)?.client ?? "") !== "" ? (
                   <div>
-                    <dt className="text-graphite">{fr("Client")}</dt>
+                    <dt>{fr("Client")}</dt>
                     <dd>{fr(cartesParties.get(choisi.id)?.client ?? "")}</dd>
                   </div>
                 ) : null}
                 {(cartesParties.get(choisi.id)?.adversaire ?? "") !== "" ? (
                   <div>
-                    <dt className="text-graphite">{fr("Adversaire")}</dt>
+                    <dt>{fr("Adversaire")}</dt>
                     <dd>{fr(cartesParties.get(choisi.id)?.adversaire ?? "")}</dd>
                   </div>
                 ) : null}
@@ -544,7 +542,7 @@ export function Dossiers({
                 (cartesParties.get(choisi.id)?.client ?? "") === "" &&
                 (cartesParties.get(choisi.id)?.adversaire ?? "") === "" ? (
                   <div>
-                    <dt className="text-graphite">{fr("Parties")}</dt>
+                    <dt>{fr("Parties")}</dt>
                     <dd>{fr(choisi.parties)}</dd>
                   </div>
                 ) : null}
@@ -563,21 +561,21 @@ export function Dossiers({
               ) : (
                 <p className="mb-4 text-graphite">{fr("Aucune échéance")}</p>
               )}
-              <h3 className="mb-1 font-extrabold">{fr("Procédure")}</h3>
-              <ol className="mb-4" data-testid="dossier-procedure">
+              <h3 className="feuille-sous-titre mb-2">{fr("Procédure")}</h3>
+              <ol className="fiche-procedure mb-5" data-testid="dossier-procedure">
                 {etapesProcedure(choisi.typeDossier, choisi.etape).map((etape) => (
                   <li
                     key={etape.code}
                     data-etat={etape.etat}
-                    className={etape.etat === "cours" ? "font-extrabold" : "text-graphite"}
+                    className="fiche-procedure__etape"
                   >
-                    {etape.etat === "fait" ? fr("Fait, ") : etape.etat === "cours" ? fr("En cours, ") : null}
+                    <span className="sr-only">{etape.etat === "fait" ? fr("Fait, ") : etape.etat === "cours" ? fr("En cours, ") : null}</span>
                     {fr(etape.libelle)}
                   </li>
                 ))}
               </ol>
-              <h3 className="mb-1 font-extrabold">{fr("Derniers éléments")}</h3>
-              <ul className="mb-4" data-testid="dossier-recents">
+              <h3 className="feuille-sous-titre mb-2">{fr("Derniers éléments")}</h3>
+              <ul className="mb-5 text-[length:var(--font-size-dense)]" data-testid="dossier-recents">
                 {(recents.get(choisi.id) ?? []).length === 0 ? (
                   <li className="text-graphite">{fr("Aucun élément récent.")}</li>
                 ) : (
@@ -586,8 +584,8 @@ export function Dossiers({
                   ))
                 )}
               </ul>
-              <h3 className="mb-1 font-extrabold">{fr("Temps et facturation")}</h3>
-              <p className="mb-4" data-testid="dossier-temps">
+              <h3 className="feuille-sous-titre mb-2">{fr("Temps et facturation")}</h3>
+              <p className="mb-5 text-[length:var(--font-size-dense)]" data-testid="dossier-temps">
                 {fr(
                   `${formatDuree((facturation.get(choisi.id)?.nonFactureMinutes ?? 0) * 60)} non facturées, ${formatMontant(facturation.get(choisi.id)?.factureCentimes ?? 0)} facturés, ${texteEncaisses(facturation.get(choisi.id)?.encaiseCentimes)}`,
                 )}
@@ -595,7 +593,7 @@ export function Dossiers({
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  className="bouton"
+                  className="bouton bouton--prim"
                   data-testid="dossier-ouvrir"
                   onClick={() => {
                     onOuvrirDossier?.(choisi.id, choisi.nom, choisi.chemise, choisi.reference);

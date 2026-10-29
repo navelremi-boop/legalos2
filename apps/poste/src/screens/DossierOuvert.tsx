@@ -497,7 +497,7 @@ export const DOSSIERS_DEMO: DossierDemo[] = [
     client: "SCI des Lilas",
     adversaire: "M. Henri Durand",
     confrere: "Me Sophie Roche",
-    typeDossier: "contentieux",
+    typeDossier: "conseil",
     etape: "ouverture",
     echeanceDemo: echeanceDemo(12, 0.35, "Mémoire en réponse"),
   },
