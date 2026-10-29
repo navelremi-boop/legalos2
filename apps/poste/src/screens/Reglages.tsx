@@ -227,22 +227,23 @@ export function Reglages({
       data-testid="ecran-reglages"
       data-fond="neutre"
     >
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <h1 className="text-[length:var(--font-size-journee)] font-extrabold text-sur-chemise">
-          {fr("Réglages")}
-        </h1>
-        <p className="font-bold text-encre" data-testid="reglages-administrateurs">
+      <header className="ecran-tete">
+        <div>
+          <h1 className="ecran-tete__titre">{fr("Réglages")}</h1>
+          <p className="ecran-tete__sous-titre">{fr("Cabinet, messagerie, modèles et apparence")}</p>
+        </div>
+        <p className="ecran-tete__aside font-bold" data-testid="reglages-administrateurs">
           {fr("Réservé aux administrateurs")}
         </p>
-      </div>
+      </header>
       <Feuille uneColonne className="min-h-[360px]">
         <div className="flex h-full min-h-[360px]">
           <nav
             aria-label={fr("Sections des réglages")}
             data-testid="reglages-nav"
-            className="flex w-56 shrink-0 flex-col gap-1 border-r border-filet p-4"
+            className="reglages-nav flex w-60 shrink-0 flex-col gap-1 border-r border-filet"
           >
-            <h2 className="mb-2 text-[length:var(--font-size-dense)] font-extrabold text-encre">
+            <h2 className="feuille-sous-titre mb-2 px-3">
               {fr("Réglages du cabinet")}
             </h2>
             {sectionsVisibles().map((section) => (
@@ -250,7 +251,7 @@ export function Reglages({
                 key={section.id}
                 type="button"
                 aria-pressed={sectionOuverte === section.id}
-                className={`rounded-[var(--radius-control)] px-3 py-2 text-left text-encre ${sectionOuverte === section.id ? "bg-feuille-2 font-bold" : ""}`}
+                className="reglages-nav__lien"
                 data-testid={`reglages-section-${section.id}`}
                 onClick={() => {
                   setSectionOuverte(section.id);
@@ -260,17 +261,17 @@ export function Reglages({
               </button>
             ))}
           </nav>
-          <div className="min-w-0 flex-1 space-y-6 overflow-auto p-[22px] pb-16">
+          <div className="reglages-contenu min-w-0 flex-1 space-y-6 overflow-auto">
           <div id="reglages-apparence" hidden={sectionOuverte !== "apparence"}>
-            <h2 className="mb-3 text-[length:var(--font-size-section)] font-extrabold text-encre">
+            <h2 className="feuille-titre mb-3">
               {fr("Apparence")}
             </h2>
-            <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="theme">
+            <label className="etiquette-champ" htmlFor="theme">
               {fr("Thème")}
             </label>
             <select
               id="theme"
-              className="champ mt-1 w-full max-w-xs"
+              className="champ max-w-xs"
               value={themeMode}
               onChange={(event) => {
                 onThemeChange(event.target.value as ThemeMode);
@@ -330,31 +331,31 @@ export function Reglages({
               setBaseSlug(slugSaisi);
             }}
           >
-            <h2 className="mb-1 text-[length:var(--font-size-section)] font-extrabold text-encre">
+            <h2 className="feuille-titre mb-1">
               {fr("Cabinet")}
             </h2>
-            <p className="mb-4 text-graphite">
-              {fr("Le nom et le slug identifient le cabinet.")}
+            <p className="mb-5 max-w-[var(--lecture-max)] text-[length:var(--font-size-dense)] text-graphite">
+              {fr("Le nom du cabinet et son nom court, utilisé dans les adresses du serveur.")}
             </p>
-            <label className="block text-[length:var(--font-size-dense)] text-graphite" htmlFor="cabinet-nom">
+            <label className="etiquette-champ" htmlFor="cabinet-nom">
               {fr("Nom du cabinet")}
             </label>
             <input
               id="cabinet-nom"
               name="nom"
-              className="champ mt-1 mb-3 block w-full max-w-md"
+              className="champ mb-4 max-w-md"
               value={nom}
               onChange={(event) => {
                 setNom(event.target.value);
               }}
             />
-            <label className="block text-[length:var(--font-size-dense)] text-graphite" htmlFor="cabinet-slug">
-              {fr("Slug du cabinet")}
+            <label className="etiquette-champ" htmlFor="cabinet-slug">
+              {fr("Nom court du cabinet")}
             </label>
             <input
               id="cabinet-slug"
               name="slug"
-              className="champ mt-1 mb-3 block w-full max-w-md"
+              className="champ mb-4 max-w-md"
               value={slug}
               onChange={(event) => {
                 setSlug(event.target.value);
@@ -362,7 +363,7 @@ export function Reglages({
             />
             <button
               type="submit"
-              className="bouton"
+              className="bouton bouton--prim"
             >
               {fr("Enregistrer")}
             </button>
@@ -370,7 +371,7 @@ export function Reglages({
 
           {sectionOuverte === "modeles" ? <PanneauModeles /> : null}
           <section id="reglages-reference" className="space-y-3" hidden={sectionOuverte !== "reference"}>
-            <h2 className="text-[length:var(--font-size-section)] font-extrabold text-encre">
+            <h2 className="feuille-titre">
               {fr("Référence des dossiers")}
             </h2>
             {horsLigne ? (
@@ -382,13 +383,13 @@ export function Reglages({
                 {fr("Modification possible en ligne seulement.")}
               </p>
             ) : null}
-            <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="reference-modele">
+            <label className="etiquette-champ" htmlFor="reference-modele">
               {fr("Modèle")}
             </label>
             <input
               id="reference-modele"
               data-testid="reglages-reference-modele"
-              className="champ mt-1 mb-3 w-full max-w-md"
+              className="champ mb-4 max-w-md"
               value={modeleReference}
               onChange={(event) => {
                 setModeleReference(event.target.value);
@@ -398,13 +399,13 @@ export function Reglages({
               blocs={blocsDepuisTexte(modeleReference)}
               onChange={setModeleReference}
             />
-            <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="reference-politique">
+            <label className="etiquette-champ" htmlFor="reference-politique">
               {fr("Remise à zéro")}
             </label>
             <select
               id="reference-politique"
               data-testid="reglages-reference-politique"
-              className="champ mt-1 mb-3 w-full max-w-xs"
+              className="champ mb-4 max-w-xs"
               value={remiseAZero}
               onChange={(event) => {
                 const valeur = event.target.value;
@@ -414,7 +415,7 @@ export function Reglages({
               <option value="annuelle">{fr("Chaque année")}</option>
               <option value="jamais">{fr("Jamais")}</option>
             </select>
-            <label className="text-[length:var(--font-size-dense)] text-graphite" htmlFor="reference-numero-depart">
+            <label className="etiquette-champ" htmlFor="reference-numero-depart">
               {fr("Numéro de départ")}
             </label>
             <input
@@ -422,7 +423,7 @@ export function Reglages({
               data-testid="reglages-reference-numero-depart"
               type="number"
               min={1}
-              className="champ mt-1 mb-3 w-full max-w-xs"
+              className="champ mb-4 max-w-xs"
               value={numeroDepart}
               onChange={(event) => {
                 setNumeroDepart(event.target.value);
@@ -437,7 +438,7 @@ export function Reglages({
             <button
               type="button"
               data-testid="reglages-reference-enregistrer"
-              className="bouton"
+              className="bouton bouton--prim"
               disabled={horsLigne}
               onClick={() => {
                 void enregistrerReference();

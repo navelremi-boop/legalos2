@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Feuille } from "@/coque/Feuille";
+import { ChoixDossier } from "@/dossiers/ChoixDossier";
 import { BarreActions } from "@/coque/BarreActions";
 import { composantesAffichees } from "@/agenda/fuseauParis";
 import { jourCivil } from "@/agenda/navigationAgenda";
@@ -122,17 +123,17 @@ function Section({
   const taches = lignes.filter((ligne) => ligne.tache);
   return (
     <section data-testid={`section-${id}`}>
-      <h2 className="mb-2 flex items-baseline gap-3 text-[length:var(--font-size-section)] font-extrabold">
+      <h2 className="journee-section__titre">
         <span>{fr(titre)}</span>
         {lien !== undefined ? (
-          <button type="button" className="ml-auto text-[length:var(--font-size-dense)] font-bold text-encre" onClick={onLien}>
+          <button type="button" className="lien-action ml-auto" onClick={onLien}>
             {fr(lien)}
           </button>
         ) : null}
       </h2>
       {annonce}
       {lignes.length === 0 ? (
-        <p className="text-graphite">{fr(vide)}</p>
+        <p className="etat-vide">{fr(vide)}</p>
       ) : (
         <ul className="flex flex-col gap-1">
           {evenements.map((ligne) => (
@@ -152,7 +153,7 @@ function Section({
                 <div className="truncate text-[length:var(--font-size-dense)] text-graphite">
                   {fr(ligne.meta)}
                   {ligne.calcule ? (
-                    <span className="ml-2 font-bold text-encre" data-testid="journee-calcule">
+                    <span className="pastille-calcule" data-testid="journee-calcule">
                       {fr("Calculé")}
                     </span>
                   ) : null}
@@ -166,7 +167,7 @@ function Section({
               {ligne.classer ? (
                 <button
                   type="button"
-                  className="bouton bouton--petit"
+                  className="bouton bouton--prim bouton--petit"
                   data-testid="journee-classer"
                   onClick={() => {
                     onClasser?.(ligne.classer?.messageId ?? "", ligne.classer?.dossierId ?? "");
@@ -177,7 +178,7 @@ function Section({
               ) : null}
               {ligne.classer && choixOuvert === ligne.id ? (
                 <form
-                  className="flex flex-wrap items-center gap-2"
+                  className="journee-classement"
                   onSubmit={(event) => {
                     event.preventDefault();
                     const choisi = new FormData(event.currentTarget).get("dossier");
@@ -187,25 +188,18 @@ function Section({
                     onAnnulerChoix?.();
                   }}
                 >
-                  <select
-                    name="dossier"
-                    className="champ"
-                    data-testid="journee-choix-dossier"
-                    defaultValue={ligne.classer.dossierId}
-                  >
-                    {(dossiersChoix ?? []).map((dossier) => (
-                      <option key={dossier.id} value={dossier.id}>
-                        {fr(dossier.nom)}
-                      </option>
-                    ))}
-                  </select>
+                  <ChoixClassement
+                    ligneId={ligne.id}
+                    initial={ligne.classer.dossierId}
+                    dossiers={dossiersChoix ?? []}
+                  />
                   <button
                     type="submit"
                     className="bouton bouton--petit"
                   >
                     {fr("Classer")}
                   </button>
-                  <button type="button" className="text-graphite" onClick={onAnnulerChoix}>
+                  <button type="button" className="bouton bouton--discret bouton--petit" onClick={onAnnulerChoix}>
                     {fr("Annuler")}
                   </button>
                 </form>
@@ -242,7 +236,7 @@ function Section({
             </li>
           ))}
           {taches.length > 0 ? (
-            <li className="mt-3 list-none font-bold">{fr("À faire aujourd'hui")}</li>
+            <li className="feuille-sous-titre mt-4 mb-1 list-none">{fr("À faire aujourd'hui")}</li>
           ) : null}
           {taches.map((ligne) => {
             const faite = faites?.has(ligne.id) ?? false;
@@ -254,7 +248,7 @@ function Section({
                   aria-checked={faite}
                   aria-label={fr(`Marquer comme faite : ${ligne.titre}`)}
                   data-testid="journee-tache"
-                  className={`mt-0.5 h-4 w-4 shrink-0 rounded-[var(--radius-control)] border border-filet ${faite ? "bg-encre" : "bg-page"}`}
+                  className="case-tache"
                   onClick={() => {
                     onBasculerTache?.(ligne.id);
                   }}
@@ -270,6 +264,31 @@ function Section({
         </ul>
       )}
     </section>
+  );
+}
+
+/** Dossier de classement choisi par recherche ; le select masqué garde le nom « dossier » du formulaire. */
+function ChoixClassement({
+  ligneId,
+  initial,
+  dossiers,
+}: {
+  ligneId: string;
+  initial: string;
+  dossiers: readonly { id: string; nom: string }[];
+}) {
+  const [cible, setCible] = useState(initial);
+  return (
+    <div className="w-64">
+      <ChoixDossier
+        id={`journee-choix-${ligneId}`}
+        name="dossier"
+        testId="journee-choix-dossier"
+        dossiers={[...dossiers]}
+        valeur={cible}
+        onChange={setCible}
+      />
+    </div>
   );
 }
 
@@ -505,16 +524,14 @@ export function Journee({
       <div className="sr-only" data-testid="fond-neutre">
         {fr("Fond neutre")}
       </div>
-      <div className="mb-4 flex items-start justify-between gap-4">
+      <header className="ecran-tete">
         <div>
-          <h1 className="text-[length:var(--font-size-journee)] font-extrabold text-texte-sur-neutre">
-            {fr("La journée")}
-          </h1>
-          <p className="text-graphite">
+          <h1 className="ecran-tete__titre">{fr("La journée")}</h1>
+          <p className="ecran-tete__sous-titre journee-date">
             {fr(`${formatDateLongue(jeu?.jourPage ?? jourCivil(new Date()))} ${(jeu?.jourPage ?? jourCivil(new Date())).slice(0, 4)}`)}
           </p>
         </div>
-        <p className="font-bold text-encre" data-testid="journee-prochain">
+        <p className="ecran-tete__aside font-bold" data-testid="journee-prochain">
           {fr(
             libelleProchainRendezVous(
               new Date().getHours() * 60 + new Date().getMinutes(),
@@ -526,7 +543,7 @@ export function Journee({
             ),
           )}
         </p>
-      </div>
+      </header>
       <Feuille uneColonne className="min-h-[420px]">
         <div className="grid gap-8 p-[22px] pb-24 md:grid-cols-2">
           <Section

@@ -3822,3 +3822,252 @@
     box-shadow: inset 0 0 0 1px var(--champ-bord-survol);
   }
 }
+
+@layer components {
+  /* --- Facturation --- */
+  .factures__entete,
+  .factures__ligne {
+    display: grid;
+    grid-template-columns: 9rem minmax(0, 1fr) 9rem;
+    align-items: center;
+    gap: var(--espace-4);
+    padding: 0 var(--espace-2);
+  }
+
+  .factures__entete {
+    margin: 0;
+    padding-bottom: var(--espace-2);
+    border-bottom: 1px solid var(--filet);
+    font-size: var(--font-size-meta);
+    font-weight: 700;
+    color: var(--graphite);
+  }
+
+  .factures__ligne {
+    min-height: var(--row-height-list);
+    border-bottom: 1px solid var(--filet);
+    font-size: var(--font-size-base);
+  }
+
+  .factures__ligne:hover {
+    background: var(--survol);
+  }
+
+  .etat-brouillon {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--feuille-2);
+    box-shadow: inset 0 0 0 1px var(--filet);
+    color: var(--graphite);
+    font-size: var(--font-size-meta);
+    font-weight: 700;
+  }
+
+  /* --- Mails : même en-tête que les autres écrans, liste plus large --- */
+  .mails-tete {
+    margin-bottom: var(--espace-5);
+    padding: 0;
+  }
+
+  .mails-tete h1 {
+    font-size: var(--font-size-journee);
+    font-weight: 800;
+    letter-spacing: -0.015em;
+  }
+
+  .mails-feuille {
+    grid-template-columns: 240px minmax(360px, 32%) minmax(0, 1fr);
+  }
+}
+
+@layer components {
+  .mails-tete p {
+    font-size: var(--font-size-base);
+    opacity: 0.72;
+  }
+}
+
+@layer components {
+  /* --- Connexion --- */
+  .carte-connexion {
+    width: 100%;
+    max-width: 440px;
+    padding: var(--espace-6);
+    border-radius: var(--radius-feuille);
+    background: var(--feuille);
+    color: var(--encre);
+    box-shadow: var(--ombre-carte);
+  }
+
+  .carte-connexion__marque {
+    margin: 0 0 var(--espace-4);
+    font-size: var(--font-size-meta);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: var(--graphite);
+  }
+
+  .carte-connexion__titre {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+
+  .verifications {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espace-2);
+    font-size: var(--font-size-dense);
+  }
+
+  .verifications li {
+    display: flex;
+    align-items: center;
+    gap: var(--espace-2);
+  }
+
+  .verifications li::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--ok);
+  }
+
+  .verifications li[data-etat="attention"]::before {
+    background: var(--echeance);
+  }
+
+  .verifications b {
+    margin-left: auto;
+  }
+
+  .progression {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espace-3);
+    font-size: var(--font-size-dense);
+  }
+
+  .progression li {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    padding-bottom: 8px;
+  }
+
+  .progression li::after,
+  .progression li i {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    border-radius: 999px;
+  }
+
+  .progression li::after {
+    right: 0;
+    background: var(--feuille-2);
+  }
+
+  .progression li i {
+    z-index: 1;
+    background: var(--encre);
+  }
+}
+
+@layer components {
+  /* --- Réglages --- */
+  .reglages-nav {
+    padding: var(--espace-5) var(--espace-3);
+  }
+
+  .reglages-nav__lien {
+    padding: 7px var(--espace-3);
+    border-radius: var(--radius-control);
+    color: var(--encre);
+    font-size: var(--font-size-dense);
+    text-align: left;
+    transition: background-color var(--duration-hover) ease;
+  }
+
+  .reglages-nav__lien:hover {
+    background: var(--survol);
+  }
+
+  .reglages-nav__lien[aria-pressed="true"] {
+    background: var(--selection-fond);
+    font-weight: 700;
+  }
+
+  .reglages-contenu {
+    padding: var(--espace-5) var(--espace-6) 96px;
+  }
+}
+
+@layer components {
+  /* --- La journée --- */
+  .journee-date::first-letter {
+    text-transform: uppercase;
+  }
+
+  .journee-section__titre {
+    display: flex;
+    align-items: baseline;
+    gap: var(--espace-3);
+    margin: 0 0 var(--espace-2);
+    padding-bottom: var(--espace-2);
+    border-bottom: 1px solid var(--filet);
+    font-size: var(--font-size-section);
+    font-weight: 800;
+  }
+
+  .ligne-journee {
+    align-items: center;
+    min-height: var(--row-height-list);
+  }
+
+  .ligne-journee__pastille {
+    margin-top: 0;
+  }
+
+  .pastille-calcule {
+    display: inline-flex;
+    margin-left: var(--espace-2);
+    padding: 0 7px;
+    border-radius: 999px;
+    background: var(--feuille-2);
+    box-shadow: inset 0 0 0 1px var(--filet);
+    color: var(--encre);
+    font-size: var(--font-size-meta);
+    font-weight: 700;
+  }
+
+  .case-tache {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    border-radius: 5px;
+    background: var(--champ-fond);
+    box-shadow: inset 0 0 0 1.5px var(--champ-bord-survol);
+    transition: background-color var(--duration-hover) ease;
+  }
+
+  .case-tache[aria-checked="true"] {
+    background: var(--encre);
+    box-shadow: none;
+  }
+
+  .journee-classement {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--espace-2);
+  }
+}

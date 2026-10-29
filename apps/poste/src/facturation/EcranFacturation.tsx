@@ -1,5 +1,7 @@
 import { BarreActions } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
+import { TexteReferences } from "@/coque/TexteReferences";
+import { IconeCadenas } from "@/coque/chrono/icones";
 import { fr } from "@/lib/fr";
 
 export type LigneFactureDemo = {
@@ -30,26 +32,49 @@ export function EcranFacturation({
       data-testid="ecran-facturation"
       data-fond="neutre"
     >
-      <h1 className="mb-4 text-[length:var(--font-size-journee)] font-extrabold text-texte-sur-neutre">
-        {fr("Facturation")}
-      </h1>
+      <header className="ecran-tete">
+        <div>
+          <h1 className="ecran-tete__titre">{fr("Facturation")}</h1>
+          <p className="ecran-tete__sous-titre">
+            {fr(lignes.length === 0 ? "Aucune facture pour l'instant" : `${String(lignes.length)} pièces de facturation`)}
+          </p>
+        </div>
+      </header>
       <Feuille uneColonne className="min-h-[360px]">
         <div className="p-[22px] pb-24">
-          <h2 className="mb-2 text-[length:var(--font-size-section)] font-extrabold">{fr("Factures")}</h2>
+          <h2 className="feuille-titre mb-3">{fr("Factures")}</h2>
           {lignes.length === 0 ? (
-            <p className="text-graphite" data-testid="facturation-vide">
+            <p className="etat-vide" data-testid="facturation-vide">
               {fr("Aucune facture à afficher pour l'instant. Saisissez du temps pour préparer un brouillon.")}
             </p>
           ) : (
-            <ul className="divide-y divide-filet" data-testid="facturation-liste">
-              {lignes.map((ligne) => (
-                <li key={ligne.id} className="flex items-center gap-3 py-2" data-testid="facture-ligne" data-statut={ligne.statut}>
-                  <span className="font-bold">{fr(ligne.statut)}</span>
-                  <span className="min-w-0 flex-1 truncate">{fr(ligne.libelle)}</span>
-                  <span className="text-graphite">{fr(ligne.montant)}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="factures">
+              <p className="factures__entete" aria-hidden="true">
+                <span>{fr("État")}</span>
+                <span>{fr("Pièce")}</span>
+                <span className="montant">{fr("Montant")}</span>
+              </p>
+              <ul data-testid="facturation-liste">
+                {lignes.map((ligne) => (
+                  <li key={ligne.id} className="factures__ligne" data-testid="facture-ligne" data-statut={ligne.statut}>
+                    <span>
+                      {ligne.statut === "Brouillon" ? (
+                        <span className="etat-brouillon">{fr(ligne.statut)}</span>
+                      ) : (
+                        <span className="badge-definitif">
+                          <IconeCadenas />
+                          {fr(ligne.statut)}
+                        </span>
+                      )}
+                    </span>
+                    <span className="min-w-0 truncate">
+                      <TexteReferences texte={ligne.libelle} />
+                    </span>
+                    <span className="montant font-bold">{fr(ligne.montant)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       </Feuille>

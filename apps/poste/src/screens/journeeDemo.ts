@@ -86,7 +86,7 @@ export const JOURNEE_DEMO: DonneesJournee = {
     },
     {
       id: "mail-2",
-      titre: "Mise en demeure, SA Assurances Loire",
+      titre: "Mise en demeure de l'assureur",
       meta: "Suggéré : Martin c/ Assurances Loire",
       dossier: { nom: "Martin c/ Assurances Loire", chemise: "bleu-classeur", reference: "2026-031" },
       classer: { messageId: "mail-2", dossierId: "martin" },
