@@ -110,8 +110,7 @@
       "Bash(git * -c core.hooksPath*)",
       "PowerShell(git * -c core.hooksPath*)"
     ],
-    "blockReadsOutsideWorkingDirectories": true,
-    "disableBypassPermissionsMode": "disable"
+    "blockReadsOutsideWorkingDirectories": true
   },
   "hooks": {
     "PreToolUse": [

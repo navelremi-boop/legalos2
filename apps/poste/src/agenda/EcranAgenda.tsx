@@ -103,6 +103,26 @@ function libelleQuand(debut: string): string {
   return `${formatDateLongue(mur.jour)}${heure}`;
 }
 
+/** Heure courante sur la colonne du jour, remise à jour chaque minute. */
+function TraitMaintenant() {
+  const [minutes, setMinutes] = useState(() => {
+    const maintenant = new Date();
+    return maintenant.getHours() * 60 + maintenant.getMinutes();
+  });
+  useEffect(() => {
+    const minuterie = window.setInterval(() => {
+      const maintenant = new Date();
+      setMinutes(maintenant.getHours() * 60 + maintenant.getMinutes());
+    }, 60_000);
+    return () => {
+      window.clearInterval(minuterie);
+    };
+  }, []);
+  const position = positionGrille(minutes, 0);
+  if (!position) return null;
+  return <span className="agenda-maintenant" style={{ top: position.top }} aria-hidden="true" />;
+}
+
 function BlocInvitation({
   element,
   style,
@@ -121,6 +141,11 @@ function BlocInvitation({
           : "agenda-sans-heure__element"
       }
       style={style}
+      title={fr(
+        [presentation.libelle, presentation.heure, presentation.etat, presentation.reponse, presentation.organisateur]
+          .filter((morceau) => morceau !== null && morceau !== "")
+          .join(", "),
+      )}
       data-testid="agenda-invitation"
       data-invitation-id={element.id}
       data-uid={element.uid}
@@ -139,7 +164,7 @@ function BlocInvitation({
           <span data-testid="agenda-invitation-heure">{presentation.heure}</span>
         ) : null}
       </div>
-      <div className="flex flex-wrap items-baseline gap-x-2 text-[length:var(--font-size-meta)] text-graphite">
+      <div className="agenda-bloc__detail">
         {presentation.etat !== null ? (
           <span data-testid="agenda-invitation-etat">{fr(presentation.etat)}</span>
         ) : null}
@@ -914,6 +939,7 @@ export function EcranAgenda({
                     style={{ top: (index + 1) * HAUTEUR_HEURE }}
                   />
                 ))}
+                {jour === aujourdhui ? <TraitMaintenant /> : null}
                 {invitationsDuJourAffichees
                   .filter((element) => element.minutes !== null)
                   .map((element) => {

@@ -4089,3 +4089,118 @@
     max-width: 210px;
   }
 }
+
+@layer components {
+  /* --- En-tête du dossier compact (étiquette, essentiel, jauge sur une rangée) --- */
+  .dossier-tete__haut {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--espace-4) var(--espace-6);
+  }
+
+  .dossier-tete__haut .infos-dossier {
+    flex: 1 1 360px;
+    gap: var(--espace-2) var(--espace-5);
+    margin: 0;
+  }
+
+  .dossier-tete__haut .jauge-echeance {
+    margin-left: auto;
+    gap: var(--espace-3);
+    padding: 8px 16px 8px 8px;
+  }
+
+  .dossier-tete__haut .jauge-echeance__anneau {
+    width: 48px;
+    height: 48px;
+  }
+
+  .dossier-tete__actions {
+    margin: var(--espace-3) 0 0;
+  }
+
+  .bouton-chemise--discret {
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    text-decoration: underline;
+    text-decoration-color: var(--verre-bord);
+    text-underline-offset: 3px;
+  }
+
+  .bouton-chemise--discret:hover {
+    background: var(--verre);
+  }
+}
+
+@layer components {
+  .chrono-encart {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .chrono-encart button {
+    grid-column: 2;
+    justify-self: start;
+    margin-left: 0;
+  }
+}
+
+@layer components {
+  /* Agenda : l'heure courante, et une semaine qui ne garde que le titre et l'heure */
+  .agenda-maintenant {
+    position: absolute;
+    right: 0;
+    left: 0;
+    z-index: 3;
+    height: 0;
+    border-top: 2px solid var(--encre);
+    pointer-events: none;
+  }
+
+  .agenda-maintenant::before {
+    content: "";
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--encre);
+  }
+
+  [data-testid="agenda-vue-semaine-contenu"] .agenda-bloc__detail {
+    display: none;
+  }
+
+  [data-testid="agenda-vue-semaine-contenu"] .agenda-bloc {
+    padding: 3px 6px;
+    font-size: var(--font-size-meta);
+  }
+}
+
+@layer components {
+  /* Mails : l'objet tient sur deux lignes avant d'être coupé */
+  .mails-ligne__obj {
+    display: -webkit-box;
+    overflow: hidden;
+    white-space: normal;
+    text-overflow: clip;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+}
+
+@layer components {
+  .agenda-bloc__detail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: var(--espace-2);
+    font-size: var(--font-size-meta);
+    color: var(--graphite);
+  }
+}

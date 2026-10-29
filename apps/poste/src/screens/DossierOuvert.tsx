@@ -102,6 +102,7 @@ export function DossierOuvert({
   const [historique, setHistorique] = useState<ConflitLocal[]>([]);
   const [brouillonNom, setBrouillonNom] = useState<Record<string, string>>({});
   const [chronoSync, setChronoSync] = useState<ChronoItem[]>([]);
+  const [infosCompletes, setInfosCompletes] = useState(false);
   const chronoActif = intercalaire === "chrono";
   const persoActif =
     !estIntercalaireStandard(intercalaire) &&
@@ -256,8 +257,8 @@ export function DossierOuvert({
       data-testid="ecran-dossier"
       data-dossier-id={dossier.id}
     >
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-6">
-        <div className="min-w-0">
+      <div className="dossier-tete">
+        <div className="dossier-tete__haut">
           <EtiquetteDossier reference={dossier.reference} nom={dossier.nom} />
           <InfosDossier
             juridiction={dossier.juridiction}
@@ -268,50 +269,62 @@ export function DossierOuvert({
             typeDossier={dossier.typeDossier}
             etape={dossier.etape}
             lies={dossier.lies}
+            plus={infosCompletes}
           />
-          <div className="dossier-tete__actions">
-            <PanneauConvention dossierId={dossier.id} />
-            {intercalairesSync ? <CompleterDossier dossierId={dossier.id} /> : null}
-          </div>
-          {conflitDossier ? (
-            <p className="message-info mt-3 max-w-[var(--lecture-max)]" data-testid="dossier-conflit" role="status">
-              {fr(
-                `Conflit sur ${conflitDossier.champ} : « ${conflitDossier.valeur_remplacee ?? ""} » remplacé par « ${conflitDossier.valeur_appliquee ?? ""} ».`,
-              )}
-            </p>
-          ) : null}
-          {conflitContact ? (
-            <p className="message-info mt-2 max-w-[var(--lecture-max)]" data-testid="contact-conflit" role="status">
-              {fr(
-                `Conflit de contact sur ${conflitContact.champ} : « ${conflitContact.valeur_remplacee ?? ""} » remplacé par « ${conflitContact.valeur_appliquee ?? ""} ».`,
-              )}
-            </p>
-          ) : null}
-          <ul className="mt-2 text-[length:var(--font-size-dense)] text-sur-chemise" data-testid="contact-historique">
-            {historique.map((ligne, index) => (
-              <li key={`${ligne.champ}-${String(index)}`}>
-                {fr(`${ligne.champ} : ${ligne.valeur_appliquee ?? ""}`)}
-              </li>
-            ))}
-          </ul>
+          {dossier.echeanceDemo ? (
+            <JaugeEcheance
+              joursRestants={dossier.echeanceDemo.joursRestants}
+              partEcoulee={dossier.echeanceDemo.partEcoulee}
+              intitule={dossier.echeanceDemo.intitule}
+              dateLibelle={dossier.echeanceDemo.dateLibelle}
+            />
+          ) : (
+            <div className="jauge-echeance" data-testid="jauge-echeance" role="status">
+              <p className="text-[length:var(--font-size-dense)] text-sur-chemise opacity-75">
+                {fr("Aucune échéance à afficher")}
+              </p>
+            </div>
+          )}
         </div>
-        {dossier.echeanceDemo ? (
-          <JaugeEcheance
-            joursRestants={dossier.echeanceDemo.joursRestants}
-            partEcoulee={dossier.echeanceDemo.partEcoulee}
-            intitule={dossier.echeanceDemo.intitule}
-            dateLibelle={dossier.echeanceDemo.dateLibelle}
-          />
-        ) : (
-          <div className="jauge-echeance" data-testid="jauge-echeance" role="status">
-            <p className="text-[length:var(--font-size-dense)] text-sur-chemise opacity-75">
-              {fr("Aucune échéance à afficher")}
-            </p>
-          </div>
-        )}
+        <div className="dossier-tete__actions">
+          <PanneauConvention dossierId={dossier.id} />
+          {intercalairesSync ? <CompleterDossier dossierId={dossier.id} /> : null}
+          <button
+            type="button"
+            className="bouton-chemise bouton-chemise--discret"
+            aria-expanded={infosCompletes}
+            data-testid="infos-dossier-plus"
+            onClick={() => {
+              setInfosCompletes((actuel) => !actuel);
+            }}
+          >
+            {fr(infosCompletes ? "Moins d'informations" : "Plus d'informations")}
+          </button>
+        </div>
+        {conflitDossier ? (
+          <p className="message-info mt-3 max-w-[var(--lecture-max)]" data-testid="dossier-conflit" role="status">
+            {fr(
+              `Conflit sur ${conflitDossier.champ} : « ${conflitDossier.valeur_remplacee ?? ""} » remplacé par « ${conflitDossier.valeur_appliquee ?? ""} ».`,
+            )}
+          </p>
+        ) : null}
+        {conflitContact ? (
+          <p className="message-info mt-2 max-w-[var(--lecture-max)]" data-testid="contact-conflit" role="status">
+            {fr(
+              `Conflit de contact sur ${conflitContact.champ} : « ${conflitContact.valeur_remplacee ?? ""} » remplacé par « ${conflitContact.valeur_appliquee ?? ""} ».`,
+            )}
+          </p>
+        ) : null}
+        <ul className="mt-2 text-[length:var(--font-size-dense)] text-sur-chemise empty:hidden" data-testid="contact-historique">
+          {historique.map((ligne, index) => (
+            <li key={`${ligne.champ}-${String(index)}`}>
+              {fr(`${ligne.champ} : ${ligne.valeur_appliquee ?? ""}`)}
+            </li>
+          ))}
+        </ul>
       </div>
 
-      <div className="tenue-cadre relative mt-6 min-h-0 flex-1">
+      <div className="tenue-cadre relative mt-5 min-h-0 flex-1">
         <Feuille uneColonne={!chronoActif} className="h-full min-h-[360px]">
           {chronoActif ? (
             <VueScindee items={chronoItems} />

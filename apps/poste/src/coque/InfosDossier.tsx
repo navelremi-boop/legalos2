@@ -10,6 +10,8 @@ type InfosDossierProps = {
   typeDossier?: string;
   etape?: string;
   lies?: string;
+  /** Confrère, type, étape et dossiers liés : repliés par défaut, toujours présents dans le document. */
+  plus?: boolean;
 };
 
 export function InfosDossier({
@@ -21,6 +23,7 @@ export function InfosDossier({
   typeDossier,
   etape,
   lies,
+  plus = true,
 }: InfosDossierProps) {
   return (
     <dl className="infos-dossier" data-testid="infos-dossier">
@@ -40,19 +43,19 @@ export function InfosDossier({
         <dt>{fr("Adversaire")}</dt>
         <dd data-testid="dossier-adversaire">{fr(adversaire)}</dd>
       </div>
-      <div>
+      <div className="infos-dossier__secondaire" hidden={!plus}>
         <dt>{fr("Confrère")}</dt>
         <dd data-testid="dossier-confrere">{fr(confrere || "—")}</dd>
       </div>
-      <div>
+      <div className="infos-dossier__secondaire" hidden={!plus}>
         <dt>{fr("Type")}</dt>
         <dd data-testid="dossier-type-affiche">{fr(libelleTypeDossier(typeDossier))}</dd>
       </div>
-      <div>
+      <div className="infos-dossier__secondaire" hidden={!plus}>
         <dt>{fr("Étape")}</dt>
         <dd data-testid="dossier-etape-affiche">{fr(libelleEtapeDossier(etape))}</dd>
       </div>
-      <div>
+      <div className="infos-dossier__secondaire" hidden={!plus}>
         <dt>{fr("Dossiers liés")}</dt>
         <dd data-testid="dossier-liens">{fr(lies || "—")}</dd>
       </div>
