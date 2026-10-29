@@ -4071,3 +4071,21 @@
     gap: var(--espace-2);
   }
 }
+
+@layer components {
+  /* Encart de classement : la référence ne se coupe jamais, le bouton passe dessous si la place manque */
+  .chrono-encart {
+    flex-wrap: wrap;
+  }
+
+  .chrono-encart .chiffres-reference {
+    white-space: nowrap;
+  }
+}
+
+@layer components {
+  /* Onglets de dossier : le nom se lit en entier dès que la barre a la place */
+  .onglet-dossier {
+    max-width: 210px;
+  }
+}

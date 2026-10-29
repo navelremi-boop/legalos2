@@ -1,4 +1,5 @@
 import { fr } from "@/lib/fr";
+import { TexteReferences } from "@/coque/TexteReferences";
 import type { ChronoItem } from "./types";
 import { IconeEncart } from "./icones";
 
@@ -30,7 +31,7 @@ export function ApercuChrono({ item }: ApercuChronoProps) {
         <span className="chrono-apercu__quand">{fr(apercu.quand)}</span>
       </div>
 
-      <p className="chrono-apercu__titre">{fr(apercu.titre)}</p>
+      <p className="chrono-apercu__titre"><TexteReferences texte={apercu.titre} /></p>
 
       {apercu.corps !== undefined && apercu.corps.length > 0 ? (
         <div className="chrono-apercu__corps" data-testid="chrono-apercu-corps">
@@ -92,9 +93,9 @@ export function ApercuChrono({ item }: ApercuChronoProps) {
         data-variante={apercu.encart.variante}
       >
         <IconeEncart variante={apercu.encart.variante} />
-        <div>
+        <div className="min-w-0 flex-1">
           <b>{fr(apercu.encart.titre)}</b>
-          {fr(apercu.encart.detail)}
+          <TexteReferences texte={apercu.encart.detail} />
         </div>
         {apercu.encart.actionChanger === true ? (
           <button type="button">{fr("Changer")}</button>

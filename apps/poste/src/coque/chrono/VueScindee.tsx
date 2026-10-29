@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { TexteReferences } from "@/coque/TexteReferences";
 import { fr } from "@/lib/fr";
 import { ApercuChrono } from "./ApercuChrono";
 import { BadgeDefinitif } from "./BadgeDefinitif";
@@ -116,8 +117,8 @@ export function VueScindee({ items = [] }: VueScindeeProps) {
                         <IconeTypeChrono type={item.type} />
                       </span>
                       <div>
-                        <div className="chrono-item__titre">{fr(item.titre)}</div>
-                        <div className="chrono-item__meta">{fr(item.metadonnees)}</div>
+                        <div className="chrono-item__titre"><TexteReferences texte={item.titre} /></div>
+                        <div className="chrono-item__meta"><TexteReferences texte={item.metadonnees} /></div>
                       </div>
                       <div className="chrono-item__droite">
                         {item.badge !== undefined ? (

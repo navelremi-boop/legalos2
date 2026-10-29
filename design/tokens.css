@@ -157,7 +157,8 @@
 
   /* Grille : une colonne centrée, des gouttières qui grandissent avec l'écran */
   --gouttiere: clamp(24px, 2.2vw, 48px);
-  --colonne-max: 1440px;
+  --colonne-max: 1120px;
+  --colonne-large: 1440px;
   --intercalaires-largeur: 136px;
   --lecture-max: 68ch;
   --formulaire-max: 520px;

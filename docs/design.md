@@ -1,0 +1,136 @@
+# Design du poste — référence visuelle
+
+Ce document est la référence visuelle du poste LEGAL OS. Là où les maquettes de `design/maquettes/` s'en écartent, ce document l'emporte. Les maquettes restent utiles pour l'esprit de chaque écran (chemise, feuille, intercalaires, barre d'actions), pas pour les mesures.
+
+Sources : jetons dans `design/tokens.css` (seul fichier autorisé à contenir des couleurs), composants communs à la fin de `apps/poste/src/index.css`, recette `tests/recette/coque-app.mjs --captures` (captures et contrôle de la grille).
+
+## 1. Grille et largeurs maximales
+
+Un écran se lit dans **une colonne centrée**. La barre du haut, seule, occupe toute la largeur de la fenêtre : c'est le cadre de l'application, pas son contenu.
+
+| Jeton | Valeur | Usage |
+|---|---|---|
+| `--gouttiere` | `clamp(24px, 2.2vw, 48px)` | marge minimale de chaque côté |
+| `--colonne-max` | 1 120 px | colonne courante : en-tête d'écran et feuille |
+| `--colonne-large` | 1 440 px | écrans à trois volets : Mails, Agenda (classe `.ecran--large`) |
+| `--intercalaires-largeur` | 136 px | intercalaires à droite de la feuille d'un dossier |
+| `--lecture-max` | 68 caractères | corps de texte, messages, explications |
+| `--formulaire-max` | 520 px | formulaire sur une colonne |
+| `--panneau-largeur` | 440 px | panneau latéral |
+
+Règles :
+
+- La racine d'un écran porte `.ecran`. Ses marges valent `max(gouttière, (100 % − colonne) / 2)` : sur grand écran, l'en-tête et la feuille restent alignés sur les mêmes bords.
+- La vue d'un dossier centre **la feuille et ses intercalaires ensemble** ; la barre d'actions se centre sur la feuille.
+- Les éléments liés restent proches : le nom d'un dossier et son échéance se suivent (écart de 16 px), jamais aux deux bouts d'une ligne. Une valeur ne s'aligne à droite que dans une colonne de tableau (montant, durée, état).
+- Une liste de plusieurs valeurs est une **grille à colonnes fixes** (Temps, Facturation), pas une ligne à `space-between`.
+- Aucun débordement horizontal, de 1 366 à 2 560 px de large.
+
+## 2. Espacements
+
+Échelle en multiples de 4 px, jetons `--espace-1` à `--espace-8` :
+
+| 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|
+| 4 | 8 | 12 | 16 | 24 | 32 | 48 | 64 |
+
+- Entre l'en-tête d'écran et la feuille : 24 px. Haut d'écran : 32 px.
+- Intérieur de feuille : 22 à 24 px ; bas de feuille : 96 px, pour que la barre d'actions ne masque jamais la dernière ligne.
+- Entre deux champs : 16 px. Entre l'étiquette et son champ : 4 px. Entre deux sections d'un panneau : 32 px, séparées d'un filet.
+- Hauteur de ligne de liste : 44 px au moins (`--row-height-list`).
+
+## 3. Typographie
+
+Une seule police, Atkinson Hyperlegible Next, graisses 400, 700 et 800.
+
+| Rôle | Taille | Graisse | Jeton |
+|---|---|---|---|
+| Titre d'écran | 28 px | 800 | `--font-size-journee` |
+| Nom du dossier (étiquette) | 26 px | 800 | `--font-size-dossier` |
+| Titre de section, de panneau | 17 px | 800 | `--font-size-section` |
+| Texte d'un mail | 15 px | 400 | `--font-size-mail` |
+| Texte courant | 14 px | 400 | `--font-size-base` |
+| Listes denses, boutons, champs | 13 px | 400 ou 700 | `--font-size-dense` |
+| Étiquettes, dates, compteurs | 12 px | 700 | `--font-size-meta` |
+
+- Casse de phrase partout. Les libellés calculés en minuscules (« mercredi 28 octobre », « contentieux ») prennent une majuscule initiale à l'affichage (`::first-letter`), jamais dans la donnée.
+- Un titre ne se coupe pas au milieu d'une colonne étroite : `white-space: nowrap` et points de suspension si la place manque vraiment.
+- Pas de troncature quand la place existe : un nom tronqué signale une colonne trop étroite, on élargit la colonne.
+
+## 4. Chiffres
+
+- Chiffres alignés et **tabulaires** partout (`lining-nums tabular-nums`), pour que montants et heures s'alignent en colonne.
+- **Zéro ordinaire** dans l'interface : montants (« 1 200,00 € »), heures (« 9 h 00 »), durées, dates, compteurs. La police d'origine ne dessine qu'un zéro barré ; l'interface utilise donc une variante produite par `design/fonts/zero-sans-barre.py` (famille « Atkinson Hyperlegible Next », fichier `AtkinsonHyperlegibleNext-Interface-Variable.ttf`).
+- **Zéro barré réservé aux références** : référence de dossier (« 2026-042 »), numéro de facture, numéro RG. Ces textes portent `.chiffres-reference` (ou `.etiquette-dossier__ref`, `.onglet-dossier__ref`, `.mails-dos`) et la famille `--font-reference`, qui charge le fichier d'origine. Dans un libellé libre, `TexteReferences` repère les références et leur applique cette classe.
+- Les montants s'alignent à droite dans leur colonne (`.montant`).
+
+## 5. Couleurs
+
+Toutes les couleurs sont des jetons de `design/tokens.css`, redéfinis pour la nuit. Aucun code couleur ailleurs (la recette `coque-app.mjs` échoue sinon).
+
+| Jeton | Jour | Nuit | Usage |
+|---|---|---|---|
+| `--neutre` | `#d6cfc2` | `#1e2629` | fond hors dossier |
+| `--feuille` | `#ffffff` | `#1a2023` | feuille, panneaux, menus |
+| `--feuille-2` | `#f6f8f7` | `#20272a` | volets secondaires, pastilles |
+| `--encre` | `#141a1c` | `#e8eeec` | texte |
+| `--graphite` | `#5a6569` | `#9ca8ac` | texte secondaire, étiquettes |
+| `--filet` | `#e8eceb` | `#2b3438` | séparateurs |
+| `--survol` | `#f3f6f5` | `#222a2d` | survol d'une ligne |
+| `--selection-fond` | `#e9eeec` | `#273034` | élément choisi, filtre actif |
+| `--champ-fond` | `#ffffff` | `#151b1d` | fond des champs |
+| `--champ-bord` | `#cdd5d3` | `#3a4549` | bord des champs et boutons |
+| `--champ-bord-survol` | `#9aa6a9` | `#56646a` | bord au survol |
+| `--bouton-prim-fond` | `#141a1c` | `#e8eeec` | bouton principal |
+| `--echeance` | `#b42318` | `#f07a6a` | délai à 2 jours ouvrés ou moins, erreurs |
+| `--definitif` | `#43388a` | `#bdb4f5` | badge à cadenas, pièce non modifiable |
+| `--attente` | `#9a6a12` | `#e8b85c` | à faire : non facturé, alerte de convention, conflit |
+| `--ok` | `#2f7d4b` | `#7bd89a` | vérification réussie |
+
+Couleurs réservées, inchangées : rouge `echeance` pour l'urgence et l'erreur, violet `definitif` pour l'immuable, couleur de chemise jamais seule ni pour un statut. Dans l'agenda, un bloc prend la teinte de la chemise de son dossier avec un liseré d'accent ; le nom du dossier figure dans le détail.
+
+## 6. États
+
+| État | Règle |
+|---|---|
+| Survol | fond `--survol` (lignes) ou `--bouton-survol` et bord `--champ-bord-survol` (boutons, champs), transition 150 ms |
+| Focus | contour 2 px `--focus` décalé de 2 px ; champs : bord `--focus` et anneau `--anneau-focus`. Toujours visible au clavier |
+| Désactivé | opacité 0,5, curseur interdit ; le libellé reste lisible |
+| Actif, choisi | `aria-pressed`, `aria-current` ou `aria-selected` : fond `--selection-fond` et graisse 700 ; onglet de contrôle segmenté : fond `--feuille` en relief |
+| Vide | `.etat-vide` : une phrase en `--graphite` qui dit quoi faire (« Choisissez un élément de l'agenda pour en voir le détail. ») |
+| Erreur | `.message-erreur` : fond `--echeance-fond`, texte `--echeance` ; champ invalide : `aria-invalid="true"`, bord `--erreur-bord` |
+| Attention | `.message-attention` : fond `--feuille-2`, liseré `--attente` (conflit d'agenda, alerte de convention) |
+| Information | `.message-info` : fond `--feuille-2` (conflit de synchronisation, hors ligne) |
+| Aujourd'hui | mini-calendrier : pastille pleine `--aujourdhui` ; agenda : point et soulignement du titre du jour, colonne teintée |
+
+## 7. Composants communs
+
+Toutes les classes sont dans `apps/poste/src/index.css`, section « Harmonisation ».
+
+- **En-tête d'écran** `.ecran-tete` : titre `.ecran-tete__titre`, sous-titre `.ecran-tete__sous-titre`, information à droite `.ecran-tete__aside`. Même hauteur et mêmes bords que la feuille.
+- **Bouton** `.bouton` (34 px) ; `.bouton--prim` (une action principale par zone), `.bouton--discret` (sans cadre), `.bouton--petit` (28 px). Lien d'action : `.lien-action`, souligné. Jamais de flèche dans un bouton.
+- **Champ** `.champ` (34 px, fond `--champ-fond`, bord `--champ-bord`) ; liste déroulante avec chevron dessiné par `--chevron` ; `.etiquette-champ` au-dessus de chaque champ, jamais un simple texte indicatif à la place de l'étiquette. Les champs sans classe reçoivent la même apparence.
+- **Filtres** `.filtres` / `.filtre` (pastilles à bascule, compteur `.filtre__compte`) ; **contrôle segmenté** `.segment` pour deux à quatre vues exclusives (Jour, Semaine ; Le cabinet, Mes temps).
+- **Panneau latéral** `PanneauLateral` (`apps/poste/src/coque/PanneauLateral.tsx`) : tout formulaire secondaire s'ouvre à droite, 440 px, au-dessus d'un voile léger ; titre, phrase d'explication, bouton « Fermer », touche Échap. Le contenu reste monté fermé : rien de ce qui est saisi ne se perd. Utilisé pour la convention d'honoraires, les parties et dossiers liés, le nouvel élément d'agenda et le calcul de délai.
+- **Choix d'un dossier** `ChoixDossier` (`apps/poste/src/dossiers/ChoixDossier.tsx`) : un dossier se choisit **par recherche** sur son nom ou sa référence, au clavier ou à la souris, jamais en tapant un identifiant. La valeur vit dans un contrôle masqué qui garde l'`id`, le `name` et le `data-testid` historiques.
+- **Badge à cadenas** `.badge-definitif` : seulement ce qui ne peut plus changer (facture validée, déposée, encaissée, avoir). Brouillon : `.etat-brouillon`, neutre.
+- **Liste de dossiers** `.dossiers-ligne` : bande de chemise, référence, nom suivi de l'échéance, compteur de non lus en pastille.
+- **Fiche** `.fiche-infos` : étiquettes et valeurs sur deux colonnes ; procédure en `.fiche-procedure` (étapes faites, en cours, à venir).
+- **Boutons sur la chemise** `.bouton-chemise` (verre, comme les intercalaires) et `.alerte-chemise` (pastille claire à point `--attente`) dans l'en-tête d'un dossier.
+
+## 8. Écrans
+
+- **Coque** : barre du haut pleine largeur ; contenu dans la colonne ; barre d'actions centrée sur la feuille, 24 px au-dessus du bas.
+- **La journée** : quatre sections en deux colonnes, titre de section souligné d'un filet, lien d'action à droite ; « Classer » en bouton principal ; « Autre dossier » ouvre une recherche de dossier.
+- **Dossiers** : recherche, filtres en pastilles, tri à droite ; groupes à titre court (« Cette semaine », « Sans échéance ») ; aperçu à droite en fiche.
+- **Vue d'un dossier** : étiquette, informations en texte simple (valeurs avec majuscule initiale, juridiction en toutes lettres), puis une rangée d'actions secondaires : état de la convention, « Convention d'honoraires », « Parties et dossiers liés ». Les formulaires correspondants s'ouvrent en panneau ; rien n'est ouvert en permanence sur la chemise.
+- **Mails** : colonne large ; rail 240 px, liste au moins 360 px (32 %), lecture le reste.
+- **Agenda** : colonne large ; navigation, titre de période en toutes lettres sur sa ligne, vue Jour ou Semaine en contrôle segmenté ; grille avec un filet par heure, heures alignées sur les filets, « Sans heure » sur une ligne ; jour courant marqué ; conflit en `.message-attention`.
+- **Temps** : une feuille ; chronomètre et saisie côte à côte (empilés sous 1 400 px), saisies en tableau (référence, libellé, durée, montant, état), volet du non facturé à droite.
+- **Facturation** : tableau État, Pièce, Montant ; références au zéro barré.
+- **Réglages** : navigation à gauche, contenu en formulaire de 520 px au plus, bouton « Enregistrer » principal. Pas de vocabulaire technique : le « nom court du cabinet ».
+- **Connexion** : carte de 440 px au centre, vérifications en liste à points, progression en barres, bouton principal pleine largeur.
+
+## 9. Contrôle
+
+`node tests/recette/coque-app.mjs --captures` écrit, en plus des captures historiques, `design/captures/harmonisation/<écran>-<largeur>-<jour|nuit>.png` pour 1 366 × 768, 1 920 × 1 080 et 2 560 × 1 440, et échoue si un écran déborde horizontalement, si une feuille dépasse 1 440 px ou si une feuille hors dossier n'est pas centrée.

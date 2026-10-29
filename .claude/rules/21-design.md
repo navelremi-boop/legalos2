@@ -7,7 +7,7 @@ paths:
 
 # Design
 
-Référence : cahier des charges § 7 et `design/prototype-cabinet.html`. En cas de doute, comparer au prototype, jamais à l'apparence par défaut d'une bibliothèque.
+Référence : cahier des charges § 7, puis `docs/design.md` (grille, échelles, états, composants), qui l’emporte sur les maquettes là où il s’en écarte. En cas de doute, comparer à ce document et au prototype, jamais à l’apparence par défaut d’une bibliothèque.
 
 - **Jetons uniquement** (`design/tokens.css`). Aucune couleur en dur : la CI échoue sur tout code couleur hors du fichier de jetons.
 - **Chemise ouverte** : l'espace de travail prend la couleur du dossier (valeur *fond*). Étiquette avec la référence (« Dossier 2026-042 ») et le nom (26 px) ; informations du dossier en texte simple ; jauge d'échéance ; feuille avec une carte derrière ; intercalaires à droite ; barre d'actions flottante. Hors dossier : fond `neutre`.

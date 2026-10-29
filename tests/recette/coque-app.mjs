@@ -362,10 +362,88 @@ async function runCaptures() {
       });
     }
     ok(`captures écrites dans ${relative(root, outDir)}`);
+    await capturesLargeurs(browser, outDir);
   } finally {
     if (browser) await browser.close();
     arreterArbre(vite);
   }
+}
+
+/**
+ * Captures de l'harmonisation (docs/design.md) : chaque écran du poste, jour et nuit,
+ * à 1366 × 768, 1920 × 1080 et 2560 × 1440, galerie en plein écran (`&plein=1`).
+ * Vérifie au passage les règles de grille : feuille bornée et centrée, aucun débordement horizontal.
+ */
+async function capturesLargeurs(browser, outDir) {
+  const dossier = join(outDir, "harmonisation");
+  mkdirSync(dossier, { recursive: true });
+  const LARGEURS = [
+    [1366, 768],
+    [1920, 1080],
+    [2560, 1440],
+  ];
+  const ECRANS = [
+    { fichier: "journee", vue: "La journée", attendre: "ecran-journee" },
+    { fichier: "dossiers", vue: "Dossiers", attendre: "ecran-dossiers" },
+    { fichier: "dossier", vue: "Dossier", attendre: "ecran-dossier" },
+    { fichier: "dossier-convention", vue: "Dossier", attendre: "ecran-dossier", clic: "convention-ouvrir" },
+    { fichier: "mails", vue: "Mails", attendre: "banniere-classer" },
+    { fichier: "agenda-jour", vue: "Agenda", attendre: "ecran-agenda", clic: "agenda-vue-jour" },
+    { fichier: "agenda-semaine", vue: "Agenda", attendre: "ecran-agenda", clic: "agenda-vue-semaine" },
+    { fichier: "agenda-nouvel-element", vue: "Agenda", attendre: "ecran-agenda", clic: "agenda-creer" },
+    { fichier: "temps", vue: "Temps", attendre: "ecran-temps" },
+    { fichier: "facturation", vue: "Facturation", attendre: "ecran-facturation" },
+    { fichier: "reglages", vue: "Réglages", attendre: "ecran-reglages" },
+    { fichier: "connexion", vue: "Écran de connexion", attendre: "ecran-connexion" },
+  ];
+  let total = 0;
+  for (const [largeur, hauteur] of LARGEURS) {
+    const page = await browser.newPage({ viewport: { width: largeur, height: hauteur } });
+    try {
+      await page.goto("http://127.0.0.1:1420/?galerie=1&plein=1", { waitUntil: "networkidle" });
+      await page.waitForSelector("[data-testid=galerie-demo]");
+      const commandes = page.locator("[data-testid=galerie-commandes]");
+      for (const theme of ["Jour", "Nuit"]) {
+        await commandes.getByRole("button", { name: theme, exact: true }).click();
+        for (const ecran of ECRANS) {
+          await commandes.getByRole("button", { name: ecran.vue, exact: true }).click();
+          if (ecran.vue === "Dossier") {
+            await commandes.getByRole("button", { name: "kraft", exact: true }).click();
+          }
+          await page.waitForSelector(`[data-testid=${ecran.attendre}]`);
+          if (ecran.clic) await page.getByTestId(ecran.clic).click();
+          await page.evaluate(() => window.scrollTo(0, 0));
+          await page.waitForTimeout(200);
+          const mesure = await page.evaluate(() => {
+            const scene = document.querySelector("[data-testid=galerie-scene]");
+            const pile = document.querySelector("[data-testid=galerie-scene] .feuille-pile");
+            const boite = pile?.getBoundingClientRect();
+            return {
+              deborde: scene ? scene.scrollWidth > scene.clientWidth + 1 : false,
+              feuille: boite ? { gauche: boite.left, droite: window.innerWidth - boite.right, largeur: boite.width } : null,
+            };
+          });
+          if (mesure.deborde) fail(`${ecran.fichier} à ${String(largeur)} px : débordement horizontal`);
+          if (mesure.feuille && mesure.feuille.largeur > 1440.5) {
+            fail(`${ecran.fichier} à ${String(largeur)} px : feuille de ${String(Math.round(mesure.feuille.largeur))} px`);
+          }
+          if (mesure.feuille && ecran.vue !== "Dossier" && Math.abs(mesure.feuille.gauche - mesure.feuille.droite) > 2) {
+            fail(`${ecran.fichier} à ${String(largeur)} px : feuille non centrée (${JSON.stringify(mesure.feuille)})`);
+          }
+          await page.locator("[data-testid=galerie-scene]").screenshot({
+            path: join(dossier, `${ecran.fichier}-${String(largeur)}-${theme === "Jour" ? "jour" : "nuit"}.png`),
+          });
+          total += 1;
+          // Un panneau latéral ouvert couvre la fenêtre : il se ferme avant l'écran suivant.
+          await page.keyboard.press("Escape");
+          await page.waitForTimeout(50);
+        }
+      }
+    } finally {
+      await page.close();
+    }
+  }
+  ok(`${String(total)} captures d'harmonisation écrites dans ${relative(root, dossier)} (grille vérifiée)`);
 }
 
 function waitForUrl(url, timeoutMs) {

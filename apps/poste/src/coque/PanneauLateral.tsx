@@ -27,7 +27,7 @@ export function PanneauLateral({ ouvert, titre, sousTitre, onFermer, children, t
     const premier = carte.current?.querySelector<HTMLElement>(
       "input:not([type=hidden]), select, textarea, button:not([data-fermer])",
     );
-    premier?.focus();
+    premier?.focus({ preventScroll: true });
     const touche = (event: KeyboardEvent) => {
       if (event.key === "Escape") fermer.current();
     };
