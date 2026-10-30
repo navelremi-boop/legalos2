@@ -17,7 +17,10 @@ import { designationActe } from "@/contacts/designation";
 import { ecrireCoordonnee, type GenreCoordonnee, type UsageCoordonnee } from "@/contacts/ecrireCoordonnee";
 import { libelleLien, type LienAffiche } from "@/contacts/liensContacts";
 import { envoyerLien, envoyerRetrait } from "@/contacts/envoyerLien";
+import { HistoriqueFiche } from "@/contacts/OngletsHistorique";
 import { PropositionImport } from "@/contacts/PropositionImport";
+import type { DossierFiche, FactureFiche, MailFiche, NoteFiche } from "@/contacts/historiqueFiche";
+import { lireDossiersContact, lireMailsClasses } from "@/contacts/lireHistorique";
 import { DoublonsFiche } from "@/contacts/DoublonsFiche";
 import { CreationSociete } from "@/contacts/CreationSociete";
 import type { PropositionSiren } from "@/contacts/propositionSiren";
@@ -41,6 +44,13 @@ type ContactsProps = {
   instanceUrl?: string;
   /** Proposition figée, affichée par le bouton sans appeler le registre. */
   propositionFixe?: PropositionSiren | null;
+  historiqueFixe?: {
+    contactId: string;
+    dossiers: readonly DossierFiche[];
+    factures: readonly FactureFiche[];
+    mails: readonly MailFiche[];
+    notes: readonly NoteFiche[];
+  } | null;
 };
 
 export function Contacts({
@@ -49,6 +59,7 @@ export function Contacts({
   horsLigne = false,
   instanceUrl,
   propositionFixe = null,
+  historiqueFixe = null,
 }: ContactsProps = {}) {
   const [lignesSync, setLignesSync] = useState<ContactListe[] | null>(null);
   const [coordsSync, setCoordsSync] = useState<CoordonneeLue[]>([]);
@@ -62,6 +73,8 @@ export function Contacts({
   const [liensAjoutes, setLiensAjoutes] = useState<LienAffiche[]>([]);
   const [archives, setArchives] = useState<ReadonlySet<string>>(new Set());
   const [retires, setRetires] = useState<ReadonlySet<string>>(new Set());
+  const [dossiersSync, setDossiersSync] = useState<DossierFiche[]>([]);
+  const [mailsSync, setMailsSync] = useState<MailFiche[]>([]);
 
   useEffect(() => {
     if (lignesFixes !== undefined) return;
@@ -106,6 +119,42 @@ export function Contacts({
   );
   const groupes = useMemo(() => grouperAlphabetique(visibles), [visibles]);
   const choisi = visibles.find((contact) => contact.id === selection) ?? visibles[0] ?? null;
+  const historique =
+    historiqueFixe !== null && choisi?.id === historiqueFixe.contactId
+      ? historiqueFixe
+      : {
+          contactId: choisi?.id ?? "",
+          dossiers: dossiersSync,
+          factures: [] as FactureFiche[],
+          mails: mailsSync,
+          notes: [] as NoteFiche[],
+        };
+
+  useEffect(() => {
+    if (lignesFixes !== undefined || choisi === null) return;
+    const id = choisi.id;
+    const emails = coordsSync
+      .filter((ligne) => ligne.contactId === id && ligne.genre === "email")
+      .map((ligne) => ligne.valeur);
+    let ignore = false;
+    void lireDossiersContact(id)
+      .then((lignes) => {
+        if (!ignore) setDossiersSync(lignes);
+      })
+      .catch(() => {
+        if (!ignore) setDossiersSync([]);
+      });
+    void lireMailsClasses(emails)
+      .then((lignes) => {
+        if (!ignore) setMailsSync(lignes);
+      })
+      .catch(() => {
+        if (!ignore) setMailsSync([]);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [lignesFixes, choisi, coordsSync]);
   const retirerChoisi = () => {
     if (choisi === null) return;
     const id = choisi.id;
@@ -294,7 +343,13 @@ export function Contacts({
                   ) : onglet === "liens" ? (
                     <LiensFiche contactId={choisi.id} liens={liens} />
                   ) : (
-                    <p className="etat-vide">{fr(VIDE_ONGLET[onglet])}</p>
+                    <HistoriqueFiche
+                      onglet={onglet}
+                      dossiers={historique.dossiers}
+                      factures={historique.factures}
+                      mails={historique.mails}
+                      notes={historique.notes}
+                    />
                   )}
                 </div>
               </>

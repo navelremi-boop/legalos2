@@ -908,6 +908,21 @@ export function GalerieDemo() {
                   },
                 ],
               }}
+              historiqueFixe={{
+                contactId: "duclos",
+                dossiers: [{ id: "dos-duclos", nom: "Dupond c/ Duclos", qualite: "cliente" }],
+                factures: [{ id: "fac-duclos", libelle: "Honoraires", ttcCentimes: 120_000, encaisseCentimes: 50_000 }],
+                mails: [
+                  {
+                    id: "mail-duclos",
+                    objet: "Pièces du dossier",
+                    expediteur: "secretariat@duclos.example",
+                    destinataires: "cabinet@example.test",
+                    etat: "classe",
+                  },
+                ],
+                notes: [{ id: "note-duclos", texte: "Rappeler le greffe." }],
+              }}
             />
           ) : null}
           {vue === "mails" ? (
