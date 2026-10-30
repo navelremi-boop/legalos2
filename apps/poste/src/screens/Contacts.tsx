@@ -30,6 +30,8 @@ import { CreationSociete } from "@/contacts/CreationSociete";
 import { centimesDepuisSaisie, estMonnaie, MONNAIES, saisieDepuisCentimes } from "@/contacts/capitalFiche";
 import { poserCapital } from "@/contacts/poserCapital";
 import { poserDenomination } from "@/contacts/poserDenomination";
+import { poserTva } from "@/contacts/poserTva";
+import { tvaSaisie } from "@/contacts/tvaFiche";
 import { poserIdentite } from "@/contacts/poserIdentite";
 import { normaliserDenomination } from "@/contacts/denominationFiche";
 import {
@@ -114,6 +116,7 @@ export function Contacts({
   const [professions, setProfessions] = useState<Record<string, ProfessionSaisie>>({});
   const [identites, setIdentites] = useState<Record<string, IdentiteSaisie>>({});
   const [denominations, setDenominations] = useState<Record<string, string>>({});
+  const [tvas, setTvas] = useState<Record<string, string | null>>({});
   const [dossiersSync, setDossiersSync] = useState<DossierFiche[]>([]);
   const [mailsSync, setMailsSync] = useState<MailFiche[]>([]);
   const indexRef = useRef<IndexAnnuaire | null>(null);
@@ -182,13 +185,15 @@ export function Contacts({
     const sources = (lignes ?? []).map((contact) => {
       const avecIdentite = appliquerIdentite(contact, identites[contact.id]);
       const denomination = denominations[contact.id];
-      return denomination === undefined ? avecIdentite : { ...avecIdentite, nom: denomination };
+      const nomme = denomination === undefined ? avecIdentite : { ...avecIdentite, nom: denomination };
+      const tva = tvas[contact.id];
+      return tva === undefined ? nomme : { ...nomme, numeroTva: tva };
     });
     const filtres = filtrerContacts(sources, filtre, "");
     if (recherche.trim() === "") return filtres;
     if (idsRecherche !== null) return filtres.filter((contact) => idsRecherche.has(contact.id));
     return filtrerContacts(sources, filtre, recherche, corpsParId);
-  }, [lignes, filtre, recherche, idsRecherche, corpsParId, identites, denominations]);
+  }, [lignes, filtre, recherche, idsRecherche, corpsParId, identites, denominations, tvas]);
   const groupes = useMemo(() => grouperAlphabetique(visibles), [visibles]);
   const choisi = visibles.find((contact) => contact.id === selection) ?? visibles[0] ?? null;
   const capitalPose = choisi === null ? undefined : capitaux[choisi.id];
@@ -480,6 +485,11 @@ export function Contacts({
                         if (lignesFixes !== undefined) return;
                         void poserDenomination(choisi.id, nom);
                       }}
+                      onTva={(numero) => {
+                        setTvas((etat) => ({ ...etat, [choisi.id]: numero }));
+                        if (lignesFixes !== undefined) return;
+                        void poserTva(choisi.id, numero);
+                      }}
                     />
                   ) : onglet === "liens" ? (
                     <LiensFiche contactId={choisi.id} liens={liens} />
@@ -749,6 +759,45 @@ function GreffeActivite({
   );
 }
 
+function TvaSociete({
+  contactId,
+  siren,
+  numero,
+  onTva,
+}: {
+  contactId: string;
+  siren: string | null;
+  numero: string | null;
+  onTva: (numero: string | null) => void;
+}) {
+  const [pour, setPour] = useState(contactId);
+  const [brouillon, setBrouillon] = useState(numero ?? "");
+  const [message, setMessage] = useState("");
+  if (pour !== contactId) {
+    setPour(contactId);
+    setBrouillon(numero ?? "");
+    setMessage("");
+  }
+  return (
+    <label className="flex flex-col gap-1" data-testid="contacts-tva-bloc">
+      <span>{fr("N° TVA intracommunautaire")}</span>
+      <input
+        className="champ"
+        data-testid="contacts-tva"
+        value={brouillon}
+        onChange={(event) => {
+          const saisie = event.target.value;
+          setBrouillon(saisie);
+          const resultat = tvaSaisie(siren, saisie);
+          setMessage(resultat.message ?? "");
+          if (resultat.message === null) onTva(resultat.valeur);
+        }}
+      />
+      {message !== "" ? <p data-testid="contacts-tva-message">{fr(message)}</p> : null}
+    </label>
+  );
+}
+
 function ProfessionContact({
   profession,
   onProfession,
@@ -1001,6 +1050,7 @@ function FicheGenerale({
   onProfession,
   onIdentite,
   onDenomination,
+  onTva,
 }: {
   contact: ContactListe;
   coordonnees: readonly CoordonneeLue[];
@@ -1019,6 +1069,7 @@ function FicheGenerale({
   onProfession: (profession: ProfessionSaisie) => void;
   onIdentite: (identite: IdentiteSaisie) => void;
   onDenomination: (nom: string) => void;
+  onTva: (numero: string | null) => void;
 }) {
   const acte = designationActe(contact, { liens, contacts });
   const [copie, setCopie] = useState(false);
@@ -1133,6 +1184,9 @@ function FicheGenerale({
           onGreffe={onGreffe}
           onActivite={onActivite}
         />
+      ) : null}
+      {contact.nature === "morale" ? (
+        <TvaSociete contactId={contact.id} siren={contact.siren} numero={contact.numeroTva} onTva={onTva} />
       ) : null}
       <ProfessionContact
         profession={{
