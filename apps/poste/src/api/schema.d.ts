@@ -452,6 +452,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dossiers/{dossier_id}/intervenants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["creer_intervenant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dossiers/{dossier_id}/liens": {
         parameters: {
             query?: never;
@@ -1918,6 +1934,18 @@ export interface components {
             idempotence_cle: string;
             nom: string;
         };
+        CreerIntervenantRequest: {
+            /** Format: uuid */
+            contact_id: string;
+            /** Format: uuid */
+            id: string;
+            idempotence_cle: string;
+            note?: string | null;
+            /** Format: uuid */
+            qualite_id: string;
+            /** Format: uuid */
+            rattache_a?: string | null;
+        };
         CreerModeleRequest: {
             corps_html?: string;
             /** Format: uuid */
@@ -2200,6 +2228,20 @@ export interface components {
             /** Format: uuid */
             id: string;
             nom: string;
+            /** Format: int64 */
+            revision: number;
+        };
+        IntervenantResponse: {
+            /** Format: uuid */
+            contact_id: string;
+            /** Format: uuid */
+            dossier_id: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            qualite_id: string;
+            /** Format: uuid */
+            rattache_a?: string | null;
             /** Format: int64 */
             revision: number;
         };
@@ -3973,6 +4015,60 @@ export interface operations {
             };
             /** @description Non authentifié */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    creer_intervenant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifiant du dossier */
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreerIntervenantRequest"];
+            };
+        };
+        responses: {
+            /** @description Intervenant créé ou déjà présent */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntervenantResponse"];
+                };
+            };
+            /** @description Rattachement refusé */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Dossier, contact ou qualité introuvable */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

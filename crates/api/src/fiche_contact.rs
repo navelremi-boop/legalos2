@@ -76,6 +76,25 @@ pub fn valider_genre_coordonnee(genre: &str) -> Result<(), ApiError> {
     Ok(())
 }
 
+pub fn controler_rattachement(soi: bool, meme_dossier: bool, admet: bool) -> Result<(), ApiError> {
+    if soi {
+        return Err(ApiError::bad_request(
+            "Un intervenant ne se rattache pas à lui-même",
+        ));
+    }
+    if !meme_dossier {
+        return Err(ApiError::bad_request(
+            "Le rattachement vise un autre dossier",
+        ));
+    }
+    if !admet {
+        return Err(ApiError::bad_request(
+            "Cette qualité n'admet pas de rattachement",
+        ));
+    }
+    Ok(())
+}
+
 pub fn valider_usage_coordonnee(usage: &str) -> Result<(), ApiError> {
     if !USAGES_COORDONNEE.contains(&usage) {
         return Err(ApiError::bad_request("Type de coordonnée inconnu"));
@@ -86,8 +105,9 @@ pub fn valider_usage_coordonnee(usage: &str) -> Result<(), ApiError> {
 #[cfg(test)]
 mod tests {
     use super::{
-        valider_accord, valider_capital, valider_civilite, valider_date_naissance,
-        valider_genre_coordonnee, valider_profession_reglementee, valider_usage_coordonnee,
+        controler_rattachement, valider_accord, valider_capital, valider_civilite,
+        valider_date_naissance, valider_genre_coordonnee, valider_profession_reglementee,
+        valider_usage_coordonnee,
     };
 
     #[test]
@@ -111,5 +131,9 @@ mod tests {
         assert!(valider_genre_coordonnee("fax").is_err());
         assert!(valider_usage_coordonnee("domicile").is_ok());
         assert!(valider_usage_coordonnee("fax").is_err());
+        assert!(controler_rattachement(true, true, true).is_err());
+        assert!(controler_rattachement(false, false, true).is_err());
+        assert!(controler_rattachement(false, true, false).is_err());
+        assert!(controler_rattachement(false, true, true).is_ok());
     }
 }

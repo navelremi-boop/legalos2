@@ -276,6 +276,35 @@ const contactCoordonnees = new Table(
   { indexes: { contact: ["contact_id"] } },
 );
 
+/** Qualités d'intervenant, communes au cabinet. */
+const qualites = new Table(
+  {
+    cabinet_id: column.text,
+    code: column.text,
+    libelle: column.text,
+    admet_rattachement: column.integer,
+    archivee: column.integer,
+    revision: column.integer,
+    cree_le: column.text,
+  },
+  { indexes: { cabinet: ["cabinet_id"] } },
+);
+
+/** Intervenants d'un dossier. Un dossier restreint ne descend que pour qui y a accès. */
+const dossierIntervenants = new Table(
+  {
+    cabinet_id: column.text,
+    dossier_id: column.text,
+    contact_id: column.text,
+    qualite_id: column.text,
+    rattache_a: column.text,
+    note: column.text,
+    revision: column.integer,
+    cree_le: column.text,
+  },
+  { indexes: { dossier: ["dossier_id"], contact: ["contact_id"] } },
+);
+
 /** Lien de dossiers, une ligne par sens. */
 const dossierLiens = new Table(
   {
@@ -438,6 +467,8 @@ export const AppSchema = new Schema({
   intercalaire_elements: intercalaireElements,
   contacts,
   contact_coordonnees: contactCoordonnees,
+  qualites,
+  dossier_intervenants: dossierIntervenants,
   dossier_liens: dossierLiens,
   agenda_elements: agendaElements,
   invitations_agenda: invitationsAgenda,

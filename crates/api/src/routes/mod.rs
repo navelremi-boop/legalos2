@@ -65,8 +65,8 @@ pub fn router(state: Arc<AppState>) -> Router {
             get(contacts::historique_contact),
         )
         .route(
-            "/dossiers/{dossier_id}/liens",
-            post(contacts::lier_dossiers),
+            "/dossiers/{dossier_id}/intervenants",
+            post(contacts::creer_intervenant),
         )
         .route("/dossiers/{dossier_id}/agenda", post(agenda::creer_element))
         .route(

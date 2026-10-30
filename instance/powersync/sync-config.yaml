@@ -193,6 +193,25 @@ streams:
     auto_subscribe: true
     query: SELECT id, cabinet_id, contact_id, genre, usage, valeur, principale::int AS principale, pays, revision, cree_le::text AS cree_le FROM contact_coordonnees WHERE cabinet_id::text = auth.parameter('cabinet_id')
 
+  qualites_cabinet:
+    auto_subscribe: true
+    query: SELECT id, cabinet_id, code, libelle, admet_rattachement::int AS admet_rattachement, archivee::int AS archivee, revision, cree_le::text AS cree_le FROM qualites WHERE cabinet_id::text = auth.parameter('cabinet_id')
+
+  intervenants_publics:
+    auto_subscribe: true
+    query: |
+      SELECT dossier_intervenants.id, dossier_intervenants.cabinet_id, dossier_intervenants.dossier_id, dossier_intervenants.contact_id, dossier_intervenants.qualite_id, dossier_intervenants.rattache_a, dossier_intervenants.note, dossier_intervenants.revision, dossier_intervenants.cree_le::text AS cree_le
+      FROM dossier_intervenants
+      WHERE dossier_intervenants.visibilite = 'public' AND dossier_intervenants.cabinet_id::text = auth.parameter('cabinet_id')
+
+  intervenants_restreints:
+    auto_subscribe: true
+    query: |
+      SELECT dossier_intervenants.id, dossier_intervenants.cabinet_id, dossier_intervenants.dossier_id, dossier_intervenants.contact_id, dossier_intervenants.qualite_id, dossier_intervenants.rattache_a, dossier_intervenants.note, dossier_intervenants.revision, dossier_intervenants.cree_le::text AS cree_le
+      FROM dossier_intervenants
+      INNER JOIN groupe_acces_membres ON dossier_intervenants.groupe_acces = groupe_acces_membres.groupe_id
+      WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
+
   dossier_liens_publics:
     auto_subscribe: true
     query: |

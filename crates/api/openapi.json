@@ -1748,6 +1748,83 @@
         ]
       }
     },
+    "/dossiers/{dossier_id}/intervenants": {
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "operationId": "creer_intervenant",
+        "parameters": [
+          {
+            "name": "dossier_id",
+            "in": "path",
+            "description": "Identifiant du dossier",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreerIntervenantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Intervenant créé ou déjà présent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntervenantResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Rattachement refusé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Dossier, contact ou qualité introuvable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/dossiers/{dossier_id}/liens": {
       "post": {
         "tags": [
@@ -7602,6 +7679,45 @@
           }
         }
       },
+      "CreerIntervenantRequest": {
+        "type": "object",
+        "required": [
+          "id",
+          "idempotence_cle",
+          "contact_id",
+          "qualite_id"
+        ],
+        "properties": {
+          "contact_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "idempotence_cle": {
+            "type": "string"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "qualite_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rattache_a": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
       "CreerModeleRequest": {
         "type": "object",
         "required": [
@@ -8549,6 +8665,45 @@
           },
           "nom": {
             "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "IntervenantResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "dossier_id",
+          "contact_id",
+          "qualite_id",
+          "revision"
+        ],
+        "properties": {
+          "contact_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dossier_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "qualite_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rattache_a": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "revision": {
             "type": "integer",

@@ -130,6 +130,26 @@ pub struct CoordonneeResponse {
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
+pub struct CreerIntervenantRequest {
+    pub id: Uuid,
+    pub idempotence_cle: String,
+    pub contact_id: Uuid,
+    pub qualite_id: Uuid,
+    pub rattache_a: Option<Uuid>,
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct IntervenantResponse {
+    pub id: Uuid,
+    pub dossier_id: Uuid,
+    pub contact_id: Uuid,
+    pub qualite_id: Uuid,
+    pub rattache_a: Option<Uuid>,
+    pub revision: i64,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct LierDossiersRequest {
     pub id: Uuid,
     pub idempotence_cle: String,
@@ -959,6 +979,176 @@ async fn lire_coordonnee(
         valeur: row.3,
         principale: row.4,
         revision: row.5,
+    })
+}
+
+#[utoipa::path(
+    post,
+    path = "/dossiers/{dossier_id}/intervenants",
+    tag = "contacts",
+    security(("bearer_auth" = [])),
+    params(("dossier_id" = Uuid, Path, description = "Identifiant du dossier")),
+    request_body = CreerIntervenantRequest,
+    responses(
+        (status = 200, description = "Intervenant créé ou déjà présent", body = IntervenantResponse),
+        (status = 400, description = "Rattachement refusé", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Dossier, contact ou qualité introuvable", body = crate::error::ApiErrorBody),
+    )
+)]
+pub async fn creer_intervenant(
+    State(state): State<Arc<AppState>>,
+    AuthAccess(claims): AuthAccess,
+    axum::extract::Path(dossier_id): axum::extract::Path<Uuid>,
+    Json(body): Json<CreerIntervenantRequest>,
+) -> Result<Json<IntervenantResponse>, ApiError> {
+    if body.idempotence_cle.trim().is_empty() {
+        return Err(ApiError::bad_request("Clé d'idempotence requise"));
+    }
+    if body.rattache_a == Some(body.id) {
+        return Err(ApiError::bad_request(
+            "Un intervenant ne se rattache pas à lui-même",
+        ));
+    }
+    let mut tx = state
+        .pool
+        .begin()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+    let dossier = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS(SELECT 1 FROM dossiers WHERE id = $1 AND cabinet_id = $2)",
+    )
+    .bind(dossier_id)
+    .bind(claims.cabinet_id)
+    .fetch_one(
+        tx.acquire()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?,
+    )
+    .await
+    .map_err(|_| ApiError::internal("lecture dossier"))?;
+    if !dossier {
+        return Err(ApiError::not_found("Dossier introuvable"));
+    }
+    let contact = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS(SELECT 1 FROM contacts WHERE id = $1 AND cabinet_id = $2)",
+    )
+    .bind(body.contact_id)
+    .bind(claims.cabinet_id)
+    .fetch_one(
+        tx.acquire()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?,
+    )
+    .await
+    .map_err(|_| ApiError::internal("lecture contact"))?;
+    if !contact {
+        return Err(ApiError::not_found("Contact introuvable"));
+    }
+    let qualite = sqlx::query_as::<_, (bool, bool)>(
+        "SELECT admet_rattachement, archivee FROM qualites WHERE id = $1 AND cabinet_id = $2",
+    )
+    .bind(body.qualite_id)
+    .bind(claims.cabinet_id)
+    .fetch_optional(
+        tx.acquire()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?,
+    )
+    .await
+    .map_err(|_| ApiError::internal("lecture qualité"))?;
+    let Some((admet, archivee)) = qualite else {
+        return Err(ApiError::not_found("Qualité introuvable"));
+    };
+    if archivee {
+        return Err(ApiError::bad_request("Qualité archivée"));
+    }
+    if let Some(cible) = body.rattache_a {
+        let meme = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM dossier_intervenants WHERE id = $1 AND dossier_id = $2 AND cabinet_id = $3)",
+        )
+        .bind(cible)
+        .bind(dossier_id)
+        .bind(claims.cabinet_id)
+        .fetch_one(tx.acquire().await.map_err(|_| ApiError::internal("Transaction"))?)
+        .await
+        .map_err(|_| ApiError::internal("lecture intervenant"))?;
+        crate::fiche_contact::controler_rattachement(false, meme, admet)?;
+    }
+    let cle = cle_idempotence(claims.poste_id, &body.idempotence_cle);
+    if !reserver_idempotence(&mut tx, &cle).await? {
+        tx.commit()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?;
+        return lire_intervenant(&state, claims.cabinet_id, body.id)
+            .await
+            .map(Json);
+    }
+    sqlx::query(
+        r#"
+        INSERT INTO dossier_intervenants (
+            id, cabinet_id, dossier_id, contact_id, qualite_id, rattache_a, note, visibilite, revision
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 'public', 1)
+        "#,
+    )
+    .bind(body.id)
+    .bind(claims.cabinet_id)
+    .bind(dossier_id)
+    .bind(body.contact_id)
+    .bind(body.qualite_id)
+    .bind(body.rattache_a)
+    .bind(texte_option(&body.note))
+    .execute(tx.acquire().await.map_err(|_| ApiError::internal("Transaction"))?)
+    .await
+    .map_err(|_| ApiError::internal("création intervenant"))?;
+    noter_historique(
+        &mut tx,
+        &ContexteChamp {
+            cabinet_id: claims.cabinet_id,
+            poste_id: claims.poste_id,
+            auteur_id: claims.sub,
+            base_revision: 1,
+            enregistrement_id: body.id,
+            table_cible: "dossier_intervenants",
+            dossier_id: Some(dossier_id),
+        },
+        "qualite_id",
+        &body.qualite_id.to_string(),
+    )
+    .await?;
+    tx.commit()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+    lire_intervenant(&state, claims.cabinet_id, body.id)
+        .await
+        .map(Json)
+}
+
+async fn lire_intervenant(
+    state: &AppState,
+    cabinet_id: Uuid,
+    id: Uuid,
+) -> Result<IntervenantResponse, ApiError> {
+    let row = sqlx::query_as::<_, (Uuid, Uuid, Uuid, Option<Uuid>, i64)>(
+        r#"
+        SELECT dossier_id, contact_id, qualite_id, rattache_a, revision
+        FROM dossier_intervenants WHERE id = $1 AND cabinet_id = $2
+        "#,
+    )
+    .bind(id)
+    .bind(cabinet_id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("lecture intervenant"))?
+    .ok_or_else(|| ApiError::not_found("Intervenant introuvable"))?;
+    Ok(IntervenantResponse {
+        id,
+        dossier_id: row.0,
+        contact_id: row.1,
+        qualite_id: row.2,
+        rattache_a: row.3,
+        revision: row.4,
     })
 }
 
