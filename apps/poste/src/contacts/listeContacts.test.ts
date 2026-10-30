@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  appliquerCoordonnees,
   compteursFiltres,
   filtrerContacts,
   grouperAlphabetique,
@@ -88,5 +89,29 @@ describe("liste des contacts", () => {
       societes: 1,
       professions: 1,
     });
+  });
+
+  it("reprend l'adresse principale du domicile et du siège", () => {
+    const avecAdresse = appliquerCoordonnees(
+      [contact({ id: "3", nom: "SARL Duclos Industrie", nature: "morale" })],
+      [
+        {
+          contactId: "3",
+          genre: "adresse",
+          usage: "siege",
+          valeur: "8 quai Saint-Vincent",
+          principale: true,
+        },
+        {
+          contactId: "3",
+          genre: "adresse",
+          usage: "domicile",
+          valeur: "ignorée",
+          principale: false,
+        },
+      ],
+    );
+    assert.equal(avecAdresse[0]?.adresseSiege, "8 quai Saint-Vincent");
+    assert.equal(avecAdresse[0]?.adresseDomicile, null);
   });
 });

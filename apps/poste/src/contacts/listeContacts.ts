@@ -1,3 +1,5 @@
+import { formatMontant } from "@/lib/format";
+
 export type NatureContactListe = "physique" | "morale";
 
 export type TypeClientListe = "professionnel" | "particulier" | "etranger";
@@ -159,6 +161,63 @@ export function compteursFiltres(contacts: readonly ContactListe[]): Record<Filt
 
 export function libelleNature(nature: NatureContactListe): string {
   return nature === "physique" ? "Personne physique" : "Personne morale";
+}
+
+export function libelleCapital(centimes: number, monnaie: string | null): string {
+  if (monnaie !== null && monnaie !== "EUR") {
+    const entier = Math.trunc(centimes / 100);
+    const cent = Math.abs(centimes % 100);
+    return `au capital de ${String(entier)},${String(cent).padStart(2, "0")} ${monnaie}`;
+  }
+  return `au capital de ${formatMontant(centimes)}`;
+}
+
+const PROFESSIONS: ReadonlySet<string> = new Set([
+  "avocat",
+  "commissaire_justice",
+  "notaire",
+  "expert_judiciaire",
+  "administrateur_judiciaire",
+  "mandataire_judiciaire",
+  "expert_comptable",
+  "commissaire_comptes",
+]);
+
+export function estProfessionReglementee(code: string | null): code is ProfessionReglementee {
+  return code !== null && PROFESSIONS.has(code);
+}
+
+export type CoordonneeLue = {
+  contactId: string;
+  genre: string;
+  usage: string;
+  valeur: string;
+  principale: boolean;
+};
+
+/** Reprend l'adresse principale du domicile ou du siège, quand elle existe. */
+export function appliquerCoordonnees(contacts: readonly ContactListe[], lignes: readonly CoordonneeLue[]): ContactListe[] {
+  return contacts.map((contact) => {
+    const domicile = adressePrincipale(lignes, contact.id, "domicile");
+    const siege = adressePrincipale(lignes, contact.id, "siege");
+    return {
+      ...contact,
+      adresseDomicile: domicile ?? contact.adresseDomicile,
+      adresseSiege: siege ?? contact.adresseSiege,
+    };
+  });
+}
+
+function adressePrincipale(lignes: readonly CoordonneeLue[], contactId: string, usage: string): string | null {
+  const trouve = lignes.find(
+    (ligne) =>
+      ligne.contactId === contactId &&
+      ligne.genre === "adresse" &&
+      ligne.usage === usage &&
+      ligne.principale,
+  );
+  const valeur = trouve?.valeur.trim() ?? "";
+  return valeur === "" ? null : valeur;
 }
 
 export function libelleTypeClient(typeClient: TypeClientListe): string {

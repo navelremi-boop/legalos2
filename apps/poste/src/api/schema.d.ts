@@ -1666,14 +1666,33 @@ export interface components {
             totp_requis: boolean;
         };
         ContactResponse: {
+            accord?: string | null;
+            activite?: string | null;
+            barreau?: string | null;
+            /** Format: int64 */
+            capital_centimes?: number | null;
+            civilite?: string | null;
+            cour_appel?: string | null;
+            date_naissance?: string | null;
+            forme?: string | null;
+            greffe_rcs?: string | null;
             /** Format: uuid */
             id: string;
+            lieu_naissance?: string | null;
+            monnaie?: string | null;
+            nationalite?: string | null;
             nature: string;
             nom: string;
+            nom_naissance?: string | null;
             numero_tva?: string | null;
+            prenoms?: string | null;
+            profession?: string | null;
+            profession_reglementee?: string | null;
             /** Format: int64 */
             revision: number;
             siren?: string | null;
+            specialite?: string | null;
+            toque?: string | null;
             type_client: string;
         };
         CorpsMessage: {
@@ -1750,14 +1769,33 @@ export interface components {
             utilisateur: string;
         };
         CreerContactRequest: {
+            accord?: string | null;
+            activite?: string | null;
+            barreau?: string | null;
+            /** Format: int64 */
+            capital_centimes?: number | null;
+            civilite?: string | null;
+            cour_appel?: string | null;
+            date_naissance?: string | null;
             email?: string | null;
+            forme?: string | null;
+            greffe_rcs?: string | null;
             /** Format: uuid */
             id: string;
             idempotence_cle: string;
+            lieu_naissance?: string | null;
+            monnaie?: string | null;
+            nationalite?: string | null;
             nature: string;
             nom: string;
+            nom_naissance?: string | null;
             numero_tva?: string | null;
+            prenoms?: string | null;
+            profession?: string | null;
+            profession_reglementee?: string | null;
             siren?: string | null;
+            specialite?: string | null;
+            toque?: string | null;
             type_client: string;
         };
         CreerDocumentRequest: {
@@ -2314,12 +2352,31 @@ export interface components {
             slug?: string | null;
         };
         PatchContactRequest: {
+            accord?: string | null;
+            activite?: string | null;
+            barreau?: string | null;
             /** Format: int64 */
             base_revision: number;
+            /** Format: int64 */
+            capital_centimes?: number | null;
+            civilite?: string | null;
+            cour_appel?: string | null;
+            date_naissance?: string | null;
+            forme?: string | null;
+            greffe_rcs?: string | null;
             idempotence_cle: string;
+            lieu_naissance?: string | null;
+            monnaie?: string | null;
+            nationalite?: string | null;
             nom?: string | null;
+            nom_naissance?: string | null;
             numero_tva?: string | null;
+            prenoms?: string | null;
+            profession?: string | null;
+            profession_reglementee?: string | null;
             siren?: string | null;
+            specialite?: string | null;
+            toque?: string | null;
             type_client?: string | null;
         };
         PatchDocumentRequest: {

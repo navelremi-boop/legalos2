@@ -236,10 +236,44 @@ const contacts = new Table(
     siren: column.text,
     numero_tva: column.text,
     type_client: column.text,
+    civilite: column.text,
+    accord: column.text,
+    prenoms: column.text,
+    nom_naissance: column.text,
+    date_naissance: column.text,
+    lieu_naissance: column.text,
+    nationalite: column.text,
+    profession: column.text,
+    forme: column.text,
+    capital_centimes: column.integer,
+    monnaie: column.text,
+    greffe_rcs: column.text,
+    activite: column.text,
+    profession_reglementee: column.text,
+    barreau: column.text,
+    toque: column.text,
+    specialite: column.text,
+    cour_appel: column.text,
     revision: column.integer,
     cree_le: column.text,
   },
   { indexes: { cabinet: ["cabinet_id"] } },
+);
+
+/** Adresses, téléphones, e-mails et sites d'un contact. Une valeur principale par genre. */
+const contactCoordonnees = new Table(
+  {
+    cabinet_id: column.text,
+    contact_id: column.text,
+    genre: column.text,
+    usage: column.text,
+    valeur: column.text,
+    principale: column.integer,
+    pays: column.text,
+    revision: column.integer,
+    cree_le: column.text,
+  },
+  { indexes: { contact: ["contact_id"] } },
 );
 
 /** Lien de dossiers, une ligne par sens. */
@@ -403,6 +437,7 @@ export const AppSchema = new Schema({
   intercalaires_personnalises: intercalairesPersonnalises,
   intercalaire_elements: intercalaireElements,
   contacts,
+  contact_coordonnees: contactCoordonnees,
   dossier_liens: dossierLiens,
   agenda_elements: agendaElements,
   invitations_agenda: invitationsAgenda,

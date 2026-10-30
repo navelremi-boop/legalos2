@@ -6,6 +6,7 @@ pub mod db;
 pub mod depot_brouillons;
 pub mod error;
 pub mod facturation;
+pub mod fiche_contact;
 pub mod identifiants;
 pub mod identite_envoi;
 pub mod indexation_corps;

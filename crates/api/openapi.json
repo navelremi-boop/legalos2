@@ -6654,9 +6654,82 @@
           "revision"
         ],
         "properties": {
+          "accord": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "activite": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "barreau": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "capital_centimes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "civilite": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cour_appel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "date_naissance": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "forme": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "greffe_rcs": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "lieu_naissance": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "monnaie": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nationalite": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "nature": {
             "type": "string"
@@ -6664,7 +6737,31 @@
           "nom": {
             "type": "string"
           },
+          "nom_naissance": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "numero_tva": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "prenoms": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "profession": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "profession_reglementee": {
             "type": [
               "string",
               "null"
@@ -6675,6 +6772,18 @@
             "format": "int64"
           },
           "siren": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "specialite": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "toque": {
             "type": [
               "string",
               "null"
@@ -6954,7 +7063,62 @@
           "type_client"
         ],
         "properties": {
+          "accord": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "activite": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "barreau": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "capital_centimes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "civilite": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cour_appel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "date_naissance": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "forme": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "greffe_rcs": {
             "type": [
               "string",
               "null"
@@ -6967,11 +7131,35 @@
           "idempotence_cle": {
             "type": "string"
           },
+          "lieu_naissance": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "monnaie": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nationalite": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "nature": {
             "type": "string"
           },
           "nom": {
             "type": "string"
+          },
+          "nom_naissance": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "numero_tva": {
             "type": [
@@ -6979,7 +7167,37 @@
               "null"
             ]
           },
+          "prenoms": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "profession": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "profession_reglementee": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "siren": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "specialite": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "toque": {
             "type": [
               "string",
               "null"
@@ -8771,14 +8989,93 @@
           "idempotence_cle"
         ],
         "properties": {
+          "accord": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "activite": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "barreau": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "base_revision": {
             "type": "integer",
             "format": "int64"
           },
+          "capital_centimes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "civilite": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cour_appel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "date_naissance": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "forme": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "greffe_rcs": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "idempotence_cle": {
             "type": "string"
           },
+          "lieu_naissance": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "monnaie": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nationalite": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "nom": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nom_naissance": {
             "type": [
               "string",
               "null"
@@ -8790,7 +9087,37 @@
               "null"
             ]
           },
+          "prenoms": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "profession": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "profession_reglementee": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "siren": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "specialite": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "toque": {
             "type": [
               "string",
               "null"

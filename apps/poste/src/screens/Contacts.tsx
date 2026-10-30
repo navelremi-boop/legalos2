@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  appliquerCoordonnees,
   champsFicheVides,
   compteursFiltres,
+  estProfessionReglementee,
   FILTRES_CONTACTS,
   filtrerContacts,
   grouperAlphabetique,
+  libelleCapital,
   libelleNature,
   libelleTypeClient,
   ONGLETS_FICHE,
@@ -12,6 +15,7 @@ import {
   type FiltreContacts,
   type NatureContactListe,
   type OngletFicheContact,
+  type ProfessionReglementee,
   type TypeClientListe,
 } from "@/contacts/listeContacts";
 import { designationActe } from "@/contacts/designation";
@@ -26,6 +30,32 @@ type LigneSql = {
   siren: string | null;
   numero_tva: string | null;
   type_client: string;
+  civilite: string | null;
+  accord: string | null;
+  prenoms: string | null;
+  nom_naissance: string | null;
+  date_naissance: string | null;
+  lieu_naissance: string | null;
+  nationalite: string | null;
+  profession: string | null;
+  forme: string | null;
+  capital_centimes: number | null;
+  monnaie: string | null;
+  greffe_rcs: string | null;
+  activite: string | null;
+  profession_reglementee: string | null;
+  barreau: string | null;
+  toque: string | null;
+  specialite: string | null;
+  cour_appel: string | null;
+};
+
+type CoordSql = {
+  contact_id: string;
+  genre: string;
+  usage: string;
+  valeur: string;
+  principale: number | null;
 };
 
 const VIDE_ONGLET: Record<Exclude<OngletFicheContact, "general">, string> = {
@@ -46,6 +76,10 @@ function estTypeClient(valeur: string): valeur is TypeClientListe {
 
 function versContact(ligne: LigneSql): ContactListe | null {
   if (!estNature(ligne.nature) || !estTypeClient(ligne.type_client)) return null;
+  const code: ProfessionReglementee | null = estProfessionReglementee(ligne.profession_reglementee)
+    ? ligne.profession_reglementee
+    : null;
+  const accord = ligne.accord === "masculin" || ligne.accord === "feminin" ? ligne.accord : null;
   return {
     id: ligne.id,
     nature: ligne.nature,
@@ -53,8 +87,24 @@ function versContact(ligne: LigneSql): ContactListe | null {
     siren: ligne.siren,
     numeroTva: ligne.numero_tva,
     typeClient: ligne.type_client,
-    professionReglementee: false,
+    professionReglementee: code !== null,
     ...champsFicheVides(),
+    civilite: ligne.civilite,
+    accordSaisi: accord,
+    prenoms: ligne.prenoms,
+    nomNaissance: ligne.nom_naissance,
+    dateNaissance: ligne.date_naissance,
+    lieuNaissance: ligne.lieu_naissance,
+    nationalite: ligne.nationalite,
+    profession: ligne.profession,
+    forme: ligne.forme,
+    capitalLibelle:
+      ligne.capital_centimes === null ? null : libelleCapital(ligne.capital_centimes, ligne.monnaie),
+    greffe: ligne.greffe_rcs,
+    professionCode: code,
+    barreau: ligne.barreau,
+    specialite: ligne.specialite,
+    courAppel: ligne.cour_appel,
   };
 }
 
@@ -78,7 +128,14 @@ export function Contacts({ lignesFixes }: ContactsProps = {}) {
         try {
           const database = await getPowerSyncDatabase();
           const rows = await database.getAll<LigneSql>(
-            "SELECT id, nature, nom, siren, numero_tva, type_client FROM contacts ORDER BY nom COLLATE NOCASE",
+            `SELECT id, nature, nom, siren, numero_tva, type_client, civilite, accord, prenoms,
+              nom_naissance, date_naissance, lieu_naissance, nationalite, profession, forme,
+              capital_centimes, monnaie, greffe_rcs, activite, profession_reglementee, barreau,
+              toque, specialite, cour_appel
+             FROM contacts ORDER BY nom COLLATE NOCASE`,
+          );
+          const coords = await database.getAll<CoordSql>(
+            "SELECT contact_id, genre, usage, valeur, principale FROM contact_coordonnees",
           );
           if (ignore) return;
           const contacts: ContactListe[] = [];
@@ -86,7 +143,18 @@ export function Contacts({ lignesFixes }: ContactsProps = {}) {
             const contact = versContact(ligne);
             if (contact !== null) contacts.push(contact);
           }
-          setLignesSync(contacts);
+          setLignesSync(
+            appliquerCoordonnees(
+              contacts,
+              coords.map((ligne) => ({
+                contactId: ligne.contact_id,
+                genre: ligne.genre,
+                usage: ligne.usage,
+                valeur: ligne.valeur,
+                principale: ligne.principale === 1,
+              })),
+            ),
+          );
         } catch {
           if (!ignore) setLignesSync([]);
         }

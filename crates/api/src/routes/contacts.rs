@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
-use sqlx::Acquire;
+use sqlx::{Acquire, Row};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -30,6 +30,24 @@ pub struct CreerContactRequest {
     pub numero_tva: Option<String>,
     pub type_client: String,
     pub email: Option<String>,
+    pub civilite: Option<String>,
+    pub accord: Option<String>,
+    pub prenoms: Option<String>,
+    pub nom_naissance: Option<String>,
+    pub date_naissance: Option<String>,
+    pub lieu_naissance: Option<String>,
+    pub nationalite: Option<String>,
+    pub profession: Option<String>,
+    pub forme: Option<String>,
+    pub capital_centimes: Option<i64>,
+    pub monnaie: Option<String>,
+    pub greffe_rcs: Option<String>,
+    pub activite: Option<String>,
+    pub profession_reglementee: Option<String>,
+    pub barreau: Option<String>,
+    pub toque: Option<String>,
+    pub specialite: Option<String>,
+    pub cour_appel: Option<String>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -41,6 +59,24 @@ pub struct ContactResponse {
     pub numero_tva: Option<String>,
     pub type_client: String,
     pub revision: i64,
+    pub civilite: Option<String>,
+    pub accord: Option<String>,
+    pub prenoms: Option<String>,
+    pub nom_naissance: Option<String>,
+    pub date_naissance: Option<String>,
+    pub lieu_naissance: Option<String>,
+    pub nationalite: Option<String>,
+    pub profession: Option<String>,
+    pub forme: Option<String>,
+    pub capital_centimes: Option<i64>,
+    pub monnaie: Option<String>,
+    pub greffe_rcs: Option<String>,
+    pub activite: Option<String>,
+    pub profession_reglementee: Option<String>,
+    pub barreau: Option<String>,
+    pub toque: Option<String>,
+    pub specialite: Option<String>,
+    pub cour_appel: Option<String>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -51,6 +87,24 @@ pub struct PatchContactRequest {
     pub siren: Option<String>,
     pub numero_tva: Option<String>,
     pub type_client: Option<String>,
+    pub civilite: Option<String>,
+    pub accord: Option<String>,
+    pub prenoms: Option<String>,
+    pub nom_naissance: Option<String>,
+    pub date_naissance: Option<String>,
+    pub lieu_naissance: Option<String>,
+    pub nationalite: Option<String>,
+    pub profession: Option<String>,
+    pub forme: Option<String>,
+    pub capital_centimes: Option<i64>,
+    pub monnaie: Option<String>,
+    pub greffe_rcs: Option<String>,
+    pub activite: Option<String>,
+    pub profession_reglementee: Option<String>,
+    pub barreau: Option<String>,
+    pub toque: Option<String>,
+    pub specialite: Option<String>,
+    pub cour_appel: Option<String>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -107,6 +161,13 @@ pub async fn creer_contact(
         return Err(ApiError::bad_request("type_client inconnu"));
     }
     crate::identifiants::verifier_siren_tva(body.siren.as_deref(), body.numero_tva.as_deref())?;
+    controler_fiche(
+        body.civilite.as_deref(),
+        body.accord.as_deref(),
+        body.date_naissance.as_deref(),
+        body.profession_reglementee.as_deref(),
+        body.capital_centimes,
+    )?;
     let mut tx = state
         .pool
         .begin()
@@ -123,8 +184,18 @@ pub async fn creer_contact(
     }
     sqlx::query(
         r#"
-        INSERT INTO contacts (id, cabinet_id, nature, nom, siren, numero_tva, type_client, email, revision)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1)
+        INSERT INTO contacts (
+            id, cabinet_id, nature, nom, siren, numero_tva, type_client, email,
+            civilite, accord, prenoms, nom_naissance, date_naissance, lieu_naissance,
+            nationalite, profession, forme, capital_centimes, monnaie, greffe_rcs, activite,
+            profession_reglementee, barreau, toque, specialite, cour_appel, revision
+        )
+        VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8,
+            $9, $10, $11, $12, $13, $14,
+            $15, $16, $17, $18, $19, $20, $21,
+            $22, $23, $24, $25, $26, 1
+        )
         "#,
     )
     .bind(body.id)
@@ -151,6 +222,24 @@ pub async fn creer_contact(
             .filter(|s| !s.is_empty())
             .map(|s| s.to_ascii_lowercase()),
     )
+    .bind(texte_option(&body.civilite))
+    .bind(texte_option(&body.accord))
+    .bind(texte_option(&body.prenoms))
+    .bind(texte_option(&body.nom_naissance))
+    .bind(texte_option(&body.date_naissance))
+    .bind(texte_option(&body.lieu_naissance))
+    .bind(texte_option(&body.nationalite))
+    .bind(texte_option(&body.profession))
+    .bind(texte_option(&body.forme))
+    .bind(body.capital_centimes)
+    .bind(texte_option(&body.monnaie))
+    .bind(texte_option(&body.greffe_rcs))
+    .bind(texte_option(&body.activite))
+    .bind(texte_option(&body.profession_reglementee))
+    .bind(texte_option(&body.barreau))
+    .bind(texte_option(&body.toque))
+    .bind(texte_option(&body.specialite))
+    .bind(texte_option(&body.cour_appel))
     .execute(
         tx.acquire()
             .await
@@ -209,6 +298,13 @@ pub async fn patch_contact(
             return Err(ApiError::bad_request("type_client inconnu"));
         }
     }
+    controler_fiche(
+        body.civilite.as_deref(),
+        body.accord.as_deref(),
+        body.date_naissance.as_deref(),
+        body.profession_reglementee.as_deref(),
+        body.capital_centimes,
+    )?;
     let mut tx = state
         .pool
         .begin()
@@ -279,6 +375,171 @@ pub async fn patch_contact(
         &mut revision,
     )
     .await?;
+    let fiche = lire_fiche(&mut tx, contact_id).await?;
+    appliquer_texte_fiche(
+        &mut tx,
+        &contexte,
+        "civilite",
+        body.civilite.as_deref(),
+        fiche.civilite.as_deref(),
+        &mut revision,
+    )
+    .await?;
+    appliquer_texte_fiche(
+        &mut tx,
+        &contexte,
+        "accord",
+        body.accord.as_deref(),
+        fiche.accord.as_deref(),
+        &mut revision,
+    )
+    .await?;
+    appliquer_texte_fiche(
+        &mut tx,
+        &contexte,
+        "prenoms",
+        body.prenoms.as_deref(),
+        fiche.prenoms.as_deref(),
+        &mut revision,
+    )
+    .await?;
+    appliquer_texte_fiche(
+        &mut tx,
+        &contexte,
+        "nom_naissance",
+        body.nom_naissance.as_deref(),
+        fiche.nom_naissance.as_deref(),
+        &mut revision,
+    )
+    .await?;
+    appliquer_texte_fiche(
+        &mut tx,
+        &contexte,
+        "date_naissance",
+        body.date_naissance.as_deref(),
+        fiche.date_naissance.as_deref(),
+        &mut revision,
+    )
+    .await?;
+    appliquer_texte_fiche(
+        &mut tx,
+        &contexte,
+        "lieu_naissance",
+        body.lieu_naissance.as_deref(),
+        fiche.lieu_naissance.as_deref(),
+        &mut revision,
+    )
+    .await?;
+    appliquer_texte_fiche(
+        &mut tx,
+        &contexte,
+        "nationalite",
+        body.nationalite.as_deref(),
+        fiche.nationalite.as_deref(),
+        &mut revision,
+    )
+    .await?;
+    appliquer_texte_fiche(
+        &mut tx,
+        &contexte,
+        "profession",
+        body.profession.as_deref(),
+        fiche.profession.as_deref(),
+        &mut revision,
+    )
+    .await?;
+    appliquer_texte_fiche(
+        &mut tx,
+        &contexte,
+        "forme",
+        body.forme.as_deref(),
+        fiche.forme.as_deref(),
+        &mut revision,
+    )
+    .await?;
+    if let Some(centimes) = body.capital_centimes {
+        crate::conflits::appliquer_champ_i64(
+            &mut tx,
+            &contexte,
+            "capital_centimes",
+            Some(centimes),
+            fiche.capital_centimes.unwrap_or(-1),
+            &mut revision,
+        )
+        .await?;
+    }
+    appliquer_texte_fiche(
+        &mut tx,
+        &contexte,
+        "monnaie",
+        body.monnaie.as_deref(),
+        fiche.monnaie.as_deref(),
+        &mut revision,
+    )
+    .await?;
+    appliquer_texte_fiche(
+        &mut tx,
+        &contexte,
+        "greffe_rcs",
+        body.greffe_rcs.as_deref(),
+        fiche.greffe_rcs.as_deref(),
+        &mut revision,
+    )
+    .await?;
+    appliquer_texte_fiche(
+        &mut tx,
+        &contexte,
+        "activite",
+        body.activite.as_deref(),
+        fiche.activite.as_deref(),
+        &mut revision,
+    )
+    .await?;
+    appliquer_texte_fiche(
+        &mut tx,
+        &contexte,
+        "profession_reglementee",
+        body.profession_reglementee.as_deref(),
+        fiche.profession_reglementee.as_deref(),
+        &mut revision,
+    )
+    .await?;
+    appliquer_texte_fiche(
+        &mut tx,
+        &contexte,
+        "barreau",
+        body.barreau.as_deref(),
+        fiche.barreau.as_deref(),
+        &mut revision,
+    )
+    .await?;
+    appliquer_texte_fiche(
+        &mut tx,
+        &contexte,
+        "toque",
+        body.toque.as_deref(),
+        fiche.toque.as_deref(),
+        &mut revision,
+    )
+    .await?;
+    appliquer_texte_fiche(
+        &mut tx,
+        &contexte,
+        "specialite",
+        body.specialite.as_deref(),
+        fiche.specialite.as_deref(),
+        &mut revision,
+    )
+    .await?;
+    appliquer_texte_fiche(
+        &mut tx,
+        &contexte,
+        "cour_appel",
+        body.cour_appel.as_deref(),
+        fiche.cour_appel.as_deref(),
+        &mut revision,
+    )
+    .await?;
     let nom_f = body.nom.as_deref().unwrap_or(&courant.0);
     let siren_f = body.siren.as_deref().or(courant.1.as_deref());
     let tva_f = body.numero_tva.as_deref().or(courant.2.as_deref());
@@ -288,13 +549,39 @@ pub async fn patch_contact(
     let type_f = body.type_client.as_deref().unwrap_or(&courant.3);
     if revision != courant.4 {
         sqlx::query(
-            "UPDATE contacts SET nom = $1, siren = $2, numero_tva = $3, type_client = $4, revision = $5 WHERE id = $6",
+            r#"
+            UPDATE contacts SET
+                nom = $1, siren = $2, numero_tva = $3, type_client = $4, revision = $5,
+                civilite = $6, accord = $7, prenoms = $8, nom_naissance = $9, date_naissance = $10,
+                lieu_naissance = $11, nationalite = $12, profession = $13, forme = $14,
+                capital_centimes = $15, monnaie = $16, greffe_rcs = $17, activite = $18,
+                profession_reglementee = $19, barreau = $20, toque = $21, specialite = $22, cour_appel = $23
+            WHERE id = $24
+            "#,
         )
         .bind(nom_f)
         .bind(siren_f.filter(|s| !s.is_empty()))
         .bind(tva_f.filter(|s| !s.is_empty()))
         .bind(type_f)
         .bind(revision)
+        .bind(texte_final(body.civilite.as_deref(), fiche.civilite))
+        .bind(texte_final(body.accord.as_deref(), fiche.accord))
+        .bind(texte_final(body.prenoms.as_deref(), fiche.prenoms))
+        .bind(texte_final(body.nom_naissance.as_deref(), fiche.nom_naissance))
+        .bind(texte_final(body.date_naissance.as_deref(), fiche.date_naissance))
+        .bind(texte_final(body.lieu_naissance.as_deref(), fiche.lieu_naissance))
+        .bind(texte_final(body.nationalite.as_deref(), fiche.nationalite))
+        .bind(texte_final(body.profession.as_deref(), fiche.profession))
+        .bind(texte_final(body.forme.as_deref(), fiche.forme))
+        .bind(body.capital_centimes.or(fiche.capital_centimes))
+        .bind(texte_final(body.monnaie.as_deref(), fiche.monnaie))
+        .bind(texte_final(body.greffe_rcs.as_deref(), fiche.greffe_rcs))
+        .bind(texte_final(body.activite.as_deref(), fiche.activite))
+        .bind(texte_final(body.profession_reglementee.as_deref(), fiche.profession_reglementee))
+        .bind(texte_final(body.barreau.as_deref(), fiche.barreau))
+        .bind(texte_final(body.toque.as_deref(), fiche.toque))
+        .bind(texte_final(body.specialite.as_deref(), fiche.specialite))
+        .bind(texte_final(body.cour_appel.as_deref(), fiche.cour_appel))
         .bind(contact_id)
         .execute(tx.acquire().await.map_err(|_| ApiError::internal("Transaction"))?)
         .await
@@ -507,8 +794,14 @@ async fn lire_contact(
     cabinet_id: Uuid,
     contact_id: Uuid,
 ) -> Result<ContactResponse, ApiError> {
-    let row = sqlx::query_as::<_, (String, String, Option<String>, Option<String>, String, i64)>(
-        "SELECT nature, nom, siren, numero_tva, type_client, revision FROM contacts WHERE id = $1 AND cabinet_id = $2",
+    let row = sqlx::query(
+        r#"
+        SELECT nature, nom, siren, numero_tva, type_client, revision,
+            civilite, accord, prenoms, nom_naissance, date_naissance, lieu_naissance,
+            nationalite, profession, forme, capital_centimes, monnaie, greffe_rcs, activite,
+            profession_reglementee, barreau, toque, specialite, cour_appel
+        FROM contacts WHERE id = $1 AND cabinet_id = $2
+        "#,
     )
     .bind(contact_id)
     .bind(cabinet_id)
@@ -516,13 +809,176 @@ async fn lire_contact(
     .await
     .map_err(|_| ApiError::internal("lecture contact"))?
     .ok_or_else(|| ApiError::not_found("Contact introuvable"))?;
+    let texte = |nom: &str| -> Result<Option<String>, ApiError> {
+        row.try_get(nom)
+            .map_err(|_| ApiError::internal("lecture contact"))
+    };
     Ok(ContactResponse {
         id: contact_id,
-        nature: row.0,
-        nom: row.1,
-        siren: row.2,
-        numero_tva: row.3,
-        type_client: row.4,
-        revision: row.5,
+        nature: texte("nature")?.unwrap_or_default(),
+        nom: texte("nom")?.unwrap_or_default(),
+        siren: texte("siren")?,
+        numero_tva: texte("numero_tva")?,
+        type_client: texte("type_client")?.unwrap_or_default(),
+        revision: row
+            .try_get("revision")
+            .map_err(|_| ApiError::internal("lecture contact"))?,
+        civilite: texte("civilite")?,
+        accord: texte("accord")?,
+        prenoms: texte("prenoms")?,
+        nom_naissance: texte("nom_naissance")?,
+        date_naissance: texte("date_naissance")?,
+        lieu_naissance: texte("lieu_naissance")?,
+        nationalite: texte("nationalite")?,
+        profession: texte("profession")?,
+        forme: texte("forme")?,
+        capital_centimes: row
+            .try_get("capital_centimes")
+            .map_err(|_| ApiError::internal("lecture contact"))?,
+        monnaie: texte("monnaie")?,
+        greffe_rcs: texte("greffe_rcs")?,
+        activite: texte("activite")?,
+        profession_reglementee: texte("profession_reglementee")?,
+        barreau: texte("barreau")?,
+        toque: texte("toque")?,
+        specialite: texte("specialite")?,
+        cour_appel: texte("cour_appel")?,
     })
+}
+
+struct FicheLue {
+    civilite: Option<String>,
+    accord: Option<String>,
+    prenoms: Option<String>,
+    nom_naissance: Option<String>,
+    date_naissance: Option<String>,
+    lieu_naissance: Option<String>,
+    nationalite: Option<String>,
+    profession: Option<String>,
+    forme: Option<String>,
+    capital_centimes: Option<i64>,
+    monnaie: Option<String>,
+    greffe_rcs: Option<String>,
+    activite: Option<String>,
+    profession_reglementee: Option<String>,
+    barreau: Option<String>,
+    toque: Option<String>,
+    specialite: Option<String>,
+    cour_appel: Option<String>,
+}
+
+async fn lire_fiche(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    contact_id: Uuid,
+) -> Result<FicheLue, ApiError> {
+    let row = sqlx::query(
+        r#"
+        SELECT civilite, accord, prenoms, nom_naissance, date_naissance, lieu_naissance,
+            nationalite, profession, forme, capital_centimes, monnaie, greffe_rcs, activite,
+            profession_reglementee, barreau, toque, specialite, cour_appel
+        FROM contacts WHERE id = $1
+        "#,
+    )
+    .bind(contact_id)
+    .fetch_optional(
+        tx.acquire()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?,
+    )
+    .await
+    .map_err(|_| ApiError::internal("lecture contact"))?
+    .ok_or_else(|| ApiError::not_found("Contact introuvable"))?;
+    let texte = |nom: &str| -> Result<Option<String>, ApiError> {
+        row.try_get(nom)
+            .map_err(|_| ApiError::internal("lecture contact"))
+    };
+    Ok(FicheLue {
+        civilite: texte("civilite")?,
+        accord: texte("accord")?,
+        prenoms: texte("prenoms")?,
+        nom_naissance: texte("nom_naissance")?,
+        date_naissance: texte("date_naissance")?,
+        lieu_naissance: texte("lieu_naissance")?,
+        nationalite: texte("nationalite")?,
+        profession: texte("profession")?,
+        forme: texte("forme")?,
+        capital_centimes: row
+            .try_get("capital_centimes")
+            .map_err(|_| ApiError::internal("lecture contact"))?,
+        monnaie: texte("monnaie")?,
+        greffe_rcs: texte("greffe_rcs")?,
+        activite: texte("activite")?,
+        profession_reglementee: texte("profession_reglementee")?,
+        barreau: texte("barreau")?,
+        toque: texte("toque")?,
+        specialite: texte("specialite")?,
+        cour_appel: texte("cour_appel")?,
+    })
+}
+
+fn texte_option(valeur: &Option<String>) -> Option<String> {
+    valeur
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
+fn texte_final(nouveau: Option<&str>, actuel: Option<String>) -> Option<String> {
+    match nouveau {
+        Some(valeur) => {
+            let net = valeur.trim();
+            if net.is_empty() {
+                None
+            } else {
+                Some(net.to_string())
+            }
+        }
+        None => actuel,
+    }
+}
+
+fn controler_fiche(
+    civilite: Option<&str>,
+    accord: Option<&str>,
+    date_naissance: Option<&str>,
+    profession: Option<&str>,
+    capital: Option<i64>,
+) -> Result<(), ApiError> {
+    if let Some(valeur) = civilite.map(str::trim).filter(|s| !s.is_empty()) {
+        crate::fiche_contact::valider_civilite(valeur)?;
+    }
+    if let Some(valeur) = accord.map(str::trim).filter(|s| !s.is_empty()) {
+        crate::fiche_contact::valider_accord(valeur)?;
+    }
+    if let Some(valeur) = date_naissance.map(str::trim).filter(|s| !s.is_empty()) {
+        crate::fiche_contact::valider_date_naissance(valeur)?;
+    }
+    if let Some(valeur) = profession.map(str::trim).filter(|s| !s.is_empty()) {
+        crate::fiche_contact::valider_profession_reglementee(valeur)?;
+    }
+    if let Some(centimes) = capital {
+        crate::fiche_contact::valider_capital(centimes)?;
+    }
+    Ok(())
+}
+
+async fn appliquer_texte_fiche(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    contexte: &ContexteChamp,
+    champ: &str,
+    nouveau: Option<&str>,
+    actuel: Option<&str>,
+    revision: &mut i64,
+) -> Result<(), ApiError> {
+    let net = nouveau.map(str::trim).filter(|s| !s.is_empty());
+    appliquer_champ_texte(
+        tx,
+        contexte,
+        champ,
+        net.or(if nouveau.is_some() { Some("") } else { None }),
+        actuel.unwrap_or(""),
+        revision,
+    )
+    .await
 }

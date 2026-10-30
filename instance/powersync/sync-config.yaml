@@ -187,7 +187,11 @@ streams:
 
   contacts_cabinet:
     auto_subscribe: true
-    query: SELECT id, cabinet_id, nature, nom, siren, numero_tva, type_client, revision, cree_le::text AS cree_le FROM contacts WHERE cabinet_id::text = auth.parameter('cabinet_id')
+    query: SELECT id, cabinet_id, nature, nom, siren, numero_tva, type_client, civilite, accord, prenoms, nom_naissance, date_naissance, lieu_naissance, nationalite, profession, forme, capital_centimes, monnaie, greffe_rcs, activite, profession_reglementee, barreau, toque, specialite, cour_appel, revision, cree_le::text AS cree_le FROM contacts WHERE cabinet_id::text = auth.parameter('cabinet_id')
+
+  contact_coordonnees_cabinet:
+    auto_subscribe: true
+    query: SELECT id, cabinet_id, contact_id, genre, usage, valeur, principale::int AS principale, pays, revision, cree_le::text AS cree_le FROM contact_coordonnees WHERE cabinet_id::text = auth.parameter('cabinet_id')
 
   dossier_liens_publics:
     auto_subscribe: true
