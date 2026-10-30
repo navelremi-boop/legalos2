@@ -26,7 +26,9 @@ import type { DossierFiche, FactureFiche, MailFiche, NoteFiche } from "@/contact
 import { lireDossiersContact, lireMailsClasses } from "@/contacts/lireHistorique";
 import { DoublonsFiche } from "@/contacts/DoublonsFiche";
 import { CreationSociete } from "@/contacts/CreationSociete";
+import { poserForme } from "@/contacts/poserForme";
 import { poserSituationFamiliale } from "@/contacts/poserSituation";
+import { formesFiltrees, libelleForme } from "@/contacts/formesJuridiques";
 import { estSituationFamiliale, libelleSituation, SITUATIONS_FAMILIALES } from "@/contacts/situationFamiliale";
 import type { PropositionSiren } from "@/contacts/propositionSiren";
 import { Feuille } from "@/coque/Feuille";
@@ -79,6 +81,7 @@ export function Contacts({
   const [archives, setArchives] = useState<ReadonlySet<string>>(new Set());
   const [retires, setRetires] = useState<ReadonlySet<string>>(new Set());
   const [situations, setSituations] = useState<Record<string, string | null>>({});
+  const [formes, setFormes] = useState<Record<string, string | null>>({});
   const [dossiersSync, setDossiersSync] = useState<DossierFiche[]>([]);
   const [mailsSync, setMailsSync] = useState<MailFiche[]>([]);
   const indexRef = useRef<IndexAnnuaire | null>(null);
@@ -158,6 +161,7 @@ export function Contacts({
           ...choisi,
           situationFamiliale:
             situations[choisi.id] === undefined ? choisi.situationFamiliale : situations[choisi.id] ?? null,
+          forme: formes[choisi.id] === undefined ? choisi.forme : formes[choisi.id] ?? null,
         };
   const historique =
     historiqueFixe !== null && choisi?.id === historiqueFixe.contactId
@@ -384,6 +388,11 @@ export function Contacts({
                         if (lignesFixes !== undefined) return;
                         void poserSituationFamiliale(choisi.id, code);
                       }}
+                      onForme={(code) => {
+                        setFormes((etat) => ({ ...etat, [choisi.id]: code }));
+                        if (lignesFixes !== undefined) return;
+                        void poserForme(choisi.id, code);
+                      }}
                     />
                   ) : onglet === "liens" ? (
                     <LiensFiche contactId={choisi.id} liens={liens} />
@@ -445,6 +454,53 @@ function LiensFiche({ contactId, liens }: { contactId: string; liens: readonly L
   );
 }
 
+function FormeSociete({
+  forme,
+  onForme,
+}: {
+  forme: string | null;
+  onForme: (code: string | null) => void;
+}) {
+  const [filtre, setFiltre] = useState("");
+  const brut = forme?.trim() ?? "";
+  const estCode = brut !== "" && libelleForme(brut) !== brut;
+  const options = formesFiltrees(filtre, estCode ? brut : null);
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="flex flex-col gap-1">
+        <span>{fr("Forme")}</span>
+        <input
+          className="champ"
+          aria-label={fr("Filtrer les catégories juridiques")}
+          data-testid="contacts-forme-filtre"
+          placeholder={fr("Code ou libellé")}
+          value={filtre}
+          onChange={(event) => {
+            setFiltre(event.target.value);
+          }}
+        />
+      </label>
+      <select
+        className="champ"
+        data-testid="contacts-forme"
+        value={brut}
+        onChange={(event) => {
+          const code = event.target.value;
+          onForme(code === "" ? null : code);
+        }}
+      >
+        <option value="">{fr("Non renseignée")}</option>
+        {!estCode && brut !== "" ? <option value={brut}>{fr(brut)}</option> : null}
+        {options.map((entree) => (
+          <option key={entree.code} value={entree.code}>
+            {fr(`${entree.code} — ${entree.libelle}`)}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function FicheGenerale({
   contact,
   coordonnees,
@@ -456,6 +512,7 @@ function FicheGenerale({
   onCreer,
   onRelier,
   onSituation,
+  onForme,
 }: {
   contact: ContactListe;
   coordonnees: readonly CoordonneeLue[];
@@ -467,6 +524,7 @@ function FicheGenerale({
   onCreer: (contact: ContactListe) => void;
   onRelier: (lien: LienAffiche) => Promise<void> | void;
   onSituation: (code: string | null) => void;
+  onForme: (code: string | null) => void;
 }) {
   const acte = designationActe(contact, { liens, contacts });
   const [copie, setCopie] = useState(false);
@@ -556,6 +614,9 @@ function FicheGenerale({
             ))}
           </select>
         </label>
+      ) : null}
+      {contact.nature === "morale" ? (
+        <FormeSociete forme={contact.forme} onForme={onForme} />
       ) : null}
       <div>
         <p className="font-bold">{fr("Coordonnées")}</p>

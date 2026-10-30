@@ -1,5 +1,6 @@
 import { formatDateActe } from "@/lib/format";
 import type { LienAffiche } from "@/contacts/liensContacts";
+import { libelleForme } from "@/contacts/formesJuridiques";
 import type {
   AccordGrammatical,
   ContactListe,
@@ -167,7 +168,7 @@ function texteMorale(contact: ContactListe, contexte: ContexteDesignation): Desi
   if (nom === "") mentions.push(mention("denomination", "dénomination"));
   else morceaux.push(nom);
 
-  const forme = contact.forme?.trim() ?? "";
+  const forme = libelleForme(contact.forme ?? "");
   if (forme === "") mentions.push(mention("forme", "forme"));
   else morceaux.push(forme);
 

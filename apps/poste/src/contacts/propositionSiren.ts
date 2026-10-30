@@ -1,3 +1,5 @@
+import { texteForme } from "@/contacts/formesJuridiques";
+
 export type PropositionSiren = {
   siren: string;
   denomination: string | null;
@@ -40,8 +42,8 @@ export function lignesProposition(fiche: FicheComparee, proposition: Proposition
     {
       champ: "forme",
       libelle: "Forme",
-      ancien: texte(fiche.forme),
-      registre: texte(proposition.forme),
+      ancien: texte(texteForme(fiche.forme)),
+      registre: texte(texteForme(proposition.forme)),
     },
     {
       champ: "adresseSiege",

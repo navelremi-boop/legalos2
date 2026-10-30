@@ -29,6 +29,7 @@ Aucun. `tauri-plugin-wdio-webdriver` est consommé depuis crates.io (1.5.1), san
 | Donnée | Licence | Fichier | Source |
 | --- | --- | --- | --- |
 | Base officielle des codes postaux | Licence Ouverte 2.0 | `apps/poste/src/contacts/codesPostaux.json` (table code → communes, tirée du CSV du 2026-10-08) | La Poste, https://www.data.gouv.fr/datasets/base-officielle-des-codes-postaux |
+| Catégories juridiques | nomenclature publiée par l'Insee | `apps/poste/src/contacts/formesJuridiques.json` (code → libellé, classeur du 1er septembre 2022) | Insee, https://www.insee.fr/fr/information/2028129 |
 
 ## Polices embarquées
 

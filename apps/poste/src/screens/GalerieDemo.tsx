@@ -90,7 +90,7 @@ const CONTACTS_DEMO: ContactListe[] = [
     typeClient: "professionnel",
     professionReglementee: false,
     ...champsFicheVides(),
-    forme: "société à responsabilité limitée",
+    forme: "5499",
     capitalLibelle: "au capital de 10 000 €",
     greffe: "RCS de Lyon",
     adresseSiege: "8 quai Saint-Vincent, 69001 Lyon",
