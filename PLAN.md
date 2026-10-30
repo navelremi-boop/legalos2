@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-10-28 (jalon en cours : **Tenue visuelle** ; **Modèles et fusion** validé `6887969`, contrôleur [jalon](d080c260-de76-403c-91e3-48d4cbb3415a), CI [40748763193](https://github.com/navelremi-boop/legalos2/actions/runs/40748763193) ; le crash `0xC0000374` bloque J14).
+Dernière mise à jour : 2026-10-30 (jalon en cours : **Annuaire** ; **Tenue visuelle** validée, veto B9 levé à titre provisoire le 30/10/2026 ; **Conventions d'honoraires** suspendu, reprend après Diligences ; le crash `0xC0000374` bloque J14).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -14,23 +14,30 @@ Chaque fonctionnalité n° 1 à 14 du § 4.2, et chaque élément de sa colonne 
 
 - **1 Dossiers**
   - Référence attribuée par le serveur → Référence de dossier
-  - client → Dossiers et contacts complets
-  - adversaires → Dossiers et contacts complets
-  - confrères adverses → Dossiers et contacts complets
-  - juridiction → J5
-  - n° RG → J5
+  - client → Dossiers et contacts complets ; Annuaire
+  - adversaires → Dossiers et contacts complets ; Annuaire
+  - confrères adverses → Dossiers et contacts complets ; Annuaire
+  - juridiction → Dossiers et contacts complets ; Juridictions et administrations
+  - n° RG → Dossiers et contacts complets ; Juridictions et administrations
   - type de dossier → Dossiers et contacts complets
   - étape → Dossiers et contacts complets
   - dossiers liés → Dossiers et contacts complets
   - intercalaires standards → Coque de l'app
   - intercalaires personnalisés → Intercalaires personnalisés
 - **2 Contacts**
-  - personnes physiques et morales → Dossiers et contacts complets
-  - rôle dans chaque dossier → Dossiers et contacts complets
-  - historique → Dossiers et contacts complets
-  - SIREN → Dossiers et contacts complets
-  - n° TVA → Dossiers et contacts complets
-  - type de client → Dossiers et contacts complets
+  - personnes physiques et morales → Annuaire
+  - coordonnées multiples → Annuaire
+  - désignation dans les actes → Annuaire
+  - professions réglementées → Annuaire
+  - qualité dans chaque dossier → Annuaire
+  - liens datés entre contacts → Annuaire
+  - import par SIREN et dirigeants du registre → Annuaire
+  - doublons et fusion → Annuaire
+  - historique → Annuaire
+  - répartition du capital à date → Structures et capital
+  - juridictions et administrations → Juridictions et administrations
+  - instances successives d'un dossier → Juridictions et administrations
+  - SIREN, n° TVA, type de client → Dossiers et contacts complets
 - **3 Droits par dossier**
   - accès restreint à certains collaborateurs → J5
 - **4 Agenda et délais**
@@ -55,11 +62,13 @@ Chaque fonctionnalité n° 1 à 14 du § 4.2, et chaque élément de sa colonne 
   - classement dans les dossiers → J9
   - construit en 5 étapes → J9 ; J11
 - **9 Temps**
+  - registre des diligences → Diligences
+  - frais et débours en quantité × prix unitaire → Diligences
   - chronomètre → Coque de l'app
-  - saisie manuelle → J8
-  - rattachement au dossier et à l'intervenant → J8
+  - saisie datée → Diligences
+  - propositions issues des mails → Diligences
 - **10 Facturation**
-  - au temps → J8
+  - au temps → J8 ; Diligences
   - au forfait → Facturation, suite
   - au résultat → Facturation, suite
   - provisions → Facturation, suite
@@ -68,6 +77,10 @@ Chaque fonctionnalité n° 1 à 14 du § 4.2, et chaque élément de sa colonne 
   - avoirs → J8
   - relances → Facturation, suite
   - encours et impayés → Facturation, suite
+  - facture préparée à partir des diligences → Diligences
+  - lignes regroupées par type → Diligences
+  - relevé détaillé en annexe → Diligences
+  - créance irrécouvrable → Facturation, suite
 - **11 Facturation électronique**
   - PDF et Factur-X → J8
   - dépôt sur la plateforme agréée → J8
@@ -90,6 +103,16 @@ Chaque fonctionnalité n° 1 à 14 du § 4.2, et chaque élément de sa colonne 
 
 ---
 
+## Backlog V2
+
+Hors V1 (consigne de l'architecte du 29/10/2026). Ce ne sont pas des jalons de la mission.
+
+- Organigramme du groupe et détention indirecte.
+- Import des statuts déposés à l'INPI.
+- Suggestion de la juridiction compétente à partir d'une adresse : le référentiel publie le ressort des cours d'appel, des conseils de prud'hommes et des TAE, pas celui des tribunaux judiciaires.
+- Commissaires de justice proches d'une adresse.
+- Annonces BODACC sur la fiche.
+
 ## Phase 0 — Reconnaissance et planification
 
 - [x] **J0** — Phase 0 complète — VALIDÉ (contrôleur, détail dans `docs/journal/phase-0.md`)
@@ -108,7 +131,7 @@ Chaque fonctionnalité n° 1 à 14 du § 4.2, et chaque élément de sa colonne 
 
 ## Phase 2 — Lots parallèles
 
-Ordre architecte (révisé 2026-10-04) : **Migration Sync Streams** → **J8** → **Référence de dossier** → **Conflits généralisés** → **Coque** → **Vue scindée** → **Intercalaires personnalisés** → **Dossiers et contacts complets** → **Agenda** → **Documents, suite** → **J9** → **J10** → **Montée PowerSync** → **J11** → **Modèles et fusion** → **Conventions d'honoraires** → **Facturation, suite** → **Tableau de bord** → **J12** → **J13** → **J14**. Conventions d'honoraires avant Facturation, suite : la facturation reprend les modes de la convention.
+Ordre architecte (révisé 2026-10-04) : **Migration Sync Streams** → **J8** → **Référence de dossier** → **Conflits généralisés** → **Coque** → **Vue scindée** → **Intercalaires personnalisés** → **Dossiers et contacts complets** → **Agenda** → **Documents, suite** → **J9** → **J10** → **Montée PowerSync** → **J11** → **Modèles et fusion** → **Conventions d'honoraires** → **Facturation, suite** → **Tableau de bord** → **J12** → **J13** → **J14**. La séquence après Modèles et fusion est révisée le 30/10/2026 : voir la phase 3.
 
 - [x] **J5** — Dossiers, contacts, droits — VALIDÉ `340ac42` (CI [36172577399](https://github.com/navelremi-boop/legalos2/actions/runs/36172577399))
 - [x] **J6** — Agenda et délais — VALIDÉ `bf3bfe3` (CI [36179592258](https://github.com/navelremi-boop/legalos2/actions/runs/36179592258)) ; reprise H1–H13 `0fc0c17` ; H7/H10/H12 → B10
@@ -143,7 +166,7 @@ Ordre architecte (révisé 2026-10-04) : **Migration Sync Streams** → **J8** �
 - [x] **Avant la fin de la Coque** : CORS — ajouter `tauri://localhost` ; `localhost:1420` accepté seulement en mode développement.
 - [x] **Avant la fin de la Coque** : onglets de démonstration aux références écrites en dur (`CoqueApp.tsx:56`, majeur 2 du contrôle Référence) ; onglets à 800 px (réduction, puis menu des dossiers ouverts) ; indicateur « Synchronisé » affiché pendant une coupure ; contenu de démonstration dans la vue d'un vrai dossier.
 - [x] **Avant J14** : feature `test-webdriver` réalisée (WebDriver embarqué, WebdriverIO) pour les scénarios de l'app, aussi en CI macOS.
-- [ ] **Avant J17** : revue juridique par l'avocat avant toute mise en service réelle (délais H1–H13, facturation F0–F8, installation) — `RAPPORT.md`, section du même nom.
+- [ ] **Avant J17** : revue juridique par l'avocat avant toute mise en service réelle (délais H1–H13, facturation F0–F13, installation) — `RAPPORT.md`, section du même nom.
 - [ ] **Avant J14** (consigne de l'architecte du 27/10/2026) : le poste distribué produit, en cas de crash natif, un cliché local que l'avocat peut joindre à un signalement. Sans cela, un crash chez un confrère sera impossible à diagnostiquer.
 - [ ] **Avant J14** (consigne de l'architecte du 27/10/2026, soir) : aucune distribution tant que le crash `0xC0000374` du client PowerSync se reproduit. Composant : `powersync_core` 0.5.4, `StreamingSyncIteration::apply_transition`, depuis `sqlite3_step`. Signalement prêt : `docs/signalements/powersync-native-c0000374.md`. Le commandement le poste.
 - [x] **Avant J14** (consigne de l'architecte du 27/10/2026, CI de `e95c644`) : plus de copie modifiée de PowerSync dans le dépôt. Le poste dépend de la publication `powersync` 0.1.1, qui épingle `powersync_core` 0.5.3.
@@ -177,16 +200,16 @@ Chaque jalon : recettes + clippy + contrôleur.
 
 ## Phase 3 — Intégration avancée
 
-Critères validés par l'architecte le 04/10/2026, complétés par la consigne du 07/10/2026 (écrans V1 d'après les maquettes). Ordre (consigne du 07/10/2026, Tenue visuelle insérée le 28/10/2026) : **Bascule vers Claude Code** → **Montée PowerSync** → **Coque claire** → **J11** → **Finition des écrans** → **Écran de connexion** → **Modèles et fusion** → **Tenue visuelle** → **Conventions d'honoraires** → **Facturation, suite** → **Tableau de bord** → **J12** → **J13** → **J14** → **J15 à J17**.
+Critères validés par l'architecte le 04/10/2026, complétés par la consigne du 07/10/2026 (écrans V1 d'après les maquettes). Ordre (consigne du 07/10/2026, Tenue visuelle insérée le 28/10/2026, révisé le 30/10/2026) : **Bascule vers Claude Code** → **Montée PowerSync** → **Coque claire** → **J11** → **Finition des écrans** → **Écran de connexion** → **Modèles et fusion** → **Tenue visuelle** → **Annuaire** → **Juridictions et administrations** → **Structures et capital** → **Diligences** → **Conventions d'honoraires** → **Facturation, suite** → **Tableau de bord** → **J12** → **J13** → **J14** → **J15 à J17**. Conventions d'honoraires est suspendu (décision du commandement du 30/10/2026) : le code déjà écrit reste, aucun autre jalon ne s'appuie sur la table locale `conventions_honoraires`, le jalon reprend après Diligences. L'ajout de synchronisation à Conventions d'honoraires et les ajustements de Facturation, suite (fin de `docs/consignes/criteres-diligences.md`) sont reportés.
 
 Décisions du commandement (06/10/2026) :
 - En mode jour : barre haute claire, barre d'actions claire, fond neutre « lin » avec grain, feuille blanche. En mode nuit : sombres. Les couleurs de chemise de dossier ne changent pas.
 - Menu du compte à droite de la barre : Temps, Réglages, Palette de commandes, Verrouiller, Se déconnecter. Temps et Réglages ne sont plus dans la navigation principale (La journée, Dossiers, Mails, Agenda, Facturation).
 - Le Tableau de bord est le premier onglet de Facturation (Tableau de bord, Factures, À facturer).
 - Les données des maquettes (`design/maquettes/`) sont fictives : jamais dans l'app, sauf dans le jeu de démonstration de développement.
-- L'écran Temps n'a pas encore de maquette : ne pas le refaire avant que l'architecte en fournisse une. Le logo est en attente : ne pas toucher à l'icône.
+- L'écran Temps a pour référence `design/maquettes/prototype-temps.html` (validée le 10/10/2026), modifiée seulement par l'extrait de `design/maquettes/prototype-diligences.html`. Le logo est en attente : ne pas toucher à l'icône.
 
-Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette (Playwright, 1240 par 800, jour et nuit) et la capture de l'application au même état, les compare, liste les écarts. Un écart de structure (volets, ordre, élément absent) refuse le jalon ; un écart de détail (espacement, ombre) est consigné en dette. Consigne de l'architecte du 28/10/2026 : tout jalon qui livre un écran fournit en plus les captures jour et nuit à 1 366 × 768, 1 920 × 1 080 et 2 560 × 1 440, sur le jeu de démonstration (jalon Tenue visuelle). Le commandement garde son veto (B9).
+Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette (Playwright, 1240 par 800, jour et nuit) et la capture de l'application au même état, les compare, liste les écarts. Un écart de structure (volets, ordre, élément absent) refuse le jalon ; un écart de détail (espacement, ombre) est consigné en dette. Consigne de l'architecte du 28/10/2026 : tout jalon qui livre un écran fournit en plus les captures jour et nuit à 1 366 × 768, 1 920 × 1 080 et 2 560 × 1 440, sur le jeu de démonstration (jalon Tenue visuelle). Le veto B9 est levé à titre provisoire le 30/10/2026 ; il peut revenir avec des remarques.
 
 - [x] **Bascule vers Claude Code** — VALIDÉ `6c7b0a6` (contrôleur 07/10/2026, CI [37680889863](https://github.com/navelremi-boop/legalos2/actions/runs/37680889863)) — critères validés par l'architecte le 07/10/2026
   - **Critères d'acceptation (commandes)** :
@@ -231,7 +254,7 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
       - le document produit devient un document versionné du dossier ; styles, polices et retraits du modèle conservés à l'identique.
     - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
-- [ ] **Tenue visuelle** — après Modèles et fusion, avant Conventions d'honoraires — consigne de l'architecte du 28/10/2026 (veto B9)
+- [x] **Tenue visuelle** — VALIDÉ `affd717` (CI [40770940066](https://github.com/navelremi-boop/legalos2/actions/runs/40770940066) ; contrôleur [reprise](9089e6d9-4b32-4709-9422-3c10ef183407) ; veto B9 levé à titre provisoire le 30/10/2026) — après Modèles et fusion, avant Annuaire — consigne de l'architecte du 28/10/2026
   - **Critères d'acceptation (commandes)** :
     - `node tests/recette/tenue-visuelle.mjs` → exit 0 :
       - la feuille a une largeur maximale et reste centrée ; listes, aperçu, fiche et intercalaires ont des largeurs fixes ou bornées ; les intercalaires restent collés à la feuille ; dans une ligne de liste, le nom et l'échéance restent proches ; aucun texte tronqué quand la place existe ;
@@ -242,7 +265,90 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
     - `node tests/recette/tenue-visuelle-captures.mjs` → exit 0 : captures jour et nuit à 1 366 × 768, 1 920 × 1 080 et 2 560 × 1 440, sur le jeu de démonstration, pour Dossiers, la vue d'un dossier, Mails, Agenda, La journée, Temps et Réglages.
     - Le contrôleur compare ces captures, puis le commandement valide sur son écran (B9). `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
-- [ ] **Conventions d'honoraires** — § 4.2 n° 12 — critères validés par l'architecte le 04/10/2026 — après Tenue visuelle, avant Facturation, suite
+- [ ] **Annuaire** — § 4.2 n° 2 — critères validés par l'architecte le 29/10/2026 — après Tenue visuelle, avant Juridictions et administrations
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/annuaire.mjs` → exit 0 (app Tauri) :
+      - **Écran.** Entrée « Contacts » de la navigation principale, entre Dossiers et Mails, d'après `design/maquettes/prototype-contacts.html` : liste à gauche (recherche, filtres Tous, Personnes, Sociétés, Professions, regroupement alphabétique), fiche à droite (onglets Général, Liens, Dossiers, Factures, Mails, Notes ; Structure ou Participations au jalon suivant). Contacts accessibles aussi depuis la palette. `data-testid` stables.
+      - **Fiche d'une personne physique.** Civilité (liste du cabinet : Madame, Monsieur, Maître au départ ; ni « Mademoiselle » ni champ « sexe »), accord grammatical (déduit de Madame et Monsieur, demandé pour toute autre civilité), prénoms, nom, nom de naissance, date et lieu de naissance, nationalité, profession, situation familiale. Pas de numéro de sécurité sociale.
+      - **Fiche d'une personne morale.** Dénomination, forme (table des catégories juridiques de l'INSEE embarquée), capital et monnaie, SIREN, greffe du RCS, n° TVA intracommunautaire, activité. Contrôles SIREN et TVA existants (`tests/recette/siren-tva.mjs`) repris sans changement.
+      - **Professions réglementées**, sur la fiche et non dans le dossier : avocat (barreau, toque), commissaire de justice, notaire, expert judiciaire (spécialité, cour d'appel), administrateur judiciaire, mandataire judiciaire, expert-comptable, commissaire aux comptes. Filtre « Professions » de la liste.
+      - **Coordonnées multiples et typées** : adresses (domicile, siège, correspondance, facturation, cabinet, étude), téléphones, e-mails, sites ; une valeur principale par type ; aucun champ fax.
+      - **Codes postaux.** Base officielle des codes postaux (La Poste, Licence Ouverte) embarquée dans le poste, source et date dans `docs/versions.md` ; le code postal propose la ou les communes, hors ligne ; adresse à l'étranger en saisie libre avec le pays.
+      - **Désignation dans les actes**, calculée et affichée sur la fiche, avec un bouton Copier :
+        - personne physique : civilité, prénoms, nom, « né(e) [nom de naissance si différent] le … à … », nationalité, profession, adresse du domicile principal ;
+        - personne morale : dénomination, forme, capital, greffe et numéro du RCS, adresse du siège, organe représentant (« prise en la personne de son [fonction] en exercice, [civilité prénom nom], domicilié(e) en cette qualité audit siège ») tiré du lien de mandat social en cours marqué « représente la société » ;
+        - professionnel : « Me [prénom nom], avocat(e) au barreau de … » et équivalents.
+        Une mention manquante est signalée sur la fiche et nommée ; la fusion d'un modèle qui l'utilise s'arrête et nomme le champ (règle de `docs/modeles-champs.md`). Jeu de cas écrit à la main dans le test, accords féminins compris.
+      - **Qualités.** Table `qualites` par cabinet, modifiable dans Réglages (rôle administrateur). Liste livrée : client, adversaire, demandeur, défendeur, intervenant volontaire, intervenant forcé, appelant, intimé, appelé en déclaration de jugement commun, caution, assureur, avocat, avocat plaidant, avocat postulant, commissaire de justice, notaire, expert amiable, expert judiciaire, administrateur judiciaire, mandataire judiciaire, liquidateur judiciaire, commissaire à l'exécution du plan, curateur, tuteur, représentant légal, associé, apporteur d'affaires, autre. Chaque qualité indique si elle admet un rattachement. Une qualité utilisée ne se supprime pas, elle s'archive.
+      - **Intervenants d'un dossier.** Table `dossier_intervenants` (dossier, contact, qualité, rattaché à un autre intervenant du même dossier, note). Dans la vue du dossier : groupement par qualité, rattachés en retrait sous leur partie (« Me Anne Perrin, avocate de SARL Duclos Industrie »). Un même contact peut avoir des qualités différentes dans deux dossiers. Contrôle : un rattachement vise un intervenant du même dossier, jamais lui-même.
+      - **Reprise des parties.** Chaque ligne de `parties` devient un intervenant lié à une fiche : `contact_id` repris quand il existe ; sinon une fiche est créée, marquée « à compléter », nature déduite de la forme en tête du nom (SAS, SARL, SA, SCI, EURL, SNC, SELARL, association…) et sinon personne physique ; noms identiques après normalisation dans un même cabinet regroupés sur une seule fiche ; rôles client, adversaire et confrère repris en qualités client, adversaire et avocat. Reprise idempotente, testée sur le jeu de 3 000 dossiers : aucun dossier sans son client, aucune partie perdue, deux exécutions donnent le même résultat. `parties` reste en base, en lecture seule, jusqu'à J13 ; migrations par ajouts seulement.
+      - **Liens entre contacts.** Table `contact_liens` (contact source, contact cible, type, fonction, « représente la société », pour le compte de, début, fin, source, note). Types : mandat social (gérant, président, directeur général, directeur général délégué, administrateur, membre du directoire, membre du conseil de surveillance, liquidateur amiable), représentant permanent, associé (renvoie aux participations au jalon suivant), salarié, conjoint ou partenaire de PACS, parent, expert-comptable, commissaire aux comptes, autre avec libellé. Affichage dans les deux sens (« Président de SAS Ferrand Métal » ; « Président : M. Antoine Ferrand »). Lien terminé conservé et affiché « du … au … ». Contrôles : fin postérieure au début ; un mandat social vise une personne morale ; au plus un mandat en cours marqué « représente la société » par fonction.
+      - **Import par SIREN.** Par l'instance (route dédiée, jamais depuis le poste directement), qui interroge l'API Recherche d'entreprises (service public, sans clé ; URL, limite de débit et date de vérification dans `docs/versions.md`) ; délai d'attente de 10 s ; cache de 24 h. Déclenché seulement par un bouton. Résultat présenté comme une proposition : chaque champ (dénomination, forme, adresse du siège, activité) est validé par l'utilisateur, à la création comme à la mise à jour d'une fiche existante (ancienne valeur et valeur du registre côte à côte). Le capital et le greffe, absents de ce registre, restent à saisir. Source et date d'import enregistrées. Hors ligne ou service indisponible : bouton désactivé ou message en français, saisie manuelle toujours possible. Essais négatifs : SIREN invalide, SIREN inconnu, service coupé.
+      - **Dirigeants du registre.** Proposés, jamais créés d'office ; rapprochés des fiches existantes (personne physique : nom, prénoms, mois et année de naissance ; personne morale : SIREN) ; l'utilisateur choisit, pour chacun, relier à la fiche trouvée, créer une fiche, ou ignorer.
+      - **Doublons.** Détection à la création et à la demande : même SIREN, même adresse e-mail, ou mêmes nom, prénoms et date de naissance. Fusion par l'instance, en une transaction : choix de la valeur champ par champ ; intervenants, liens (dans les deux sens, doublons exacts retirés), factures, coordonnées et rattachements de mails reportés sur la fiche conservée ; fiche absorbée archivée avec la mention « fusionnée dans » ; fusion journalisée et idempotente. Disponible en ligne seulement, bouton désactivé hors ligne avec explication. Test : aucune référence perdue après fusion, deuxième appel sans effet.
+      - **Pas de suppression physique** d'un contact lié à un dossier, une facture, un lien ou un mail : il s'archive, reste lisible partout où il apparaît, n'est plus proposé à la saisie. Seul un contact jamais lié peut être supprimé, et la suppression est journalisée.
+      - **Historique de la fiche.** Onglet Dossiers : chaque dossier où le contact intervient, avec sa qualité. Onglet Factures (client) : factures, encaissements, encours. Onglet Mails : mails classés dont l'expéditeur ou un destinataire est une adresse de la fiche. Onglet Notes.
+      - **Droits.** Annuaire commun à tout le cabinet (décision du 30/09/2026), y compris les contacts créés depuis un dossier restreint. Les intervenants suivent les droits de leur dossier : un utilisateur sans accès à un dossier restreint ne voit, sur la fiche, ni ce dossier, ni compteur, ni mention ; même règle pour les factures et les mails de ce dossier. Essai : poste B, utilisateur sans accès ; la fiche est visible, le dossier restreint absent de l'onglet Dossiers et du SQLite de B.
+      - **Synchronisation.** Tables synchronisées par les flux existants ; création et modification hors ligne ; conflits par champ selon Conflits généralisés (`node tests/recette/conflits-poste-tauri.mjs` reste vert).
+      - **Recherche.** Index FTS5 local : nom, prénoms, dénomination, SIREN, e-mails, téléphones normalisés sans espaces, ville. Sur un jeu de 10 000 contacts : résultat affiché en moins de 300 ms sur le poste de recette, mesure consignée dans `JOURNAL.md`.
+      - **Champs de fusion.** `docs/modeles-champs.md` complété : `client_designation`, `client_adresse`, `client_representant_designation` ; boucles par qualité `{#intervenants_<code>}{nom}{designation}{adresse}{rattache_a}{/intervenants_<code>}` ; `client_nom` inchangé. `node tests/recette/modeles-fusion.mjs` → exit 0 (non-régression), plus un acte d'essai qui reprend la désignation du client et de l'adversaire.
+    - `node tests/recette/annuaire-reprise.mjs` → exit 0 (Postgres réel, jeu de 3 000 dossiers, deux exécutions).
+    - `node tests/recette/tenue-visuelle-captures.mjs` → exit 0, écran Contacts ajouté : captures jour et nuit à 1 366 × 768, 1 920 × 1 080 et 2 560 × 1 440 sur le jeu de démonstration (liste, fiche d'une société, fiche d'une personne, création par SIREN). Preuve visuelle commune contre la maquette ; le commandement valide sur son écran (B9).
+    - `cargo clippy --workspace --all-targets -- -D warnings` et `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+
+- [ ] **Juridictions et administrations** — § 4.2 n° 2 et n° 1 (juridiction) — critères validés par l'architecte le 29/10/2026 — après Annuaire, avant Structures et capital
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/juridictions-administrations.mjs` → exit 0 (API, Postgres réel, puis app Tauri) :
+      - **Troisième nature de contact**, « juridiction ou administration », avec un genre (juridiction, administration) et un type. Filtre « Juridictions et administrations » dans la liste ; sous-titre de l'écran distinct (contacts d'un côté, juridictions et administrations utilisées de l'autre). Fiche d'après la maquette : désignation ou mention pour les actes, bloc « Données publiques », onglets Chambres et services (juridictions), Dossiers, Notes.
+      - **Référentiel.** Source : API de l'Annuaire de l'administration publiée par la DILA (Service-Public.fr), interrogée par l'instance seulement ; URL, licence, types retenus et date de vérification dans `docs/versions.md`. Chargés et synchronisés sur les postes (hors ligne) : toutes les juridictions de l'ordre judiciaire et administratif (types du référentiel listés dans `docs/versions.md`, au minimum cour d'appel, tribunal judiciaire, tribunal des activités économiques et tribunal de commerce, conseil de prud'hommes, tribunal de proximité, tribunal administratif, cour administrative d'appel, Cour de cassation et Conseil d'État s'ils y figurent) ; les administrations des types et départements choisis par le cabinet dans Réglages (au départ : SIE, service de gestion comptable, URSSAF, CPAM, préfecture, du département du cabinet). Tout autre organisme se cherche à la demande, en ligne, et n'entre dans l'annuaire du cabinet qu'une fois choisi. Identifiant du référentiel conservé sur la fiche.
+      - **Normalisation à l'import**, valeur brute conservée : casse des adresses (« 44 RUE DE BONNEL » devient « 44 rue de Bonnel »), horaires mis en phrase française, lignes d'horaires vides ou à 00:00 écartées, ressort enregistré comme liste de codes INSEE et affiché en nombre de communes avec la liste à la demande. Champ absent du référentiel affiché « Non publié », jamais inventé.
+      - **Mise à jour mensuelle** par l'instance, et à la demande d'un administrateur : champs publics remplacés, ancien nom conservé dans l'historique de la fiche (« Ancien nom : … jusqu'au … »), dossiers inchangés puisqu'ils pointent la fiche. Organisme supprimé du référentiel : fiche conservée et marquée « retiré du référentiel », jamais effacée. Essai : jeu de deux versions du référentiel (renommage, suppression, nouveau service), aucune instance ni aucun intervenant perdu.
+      - **Champs publics en lecture seule** sur le poste et refusés par l'API ; seule la couche du cabinet se modifie : chambres et services (nom, e-mail, téléphone, note), notes. Une mise à jour du référentiel n'écrase jamais cette couche.
+      - **Cour d'appel du ressort** d'une juridiction, déduite du ressort publié de la cour d'appel qui contient la commune du siège ; affichée seulement si la déduction est univoque.
+      - **Désignation d'une administration partie**, pré-remplie selon son type à partir de formules listées dans `docs/modeles-champs.md`, puis validée par un utilisateur (état « proposée » ou « validée », auteur et date) ; la fusion d'un acte qui utilise la désignation d'une administration non validée s'arrête et le dit. Une administration peut recevoir toute qualité dans un dossier, comme un autre contact.
+      - **Instances d'un dossier.** Table `dossier_instances` : dossier, ordre, degré (première instance, appel, cassation, renvoi après cassation, référé, autre), juridiction (fiche de genre juridiction), chambre (choisie parmi les chambres de la fiche, ou saisie), numéro RG, date et acte de saisine, date, nature et sens de la décision. La dernière instance s'affiche dans la vue du dossier et dans la liste des dossiers comme la juridiction et le RG d'aujourd'hui ; la recherche par RG porte sur toutes les instances. Bloc Instances de la vue du dossier d'après l'extrait de la maquette ; sélecteur de juridiction qui cherche dans l'annuaire du cabinet puis, en ligne, dans le référentiel.
+      - **Reprise.** Chaque dossier dont la juridiction ou le RG est renseigné reçoit une instance ; nom rapproché du référentiel par correspondance exacte après normalisation (casse, accents, abréviations « TJ », « TAE », « TC », « CA », « CPH » développées) ; sans correspondance exacte, instance marquée « à rapprocher », texte d'origine conservé et affiché, liste des instances à rapprocher dans Réglages. Reprise idempotente, testée sur le jeu de 3 000 dossiers : aucun RG perdu, deux exécutions donnent le même résultat. Colonnes d'origine conservées, migrations par ajouts seulement.
+      - **Champs de fusion** documentés dans `docs/modeles-champs.md` : `juridiction_nom`, `juridiction_adresse`, `chambre`, `rg`, `instance_precedente_nom`, `instance_precedente_rg`, `instance_precedente_decision`, et la désignation des administrations parties dans les boucles d'intervenants. `node tests/recette/modeles-fusion.mjs` → exit 0 (non-régression), plus une déclaration d'appel d'essai qui cite la juridiction d'appel et la décision de première instance.
+      - **Droits et synchronisation.** Fiches publiques visibles de tout le cabinet ; couche du cabinet et instances suivant les règles de l'annuaire et des dossiers (une instance d'un dossier restreint n'apparaît pas dans l'onglet Dossiers de la fiche d'une juridiction pour qui n'y a pas accès). Échec du référentiel (service coupé, réponse invalide) : message en français, données déjà chargées intactes ; essais négatifs dans le test.
+    - `node tests/recette/tenue-visuelle-captures.mjs` → exit 0 : fiche d'une juridiction (Général, Chambres et services), fiche d'une administration, bloc Instances avec le sélecteur ouvert, jour et nuit, trois résolutions. Preuve visuelle commune ; B9.
+    - `cargo clippy --workspace --all-targets -- -D warnings` et `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+
+- [ ] **Structures et capital** — § 4.2 n° 2, répartition du capital à date — critères validés par l'architecte le 29/10/2026 — après Juridictions et administrations, avant Diligences
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/structures-capital.mjs` → exit 0 (API, Postgres réel, puis app Tauri) :
+      - **États du capital, datés.** Table `capital_etats` : société, date d'effet, montant, monnaie, capital variable (oui ou non), nature des titres (parts sociales ou actions), source. Table `categories_titres` par état : libellé, nombre de titres, voix par titre (0 pour une action sans droit de vote, 2 pour un droit de vote double). Valeur nominale calculée (montant divisé par le nombre total de titres), affichée, jamais saisie.
+      - **Participations.** Table `participations` : société, détenteur (personne physique ou morale), catégorie, nombre de titres, mode (pleine propriété, nue-propriété, usufruit, indivision), groupe de démembrement ou d'indivision, date d'entrée, date de sortie, origine (souscription, cession, donation, succession, apport, autre), source, note. Un groupe de démembrement porte un nombre de titres, réparti entre un ou plusieurs usufruitiers et un ou plusieurs nus-propriétaires ; chaque côté totalise ce nombre.
+      - **Contrôles, poste et API.** À toute date, les titres détenus d'une catégorie (démembrés et indivis comptés une fois par groupe) ne dépassent pas les titres de cette catégorie : refus avec un message en français qui nomme la date, la catégorie et l'excédent. Moins de titres que le total : reste affiché « non renseigné ». Un détenteur ne détient pas de titres de lui-même. Date de sortie postérieure à la date d'entrée.
+      - **Calculs.** Pourcentage du capital et pourcentage des droits de vote calculés, jamais saisis, dans un module de données hors des composants (`apps/poste/src/contacts/capital.ts`). Titres démembrés : vote attribué selon le régime choisi pour la société, « légal » (article 1844 du Code civil : nu-propriétaire, sauf affectation des bénéfices à l'usufruitier) ou « statutaire » (texte saisi) ; le graphique les montre en une part hachurée, sans les répartir. Jeu de test dont les valeurs attendues sont calculées à la main dans le test : démembrement, indivision, actions sans droit de vote, droit de vote double, capital modifié dans le temps, reste non renseigné, refus d'excédent.
+      - **Graphique.** Onglet Structure d'une personne morale, d'après la maquette : répartition à une date choisie (aujourd'hui et chaque date d'effet enregistrée) ; bascule capital ou droits de vote, affichée seulement si les voix diffèrent des titres ; légende en tableau (détenteur, titres, nominal ou voix, pourcentage, total) qui reste lisible sans les couleurs ; part hachurée pour les titres démembrés, part grise pour le non renseigné ; un clic sur une part ou une ligne ouvre la fiche du détenteur ; mouvements datés avec leur source, ceux postérieurs à la date affichée atténués. Mention visible : données indicatives à la date affichée, d'après les sources citées, qui ne remplacent pas le registre des mouvements de titres de la société.
+      - **Participations détenues.** Sur la fiche du détenteur (onglet Participations d'une personne physique, section de l'onglet Structure d'une personne morale) : société, titres, pourcentage du capital, mode de détention, date d'entrée.
+      - **Lien « associé ».** Une participation en cours affiche le détenteur comme associé dans l'onglet Liens, sans double saisie ; la participation reste la seule source.
+      - **Fusion des doublons.** La fusion du jalon Annuaire reporte participations et états du capital ; test : répartition identique avant et après fusion.
+      - **Champs de fusion.** `societe_capital`, `societe_titres`, boucle `{#associes}{nom}{titres}{pourcentage}{mode}{/associes}` à la date de génération ou à une date choisie ; documentés dans `docs/modeles-champs.md`.
+      - **Droits et synchronisation.** Ceux de l'annuaire ; saisie hors ligne ; conflits par champ ; le contrôle d'excédent est refait par l'API à l'envoi et un refus revient sur le poste en message lisible.
+    - `node tests/recette/tenue-visuelle-captures.mjs` → exit 0 : onglet Structure (trois dates, vues capital et droits de vote) et onglet Participations, jour et nuit, trois résolutions. Preuve visuelle commune ; B9.
+    - `cargo clippy --workspace --all-targets -- -D warnings` et `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+
+- [ ] **Diligences** — § 4.2 n° 9 et n° 10 — critères validés par l'architecte le 30/10/2026 — après Structures et capital, avant Conventions d'honoraires
+  - **Critères d'acceptation (commandes)** :
+    - `node tests/recette/diligences.mjs` → exit 0 (API, Postgres réel, puis app Tauri) :
+      - **Registre.** Table `diligences` : cabinet, dossier, date de la diligence (jour, distincte de la date d'enregistrement), intervenant, description, type, quantité (minutes pour le temps passé, nombre à trois décimales au plus sinon), prix unitaire en centimes (taux horaire pour le temps passé), montant HT en centimes, facturable (oui ou non), état (libre, réservée par un brouillon, facturée), brouillon et facture de rattachement, origine (saisie, chronomètre, mail, reprise), visibilité propagée depuis le dossier comme pour les temps, auteur, dates de création et de modification. Montant calculé par l'API, jamais accepté tel quel du poste ; temps passé selon F0, autres selon F11 ; type « remise » toujours négatif.
+      - **Types.** Table `types_diligence` par cabinet : catégorie (honoraires, frais, débours), libellé, unité (heure, forfait, page, envoi, km, unité, acte), prix par défaut, actif. Un seul type « temps passé », non supprimable. Liste livrée : honoraires (temps passé, forfait, résultat, remise), frais (copies, frais postaux, indemnités kilométriques, traduction, frais divers), débours (droit de plaidoirie, droit d'appel, frais de greffe, commissaire de justice, publicité légale, débours divers). Modifiable dans Réglages par un administrateur ; un type utilisé ne se supprime pas, il s'archive.
+      - **Intercalaire « Diligences »** : intercalaire standard (identifiant `diligences`) entre Mails et Factures, d'après la maquette : filtres À facturer, Facturées, Toutes ; récapitulatif en tête (honoraires, frais, total HT, TVA, débours, total TTC) portant sur la sélection, ou sur les diligences libres et facturables sans sélection ; diligences facturées groupées sous leur facture ; diligences réservées groupées sous « Dans un brouillon de facture » ; compteur de l'intercalaire égal au nombre de diligences libres et facturables. Barre du bas : « Saisir du temps » et « Préparer une facture » sans sélection ; « Facturer la sélection », « Déplacer », « Non facturable » ou « Rendre facturable », « Supprimer » avec sélection.
+      - **Saisie en tête du tableau.** Date acceptant « aujourd'hui », « hier », « j/m », « j/m/aaaa », refusée si postérieure à aujourd'hui ; durée selon les formats de la maquette Temps (« 1 h 30 », « 45 min », « 0,75 ») ; prix proposé selon le type, taux du temps passé selon la précédence des taux et figé à l'enregistrement ; Entrée ajoute, Tab passe au champ suivant ; reprise du chronomètre en cours sur le dossier ; message en français pour toute saisie refusée. Les propositions issues des mails (F10) s'affichent dans le tableau et ne deviennent des diligences qu'après validation.
+      - **Modification en place** d'une diligence libre (description, type, quantité, prix hors temps passé), enregistrée à la sortie du champ, hors ligne compris. Diligence réservée ou facturée : champs désactivés sur le poste et modification refusée par l'API.
+      - **Actions sur la sélection.** Déplacer vers un dossier accessible à l'utilisateur, F13 appliquée, inscription au journal des deux dossiers ; marquer non facturable ou facturable ; supprimer une diligence libre, inscription au journal du dossier. Diligences réservées ou facturées : non sélectionnables ; toute action refusée par l'API.
+      - **Écran Temps** d'après `prototype-temps.html` et l'extrait de `prototype-diligences.html` : saisie avec date et type ; quantité et prix unitaire pour les types hors temps ; journal listant toutes les diligences de l'utilisateur, tous dossiers confondus.
+      - **Préparer une facture.** À partir de la sélection, ou de toutes les diligences libres et facturables du dossier ; diligences non facturables écartées et comptées dans le panneau ; client tiré de sa fiche (Annuaire), n° TVA compris ; lignes regroupées par type, le temps passé par intervenant et par taux, au format « Temps passé, Me [nom], 4 h 15 au taux de 250,00 € » et « Copies, 240 pages à 0,15 € » ; débours sur des lignes hors TVA (régime de J8) ; totaux identiques à ceux du récapitulatif pour la même sélection, testés ; option « relevé détaillé » qui joint au PDF la liste des diligences (date, intervenant, description, quantité) sans changer les lignes du Factur-X. Le brouillon n'a ni numéro ni objet imposé ; l'alerte de convention manquante (jalon Conventions d'honoraires) s'applique.
+      - **Cycle des états.** Création du brouillon : diligences réservées. Retrait d'une diligence du brouillon ou suppression du brouillon : diligences libres à nouveau. Validation (chemin de J8, numéro attribué par le serveur) : diligences facturées, immuables, protégées par un déclencheur en base comme les factures validées. Avoir total : diligences libres à nouveau, avec mention de l'avoir dans leur historique. Avoir partiel : diligences inchangées.
+      - **Reprise des temps.** Chaque ligne de `temps_saisis` devient une diligence « temps passé » : minutes, taux et montant inchangés ; date de la diligence = date d'enregistrement en heure de Paris ; état déduit de `brouillons_facture` et des factures. Reprise idempotente, testée sur le jeu de 3 000 dossiers : somme des montants identique avant et après, deux exécutions donnent le même résultat. `temps_saisis` reste en base, en lecture seule, jusqu'à J13 ; migrations par ajouts seulement.
+      - **Droits et synchronisation.** Diligences visibles selon les droits du dossier ; saisie hors ligne ; conflits par champ selon Conflits généralisés ; une modification hors ligne d'une diligence devenue réservée ou facturée entre-temps est refusée à la synchronisation et signalée en français sur la ligne.
+      - **Calculs** dans un module de données hors des composants (`apps/poste/src/diligences/calculs.ts`) et dans l'API, avec un jeu de test dont les valeurs attendues sont écrites à la main dans le test : arrondis F0, F2 et F11, remise, non facturable, regroupement des lignes, débours hors TVA, totaux de la sélection.
+    - `node tests/recette/s9-factures.mjs` → exit 0 (non-régression du temps, des débours, des avoirs et de la facturation électronique).
+    - `node tests/recette/tenue-visuelle-captures.mjs` → exit 0 : intercalaire Diligences (à facturer, sélection, panneau du brouillon avec relevé, facturées) et écran Temps, jour et nuit, trois résolutions. Preuve visuelle commune ; B9.
+    - `cargo clippy --workspace --all-targets -- -D warnings` et `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
+
+- [ ] **Conventions d'honoraires** — § 4.2 n° 12 — critères validés par l'architecte le 04/10/2026 — suspendu par le commandement le 30/10/2026, reprend après Diligences, avant Facturation, suite. Le code déjà écrit reste en l'état. Aucun autre jalon ne s'appuie sur la table locale `conventions_honoraires`. L'ajout de synchronisation (`docs/consignes/criteres-diligences.md`) est reporté.
   - **Critères d'acceptation (commandes)** :
     - `node tests/recette/conventions-honoraires.mjs` → exit 0 (app Tauri) :
       - une convention est produite par Modèles et fusion, rattachée au dossier ;
@@ -251,7 +357,7 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
       - alerte à l'ouverture du dossier et à la création d'une facture tant qu'aucune convention n'est signée ; levée possible avec un motif consigné. Motifs décidés le 28/10/2026 (B15) : (1) urgence et force majeure, levée temporaire, l'alerte revient après 30 jours si la convention n'est toujours pas signée ; (2) convention signée hors de l'application, avec la date consignée ; (3) aide juridictionnelle totale, ou intervention au titre de la troisième partie de la loi du 10 juillet 1991 ; (4) premier rendez-vous ou consultation sans honoraires ; (5) dossier interne du cabinet.
     - `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
-- [ ] **Facturation, suite** — § 4.2 n° 10, ce que J8 n'a pas livré — critères validés par l'architecte le 04/10/2026, complétés le 07/10/2026
+- [ ] **Facturation, suite** — § 4.2 n° 10, ce que J8 n'a pas livré — critères validés par l'architecte le 04/10/2026, complétés le 07/10/2026 — ajustements du 30/10/2026 reportés (`docs/consignes/criteres-diligences.md`)
   - **Critères d'acceptation (commandes)** :
     - Écran d'après `design/maquettes/prototype-facturation.html` (les critères du 04/10 restent) : onglets Tableau de bord, Factures, À facturer ; relance validée avant envoi ; encaissement saisi sur place ; alerte de convention manquante dans À facturer ; preuve visuelle commune.
     - `node tests/recette/facturation-suite.mjs` → exit 0 (API, Postgres réel, puis app) :
