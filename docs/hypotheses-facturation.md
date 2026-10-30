@@ -1,6 +1,6 @@
 # Hypothèses — facturation
 
-Validation provisoire de l'architecte le 27/09/2026 : F0 à F8 sont retenues. La revue par l'avocat avant toute mise en service réelle reste ouverte (B10, dette « Avant J17 »). Le cahier § 3.7 impose les centimes, l'arrondi EN 16931 par catégorie, la numérotation serveur, l'immutabilité et l'avoir.
+Validation provisoire de l'architecte le 27/09/2026 : F0 à F8 sont retenues. La revue par l'avocat avant toute mise en service réelle reste ouverte (B10, dette « Avant J17 »). Le cahier § 3.7 impose les centimes, l'arrondi EN 16931 par catégorie, la numérotation serveur, l'immutabilité et l'avoir. F11, F12 et F13, ajoutées le 30/10/2026, sont à valider par l'avocat avant J17, comme F0 à F10.
 
 ## F0 — Taux horaire paramétrable
 
@@ -50,3 +50,15 @@ Le SIREN saisi est refusé s'il n'a pas 9 chiffres dont la clé de Luhn. Un n° 
 ## F10 — Barème des minutes proposées depuis un mail
 
 Un mail classé dans un dossier, lu ou traité, propose des minutes à saisir sur ce dossier (J11, `apps/poste/src/messagerie/tempsMail.ts`, constante `BAREME_MINUTES`) : lecture 6 minutes, réponse 12 minutes, transfert 6 minutes. Chaque traitement compte une fois, sans y ajouter la lecture ; une réponse suivie d'un transfert propose 18 minutes ; plafond de 480 minutes par saisie. La proposition n'est jamais enregistrée sans validation de l'utilisateur, qui peut corriger les minutes ; la saisie passe par le chemin des temps de J8 (taux figé à l'enregistrement, dernier taux horaire du cabinet hors dossier, sinon 60 € de l'heure). Ces valeurs sont une **hypothèse produit de l'état-major, pas une règle de droit**. **À valider par l'avocat.**
+
+## F11 — Arrondi des diligences hors temps
+
+Montant HT = quantité × prix unitaire, arrondi au centime le plus proche, demi-centime vers le haut ; quantité à trois décimales au plus. Le temps passé garde F0. **À valider par l'avocat.**
+
+## F12 — Prix par défaut
+
+La liste livrée porte des prix par défaut modifiables par le cabinet, jamais des constantes du code. Montants réglementés de la liste livrée (droit de plaidoirie 13 €, droit d'appel 225 €) à vérifier à la date de livraison et à tenir à jour par le cabinet. **À valider par l'avocat.**
+
+## F13 — Déplacement
+
+Une diligence de temps passé déplacée vers un autre dossier prend le taux applicable au dossier d'arrivée, selon la précédence des taux ; les autres diligences gardent leur prix. Décision de l'architecte du 30/10/2026, à confirmer par l'avocat. **À valider par l'avocat.**
