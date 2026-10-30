@@ -365,15 +365,15 @@ Chaque étape est utilisable seule et réutilise le code de la précédente.
 | # | Fonctionnalité | Détail | Dans la stack |
 |---|---|---|---|
 | 1 | Dossiers | Référence attribuée par le serveur (§ 3.4), client, adversaires, confrères adverses, juridiction, n° RG, type de dossier, étape, dossiers liés ; intercalaires standards et personnalisés (§ 7.4) | Postgres + PowerSync, UI React |
-| 2 | Contacts | Personnes physiques et morales, rôle dans chaque dossier, historique ; données de facturation (SIREN, n° TVA, type de client) | Idem |
+| 2 | Contacts | Annuaire commun au cabinet : personnes physiques et morales, coordonnées multiples, désignation dans les actes, professions réglementées ; qualité de chaque contact dans chaque dossier ; liens datés entre contacts ; import par SIREN et dirigeants du registre ; doublons et fusion ; historique ; répartition du capital des sociétés à date ; juridictions et administrations tirées de l'Annuaire de l'administration, avec chambres et services propres au cabinet ; instances successives de chaque dossier ; SIREN, n° TVA, type de client. | Idem |
 | 3 | Droits par dossier | Accès restreint à certains collaborateurs | Règles de sync PowerSync (§ 3.1) |
 | 4 | Agenda et délais | Audiences, rendez-vous, tâches, rappels ; invitations reçues par mail ajoutées à l'agenda | SQLite local, notifications Tauri |
 | 5 | Calcul des délais de procédure | Computation selon le CPC (art. 640 à 642 : point de départ, délais en jours/mois, report au premier jour ouvrable ; art. 643-644 : augmentation pour distance) + bibliothèque de délais usuels **validée par toi** | Règles en TypeScript → mises à jour à chaud lors des réformes |
 | 6 | Documents | Arborescence par dossier, versions, ouverture dans Word avec renvoi automatique, recherche | OpenDAL, `notify`, FTS5 |
 | 7 | Modèles et fusion | Courriers, conventions, actes générés depuis les données du dossier | docxtemplater |
 | 8 | **Client mail intégré** | Client complet remplaçant Outlook, classement dans les dossiers, construit en 5 étapes (§ 3.8) | Moteur Rust dans l'API + interface React |
-| 9 | Temps | Chronomètre, saisie manuelle, rattachement au dossier et à l'intervenant | SQLite local |
-| 10 | Facturation | Au temps, au forfait, au résultat ; provisions ; débours ; conditions tarifaires par client/dossier/intervenant ; avoirs ; relances ; encours et impayés | API Rust + Typst |
+| 9 | Temps | Registre des diligences par dossier : temps passé, frais et débours, en quantité × prix unitaire ; chronomètre ; saisie datée ; propositions issues des mails. | SQLite local |
+| 10 | Facturation | Au temps, au forfait, au résultat ; provisions ; débours ; conditions tarifaires par client/dossier/intervenant ; avoirs ; relances ; encours et impayés ; facture préparée à partir des diligences, lignes regroupées par type, relevé détaillé en annexe ; créance irrécouvrable | API Rust + Typst |
 | 11 | Facturation électronique | PDF + Factur-X, dépôt sur la PA, e-reporting, suivi des statuts, statut « encaissée » à chaque règlement (§ 3.7) | Rust (CII, Typst PDF/A-3b) + connecteur PA |
 | 12 | Conventions d'honoraires | Modèle, rattachement au dossier, alerte si dossier sans convention signée | Modèles + contrôle à l'ouverture |
 | 13 | Tableau de bord | Chiffre d'affaires, encours, temps non facturé, rentabilité par dossier et par client, factures en erreur ou en attente sur la PA, mails à classer | Requêtes locales |
