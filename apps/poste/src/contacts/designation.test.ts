@@ -1,7 +1,26 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { champsFicheVides, type ContactListe } from "./listeContacts.ts";
+import type { LienAffiche } from "./liensContacts.ts";
 import { accordDe, civiliteRefusee, designationActe } from "./designation.ts";
+
+function lienMandat(partiel: Partial<LienAffiche> & Pick<LienAffiche, "fonction">): LienAffiche {
+  return {
+    id: "lien",
+    sourceId: "anne",
+    cibleId: "duclos",
+    sourceCivilite: "Madame",
+    sourcePrenoms: "Camille",
+    sourceNom: "Martin",
+    cibleNom: "SARL Duclos Industrie",
+    typeLien: "mandat_social",
+    libelle: null,
+    representeSociete: true,
+    debut: "2018-06-01",
+    fin: null,
+    ...partiel,
+  };
+}
 
 function fiche(partiel: Partial<ContactListe> & Pick<ContactListe, "nature" | "nom">): ContactListe {
   return {
@@ -111,29 +130,76 @@ describe("désignation dans les actes", () => {
     assert.equal(acte.texte.includes("Mademoiselle"), false);
   });
 
-  it("écrit la société et l'organe représentant, accord du représentant compris", () => {
-    const acte = designationActe(
-      fiche({
-        nature: "morale",
-        nom: "SARL Duclos Industrie",
-        forme: "société à responsabilité limitée",
-        capitalLibelle: "au capital de 10 000 €",
-        greffe: "RCS de Lyon",
-        siren: "123456789",
-        adresseSiege: "8 quai Saint-Vincent, 69001 Lyon",
-        representant: {
-          fonction: "gérante",
-          civilite: "Madame",
-          prenoms: "Camille",
-          nom: "Martin",
-          accord: "feminin",
-        },
-      }),
-    );
+  it("écrit la société depuis le mandat en cours qui représente la société", () => {
+    const societe = fiche({
+      id: "duclos",
+      nature: "morale",
+      nom: "SARL Duclos Industrie",
+      forme: "société à responsabilité limitée",
+      capitalLibelle: "au capital de 10 000 €",
+      greffe: "RCS de Lyon",
+      siren: "123456789",
+      adresseSiege: "8 quai Saint-Vincent, 69001 Lyon",
+    });
+    const camille = fiche({
+      id: "anne",
+      nature: "physique",
+      civilite: "Madame",
+      prenoms: "Camille",
+      nom: "Martin",
+    });
+    const mandat = lienMandat({ fonction: "gerant", fin: null });
+    const acte = designationActe(societe, { liens: [mandat], contacts: [camille] });
     assert.deepEqual(acte.mentions, []);
     assert.equal(
       acte.texte,
       "SARL Duclos Industrie, société à responsabilité limitée, au capital de 10 000 €, RCS de Lyon, numéro 123456789, 8 quai Saint-Vincent, 69001 Lyon, prise en la personne de son gérante en exercice, Madame Camille Martin, domiciliée en cette qualité audit siège",
+    );
+
+    const termine = designationActe(societe, {
+      liens: [lienMandat({ fonction: "gerant", fin: "2024-03-14" })],
+      contacts: [camille],
+    });
+    assert.equal(
+      termine.mentions.some((mention) => mention.libelle === "organe représentant"),
+      true,
+    );
+    assert.equal(termine.texte.includes("Camille"), false);
+
+    const sansMarque = designationActe(societe, {
+      liens: [lienMandat({ fonction: "gerant", representeSociete: false })],
+      contacts: [camille],
+    });
+    assert.equal(
+      sansMarque.mentions.some((mention) => mention.libelle === "organe représentant"),
+      true,
+    );
+
+    const president = designationActe(societe, {
+      liens: [
+        lienMandat({
+          fonction: "president",
+          sourceId: "antoine",
+          sourceCivilite: "Monsieur",
+          sourcePrenoms: "Antoine",
+          sourceNom: "Ferrand",
+        }),
+      ],
+      contacts: [
+        fiche({
+          id: "antoine",
+          nature: "physique",
+          civilite: "Monsieur",
+          prenoms: "Antoine",
+          nom: "Ferrand",
+        }),
+      ],
+    });
+    assert.equal(
+      president.texte.endsWith(
+        "prise en la personne de son président en exercice, Monsieur Antoine Ferrand, domicilié en cette qualité audit siège",
+      ),
+      true,
     );
   });
 

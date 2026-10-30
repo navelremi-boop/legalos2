@@ -1,4 +1,5 @@
 import { formatDateActe } from "@/lib/format";
+import type { LienAffiche } from "@/contacts/liensContacts";
 import type {
   AccordGrammatical,
   ContactListe,
@@ -87,7 +88,79 @@ function textePersonne(contact: ContactListe): DesignationActe {
   return { texte: morceaux.join(", "), mentions };
 }
 
-function texteMorale(contact: ContactListe): DesignationActe {
+/** Un seul mandat en cours par fonction peut représenter la société. Cet ordre tranche s'il y en a plusieurs. */
+const ORDRE_MANDAT = [
+  "gerant",
+  "president",
+  "directeur_general",
+  "directeur_general_delegue",
+  "administrateur",
+  "membre_directoire",
+  "membre_conseil_surveillance",
+  "liquidateur_amiable",
+];
+
+const FONCTION_ACCORD: Record<string, { feminin: string; masculin: string }> = {
+  gerant: { feminin: "gérante", masculin: "gérant" },
+  president: { feminin: "présidente", masculin: "président" },
+  directeur_general: { feminin: "directrice générale", masculin: "directeur général" },
+  directeur_general_delegue: { feminin: "directrice générale déléguée", masculin: "directeur général délégué" },
+  administrateur: { feminin: "administratrice", masculin: "administrateur" },
+  membre_directoire: { feminin: "membre du directoire", masculin: "membre du directoire" },
+  membre_conseil_surveillance: {
+    feminin: "membre du conseil de surveillance",
+    masculin: "membre du conseil de surveillance",
+  },
+  liquidateur_amiable: { feminin: "liquidatrice amiable", masculin: "liquidateur amiable" },
+};
+
+function mandatRepresentant(societeId: string, liens: readonly LienAffiche[]): LienAffiche | null {
+  const candidats = liens.filter(
+    (lien) =>
+      lien.cibleId === societeId &&
+      lien.typeLien === "mandat_social" &&
+      lien.representeSociete &&
+      (lien.fin === null || lien.fin.trim() === ""),
+  );
+  candidats.sort(
+    (a, b) =>
+      ORDRE_MANDAT.indexOf(a.fonction ?? "") - ORDRE_MANDAT.indexOf(b.fonction ?? ""),
+  );
+  return candidats[0] ?? null;
+}
+
+function representantDuMandat(
+  lien: LienAffiche,
+  contacts: readonly ContactListe[],
+): { representant: RepresentantFiche | null; mentions: MentionManquante[] } {
+  const personne = contacts.find((contact) => contact.id === lien.sourceId);
+  const civilite = (personne?.civilite ?? lien.sourceCivilite ?? "").trim();
+  const prenoms = (personne?.prenoms ?? lien.sourcePrenoms ?? "").trim();
+  const nom = (personne?.nom ?? lien.sourceNom).trim();
+  const mentions: MentionManquante[] = [];
+  if (civilite === "" || civiliteRefusee(civilite)) mentions.push(mention("civilite", "civilité"));
+  if (prenoms === "") mentions.push(mention("prenoms", "prénoms"));
+  if (nom === "") mentions.push(mention("nom", "nom"));
+  const accord = civilite === "" || civiliteRefusee(civilite) ? null : accordDe(civilite, personne?.accordSaisi ?? null);
+  if (accord === null) mentions.push(mention("accord", "accord grammatical"));
+  const formes = FONCTION_ACCORD[lien.fonction ?? ""];
+  if (formes === undefined || accord === null || civilite === "" || prenoms === "" || nom === "") {
+    if (formes === undefined) mentions.push(mention("fonction", "fonction du mandat"));
+    return { representant: null, mentions };
+  }
+  return {
+    representant: {
+      fonction: participe(accord, formes.feminin, formes.masculin),
+      civilite,
+      prenoms,
+      nom,
+      accord,
+    },
+    mentions: [],
+  };
+}
+
+function texteMorale(contact: ContactListe, contexte: ContexteDesignation): DesignationActe {
   const mentions: MentionManquante[] = [];
   const morceaux: string[] = [];
   const nom = contact.nom.trim();
@@ -112,11 +185,13 @@ function texteMorale(contact: ContactListe): DesignationActe {
   if (siege === "") mentions.push(mention("adresse_siege", "adresse du siège"));
   else morceaux.push(siege);
 
-  const representant = contact.representant;
-  if (representant === null) {
+  const mandat = mandatRepresentant(contact.id, contexte.liens);
+  if (mandat === null) {
     mentions.push(mention("representant", "organe représentant"));
   } else {
-    morceaux.push(phraseRepresentant(representant));
+    const organe = representantDuMandat(mandat, contexte.contacts);
+    if (organe.representant === null) mentions.push(...organe.mentions);
+    else morceaux.push(phraseRepresentant(organe.representant));
   }
 
   return { texte: morceaux.join(", "), mentions };
@@ -185,10 +260,20 @@ function texteProfessionnel(contact: ContactListe): DesignationActe | null {
   return { texte: morceaux.join(", "), mentions };
 }
 
+export type ContexteDesignation = {
+  liens: readonly LienAffiche[];
+  contacts: readonly ContactListe[];
+};
+
+const CONTEXTE_VIDE: ContexteDesignation = { liens: [], contacts: [] };
+
 /** Désignation calculée. Le texte n'invente pas une mention absente : elle est nommée à part. */
-export function designationActe(contact: ContactListe): DesignationActe {
+export function designationActe(
+  contact: ContactListe,
+  contexte: ContexteDesignation = CONTEXTE_VIDE,
+): DesignationActe {
   const professionnelle = texteProfessionnel(contact);
   if (professionnelle !== null) return professionnelle;
-  if (contact.nature === "morale") return texteMorale(contact);
+  if (contact.nature === "morale") return texteMorale(contact, contexte);
   return textePersonne(contact);
 }

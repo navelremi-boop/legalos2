@@ -93,13 +93,6 @@ const CONTACTS_DEMO: ContactListe[] = [
     capitalLibelle: "au capital de 10 000 €",
     greffe: "RCS de Lyon",
     adresseSiege: "8 quai Saint-Vincent, 69001 Lyon",
-    representant: {
-      fonction: "gérante",
-      civilite: "Madame",
-      prenoms: "Camille",
-      nom: "Martin",
-      accord: "feminin",
-    },
   },
 ];
 
@@ -885,6 +878,7 @@ export function GalerieDemo() {
                   typeLien: "mandat_social",
                   fonction: "gerant",
                   libelle: null,
+                  representeSociete: true,
                   debut: "2018-06-01",
                   fin: null,
                 },

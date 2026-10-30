@@ -11,6 +11,7 @@ export type LienAffiche = {
   typeLien: string;
   fonction: string | null;
   libelle: string | null;
+  representeSociete: boolean;
   debut: string | null;
   fin: string | null;
 };

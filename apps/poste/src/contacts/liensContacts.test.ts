@@ -13,6 +13,7 @@ const LIEN: LienAffiche = {
   typeLien: "mandat_social",
   fonction: "president",
   libelle: null,
+  representeSociete: true,
   debut: "2020-01-01",
   fin: null,
 };

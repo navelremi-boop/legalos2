@@ -196,6 +196,8 @@ export function Contacts({ lignesFixes, liensFixes }: ContactsProps = {}) {
                     <FicheGenerale
                       contact={choisi}
                       coordonnees={coordsSync.filter((ligne) => ligne.contactId === choisi.id)}
+                      liens={liens}
+                      contacts={lignes ?? []}
                     />
                   ) : onglet === "liens" ? (
                     <LiensFiche contactId={choisi.id} liens={liens} />
@@ -254,11 +256,15 @@ function LiensFiche({ contactId, liens }: { contactId: string; liens: readonly L
 function FicheGenerale({
   contact,
   coordonnees,
+  liens,
+  contacts,
 }: {
   contact: ContactListe;
   coordonnees: readonly CoordonneeLue[];
+  liens: readonly LienAffiche[];
+  contacts: readonly ContactListe[];
 }) {
-  const acte = designationActe(contact);
+  const acte = designationActe(contact, { liens, contacts });
   const [copie, setCopie] = useState(false);
   const [genre, setGenre] = useState<GenreCoordonnee>("adresse");
   const [usage, setUsage] = useState<UsageCoordonnee>(contact.nature === "morale" ? "siege" : "domicile");
