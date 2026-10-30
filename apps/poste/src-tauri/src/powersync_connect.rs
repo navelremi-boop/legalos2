@@ -299,6 +299,7 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
             "toque",
             "specialite",
             "cour_appel",
+            "situation_familiale",
         ],
         champs_entiers: &["capital_centimes"],
         champs_booleens: &[],

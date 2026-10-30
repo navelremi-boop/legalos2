@@ -27,6 +27,7 @@ type LigneSql = {
   lieu_naissance: string | null;
   nationalite: string | null;
   profession: string | null;
+  situation_familiale: string | null;
   forme: string | null;
   capital_centimes: number | null;
   monnaie: string | null;
@@ -97,6 +98,7 @@ function versContact(ligne: LigneSql): ContactListe | null {
     lieuNaissance: ligne.lieu_naissance,
     nationalite: ligne.nationalite,
     profession: ligne.profession,
+    situationFamiliale: ligne.situation_familiale,
     forme: ligne.forme,
     activite: ligne.activite,
     capitalLibelle:
@@ -121,7 +123,7 @@ export async function lireAnnuaireLocal(): Promise<AnnuaireLocal> {
   const database = await getPowerSyncDatabase();
   const rows = await database.getAll<LigneSql>(
     `SELECT id, nature, nom, siren, numero_tva, type_client, civilite, accord, prenoms,
-      nom_naissance, date_naissance, lieu_naissance, nationalite, profession, forme,
+      nom_naissance, date_naissance, lieu_naissance, nationalite, profession, situation_familiale, forme,
       capital_centimes, monnaie, greffe_rcs, activite, profession_reglementee, barreau,
       toque, specialite, cour_appel, archivee
      FROM contacts ORDER BY nom COLLATE NOCASE`,

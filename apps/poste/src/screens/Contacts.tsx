@@ -13,7 +13,7 @@ import {
   type OngletFicheContact,
 } from "@/contacts/listeContacts";
 import { lireAnnuaireLocal } from "@/contacts/lireAnnuaire";
-import { designationActe } from "@/contacts/designation";
+import { designationActe, accordDe } from "@/contacts/designation";
 import { ecrireCoordonnee, type GenreCoordonnee, type UsageCoordonnee } from "@/contacts/ecrireCoordonnee";
 import { avecCommune, communesDuCode, estAdresseFrance } from "@/contacts/codesPostaux";
 import { libelleLien, type LienAffiche } from "@/contacts/liensContacts";
@@ -26,6 +26,8 @@ import type { DossierFiche, FactureFiche, MailFiche, NoteFiche } from "@/contact
 import { lireDossiersContact, lireMailsClasses } from "@/contacts/lireHistorique";
 import { DoublonsFiche } from "@/contacts/DoublonsFiche";
 import { CreationSociete } from "@/contacts/CreationSociete";
+import { poserSituationFamiliale } from "@/contacts/poserSituation";
+import { estSituationFamiliale, libelleSituation, SITUATIONS_FAMILIALES } from "@/contacts/situationFamiliale";
 import type { PropositionSiren } from "@/contacts/propositionSiren";
 import { Feuille } from "@/coque/Feuille";
 import { fr } from "@/lib/fr";
@@ -76,6 +78,7 @@ export function Contacts({
   const [liensAjoutes, setLiensAjoutes] = useState<LienAffiche[]>([]);
   const [archives, setArchives] = useState<ReadonlySet<string>>(new Set());
   const [retires, setRetires] = useState<ReadonlySet<string>>(new Set());
+  const [situations, setSituations] = useState<Record<string, string | null>>({});
   const [dossiersSync, setDossiersSync] = useState<DossierFiche[]>([]);
   const [mailsSync, setMailsSync] = useState<MailFiche[]>([]);
   const indexRef = useRef<IndexAnnuaire | null>(null);
@@ -148,6 +151,14 @@ export function Contacts({
   }, [lignes, filtre, recherche, idsRecherche, corpsParId]);
   const groupes = useMemo(() => grouperAlphabetique(visibles), [visibles]);
   const choisi = visibles.find((contact) => contact.id === selection) ?? visibles[0] ?? null;
+  const choisiVu =
+    choisi === null
+      ? null
+      : {
+          ...choisi,
+          situationFamiliale:
+            situations[choisi.id] === undefined ? choisi.situationFamiliale : situations[choisi.id] ?? null,
+        };
   const historique =
     historiqueFixe !== null && choisi?.id === historiqueFixe.contactId
       ? historiqueFixe
@@ -352,7 +363,7 @@ export function Contacts({
                 <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4" role="tabpanel">
                   {onglet === "general" ? (
                     <FicheGenerale
-                      contact={choisi}
+                      contact={choisiVu ?? choisi}
                       coordonnees={coordsSync.filter((ligne) => ligne.contactId === choisi.id)}
                       liens={liens}
                       contacts={lignes ?? []}
@@ -367,6 +378,11 @@ export function Contacts({
                           await envoyerLien(instanceUrl, lien);
                         }
                         setLiensAjoutes((etat) => [...etat, lien]);
+                      }}
+                      onSituation={(code) => {
+                        setSituations((etat) => ({ ...etat, [choisi.id]: code }));
+                        if (lignesFixes !== undefined) return;
+                        void poserSituationFamiliale(choisi.id, code);
                       }}
                     />
                   ) : onglet === "liens" ? (
@@ -439,6 +455,7 @@ function FicheGenerale({
   propositionFixe,
   onCreer,
   onRelier,
+  onSituation,
 }: {
   contact: ContactListe;
   coordonnees: readonly CoordonneeLue[];
@@ -449,6 +466,7 @@ function FicheGenerale({
   propositionFixe: PropositionSiren | null;
   onCreer: (contact: ContactListe) => void;
   onRelier: (lien: LienAffiche) => Promise<void> | void;
+  onSituation: (code: string | null) => void;
 }) {
   const acte = designationActe(contact, { liens, contacts });
   const [copie, setCopie] = useState(false);
@@ -517,6 +535,28 @@ function FicheGenerale({
         <dt>{fr("Type de client")}</dt>
         <dd>{fr(libelleTypeClient(contact.typeClient))}</dd>
       </dl>
+      {contact.nature === "physique" ? (
+        <label className="flex flex-col gap-1">
+          <span>{fr("Situation familiale")}</span>
+          <select
+            className="champ"
+            data-testid="contacts-situation"
+            value={contact.situationFamiliale ?? ""}
+            onChange={(event) => {
+              const code = event.target.value;
+              if (code !== "" && !estSituationFamiliale(code)) return;
+              onSituation(code === "" ? null : code);
+            }}
+          >
+            <option value="">{fr("Non renseignée")}</option>
+            {SITUATIONS_FAMILIALES.map((code) => (
+              <option key={code} value={code}>
+                {fr(libelleSituation(code, accordDe(contact.civilite ?? "", contact.accordSaisi)))}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       <div>
         <p className="font-bold">{fr("Coordonnées")}</p>
         {coordonnees.length === 0 ? (

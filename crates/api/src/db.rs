@@ -17,7 +17,7 @@ pub async fn connect_pool(database_url: &str) -> anyhow::Result<PgPool> {
     Ok(pool)
 }
 
-/// Applique les migrations embarquées, y compris la fusion des doublons.
+/// Applique les migrations embarquées.
 pub async fn appliquer_migrations(pool: &PgPool) -> anyhow::Result<()> {
     sauvegarde_avant_migration().await?;
     sqlx::migrate!("./migrations").run(pool).await?;

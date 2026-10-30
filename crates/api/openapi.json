@@ -7415,6 +7415,12 @@
               "null"
             ]
           },
+          "situation_familiale": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "specialite": {
             "type": [
               "string",
@@ -7866,6 +7872,12 @@
             ]
           },
           "siren": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "situation_familiale": {
             "type": [
               "string",
               "null"
@@ -10101,6 +10113,12 @@
             ]
           },
           "siren": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "situation_familiale": {
             "type": [
               "string",
               "null"

@@ -187,7 +187,7 @@ streams:
 
   contacts_cabinet:
     auto_subscribe: true
-    query: SELECT id, cabinet_id, nature, nom, siren, numero_tva, type_client, civilite, accord, prenoms, nom_naissance, date_naissance, lieu_naissance, nationalite, profession, forme, capital_centimes, monnaie, greffe_rcs, activite, profession_reglementee, barreau, toque, specialite, cour_appel, CAST(a_completer AS INTEGER) AS a_completer, CAST(archivee AS INTEGER) AS archivee, fusionnee_dans, source_import, importe_le::text AS importe_le, revision, cree_le::text AS cree_le FROM contacts WHERE cabinet_id::text = auth.parameter('cabinet_id')
+    query: SELECT id, cabinet_id, nature, nom, siren, numero_tva, type_client, civilite, accord, prenoms, nom_naissance, date_naissance, lieu_naissance, nationalite, profession, situation_familiale, forme, capital_centimes, monnaie, greffe_rcs, activite, profession_reglementee, barreau, toque, specialite, cour_appel, CAST(a_completer AS INTEGER) AS a_completer, CAST(archivee AS INTEGER) AS archivee, fusionnee_dans, source_import, importe_le::text AS importe_le, revision, cree_le::text AS cree_le FROM contacts WHERE cabinet_id::text = auth.parameter('cabinet_id')
 
   contact_coordonnees_cabinet:
     auto_subscribe: true

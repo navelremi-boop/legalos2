@@ -16,6 +16,7 @@ const CHAMPS: &[&str] = &[
     "forme",
     "activite",
     "profession",
+    "situation_familiale",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -180,6 +181,7 @@ async fn copier_champs(
                 forme = CASE WHEN position(',forme,' in $3) > 0 THEN prise.forme ELSE garde.forme END,
                 activite = CASE WHEN position(',activite,' in $3) > 0 THEN prise.activite ELSE garde.activite END,
                 profession = CASE WHEN position(',profession,' in $3) > 0 THEN prise.profession ELSE garde.profession END,
+                situation_familiale = CASE WHEN position(',situation_familiale,' in $3) > 0 THEN prise.situation_familiale ELSE garde.situation_familiale END,
                 revision = garde.revision + 1
             FROM contacts AS prise
             WHERE garde.id = $1 AND prise.id = $2

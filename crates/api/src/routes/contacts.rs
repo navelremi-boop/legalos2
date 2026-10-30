@@ -48,6 +48,7 @@ pub struct CreerContactRequest {
     pub toque: Option<String>,
     pub specialite: Option<String>,
     pub cour_appel: Option<String>,
+    pub situation_familiale: Option<String>,
     /// Vrai quand la fiche est créée à partir d'une proposition de registre retenue.
     #[serde(default)]
     pub depuis_registre: bool,
@@ -80,6 +81,7 @@ pub struct ContactResponse {
     pub toque: Option<String>,
     pub specialite: Option<String>,
     pub cour_appel: Option<String>,
+    pub situation_familiale: Option<String>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -108,6 +110,7 @@ pub struct PatchContactRequest {
     pub toque: Option<String>,
     pub specialite: Option<String>,
     pub cour_appel: Option<String>,
+    pub situation_familiale: Option<String>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -236,6 +239,7 @@ pub async fn creer_contact(
         body.date_naissance.as_deref(),
         body.profession_reglementee.as_deref(),
         body.capital_centimes,
+        body.situation_familiale.as_deref(),
     )?;
     let mut tx = state
         .pool
@@ -257,13 +261,13 @@ pub async fn creer_contact(
             id, cabinet_id, nature, nom, siren, numero_tva, type_client, email,
             civilite, accord, prenoms, nom_naissance, date_naissance, lieu_naissance,
             nationalite, profession, forme, capital_centimes, monnaie, greffe_rcs, activite,
-            profession_reglementee, barreau, toque, specialite, cour_appel, revision
+            profession_reglementee, barreau, toque, specialite, cour_appel, situation_familiale, revision
         )
         VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8,
             $9, $10, $11, $12, $13, $14,
             $15, $16, $17, $18, $19, $20, $21,
-            $22, $23, $24, $25, $26, 1
+            $22, $23, $24, $25, $26, $27, 1
         )
         "#,
     )
@@ -309,6 +313,7 @@ pub async fn creer_contact(
     .bind(texte_option(&body.toque))
     .bind(texte_option(&body.specialite))
     .bind(texte_option(&body.cour_appel))
+    .bind(texte_option(&body.situation_familiale))
     .execute(
         tx.acquire()
             .await
@@ -376,6 +381,7 @@ pub async fn patch_contact(
         body.date_naissance.as_deref(),
         body.profession_reglementee.as_deref(),
         body.capital_centimes,
+        body.situation_familiale.as_deref(),
     )?;
     let mut tx = state
         .pool
@@ -517,6 +523,15 @@ pub async fn patch_contact(
         "profession",
         body.profession.as_deref(),
         fiche.profession.as_deref(),
+        &mut revision,
+    )
+    .await?;
+    appliquer_texte_fiche(
+        &mut tx,
+        &contexte,
+        "situation_familiale",
+        body.situation_familiale.as_deref(),
+        fiche.situation_familiale.as_deref(),
         &mut revision,
     )
     .await?;
@@ -1570,7 +1585,7 @@ async fn lire_contact(
         SELECT nature, nom, siren, numero_tva, type_client, revision,
             civilite, accord, prenoms, nom_naissance, date_naissance, lieu_naissance,
             nationalite, profession, forme, capital_centimes, monnaie, greffe_rcs, activite,
-            profession_reglementee, barreau, toque, specialite, cour_appel
+            profession_reglementee, barreau, toque, specialite, cour_appel, situation_familiale
         FROM contacts WHERE id = $1 AND cabinet_id = $2
         "#,
     )
@@ -1614,6 +1629,7 @@ async fn lire_contact(
         toque: texte("toque")?,
         specialite: texte("specialite")?,
         cour_appel: texte("cour_appel")?,
+        situation_familiale: texte("situation_familiale")?,
     })
 }
 
@@ -1636,6 +1652,7 @@ struct FicheLue {
     toque: Option<String>,
     specialite: Option<String>,
     cour_appel: Option<String>,
+    situation_familiale: Option<String>,
 }
 
 async fn lire_fiche(
@@ -1646,7 +1663,7 @@ async fn lire_fiche(
         r#"
         SELECT civilite, accord, prenoms, nom_naissance, date_naissance, lieu_naissance,
             nationalite, profession, forme, capital_centimes, monnaie, greffe_rcs, activite,
-            profession_reglementee, barreau, toque, specialite, cour_appel
+            profession_reglementee, barreau, toque, specialite, cour_appel, situation_familiale
         FROM contacts WHERE id = $1
         "#,
     )
@@ -1684,6 +1701,7 @@ async fn lire_fiche(
         toque: texte("toque")?,
         specialite: texte("specialite")?,
         cour_appel: texte("cour_appel")?,
+        situation_familiale: texte("situation_familiale")?,
     })
 }
 
@@ -1904,6 +1922,7 @@ fn controler_fiche(
     date_naissance: Option<&str>,
     profession: Option<&str>,
     capital: Option<i64>,
+    situation_familiale: Option<&str>,
 ) -> Result<(), ApiError> {
     if let Some(valeur) = civilite.map(str::trim).filter(|s| !s.is_empty()) {
         crate::fiche_contact::valider_civilite(valeur)?;
@@ -1919,6 +1938,9 @@ fn controler_fiche(
     }
     if let Some(centimes) = capital {
         crate::fiche_contact::valider_capital(centimes)?;
+    }
+    if let Some(valeur) = situation_familiale.map(str::trim).filter(|s| !s.is_empty()) {
+        crate::fiche_contact::valider_situation_familiale(valeur)?;
     }
     Ok(())
 }

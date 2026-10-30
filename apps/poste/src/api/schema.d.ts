@@ -1812,6 +1812,7 @@ export interface components {
             /** Format: int64 */
             revision: number;
             siren?: string | null;
+            situation_familiale?: string | null;
             specialite?: string | null;
             toque?: string | null;
             type_client: string;
@@ -1929,6 +1930,7 @@ export interface components {
             profession?: string | null;
             profession_reglementee?: string | null;
             siren?: string | null;
+            situation_familiale?: string | null;
             specialite?: string | null;
             toque?: string | null;
             type_client: string;
@@ -2598,6 +2600,7 @@ export interface components {
             profession?: string | null;
             profession_reglementee?: string | null;
             siren?: string | null;
+            situation_familiale?: string | null;
             specialite?: string | null;
             toque?: string | null;
             type_client?: string | null;

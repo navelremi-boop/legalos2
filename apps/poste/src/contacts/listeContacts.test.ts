@@ -35,6 +35,7 @@ function contact(partiel: Partial<ContactListe> & Pick<ContactListe, "id" | "nom
     specialite: null,
     courAppel: null,
     ...partiel,
+    situationFamiliale: partiel.situationFamiliale ?? null,
   };
 }
 

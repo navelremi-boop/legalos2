@@ -41,6 +41,8 @@ export type ContactListe = {
   lieuNaissance: string | null;
   nationalite: string | null;
   profession: string | null;
+  /** Code de situation familiale, ou null. */
+  situationFamiliale: string | null;
   adresseDomicile: string | null;
   forme: string | null;
   capitalLibelle: string | null;
@@ -69,6 +71,7 @@ export function champsFicheVides(): Omit<
     lieuNaissance: null,
     nationalite: null,
     profession: null,
+    situationFamiliale: null,
     adresseDomicile: null,
     forme: null,
     capitalLibelle: null,

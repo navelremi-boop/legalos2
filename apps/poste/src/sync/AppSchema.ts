@@ -254,6 +254,7 @@ const contacts = new Table(
     toque: column.text,
     specialite: column.text,
     cour_appel: column.text,
+    situation_familiale: column.text,
     a_completer: column.integer,
     archivee: column.integer,
     fusionnee_dans: column.text,

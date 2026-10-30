@@ -58,6 +58,15 @@ pub fn valider_capital(centimes: i64) -> Result<(), ApiError> {
     Ok(())
 }
 
+const SITUATIONS_FAMILIALES: &[&str] = &["celibataire", "marie", "pacse", "divorce", "veuf"];
+
+pub fn valider_situation_familiale(code: &str) -> Result<(), ApiError> {
+    if !SITUATIONS_FAMILIALES.contains(&code) {
+        return Err(ApiError::bad_request("Situation familiale inconnue"));
+    }
+    Ok(())
+}
+
 const GENRES_COORDONNEE: &[&str] = &["adresse", "telephone", "email", "site"];
 const USAGES_COORDONNEE: &[&str] = &[
     "domicile",
@@ -166,7 +175,7 @@ mod tests {
     use super::{
         controler_rattachement, valider_accord, valider_capital, valider_civilite,
         valider_date_naissance, valider_genre_coordonnee, valider_lien,
-        valider_profession_reglementee, valider_usage_coordonnee,
+        valider_profession_reglementee, valider_situation_familiale, valider_usage_coordonnee,
     };
 
     #[test]
@@ -186,6 +195,9 @@ mod tests {
         assert!(valider_date_naissance("14/03/1980").is_err());
         assert!(valider_capital(0).is_ok());
         assert!(valider_capital(-1).is_err());
+        assert!(valider_situation_familiale("marie").is_ok());
+        assert!(valider_situation_familiale("celibataire").is_ok());
+        assert!(valider_situation_familiale("inconnu").is_err());
         assert!(valider_genre_coordonnee("adresse").is_ok());
         assert!(valider_genre_coordonnee("fax").is_err());
         assert!(valider_usage_coordonnee("domicile").is_ok());

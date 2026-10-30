@@ -67,6 +67,7 @@ const CONTACTS_DEMO: ContactListe[] = [
     lieuNaissance: "Lyon",
     nationalite: "française",
     profession: "avocate",
+    situationFamiliale: "marie",
     adresseDomicile: "12 rue des Lilas, 69001 Lyon",
   },
   {
