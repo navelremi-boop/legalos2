@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { LignesFantomes } from "@/coque/LignesFantomes";
+import { Annonce } from "@/coque/Annonce";
 import { BarreActions } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
 import { FormulaireTemps } from "@/facturation/FormulaireTemps";
@@ -69,8 +71,8 @@ export function EcranTemps({
   onFacturer,
   lignesFixes,
 }: EcranTempsProps) {
-  const [lignesSync, setLignesSync] = useState<SaisieTemps[]>([]);
-  const lignes = lignesFixes ?? lignesSync;
+  const [lignesSync, setLignesSync] = useState<SaisieTemps[] | null>(null);
+  const lignes = useMemo(() => lignesFixes ?? lignesSync ?? [], [lignesFixes, lignesSync]);
   const [filtre, setFiltre] = useState<FiltreSaisie>("toutes");
   const [perimetre, setPerimetre] = useState<PerimetreSaisie>("cabinet");
   const [message, setMessage] = useState("");
@@ -269,7 +271,7 @@ export function EcranTemps({
                     </div>
                   </div>
                 ) : null}
-                {message !== "" ? <p className="mt-2 text-graphite">{message}</p> : null}
+                <Annonce texte={message} succes={message.endsWith(fr(" enregistrées."))} />
               </section>
 
               <FormulaireTemps instanceUrl={instanceUrl} dossierIdPrefere={dossierIdPrefere} />
@@ -325,7 +327,13 @@ export function EcranTemps({
                 )}
               </p>
               <ul data-testid="temps-liste">
-                {groupes.length === 0 ? <li className="etat-vide">{fr("Aucune saisie pour ce filtre.")}</li> : null}
+                {!lignesFixes && lignesSync === null ? (
+                  <li>
+                    <LignesFantomes />
+                  </li>
+                ) : groupes.length === 0 ? (
+                  <li className="etat-vide">{fr("Aucune saisie pour ce filtre.")}</li>
+                ) : null}
                 {groupes.map((groupe) => (
                   <li key={groupe.jour} className="temps-jour">
                     <h3 className="temps-jour__titre">

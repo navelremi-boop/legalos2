@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { choisirDensite, lireDensite, type Densite } from "@/coque/densite";
 import { BarreActions } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
 import { fr } from "@/lib/fr";
@@ -67,6 +68,7 @@ export function Reglages({
   const [apercuValeurs, setApercuValeurs] = useState<ApercuReference>(apercuHorsLigne);
   const [messageReference, setMessageReference] = useState("");
   const [sectionOuverte, setSectionOuverte] = useState("cabinet");
+  const [densite, setDensite] = useState<Densite>(lireDensite);
   const [numeroDepartMinimal, setNumeroDepartMinimal] = useState<number | null>(null);
   const baseNomRef = useRef("");
   const baseSlugRef = useRef("");
@@ -280,6 +282,23 @@ export function Reglages({
               <option value="system">{fr("Système")}</option>
               <option value="light">{fr("Jour")}</option>
               <option value="dark">{fr("Nuit")}</option>
+            </select>
+            <label className="etiquette-champ mt-5" htmlFor="densite">
+              {fr("Densité des listes")}
+            </label>
+            <select
+              id="densite"
+              className="champ max-w-xs"
+              data-testid="reglages-densite"
+              value={densite}
+              onChange={(event) => {
+                const valeur = event.target.value === "compacte" ? "compacte" : "confortable";
+                setDensite(valeur);
+                choisirDensite(valeur);
+              }}
+            >
+              <option value="confortable">{fr("Confortable")}</option>
+              <option value="compacte">{fr("Compacte : plus de lignes à l'écran")}</option>
             </select>
           </div>
 

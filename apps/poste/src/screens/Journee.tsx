@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { LignesFantomes } from "@/coque/LignesFantomes";
 import { Feuille } from "@/coque/Feuille";
 import { ChoixDossier } from "@/dossiers/ChoixDossier";
 import { BarreActions } from "@/coque/BarreActions";
@@ -545,7 +546,13 @@ export function Journee({
         </p>
       </header>
       <Feuille uneColonne className="min-h-[420px]">
-        <div className="grid gap-8 p-[22px] pb-24 md:grid-cols-2">
+        {jeu === null ? (
+          <div className="grid gap-8 p-[22px] pb-24 md:grid-cols-2">
+            <LignesFantomes nombre={3} />
+            <LignesFantomes nombre={3} />
+          </div>
+        ) : null}
+        <div className="grid gap-8 p-[22px] pb-24 md:grid-cols-2" hidden={jeu === null}>
           <Section
             id="audiences"
             titre="Aujourd'hui"

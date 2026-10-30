@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Annonce } from "@/coque/Annonce";
 import { produireDocument } from "@/modeles/produireDocument";
 import {
   alerteDuDossier,
@@ -253,9 +254,7 @@ export function PanneauConvention({ dossierId }: { dossierId: string }) {
             </div>
           </form>
         ) : null}
-        <p className="mt-4 text-[length:var(--font-size-dense)] text-graphite" data-testid="convention-message" role="status">
-          {message}
-        </p>
+        <Annonce texte={message} succes={message === fr("Convention produite.")} testId="convention-message" />
       </PanneauLateral>
     </section>
   );

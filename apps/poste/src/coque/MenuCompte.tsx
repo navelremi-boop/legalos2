@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { ariaRaccourci, RACCOURCIS } from "@/coque/raccourcis";
 import { IconUser } from "@tabler/icons-react";
 import { createPortal } from "react-dom";
 import { fr } from "@/lib/fr";
@@ -22,6 +23,7 @@ type Entree = {
   libelle: string;
   action?: () => void;
   separateur?: boolean;
+  raccourci?: string;
 };
 
 /**
@@ -81,7 +83,7 @@ export function MenuCompte({
   const entrees: Entree[] = [
     { testid: "menu-compte-temps", libelle: "Temps", action: onTemps },
     { testid: "menu-reglages", libelle: "Réglages", action: onReglages },
-    { testid: "menu-compte-palette", libelle: "Palette de commandes", action: onPalette },
+    { testid: "menu-compte-palette", libelle: "Palette de commandes", action: onPalette, raccourci: RACCOURCIS.palette.touche },
     { testid: "menu-compte-verrouiller", libelle: "Verrouiller", action: onVerrouiller, separateur: true },
     { testid: "menu-compte-deconnexion", libelle: "Se déconnecter", action: onDeconnecter },
     ...(onGalerie !== undefined
@@ -158,7 +160,9 @@ export function MenuCompte({
                     role="menuitem"
                     disabled={entree.action === undefined}
                     data-testid={entree.testid}
-                    className="w-full rounded-[var(--radius-control)] px-3 py-2 text-left hover:bg-survol focus-visible:bg-survol disabled:text-graphite disabled:hover:bg-transparent"
+                    data-raccourci={entree.raccourci}
+                    aria-keyshortcuts={entree.raccourci !== undefined ? ariaRaccourci(entree.raccourci) : undefined}
+                    className="menu-compte__entree w-full rounded-[var(--radius-control)] px-3 py-2 text-left hover:bg-survol focus-visible:bg-survol disabled:text-graphite disabled:hover:bg-transparent"
                     onClick={() => {
                       entree.action?.();
                       fermer(false);

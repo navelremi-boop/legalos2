@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { LignesFantomes } from "@/coque/LignesFantomes";
 import { BarreActions } from "@/coque/BarreActions";
 import { Feuille } from "@/coque/Feuille";
 import { FormulaireDossier } from "@/dossiers/FormulaireDossier";
@@ -134,7 +135,7 @@ export function Dossiers({
   onSaisirTemps,
   lignesFixes,
 }: DossiersProps) {
-  const [lignesSync, setLignesSync] = useState<LigneDossier[]>([]);
+  const [lignesSync, setLignesSync] = useState<LigneDossier[] | null>(null);
   const [echeances, setEcheances] = useState<Map<string, { debut: string; titre: string | null }>>(
     () => new Map(),
   );
@@ -279,7 +280,7 @@ export function Dossiers({
   }, [lignesFixes, jour]);
 
   const vues = useMemo(() => {
-    const source = lignesFixes ?? lignesSync;
+    const source = lignesFixes ?? lignesSync ?? [];
     return source.map((ligne) => versBrut(ligne, echeances, parties)).map((brut) => vueDossier(brut, jour));
   }, [lignesFixes, lignesSync, echeances, parties, jour]);
 
@@ -388,7 +389,9 @@ export function Dossiers({
             </label>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto pb-24" data-testid="dossiers-liste">
-            {visibles.length === 0 ? (
+            {!lignesFixes && lignesSync === null ? (
+              <LignesFantomes nombre={6} />
+            ) : visibles.length === 0 ? (
               <p className="etat-vide">
                 {recherche.trim() !== ""
                   ? fr("Aucun dossier ne correspond. Essayez un nom, une référence, un numéro RG ou un adversaire.")

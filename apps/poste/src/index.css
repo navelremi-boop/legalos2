@@ -4204,3 +4204,236 @@
     color: var(--graphite);
   }
 }
+
+@layer components {
+  /* --- Annonces : confirmation qui s'efface, erreur qui reste --- */
+  .annonce {
+    position: fixed;
+    bottom: 88px;
+    left: 50%;
+    z-index: 50;
+    max-width: min(480px, calc(100% - 32px));
+    margin: 0;
+    padding: var(--espace-2) var(--espace-4);
+    border-radius: 999px;
+    transform: translateX(-50%);
+    background: var(--bouton-prim-fond);
+    color: var(--bouton-prim-texte);
+    font-size: var(--font-size-dense);
+    font-weight: 700;
+    box-shadow: var(--shadow-floating);
+    pointer-events: none;
+  }
+
+  .annonce[data-vide="true"] {
+    display: none;
+  }
+
+  .annonce[data-ton="succes"] {
+    animation: annonce-passe 4.5s ease forwards;
+  }
+
+  .annonce[data-ton="erreur"] {
+    border-radius: var(--radius-control);
+    background: var(--echeance-fond);
+    color: var(--echeance);
+    animation: annonce-entre 200ms ease-out;
+  }
+
+  /* Dans un panneau, l'annonce se place en bas du panneau */
+  .panneau-lateral__carte {
+    transform: translateX(0);
+  }
+
+  .panneau-lateral__carte .annonce {
+    bottom: var(--espace-5);
+  }
+
+  /* --- Panneau latéral : glissement à l'ouverture, voile en fondu --- */
+  .panneau-lateral:not([hidden]) {
+    animation: voile-entre 200ms ease-out;
+  }
+
+  .panneau-lateral:not([hidden]) .panneau-lateral__carte {
+    animation: panneau-entre 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  @keyframes panneau-entre {
+    from {
+      transform: translateX(32px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes voile-entre {
+    from {
+      background-color: transparent;
+    }
+  }
+
+  @keyframes annonce-entre {
+    from {
+      opacity: 0;
+      transform: translate(-50%, 8px);
+    }
+  }
+
+  @keyframes annonce-passe {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, 8px);
+    }
+    6%,
+    85% {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+    100% {
+      opacity: 0;
+      visibility: hidden;
+    }
+  }
+}
+
+/* ==========================================================================
+   Améliorations : chiffres, densité, chargement, raccourcis (docs/design.md)
+   ========================================================================== */
+
+@layer base {
+  /* Chiffres proportionnels dans les phrases ; tabulaires dans ce qui s'aligne en colonne */
+  html {
+    font-variant-numeric: lining-nums proportional-nums;
+  }
+
+  :root {
+    --ligne-pad-y: 8px;
+  }
+
+  :root[data-densite="compacte"] {
+    --row-height-list: 34px;
+    --hauteur-controle: 30px;
+    --hauteur-controle-petit: 26px;
+    --ligne-pad-y: 3px;
+  }
+}
+
+@layer components {
+  .montant,
+  .factures,
+  .temps-ligne,
+  .temps-jour__titre,
+  .temps-chrono__duree,
+  .temps-volet__total,
+  .temps-barres,
+  .agenda-heure,
+  .agenda-bloc,
+  .agenda-mini,
+  .agenda-prochaines__date,
+  .chrono-item__heure,
+  .mails-ligne__quand,
+  .filtre__compte,
+  .intercalaire__compteur,
+  .dossiers-ligne__non-lus,
+  .jauge-echeance,
+  .barre-haut__pilule,
+  .progression,
+  [data-testid="journee-heure"],
+  [data-testid="journee-dans"] {
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+
+  /* --- Densité --- */
+  .dossiers-ligne {
+    min-height: calc(var(--row-height-list) + 12px);
+    padding-block: var(--ligne-pad-y);
+  }
+
+  .temps-ligne,
+  .factures__ligne,
+  .ligne-journee {
+    min-height: var(--row-height-list);
+    padding-block: var(--ligne-pad-y);
+  }
+
+  :root[data-densite="compacte"] .mails-ligne,
+  :root[data-densite="compacte"] .chrono-item {
+    padding-block: 5px;
+  }
+
+  :root[data-densite="compacte"] .mails-ligne__ext {
+    display: none;
+  }
+
+  /* --- Lignes provisoires pendant le chargement --- */
+  .lignes-fantomes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espace-2);
+    padding: var(--espace-2) 0;
+  }
+
+  .lignes-fantomes__ligne {
+    display: flex;
+    align-items: center;
+    gap: var(--espace-3);
+    min-height: var(--row-height-list);
+    padding: 0 var(--espace-2);
+  }
+
+  .lignes-fantomes__pastille,
+  .lignes-fantomes__texte span {
+    border-radius: 6px;
+    background: var(--feuille-2);
+    animation: fantome 1.4s ease-in-out infinite;
+  }
+
+  .lignes-fantomes__pastille {
+    width: 64px;
+    height: 20px;
+    flex-shrink: 0;
+    border-radius: 999px;
+  }
+
+  .lignes-fantomes__texte {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .lignes-fantomes__texte span {
+    display: block;
+    height: 10px;
+  }
+
+  @keyframes fantome {
+    50% {
+      opacity: 0.45;
+    }
+  }
+
+  /* --- Raccourcis : la touche s'affiche à droite de l'entrée, hors du texte du libellé --- */
+  .menu-compte__entree[data-raccourci] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--espace-4);
+  }
+
+  .menu-compte__entree[data-raccourci]::after {
+    content: attr(data-raccourci);
+    padding: 1px 6px;
+    border-radius: 5px;
+    background: var(--feuille-2);
+    box-shadow: inset 0 0 0 1px var(--filet);
+    color: var(--graphite);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .barre-actions__kbd,
+  .barre-haut__kbd {
+    font-family: inherit;
+    font-weight: 700;
+  }
+}

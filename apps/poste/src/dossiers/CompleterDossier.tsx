@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Annonce } from "@/coque/Annonce";
 import type { SubmitEvent } from "react";
 import { ajouterPartie, ecrireContact, lierDossiers } from "@/dossiers/ecrireContact";
 import type { NatureContact, RolePartie, TypeClient } from "@/dossiers/ecrireContact";
@@ -289,9 +290,11 @@ export function CompleterDossier({ dossierId }: { dossierId: string }) {
               {fr("Lier les dossiers")}
             </button>
           </form>
-          <p className="mt-2 text-[length:var(--font-size-meta)] text-graphite" data-testid="completer-message">
-            {message}
-          </p>
+          <Annonce
+            texte={message}
+            succes={message === fr("Partie enregistrée.") || message === fr("Dossiers liés.")}
+            testId="completer-message"
+          />
         </div>
       </PanneauLateral>
     </div>

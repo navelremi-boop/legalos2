@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Annonce } from "@/coque/Annonce";
 import type { CSSProperties, SubmitEvent } from "react";
 import {
   ecrireElementAgenda,
@@ -755,9 +756,7 @@ export function EcranAgenda({
             {fr("Ajouter à l'agenda")}
           </button>
         </div>
-        <p className="mt-3 text-[length:var(--font-size-dense)] text-graphite" data-testid="agenda-message">
-          {message}
-        </p>
+        <Annonce texte={message} succes={message === fr("Élément inscrit à l'agenda.")} testId="agenda-message" />
       </form>
       </PanneauLateral>
       <PanneauLateral

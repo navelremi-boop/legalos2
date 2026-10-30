@@ -7,6 +7,7 @@ import {
 } from "react";
 import { IconDots } from "@tabler/icons-react";
 import { fr } from "@/lib/fr";
+import { RACCOURCIS } from "@/coque/raccourcis";
 import { formatDuree } from "@/lib/format";
 import { libelleEtiquetteReference, libelleReferenceDossier } from "@/lib/referenceDossier";
 
@@ -343,9 +344,11 @@ export function BarreHaut({
             className="barre-haut__pilule"
             onClick={onPalette}
             aria-label={fr("Palette de commandes")}
+            aria-keyshortcuts={RACCOURCIS.palette.aria}
+            title={fr(`Rechercher un dossier, un mail, une personne (${RACCOURCIS.palette.touche})`)}
           >
             {fr("Rechercher")}
-            <kbd className="barre-haut__kbd">Ctrl K</kbd>
+            <kbd className="barre-haut__kbd">{RACCOURCIS.palette.touche}</kbd>
           </button>
         ) : null}
 

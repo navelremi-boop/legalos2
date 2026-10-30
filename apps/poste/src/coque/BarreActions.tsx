@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ariaRaccourci } from "@/coque/raccourcis";
 import {
   IconCalendarEvent,
   IconCalendarPlus,
@@ -56,6 +57,8 @@ export function BarreActions({ actions }: BarreActionsProps) {
             action.primaire ? "barre-actions__btn barre-actions__btn--prim" : "barre-actions__btn"
           }
           data-testid={action.testId}
+          title={action.raccourci !== undefined ? fr(`${action.label} (${action.raccourci})`) : undefined}
+          aria-keyshortcuts={action.raccourci !== undefined ? ariaRaccourci(action.raccourci) : undefined}
           onClick={action.onClick}
         >
           <IconeAction id={action.id} />

@@ -59,7 +59,7 @@ Une seule police, Atkinson Hyperlegible Next, graisses 400, 700 et 800.
 
 ## 4. Chiffres
 
-- Chiffres alignés et **tabulaires** partout (`lining-nums tabular-nums`), pour que montants et heures s'alignent en colonne.
+- Chiffres alignés partout (`lining-nums`). **Proportionnels dans les phrases**, **tabulaires dans ce qui s'aligne en colonne** : montants, durées, heures de l'agenda, compteurs, mini-calendrier, chronomètre, tableaux (liste des sélecteurs à la fin de `index.css`, section « Améliorations »).
 - **Zéro ordinaire** dans l'interface : montants (« 1 200,00 € »), heures (« 9 h 00 »), durées, dates, compteurs. La police d'origine ne dessine qu'un zéro barré ; l'interface utilise donc une variante produite par `design/fonts/zero-sans-barre.py` (famille « Atkinson Hyperlegible Next », fichier `AtkinsonHyperlegibleNext-Interface-Variable.ttf`).
 - **Zéro barré réservé aux références** : référence de dossier (« 2026-042 »), numéro de facture, numéro RG. Ces textes portent `.chiffres-reference` (ou `.etiquette-dossier__ref`, `.onglet-dossier__ref`, `.mails-dos`) et la famille `--font-reference`, qui charge le fichier d'origine. Dans un libellé libre, `TexteReferences` repère les références et leur applique cette classe.
 - Les montants s'alignent à droite dans leur colonne (`.montant`).
@@ -97,7 +97,9 @@ Couleurs réservées, inchangées : rouge `echeance` pour l'urgence et l'erreur,
 | Focus | contour 2 px `--focus` décalé de 2 px ; champs : bord `--focus` et anneau `--anneau-focus`. Toujours visible au clavier |
 | Désactivé | opacité 0,5, curseur interdit ; le libellé reste lisible |
 | Actif, choisi | `aria-pressed`, `aria-current` ou `aria-selected` : fond `--selection-fond` et graisse 700 ; onglet de contrôle segmenté : fond `--feuille` en relief |
+| Chargement | `LignesFantomes` : lignes provisoires qui respirent doucement pendant la première lecture de la base locale (Dossiers, Temps, La journée) ; jamais un écran vide qui laisserait croire qu'il n'y a rien |
 | Vide | `.etat-vide` : une phrase en `--graphite` qui dit quoi faire (« Choisissez un élément de l'agenda pour en voir le détail. ») |
+| Confirmation | `Annonce` : pastille sombre en bas de la zone de travail (ou du panneau), qui s'efface après 4 s ; une erreur garde le style `.message-erreur` et reste jusqu'au message suivant. Le texte reste dans le document |
 | Erreur | `.message-erreur` : fond `--echeance-fond`, texte `--echeance` ; champ invalide : `aria-invalid="true"`, bord `--erreur-bord` |
 | Attention | `.message-attention` : fond `--feuille-2`, liseré `--attente` (conflit d'agenda, alerte de convention) |
 | Information | `.message-info` : fond `--feuille-2` (conflit de synchronisation, hors ligne) |
@@ -111,7 +113,9 @@ Toutes les classes sont dans `apps/poste/src/index.css`, section « Harmonisatio
 - **Bouton** `.bouton` (34 px) ; `.bouton--prim` (une action principale par zone), `.bouton--discret` (sans cadre), `.bouton--petit` (28 px). Lien d'action : `.lien-action`, souligné. Jamais de flèche dans un bouton.
 - **Champ** `.champ` (34 px, fond `--champ-fond`, bord `--champ-bord`) ; liste déroulante avec chevron dessiné par `--chevron` ; `.etiquette-champ` au-dessus de chaque champ, jamais un simple texte indicatif à la place de l'étiquette. Les champs sans classe reçoivent la même apparence.
 - **Filtres** `.filtres` / `.filtre` (pastilles à bascule, compteur `.filtre__compte`) ; **contrôle segmenté** `.segment` pour deux à quatre vues exclusives (Jour, Semaine ; Le cabinet, Mes temps).
-- **Panneau latéral** `PanneauLateral` (`apps/poste/src/coque/PanneauLateral.tsx`) : tout formulaire secondaire s'ouvre à droite, 440 px, au-dessus d'un voile léger ; titre, phrase d'explication, bouton « Fermer », touche Échap. Le contenu reste monté fermé : rien de ce qui est saisi ne se perd. Utilisé pour la convention d'honoraires, les parties et dossiers liés, le nouvel élément d'agenda et le calcul de délai.
+- **Panneau latéral** `PanneauLateral` (`apps/poste/src/coque/PanneauLateral.tsx`) : tout formulaire secondaire s'ouvre à droite, 440 px, au-dessus d'un voile léger ; titre, phrase d'explication, bouton « Fermer », touche Échap. Le contenu reste monté fermé : rien de ce qui est saisi ne se perd. Utilisé pour la convention d'honoraires, les parties et dossiers liés, le nouvel élément d'agenda et le calcul de délai. Il glisse de 32 px en 220 ms à l'ouverture, le voile apparaît en fondu (mouvement supprimé si « réduire les animations » est demandé).
+- **Raccourcis** déclarés dans `apps/poste/src/coque/raccourcis.ts` (T : saisir du temps ; Ctrl K : rechercher). Chaque bouton qui en a un porte `aria-keyshortcuts` et une infobulle ; la touche s'affiche dans la barre d'actions, la recherche et le menu du compte.
+- **Densité** : réglage « Confortable » ou « Compacte » dans Réglages, Apparence (`coque/densite.ts`, préférence locale du poste). La densité compacte réduit la hauteur des lignes (34 px) et des contrôles, et masque l'extrait des mails.
 - **Choix d'un dossier** `ChoixDossier` (`apps/poste/src/dossiers/ChoixDossier.tsx`) : un dossier se choisit **par recherche** sur son nom ou sa référence, au clavier ou à la souris, jamais en tapant un identifiant. La valeur vit dans un contrôle masqué qui garde l'`id`, le `name` et le `data-testid` historiques.
 - **Badge à cadenas** `.badge-definitif` : seulement ce qui ne peut plus changer (facture validée, déposée, encaissée, avoir). Brouillon : `.etat-brouillon`, neutre.
 - **Liste de dossiers** `.dossiers-ligne` : bande de chemise, référence, nom suivi de l'échéance, compteur de non lus en pastille.
@@ -123,9 +127,9 @@ Toutes les classes sont dans `apps/poste/src/index.css`, section « Harmonisatio
 - **Coque** : barre du haut pleine largeur ; contenu dans la colonne ; barre d'actions centrée sur la feuille, 24 px au-dessus du bas.
 - **La journée** : quatre sections en deux colonnes, titre de section souligné d'un filet, lien d'action à droite ; « Classer » en bouton principal ; « Autre dossier » ouvre une recherche de dossier.
 - **Dossiers** : recherche, filtres en pastilles, tri à droite ; groupes à titre court (« Cette semaine », « Sans échéance ») ; aperçu à droite en fiche.
-- **Vue d'un dossier** : étiquette, informations en texte simple (valeurs avec majuscule initiale, juridiction en toutes lettres), puis une rangée d'actions secondaires : état de la convention, « Convention d'honoraires », « Parties et dossiers liés ». Les formulaires correspondants s'ouvrent en panneau ; rien n'est ouvert en permanence sur la chemise.
-- **Mails** : colonne large ; rail 240 px, liste au moins 360 px (32 %), lecture le reste.
-- **Agenda** : colonne large ; navigation, titre de période en toutes lettres sur sa ligne, vue Jour ou Semaine en contrôle segmenté ; grille avec un filet par heure, heures alignées sur les filets, « Sans heure » sur une ligne ; jour courant marqué ; conflit en `.message-attention`.
+- **Vue d'un dossier** : une rangée compacte avec l'étiquette, l'essentiel (juridiction, n° RG, client, adversaire) et la jauge réduite ; confrère, type, étape et dossiers liés se déplient par « Plus d'informations ». Dessous, les actions secondaires : état de la convention, « Convention d'honoraires », « Parties et dossiers liés ». Les formulaires correspondants s'ouvrent en panneau ; rien n'est ouvert en permanence sur la chemise.
+- **Mails** : colonne large ; rail 240 px, liste au moins 360 px (32 %), lecture le reste ; l'objet tient sur deux lignes avant d'être coupé.
+- **Agenda** : colonne large ; navigation, titre de période en toutes lettres sur sa ligne, vue Jour ou Semaine en contrôle segmenté ; grille avec un filet par heure, heures alignées sur les filets, « Sans heure » sur une ligne ; jour courant marqué, avec un trait à l'heure courante ; en vue Semaine, un bloc ne montre que son titre et son heure, le détail est dans l'infobulle et dans le volet ; conflit en `.message-attention`.
 - **Temps** : une feuille ; chronomètre et saisie côte à côte (empilés sous 1 400 px), saisies en tableau (référence, libellé, durée, montant, état), volet du non facturé à droite.
 - **Facturation** : tableau État, Pièce, Montant ; références au zéro barré.
 - **Réglages** : navigation à gauche, contenu en formulaire de 520 px au plus, bouton « Enregistrer » principal. Pas de vocabulaire technique : le « nom court du cabinet ».
