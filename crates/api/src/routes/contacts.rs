@@ -906,6 +906,20 @@ pub struct ImportEnregistre {
     pub importe_le: String,
 }
 
+#[derive(Debug, Serialize, ToSchema)]
+pub struct DoublonResponse {
+    pub id: Uuid,
+    pub nom: String,
+    pub motif: String,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct FusionRequest {
+    pub idempotence_cle: String,
+    pub absorbee_id: Uuid,
+    pub champs_absorbes: Vec<String>,
+}
+
 #[utoipa::path(
     post,
     path = "/contacts/{contact_id}/import-siren",
@@ -1661,6 +1675,118 @@ async fn lire_fiche(
         specialite: texte("specialite")?,
         cour_appel: texte("cour_appel")?,
     })
+}
+
+#[utoipa::path(
+    get,
+    path = "/contacts/{contact_id}/doublons",
+    tag = "contacts",
+    security(("bearer_auth" = [])),
+    params(("contact_id" = Uuid, Path, description = "Fiche de référence")),
+    responses(
+        (status = 200, description = "Doublons du même cabinet", body = Vec<DoublonResponse>),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Contact introuvable", body = crate::error::ApiErrorBody),
+    )
+)]
+pub async fn doublons_contact(
+    State(state): State<Arc<AppState>>,
+    AuthAccess(claims): AuthAccess,
+    axum::extract::Path(contact_id): axum::extract::Path<Uuid>,
+) -> Result<Json<Vec<DoublonResponse>>, ApiError> {
+    let mut tx = state
+        .pool
+        .begin()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+    let existe = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS(SELECT 1 FROM contacts WHERE id = $1 AND cabinet_id = $2 AND NOT archivee)",
+    )
+    .bind(contact_id)
+    .bind(claims.cabinet_id)
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(|_| ApiError::internal("lecture contact"))?;
+    if !existe {
+        return Err(ApiError::not_found("Contact introuvable"));
+    }
+    let doublons =
+        crate::fusion_contacts::chercher_doublons(&mut tx, claims.cabinet_id, contact_id).await?;
+    tx.commit()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+    Ok(Json(
+        doublons
+            .into_iter()
+            .map(|doublon| DoublonResponse {
+                id: doublon.id,
+                nom: doublon.nom,
+                motif: doublon.motif,
+            })
+            .collect(),
+    ))
+}
+
+#[utoipa::path(
+    post,
+    path = "/contacts/{contact_id}/fusion",
+    tag = "contacts",
+    security(("bearer_auth" = [])),
+    params(("contact_id" = Uuid, Path, description = "Fiche conservée")),
+    request_body = FusionRequest,
+    responses(
+        (status = 200, description = "Fusion faite, ou déjà faite", body = ContactResponse),
+        (status = 400, description = "Fusion refusée", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Contact introuvable", body = crate::error::ApiErrorBody),
+    )
+)]
+pub async fn fusionner_contact(
+    State(state): State<Arc<AppState>>,
+    AuthAccess(claims): AuthAccess,
+    axum::extract::Path(contact_id): axum::extract::Path<Uuid>,
+    Json(body): Json<FusionRequest>,
+) -> Result<Json<ContactResponse>, ApiError> {
+    if body.idempotence_cle.trim().is_empty() {
+        return Err(ApiError::bad_request("Clé d'idempotence requise"));
+    }
+    let mut tx = state
+        .pool
+        .begin()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+    let cle = cle_idempotence(claims.poste_id, &body.idempotence_cle);
+    if !reserver_idempotence(&mut tx, &cle).await? {
+        tx.commit()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?;
+        return lire_contact(&state, claims.cabinet_id, contact_id)
+            .await
+            .map(Json);
+    }
+    crate::fusion_contacts::fusionner(
+        &mut tx,
+        claims.cabinet_id,
+        contact_id,
+        body.absorbee_id,
+        &body.champs_absorbes,
+        Some(&ContexteChamp {
+            cabinet_id: claims.cabinet_id,
+            poste_id: claims.poste_id,
+            auteur_id: claims.sub,
+            base_revision: 1,
+            enregistrement_id: contact_id,
+            table_cible: "contacts",
+            dossier_id: None,
+        }),
+    )
+    .await?;
+    tx.commit()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+    lire_contact(&state, claims.cabinet_id, contact_id)
+        .await
+        .map(Json)
 }
 
 fn texte_option(valeur: &Option<String>) -> Option<String> {

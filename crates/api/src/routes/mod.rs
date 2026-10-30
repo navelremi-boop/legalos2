@@ -70,6 +70,14 @@ pub fn router(state: Arc<AppState>) -> Router {
             post(contacts::appliquer_import_siren),
         )
         .route(
+            "/contacts/{contact_id}/doublons",
+            get(contacts::doublons_contact),
+        )
+        .route(
+            "/contacts/{contact_id}/fusion",
+            post(contacts::fusionner_contact),
+        )
+        .route(
             "/contacts/{contact_id}/historique",
             get(contacts::historique_contact),
         )

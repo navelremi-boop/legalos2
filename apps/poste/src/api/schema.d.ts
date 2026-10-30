@@ -292,6 +292,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/contacts/{contact_id}/doublons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["doublons_contact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/contacts/{contact_id}/fusion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["fusionner_contact"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/contacts/{contact_id}/historique": {
         parameters: {
             query?: never;
@@ -2179,6 +2211,12 @@ export interface components {
         DossiersImapResponse: {
             dossiers: components["schemas"]["DossierImapResponse"][];
         };
+        DoublonResponse: {
+            /** Format: uuid */
+            id: string;
+            motif: string;
+            nom: string;
+        };
         EchangeCode: {
             code: string;
             state: string;
@@ -2284,6 +2322,12 @@ export interface components {
         };
         Fournisseurs: {
             fournisseurs: components["schemas"]["FournisseurDisponible"][];
+        };
+        FusionRequest: {
+            /** Format: uuid */
+            absorbee_id: string;
+            champs_absorbes: string[];
+            idempotence_cle: string;
         };
         HealthResponse: {
             status: string;
@@ -3770,6 +3814,101 @@ export interface operations {
                 };
             };
             /** @description Requête invalide */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Contact introuvable */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    doublons_contact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Fiche de référence */
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Doublons du même cabinet */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DoublonResponse"][];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Contact introuvable */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    fusionner_contact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Fiche conservée */
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FusionRequest"];
+            };
+        };
+        responses: {
+            /** @description Fusion faite, ou déjà faite */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactResponse"];
+                };
+            };
+            /** @description Fusion refusée */
             400: {
                 headers: {
                     [name: string]: unknown;

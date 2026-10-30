@@ -1213,6 +1213,143 @@
         ]
       }
     },
+    "/contacts/{contact_id}/doublons": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "operationId": "doublons_contact",
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "description": "Fiche de référence",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Doublons du même cabinet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DoublonResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contact introuvable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/contacts/{contact_id}/fusion": {
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "operationId": "fusionner_contact",
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "description": "Fiche conservée",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FusionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Fusion faite, ou déjà faite",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Fusion refusée",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contact introuvable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/contacts/{contact_id}/historique": {
       "get": {
         "tags": [
@@ -8591,6 +8728,26 @@
           }
         }
       },
+      "DoublonResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "nom",
+          "motif"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "motif": {
+            "type": "string"
+          },
+          "nom": {
+            "type": "string"
+          }
+        }
+      },
       "EchangeCode": {
         "type": "object",
         "required": [
@@ -8956,6 +9113,29 @@
             "items": {
               "$ref": "#/components/schemas/FournisseurDisponible"
             }
+          }
+        }
+      },
+      "FusionRequest": {
+        "type": "object",
+        "required": [
+          "idempotence_cle",
+          "absorbee_id",
+          "champs_absorbes"
+        ],
+        "properties": {
+          "absorbee_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "champs_absorbes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "idempotence_cle": {
+            "type": "string"
           }
         }
       },

@@ -18,6 +18,7 @@ import { ecrireCoordonnee, type GenreCoordonnee, type UsageCoordonnee } from "@/
 import { libelleLien, type LienAffiche } from "@/contacts/liensContacts";
 import { envoyerLien } from "@/contacts/envoyerLien";
 import { PropositionImport } from "@/contacts/PropositionImport";
+import { DoublonsFiche } from "@/contacts/DoublonsFiche";
 import { CreationSociete } from "@/contacts/CreationSociete";
 import type { PropositionSiren } from "@/contacts/propositionSiren";
 import { Feuille } from "@/coque/Feuille";
@@ -387,6 +388,7 @@ function FicheGenerale({
         onCreer={onCreer}
         onRelier={onRelier}
       />
+      <DoublonsFiche contactId={contact.id} horsLigne={horsLigne} instanceUrl={instanceUrl} />
       <dl className="fiche-infos">
         <dt>{fr("Nom")}</dt>
         <dd>{fr(contact.prenoms ? `${contact.prenoms} ${contact.nom}` : contact.nom)}</dd>
