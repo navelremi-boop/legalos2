@@ -6,6 +6,8 @@ import {
   type ChampImport,
   type PropositionSiren,
 } from "@/contacts/propositionSiren";
+import { dirigeantsDepuisJson } from "@/contacts/dirigeants";
+import { DirigeantsProposes } from "@/contacts/DirigeantsProposes";
 import type { ContactListe } from "@/contacts/listeContacts";
 import { fr } from "@/lib/fr";
 import { formatDateActe } from "@/lib/format";
@@ -24,6 +26,8 @@ type PropositionImportProps = {
   instanceUrl?: string;
   /** Proposition figée de la galerie. Sans instance, le bouton l'affiche. */
   propositionFixe?: PropositionSiren | null;
+  contacts?: readonly ContactListe[];
+  onCreer?: (contact: ContactListe) => void;
 };
 
 function lireProposition(json: unknown): PropositionSiren | null {
@@ -37,6 +41,7 @@ function lireProposition(json: unknown): PropositionSiren | null {
     forme: texte("forme"),
     adresseSiege: texte("adresse_siege"),
     activite: texte("activite"),
+    dirigeants: dirigeantsDepuisJson(ligne.dirigeants),
   };
 }
 
@@ -45,6 +50,8 @@ export function PropositionImport({
   horsLigne = false,
   instanceUrl,
   propositionFixe = null,
+  contacts = [],
+  onCreer,
 }: PropositionImportProps) {
   const [proposition, setProposition] = useState<PropositionSiren | null>(null);
   const [coches, setCoches] = useState<Record<ChampImport, boolean>>(COCHES_VIDES);
@@ -215,6 +222,13 @@ export function PropositionImport({
               {fr(source)}
             </p>
           ) : null}
+          <DirigeantsProposes
+            dirigeants={proposition.dirigeants ?? []}
+            contacts={contacts}
+            onCreer={(contact) => {
+              onCreer?.(contact);
+            }}
+          />
         </div>
       ) : null}
     </div>

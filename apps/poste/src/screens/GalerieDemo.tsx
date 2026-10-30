@@ -889,6 +889,24 @@ export function GalerieDemo() {
                 forme: "5499",
                 adresseSiege: "8 QUAI SAINT-VINCENT 69001 LYON",
                 activite: "25.11Z",
+                dirigeants: [
+                  {
+                    nature: "physique",
+                    nom: "Martin",
+                    prenoms: "Camille",
+                    naissance: "1980-03",
+                    siren: null,
+                    qualite: "Gérante",
+                  },
+                  {
+                    nature: "physique",
+                    nom: "Perrin",
+                    prenoms: "Luc",
+                    naissance: "1970-01",
+                    siren: null,
+                    qualite: "Directeur général",
+                  },
+                ],
               }}
             />
           ) : null}

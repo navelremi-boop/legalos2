@@ -8395,6 +8395,48 @@
           }
         }
       },
+      "DirigeantRegistre": {
+        "type": "object",
+        "required": [
+          "nature"
+        ],
+        "properties": {
+          "naissance": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Mois et année, `AAAA-MM`, quand le registre les donne."
+          },
+          "nature": {
+            "type": "string"
+          },
+          "nom": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "prenoms": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "qualite": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "siren": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "DocumentResponse": {
         "type": "object",
         "required": [
@@ -10172,6 +10214,12 @@
               "string",
               "null"
             ]
+          },
+          "dirigeants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DirigeantRegistre"
+            }
           },
           "forme": {
             "type": [

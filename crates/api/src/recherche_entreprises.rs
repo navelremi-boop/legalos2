@@ -22,12 +22,25 @@ const MSG_INDISPONIBLE: &str =
 const MSG_INCONNU: &str = "SIREN inconnu du registre.";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct DirigeantRegistre {
+    pub nature: String,
+    pub nom: Option<String>,
+    pub prenoms: Option<String>,
+    /// Mois et année, `AAAA-MM`, quand le registre les donne.
+    pub naissance: Option<String>,
+    pub siren: Option<String>,
+    pub qualite: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct PropositionSiren {
     pub siren: String,
     pub denomination: Option<String>,
     pub forme: Option<String>,
     pub adresse_siege: Option<String>,
     pub activite: Option<String>,
+    #[serde(default)]
+    pub dirigeants: Vec<DirigeantRegistre>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -43,6 +56,26 @@ struct EntrepriseRegistre {
     nature_juridique: Option<String>,
     activite_principale: Option<String>,
     siege: Option<SiegeRegistre>,
+    #[serde(default)]
+    dirigeants: Vec<DirigeantBrut>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DirigeantBrut {
+    #[serde(default)]
+    nom: Option<String>,
+    #[serde(default)]
+    prenoms: Option<String>,
+    #[serde(default)]
+    date_de_naissance: Option<String>,
+    #[serde(default)]
+    qualite: Option<String>,
+    #[serde(default)]
+    siren: Option<String>,
+    #[serde(default)]
+    denomination: Option<String>,
+    #[serde(default)]
+    type_dirigeant: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -246,6 +279,52 @@ pub fn proposition_depuis_json(
         forme: texte_utile(entreprise.nature_juridique),
         adresse_siege: adresse,
         activite: texte_utile(entreprise.activite_principale),
+        dirigeants: entreprise
+            .dirigeants
+            .iter()
+            .filter_map(dirigeant_utile)
+            .collect(),
+    })
+}
+
+fn naissance_mois(date: &str) -> Option<String> {
+    let chiffres: String = date.chars().filter(|c| c.is_ascii_digit()).collect();
+    if chiffres.len() < 6 {
+        return None;
+    }
+    Some(format!("{}-{}", &chiffres[..4], &chiffres[4..6]))
+}
+
+fn dirigeant_utile(brut: &DirigeantBrut) -> Option<DirigeantRegistre> {
+    let morale = brut
+        .type_dirigeant
+        .as_deref()
+        .unwrap_or("")
+        .to_lowercase()
+        .contains("morale")
+        || texte_utile(brut.siren.clone()).is_some() && texte_utile(brut.prenoms.clone()).is_none();
+    if morale {
+        let siren = texte_utile(brut.siren.clone())
+            .map(|s| s.chars().filter(|c| c.is_ascii_digit()).collect::<String>());
+        let siren = siren.filter(|s| s.len() == 9)?;
+        return Some(DirigeantRegistre {
+            nature: "morale".into(),
+            nom: texte_utile(brut.denomination.clone()).or_else(|| texte_utile(brut.nom.clone())),
+            prenoms: None,
+            naissance: None,
+            siren: Some(siren),
+            qualite: texte_utile(brut.qualite.clone()),
+        });
+    }
+    let nom = texte_utile(brut.nom.clone())?;
+    let naissance = brut.date_de_naissance.as_deref().and_then(naissance_mois);
+    Some(DirigeantRegistre {
+        nature: "physique".into(),
+        nom: Some(nom),
+        prenoms: texte_utile(brut.prenoms.clone()),
+        naissance,
+        siren: None,
+        qualite: texte_utile(brut.qualite.clone()),
     })
 }
 
@@ -293,8 +372,9 @@ where
 }
 
 pub async fn interroger_http(siren: &str) -> Result<serde_json::Value, ApiError> {
-    let url =
-        format!("{URL_RECHERCHE}?q=siren:{siren}&per_page=1&page=1&minimal=true&include=siege");
+    let url = format!(
+        "{URL_RECHERCHE}?q=siren:{siren}&per_page=1&page=1&minimal=true&include=siege,dirigeants"
+    );
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(DELAI_SECONDES))
         .build()
@@ -360,6 +440,7 @@ mod tests {
                 Some("20 AVENUE DE SEGUR 75007 PARIS")
             );
             assert_eq!(proposition.activite.as_deref(), Some("84.11Z"));
+            assert!(proposition.dirigeants.is_empty());
         }
     }
 
@@ -423,6 +504,46 @@ mod tests {
             assert!(champs.forme.is_none());
             assert!(champs.activite.is_none());
             assert!(adresse.is_none());
+        }
+    }
+
+    #[test]
+    fn les_dirigeants_sont_proposes_sans_etre_crees() {
+        let json = serde_json::json!({
+            "results": [{
+                "siren": "130025265",
+                "nom_raison_sociale": "DIRECTION INTERMINISTERIELLE DU NUMERIQUE",
+                "dirigeants": [
+                    {
+                        "nom": "Martin",
+                        "prenoms": "Camille",
+                        "date_de_naissance": "1980-03",
+                        "qualite": "Gérante",
+                        "type_dirigeant": "personne physique"
+                    },
+                    {
+                        "siren": "552100554",
+                        "denomination": "HOLDING DUCLOS",
+                        "qualite": "Président",
+                        "type_dirigeant": "personne morale"
+                    }
+                ]
+            }]
+        });
+        let resultat = proposition_depuis_json(&json, "130025265");
+        assert!(resultat.is_ok());
+        if let Ok(proposition) = resultat {
+            assert_eq!(proposition.dirigeants.len(), 2);
+            assert_eq!(proposition.dirigeants[0].nature, "physique");
+            assert_eq!(
+                proposition.dirigeants[0].naissance.as_deref(),
+                Some("1980-03")
+            );
+            assert_eq!(proposition.dirigeants[1].nature, "morale");
+            assert_eq!(
+                proposition.dirigeants[1].siren.as_deref(),
+                Some("552100554")
+            );
         }
     }
 }

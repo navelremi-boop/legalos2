@@ -4,6 +4,7 @@ export type PropositionSiren = {
   forme: string | null;
   adresseSiege: string | null;
   activite: string | null;
+  dirigeants?: readonly import("@/contacts/dirigeants").DirigeantRegistre[];
 };
 
 export type ChampImport = "denomination" | "forme" | "adresseSiege" | "activite";

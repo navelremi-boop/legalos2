@@ -2124,6 +2124,15 @@ export interface components {
         DetacherElementRequest: {
             idempotence_cle: string;
         };
+        DirigeantRegistre: {
+            /** @description Mois et année, `AAAA-MM`, quand le registre les donne. */
+            naissance?: string | null;
+            nature: string;
+            nom?: string | null;
+            prenoms?: string | null;
+            qualite?: string | null;
+            siren?: string | null;
+        };
         DocumentResponse: {
             /** Format: uuid */
             dossier_id: string;
@@ -2647,6 +2656,7 @@ export interface components {
             activite?: string | null;
             adresse_siege?: string | null;
             denomination?: string | null;
+            dirigeants?: components["schemas"]["DirigeantRegistre"][];
             forme?: string | null;
             siren: string;
         };

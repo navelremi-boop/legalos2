@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { apiUrl } from "@/lib/auth/client";
+import { dirigeantsDepuisJson } from "@/contacts/dirigeants";
+import { DirigeantsProposes } from "@/contacts/DirigeantsProposes";
 import { preparerCreation } from "@/contacts/creerSociete";
 import { champsFicheVides, libelleCapital, type ContactListe } from "@/contacts/listeContacts";
 import { champsRetenus, lignesProposition, type PropositionSiren } from "@/contacts/propositionSiren";
@@ -12,6 +14,7 @@ type CreationSocieteProps = {
   propositionFixe?: PropositionSiren | null;
   onCreee: (contact: ContactListe) => void;
   onFermer: () => void;
+  contacts?: readonly ContactListe[];
 };
 
 const FICHE_VIDE = { nom: "", forme: null, adresseSiege: null, activite: null };
@@ -27,6 +30,7 @@ function lireProposition(json: unknown): PropositionSiren | null {
     forme: texte("forme"),
     adresseSiege: texte("adresse_siege"),
     activite: texte("activite"),
+    dirigeants: dirigeantsDepuisJson(ligne.dirigeants),
   };
 }
 
@@ -36,6 +40,7 @@ export function CreationSociete({
   propositionFixe = null,
   onCreee,
   onFermer,
+  contacts = [],
 }: CreationSocieteProps) {
   const [siren, setSiren] = useState("");
   const [denomination, setDenomination] = useState("");
@@ -301,6 +306,13 @@ export function CreationSociete({
       ) : null}
       {source !== "" ? (
         <p data-testid="contacts-creation-source">{fr(source)}</p>
+      ) : null}
+      {proposition !== null ? (
+        <DirigeantsProposes
+          dirigeants={proposition.dirigeants ?? []}
+          contacts={contacts}
+          onCreer={onCreee}
+        />
       ) : null}
     </div>
   );

@@ -207,6 +207,7 @@ export function Contacts({
                   setCreees((etat) => [...etat, contact]);
                   setSelection(contact.id);
                 }}
+                contacts={lignes ?? []}
               />
             ) : choisi === null ? (
               <p className="etat-vide px-6 pt-6">{fr("Choisissez un contact pour voir sa fiche.")}</p>
@@ -243,6 +244,9 @@ export function Contacts({
                       horsLigne={horsLigne}
                       instanceUrl={instanceUrl}
                       propositionFixe={propositionFixe}
+                      onCreer={(contact) => {
+                        setCreees((etat) => [...etat, contact]);
+                      }}
                     />
                   ) : onglet === "liens" ? (
                     <LiensFiche contactId={choisi.id} liens={liens} />
@@ -306,6 +310,7 @@ function FicheGenerale({
   horsLigne,
   instanceUrl,
   propositionFixe,
+  onCreer,
 }: {
   contact: ContactListe;
   coordonnees: readonly CoordonneeLue[];
@@ -314,6 +319,7 @@ function FicheGenerale({
   horsLigne: boolean;
   instanceUrl?: string;
   propositionFixe: PropositionSiren | null;
+  onCreer: (contact: ContactListe) => void;
 }) {
   const acte = designationActe(contact, { liens, contacts });
   const [copie, setCopie] = useState(false);
@@ -364,6 +370,8 @@ function FicheGenerale({
         horsLigne={horsLigne}
         instanceUrl={instanceUrl}
         propositionFixe={propositionFixe}
+        contacts={contacts}
+        onCreer={onCreer}
       />
       <dl className="fiche-infos">
         <dt>{fr("Nom")}</dt>
