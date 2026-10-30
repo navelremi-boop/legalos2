@@ -55,6 +55,7 @@ export type ContactListe = {
   representant: RepresentantFiche | null;
   professionCode: ProfessionReglementee | null;
   barreau: string | null;
+  toque: string | null;
   specialite: string | null;
   courAppel: string | null;
   /** Vrai quand la fiche est archivée : lisible, plus proposée à la saisie. */
@@ -86,6 +87,7 @@ export function champsFicheVides(): Omit<
     representant: null,
     professionCode: null,
     barreau: null,
+    toque: null,
     specialite: null,
     courAppel: null,
   };

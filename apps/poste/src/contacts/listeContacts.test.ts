@@ -38,6 +38,7 @@ function contact(partiel: Partial<ContactListe> & Pick<ContactListe, "id" | "nom
     situationFamiliale: partiel.situationFamiliale ?? null,
     capitalCentimes: partiel.capitalCentimes ?? null,
     monnaie: partiel.monnaie ?? null,
+    toque: partiel.toque ?? null,
   };
 }
 

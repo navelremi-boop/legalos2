@@ -29,6 +29,14 @@ import { DoublonsFiche } from "@/contacts/DoublonsFiche";
 import { CreationSociete } from "@/contacts/CreationSociete";
 import { centimesDepuisSaisie, estMonnaie, MONNAIES, saisieDepuisCentimes } from "@/contacts/capitalFiche";
 import { poserCapital } from "@/contacts/poserCapital";
+import { poserProfession } from "@/contacts/poserProfession";
+import {
+  champsDeProfession,
+  estProfessionFiche,
+  PROFESSIONS_FICHE,
+  retenirMentions,
+  type ProfessionSaisie,
+} from "@/contacts/professionsFiche";
 import { poserTexteContact } from "@/contacts/poserTexteContact";
 import { texteSaisi } from "@/contacts/texteSaisi";
 import { poserForme } from "@/contacts/poserForme";
@@ -92,6 +100,7 @@ export function Contacts({
   >({});
   const [greffes, setGreffes] = useState<Record<string, string | null>>({});
   const [activites, setActivites] = useState<Record<string, string | null>>({});
+  const [professions, setProfessions] = useState<Record<string, ProfessionSaisie>>({});
   const [dossiersSync, setDossiersSync] = useState<DossierFiche[]>([]);
   const [mailsSync, setMailsSync] = useState<MailFiche[]>([]);
   const indexRef = useRef<IndexAnnuaire | null>(null);
@@ -165,6 +174,7 @@ export function Contacts({
   const groupes = useMemo(() => grouperAlphabetique(visibles), [visibles]);
   const choisi = visibles.find((contact) => contact.id === selection) ?? visibles[0] ?? null;
   const capitalPose = choisi === null ? undefined : capitaux[choisi.id];
+  const professionPosee = choisi === null ? undefined : professions[choisi.id];
   const choisiVu =
     choisi === null
       ? null
@@ -183,6 +193,13 @@ export function Contacts({
                 : libelleCapital(capitalPose.centimes, capitalPose.monnaie),
           greffe: greffes[choisi.id] === undefined ? choisi.greffe : greffes[choisi.id] ?? null,
           activite: activites[choisi.id] === undefined ? choisi.activite : activites[choisi.id] ?? null,
+          professionCode: professionPosee === undefined ? choisi.professionCode : professionPosee.code,
+          professionReglementee:
+            professionPosee === undefined ? choisi.professionReglementee : professionPosee.code !== null,
+          barreau: professionPosee === undefined ? choisi.barreau : professionPosee.barreau,
+          toque: professionPosee === undefined ? choisi.toque : professionPosee.toque,
+          specialite: professionPosee === undefined ? choisi.specialite : professionPosee.specialite,
+          courAppel: professionPosee === undefined ? choisi.courAppel : professionPosee.courAppel,
         };
   const historique =
     historiqueFixe !== null && choisi?.id === historiqueFixe.contactId
@@ -429,6 +446,12 @@ export function Contacts({
                         if (lignesFixes !== undefined) return;
                         void poserTexteContact(choisi.id, "activite", valeur);
                       }}
+                      onProfession={(profession) => {
+                        const retenue = retenirMentions(profession);
+                        setProfessions((etat) => ({ ...etat, [choisi.id]: retenue }));
+                        if (lignesFixes !== undefined) return;
+                        void poserProfession(choisi.id, retenue);
+                      }}
                     />
                   ) : onglet === "liens" ? (
                     <LiensFiche contactId={choisi.id} liens={liens} />
@@ -646,6 +669,95 @@ function GreffeActivite({
   );
 }
 
+function ProfessionContact({
+  profession,
+  onProfession,
+}: {
+  profession: ProfessionSaisie;
+  onProfession: (profession: ProfessionSaisie) => void;
+}) {
+  const champs = champsDeProfession(profession.code);
+  const publier = (suite: ProfessionSaisie) => {
+    onProfession(retenirMentions(suite));
+  };
+  return (
+    <div className="flex flex-col gap-1" data-testid="contacts-profession">
+      <label className="flex flex-col gap-1">
+        <span>{fr("Profession réglementée")}</span>
+        <select
+          className="champ"
+          data-testid="contacts-profession-code"
+          value={profession.code ?? ""}
+          onChange={(event) => {
+            const code = event.target.value;
+            if (code !== "" && !estProfessionFiche(code)) return;
+            publier({ ...profession, code: code === "" ? null : code });
+          }}
+        >
+          <option value="">{fr("Aucune")}</option>
+          {PROFESSIONS_FICHE.map((entree) => (
+            <option key={entree.code} value={entree.code}>
+              {fr(entree.libelle)}
+            </option>
+          ))}
+        </select>
+      </label>
+      {champs.includes("barreau") ? (
+        <label className="flex flex-col gap-1">
+          <span>{fr("Barreau")}</span>
+          <input
+            className="champ"
+            data-testid="contacts-barreau"
+            value={profession.barreau ?? ""}
+            onChange={(event) => {
+              publier({ ...profession, barreau: texteSaisi(event.target.value) });
+            }}
+          />
+        </label>
+      ) : null}
+      {champs.includes("toque") ? (
+        <label className="flex flex-col gap-1">
+          <span>{fr("Toque")}</span>
+          <input
+            className="champ"
+            data-testid="contacts-toque"
+            value={profession.toque ?? ""}
+            onChange={(event) => {
+              publier({ ...profession, toque: texteSaisi(event.target.value) });
+            }}
+          />
+        </label>
+      ) : null}
+      {champs.includes("specialite") ? (
+        <label className="flex flex-col gap-1">
+          <span>{fr("Spécialité")}</span>
+          <input
+            className="champ"
+            data-testid="contacts-specialite"
+            value={profession.specialite ?? ""}
+            onChange={(event) => {
+              publier({ ...profession, specialite: texteSaisi(event.target.value) });
+            }}
+          />
+        </label>
+      ) : null}
+      {champs.includes("cour_appel") ? (
+        <label className="flex flex-col gap-1">
+          <span>{fr("Cour d'appel")}</span>
+          <input
+            className="champ"
+            data-testid="contacts-cour-appel"
+            value={profession.courAppel ?? ""}
+            onChange={(event) => {
+              publier({ ...profession, courAppel: texteSaisi(event.target.value) });
+            }}
+          />
+        </label>
+      ) : null}
+    </div>
+  );
+}
+
 function FicheGenerale({
   contact,
   coordonnees,
@@ -661,6 +773,7 @@ function FicheGenerale({
   onCapital,
   onGreffe,
   onActivite,
+  onProfession,
 }: {
   contact: ContactListe;
   coordonnees: readonly CoordonneeLue[];
@@ -676,6 +789,7 @@ function FicheGenerale({
   onCapital: (centimes: number | null, monnaie: string | null) => void;
   onGreffe: (valeur: string | null) => void;
   onActivite: (valeur: string | null) => void;
+  onProfession: (profession: ProfessionSaisie) => void;
 }) {
   const acte = designationActe(contact, { liens, contacts });
   const [copie, setCopie] = useState(false);
@@ -786,6 +900,17 @@ function FicheGenerale({
           onActivite={onActivite}
         />
       ) : null}
+      <ProfessionContact
+        key={contact.id}
+        profession={{
+          code: contact.professionCode,
+          barreau: contact.barreau,
+          toque: contact.toque,
+          specialite: contact.specialite,
+          courAppel: contact.courAppel,
+        }}
+        onProfession={onProfession}
+      />
       <div>
         <p className="font-bold">{fr("Coordonnées")}</p>
         {coordonnees.length === 0 ? (

@@ -108,6 +108,7 @@ function versContact(ligne: LigneSql): ContactListe | null {
     greffe: ligne.greffe_rcs,
     professionCode: code,
     barreau: ligne.barreau,
+    toque: ligne.toque,
     specialite: ligne.specialite,
     courAppel: ligne.cour_appel,
     archivee: ligne.archivee === 1,
