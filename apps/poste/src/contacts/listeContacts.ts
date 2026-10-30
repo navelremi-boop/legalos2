@@ -2,6 +2,26 @@ export type NatureContactListe = "physique" | "morale";
 
 export type TypeClientListe = "professionnel" | "particulier" | "etranger";
 
+export type AccordGrammatical = "masculin" | "feminin";
+
+export type ProfessionReglementee =
+  | "avocat"
+  | "commissaire_justice"
+  | "notaire"
+  | "expert_judiciaire"
+  | "administrateur_judiciaire"
+  | "mandataire_judiciaire"
+  | "expert_comptable"
+  | "commissaire_comptes";
+
+export type RepresentantFiche = {
+  fonction: string;
+  civilite: string;
+  prenoms: string;
+  nom: string;
+  accord: AccordGrammatical;
+};
+
 export type ContactListe = {
   id: string;
   nature: NatureContactListe;
@@ -11,7 +31,51 @@ export type ContactListe = {
   typeClient: TypeClientListe;
   /** Vrai quand la fiche porte une profession réglementée. Absent des contacts déjà en base. */
   professionReglementee: boolean;
+  civilite: string | null;
+  accordSaisi: AccordGrammatical | null;
+  prenoms: string | null;
+  nomNaissance: string | null;
+  dateNaissance: string | null;
+  lieuNaissance: string | null;
+  nationalite: string | null;
+  profession: string | null;
+  adresseDomicile: string | null;
+  forme: string | null;
+  capitalLibelle: string | null;
+  greffe: string | null;
+  adresseSiege: string | null;
+  representant: RepresentantFiche | null;
+  professionCode: ProfessionReglementee | null;
+  barreau: string | null;
+  specialite: string | null;
+  courAppel: string | null;
 };
+
+export function champsFicheVides(): Omit<
+  ContactListe,
+  "id" | "nature" | "nom" | "siren" | "numeroTva" | "typeClient" | "professionReglementee"
+> {
+  return {
+    civilite: null,
+    accordSaisi: null,
+    prenoms: null,
+    nomNaissance: null,
+    dateNaissance: null,
+    lieuNaissance: null,
+    nationalite: null,
+    profession: null,
+    adresseDomicile: null,
+    forme: null,
+    capitalLibelle: null,
+    greffe: null,
+    adresseSiege: null,
+    representant: null,
+    professionCode: null,
+    barreau: null,
+    specialite: null,
+    courAppel: null,
+  };
+}
 
 export type FiltreContacts = "tous" | "personnes" | "societes" | "professions";
 

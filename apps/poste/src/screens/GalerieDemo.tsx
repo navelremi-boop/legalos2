@@ -16,7 +16,7 @@ import type { InvitationLocale } from "@/messagerie/typesMails";
 import type { DemonstrationMessagerie } from "@/messagerie/ReglagesMessagerie";
 import { Dossiers } from "@/screens/Dossiers";
 import { Contacts } from "@/screens/Contacts";
-import type { ContactListe } from "@/contacts/listeContacts";
+import { champsFicheVides, type ContactListe } from "@/contacts/listeContacts";
 import { Journee } from "@/screens/Journee";
 import { EcranConnexion } from "@/onboarding/EcranConnexion";
 import {
@@ -32,11 +32,20 @@ const CONTACTS_DEMO: ContactListe[] = [
   {
     id: "anne",
     nature: "physique",
-    nom: "Anne Perrin",
+    nom: "Martin",
     siren: null,
     numeroTva: null,
-    typeClient: "professionnel",
+    typeClient: "particulier",
     professionReglementee: true,
+    ...champsFicheVides(),
+    civilite: "Madame",
+    prenoms: "Camille",
+    nomNaissance: "Dupont",
+    dateNaissance: "1980-03-14",
+    lieuNaissance: "Lyon",
+    nationalite: "française",
+    profession: "avocate",
+    adresseDomicile: "12 rue des Lilas, 69001 Lyon",
   },
   {
     id: "martin",
@@ -46,6 +55,8 @@ const CONTACTS_DEMO: ContactListe[] = [
     numeroTva: null,
     typeClient: "particulier",
     professionReglementee: false,
+    ...champsFicheVides(),
+    prenoms: "Luc",
   },
   {
     id: "duclos",
@@ -55,6 +66,18 @@ const CONTACTS_DEMO: ContactListe[] = [
     numeroTva: null,
     typeClient: "professionnel",
     professionReglementee: false,
+    ...champsFicheVides(),
+    forme: "société à responsabilité limitée",
+    capitalLibelle: "au capital de 10 000 €",
+    greffe: "RCS de Lyon",
+    adresseSiege: "8 quai Saint-Vincent, 69001 Lyon",
+    representant: {
+      fonction: "gérante",
+      civilite: "Madame",
+      prenoms: "Camille",
+      nom: "Martin",
+      accord: "feminin",
+    },
   },
 ];
 

@@ -109,6 +109,17 @@ export function formatDateLongue(iso: string): string {
 }
 
 /**
+ * Date d'un acte, sans jour de la semaine : « 14 mars 1980 », « 1er octobre 1975 ».
+ */
+export function formatDateActe(iso: string): string {
+  const date = dateCivile(iso);
+  if (!date) return "";
+  const mois = MOIS_LONG[date.mois - 1];
+  if (mois === undefined) return "";
+  return fr(`${quantieme(date.jour)} ${mois} ${String(date.annee)}`);
+}
+
+/**
  * Heure française à partir de chiffres déjà muraux : « 9 h 12 ».
  */
 export function formatHeureMur(heure: number, minute: number): string {

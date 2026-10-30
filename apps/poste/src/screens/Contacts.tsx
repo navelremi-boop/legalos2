@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  champsFicheVides,
   compteursFiltres,
   FILTRES_CONTACTS,
   filtrerContacts,
@@ -13,6 +14,7 @@ import {
   type OngletFicheContact,
   type TypeClientListe,
 } from "@/contacts/listeContacts";
+import { designationActe } from "@/contacts/designation";
 import { Feuille } from "@/coque/Feuille";
 import { fr } from "@/lib/fr";
 import { getPowerSyncDatabase } from "@/sync/database";
@@ -52,6 +54,7 @@ function versContact(ligne: LigneSql): ContactListe | null {
     numeroTva: ligne.numero_tva,
     typeClient: ligne.type_client,
     professionReglementee: false,
+    ...champsFicheVides(),
   };
 }
 
@@ -179,7 +182,9 @@ export function Contacts({ lignesFixes }: ContactsProps = {}) {
                               setOnglet("general");
                             }}
                           >
-                            <span className="block font-bold">{fr(contact.nom)}</span>
+                            <span className="block font-bold">
+                              {fr(contact.prenoms ? `${contact.prenoms} ${contact.nom}` : contact.nom)}
+                            </span>
                             <span className="block text-[length:var(--font-size-dense)] text-graphite">
                               {fr(libelleNature(contact.nature))}
                             </span>
@@ -220,18 +225,7 @@ export function Contacts({ lignesFixes }: ContactsProps = {}) {
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4" role="tabpanel">
                   {onglet === "general" ? (
-                    <dl className="fiche-infos">
-                      <dt>{fr("Nom")}</dt>
-                      <dd>{fr(choisi.nom)}</dd>
-                      <dt>{fr("Nature")}</dt>
-                      <dd>{fr(libelleNature(choisi.nature))}</dd>
-                      <dt>{fr("SIREN")}</dt>
-                      <dd>{choisi.siren ? fr(choisi.siren) : fr("Non renseigné")}</dd>
-                      <dt>{fr("N° TVA")}</dt>
-                      <dd>{choisi.numeroTva ? fr(choisi.numeroTva) : fr("Non renseigné")}</dd>
-                      <dt>{fr("Type de client")}</dt>
-                      <dd>{fr(libelleTypeClient(choisi.typeClient))}</dd>
-                    </dl>
+                    <FicheGenerale contact={choisi} />
                   ) : (
                     <p className="etat-vide">{fr(VIDE_ONGLET[onglet])}</p>
                   )}
@@ -241,6 +235,61 @@ export function Contacts({ lignesFixes }: ContactsProps = {}) {
           </div>
         </div>
       </Feuille>
+    </div>
+  );
+}
+
+function FicheGenerale({ contact }: { contact: ContactListe }) {
+  const acte = designationActe(contact);
+  const [copie, setCopie] = useState(false);
+  return (
+    <div className="flex flex-col gap-4">
+      <div data-testid="contacts-designation">
+        <p className="font-bold">{fr("Désignation dans les actes")}</p>
+        <p className="mt-1">{acte.texte === "" ? fr("Désignation incomplète.") : fr(acte.texte)}</p>
+        <button
+          type="button"
+          className="filtre mt-2"
+          data-testid="contacts-copier-designation"
+          disabled={acte.texte === ""}
+          onClick={() => {
+            const texte = fr(acte.texte);
+            void navigator.clipboard.writeText(texte).then(
+              () => {
+                setCopie(true);
+              },
+              () => {
+                setCopie(false);
+              },
+            );
+          }}
+        >
+          {fr(copie ? "Copié" : "Copier")}
+        </button>
+      </div>
+      {acte.mentions.length > 0 ? (
+        <div className="message-attention" data-testid="contacts-mentions">
+          <ul>
+            {acte.mentions.map((mention) => (
+              <li key={mention.champ} data-testid="contacts-mention">
+                {fr(mention.libelle)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      <dl className="fiche-infos">
+        <dt>{fr("Nom")}</dt>
+        <dd>{fr(contact.prenoms ? `${contact.prenoms} ${contact.nom}` : contact.nom)}</dd>
+        <dt>{fr("Nature")}</dt>
+        <dd>{fr(libelleNature(contact.nature))}</dd>
+        <dt>{fr("SIREN")}</dt>
+        <dd>{contact.siren ? fr(contact.siren) : fr("Non renseigné")}</dd>
+        <dt>{fr("N° TVA")}</dt>
+        <dd>{contact.numeroTva ? fr(contact.numeroTva) : fr("Non renseigné")}</dd>
+        <dt>{fr("Type de client")}</dt>
+        <dd>{fr(libelleTypeClient(contact.typeClient))}</dd>
+      </dl>
     </div>
   );
 }
