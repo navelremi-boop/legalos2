@@ -15,6 +15,7 @@ import { EcranMails, type DemonstrationMails } from "@/messagerie/EcranMails";
 import type { InvitationLocale } from "@/messagerie/typesMails";
 import type { DemonstrationMessagerie } from "@/messagerie/ReglagesMessagerie";
 import { Dossiers } from "@/screens/Dossiers";
+import type { IntervenantAffiche } from "@/contacts/intervenants";
 import { Contacts } from "@/screens/Contacts";
 import { champsFicheVides, type ContactListe } from "@/contacts/listeContacts";
 import { Journee } from "@/screens/Journee";
@@ -27,6 +28,27 @@ import {
 import { Reglages } from "@/screens/Reglages";
 import type { ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
+
+const INTERVENANTS_DEMO: IntervenantAffiche[] = [
+  {
+    id: "societe",
+    codeQualite: "client",
+    libelleQualite: "client",
+    prenoms: null,
+    nom: "SARL Duclos Industrie",
+    accord: null,
+    rattacheA: null,
+  },
+  {
+    id: "anne",
+    codeQualite: "avocat",
+    libelleQualite: "avocat",
+    prenoms: "Anne",
+    nom: "Perrin",
+    accord: "feminin",
+    rattacheA: "societe",
+  },
+];
 
 const CONTACTS_DEMO: ContactListe[] = [
   {
@@ -829,6 +851,7 @@ export function GalerieDemo() {
               onCalculerDelai={() => undefined}
               elementsChrono={CHRONO_DEMO}
               intercalairesSync={false}
+              intervenantsFixes={INTERVENANTS_DEMO}
             />
           ) : null}
           {vue === "journee" ? (

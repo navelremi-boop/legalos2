@@ -23,6 +23,8 @@ import {
 import { ArborescencePieces } from "@/documents/ArborescencePieces";
 import { PanneauConvention } from "@/conventions/PanneauConvention";
 import { CompleterDossier } from "@/dossiers/CompleterDossier";
+import { IntervenantsDossier } from "@/dossiers/IntervenantsDossier";
+import type { IntervenantAffiche } from "@/contacts/intervenants";
 import type { ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
 import { getPowerSyncDatabase } from "@/sync/database";
@@ -82,6 +84,8 @@ type DossierOuvertProps = {
    * Désactivé pour la galerie démo (identifiants hors base).
    */
   intercalairesSync?: boolean;
+  /** Jeu figé de la galerie. Sans cela, les intervenants sont lus dans la base locale. */
+  intervenantsFixes?: readonly IntervenantAffiche[];
 };
 
 export function DossierOuvert({
@@ -92,6 +96,7 @@ export function DossierOuvert({
   onCalculerDelai,
   elementsChrono,
   intercalairesSync = true,
+  intervenantsFixes,
 }: DossierOuvertProps) {
   const [intercalaire, setIntercalaire] = useState<IntercalaireId>("chrono");
   const [personnalises, setPersonnalises] = useState<IntercalaireLocal[]>([]);
@@ -322,6 +327,7 @@ export function DossierOuvert({
             </li>
           ))}
         </ul>
+        <IntervenantsDossier dossierId={dossier.id} lignesFixes={intervenantsFixes} />
       </div>
 
       <div className="tenue-cadre relative mt-5 min-h-0 flex-1">
