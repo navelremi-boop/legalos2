@@ -25,6 +25,7 @@ import {
   LIBELLES_ETAT_CONNEXION,
   type EtatConnexion,
 } from "@/onboarding/etatsConnexion";
+import { QUALITES_LIVREES } from "@/contacts/intervenants";
 import { Reglages } from "@/screens/Reglages";
 import type { ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
@@ -973,6 +974,14 @@ export function GalerieDemo() {
               }}
               instanceUrl="http://127.0.0.1:8088"
               horsLigne
+              qualitesDemo={QUALITES_LIVREES.map((qualite) => ({
+                id: qualite.code,
+                code: qualite.code,
+                libelle: qualite.libelle,
+                admetRattachement: qualite.admetRattachement,
+                archivee: false,
+                utilisee: qualite.code === "avocat",
+              }))}
               messagerieDemo={messagerieDemo}
               onNouveauDossier={() => undefined}
               onNouveauMail={() => undefined}

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { QUALITES_LIVREES, grouperIntervenants } from "./intervenants.ts";
+import { QUALITES_LIVREES, codeQualite, effetRetraitQualite, grouperIntervenants } from "./intervenants.ts";
 
 describe("intervenants d'un dossier", () => {
   it("aligne la liste livrée sur la migration", () => {
@@ -15,6 +15,13 @@ describe("intervenants d'un dossier", () => {
       const libelleSql = qualite.libelle.replaceAll("'", "''");
       assert.equal(sql.includes(`('${qualite.code}', '${libelleSql}', ${drapeau})`), true, qualite.code);
     }
+  });
+
+  it("archive une qualité utilisée et retire une qualité seule", () => {
+    assert.equal(effetRetraitQualite(true), "archive");
+    assert.equal(effetRetraitQualite(false), "supprime");
+    assert.equal(codeQualite("Expert de partie"), "expert_de_partie");
+    assert.equal(codeQualite("  Intimé  "), "intime");
   });
 
   it("place l'avocate en retrait sous sa partie", () => {

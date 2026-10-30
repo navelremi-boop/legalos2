@@ -20,6 +20,7 @@ import { clearSession } from "@/lib/session/storage";
 import { ReglagesMessagerie, type DemonstrationMessagerie } from "@/messagerie/ReglagesMessagerie";
 import { PanneauModeles } from "@/modeles/PanneauModeles";
 import { ConstructeurReference } from "@/screens/ConstructeurReference";
+import { PanneauQualites, type QualiteReglage } from "@/screens/PanneauQualites";
 import { sectionsVisibles } from "@/screens/sectionsReglages";
 import { DEMO_CABINET_ID } from "@/sync/demoCabinet";
 import { getPowerSyncDatabase } from "@/sync/database";
@@ -38,6 +39,8 @@ type ReglagesProps = {
   onSaisirTemps?: () => void;
   /** Galerie seulement : la rubrique Messagerie s'affiche avec ces données, sans appeler l'API. */
   messagerieDemo?: DemonstrationMessagerie;
+  /** Galerie : qualités livrées, modifications locales. */
+  qualitesDemo?: readonly QualiteReglage[];
 };
 
 function estRemise(valeur: string): valeur is RemiseAZero {
@@ -55,6 +58,7 @@ export function Reglages({
   onNouveauMail,
   onSaisirTemps,
   messagerieDemo,
+  qualitesDemo,
 }: ReglagesProps) {
   const [nom, setNom] = useState("");
   const [slug, setSlug] = useState("");
@@ -264,6 +268,13 @@ export function Reglages({
             ))}
           </nav>
           <div className="reglages-contenu min-w-0 flex-1 space-y-6 overflow-auto">
+          <div id="reglages-qualites" hidden={sectionOuverte !== "qualites"}>
+            <PanneauQualites
+              demo={qualitesDemo}
+              instanceUrl={instanceUrl}
+              horsLigne={horsLigne}
+            />
+          </div>
           <div id="reglages-apparence" hidden={sectionOuverte !== "apparence"}>
             <h2 className="feuille-titre mb-3">
               {fr("Apparence")}

@@ -30,6 +30,26 @@ export const QUALITES_LIVREES = [
   { code: "autre", libelle: "autre", admetRattachement: true },
 ] as const;
 
+export type EffetRetraitQualite = "archive" | "supprime";
+
+/** Une qualité déjà utilisée dans un dossier s'archive. Sinon elle est retirée. */
+export function effetRetraitQualite(utilisee: boolean): EffetRetraitQualite {
+  return utilisee ? "archive" : "supprime";
+}
+
+/** Code stable tiré du libellé : minuscules, sans accent. */
+export function codeQualite(libelle: string): string {
+  const code = libelle
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLocaleLowerCase("fr")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+  if (code === "") throw new Error("Libellé requis");
+  return code;
+}
+
 export type IntervenantAffiche = {
   id: string;
   codeQualite: string;

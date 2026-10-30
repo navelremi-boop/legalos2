@@ -16,7 +16,7 @@ describe("sections des réglages", () => {
 
   it("affiche les sections déjà livrées", () => {
     const ids = sectionsVisibles().map((section) => section.id);
-    for (const present of ["cabinet", "messagerie", "apparence", "reference", "modeles"]) {
+    for (const present of ["cabinet", "messagerie", "apparence", "reference", "modeles", "qualites"]) {
       assert.equal(ids.includes(present), true, present);
     }
   });

@@ -6030,6 +6030,161 @@
         ]
       }
     },
+    "/qualites": {
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "operationId": "creer_qualite",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreerQualiteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Qualité créée ou déjà présente"
+          },
+          "400": {
+            "description": "Code ou libellé invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Réservé aux administrateurs du cabinet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Ce code existe déjà",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/qualites/{qualite_id}/retrait": {
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "operationId": "retirer_qualite",
+        "parameters": [
+          {
+            "name": "qualite_id",
+            "in": "path",
+            "description": "Qualité à retirer",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetirerQualiteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Archivée si elle est utilisée, supprimée sinon",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetraitQualiteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Clé d'idempotence manquante",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Réservé aux administrateurs du cabinet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Qualité introuvable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/repertoires": {
       "post": {
         "tags": [
@@ -8343,6 +8498,34 @@
             "type": "string"
           },
           "role": {
+            "type": "string"
+          }
+        }
+      },
+      "CreerQualiteRequest": {
+        "type": "object",
+        "required": [
+          "id",
+          "idempotence_cle",
+          "code",
+          "libelle",
+          "admet_rattachement"
+        ],
+        "properties": {
+          "admet_rattachement": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "idempotence_cle": {
+            "type": "string"
+          },
+          "libelle": {
             "type": "string"
           }
         }
@@ -10806,6 +10989,17 @@
           }
         }
       },
+      "RetirerQualiteRequest": {
+        "type": "object",
+        "required": [
+          "idempotence_cle"
+        ],
+        "properties": {
+          "idempotence_cle": {
+            "type": "string"
+          }
+        }
+      },
       "RetraitAgendaResponse": {
         "type": "object",
         "description": "Résultat du retrait d'un élément d'agenda.",
@@ -10820,6 +11014,17 @@
         }
       },
       "RetraitContactResponse": {
+        "type": "object",
+        "required": [
+          "effet"
+        ],
+        "properties": {
+          "effet": {
+            "type": "string"
+          }
+        }
+      },
+      "RetraitQualiteResponse": {
         "type": "object",
         "required": [
           "effet"

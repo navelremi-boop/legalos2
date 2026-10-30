@@ -138,6 +138,8 @@ use crate::routes::redaction::{
         crate::routes::contacts::fusionner_contact,
         crate::routes::contacts::retirer_fiche,
         crate::routes::contacts::creer_intervenant,
+        crate::routes::qualites::creer_qualite,
+        crate::routes::qualites::retirer_qualite,
         crate::routes::contacts::patch_contact,
         crate::routes::contacts::historique_contact,
         crate::routes::contacts::lier_dossiers,

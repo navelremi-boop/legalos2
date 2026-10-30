@@ -1428,6 +1428,38 @@ export interface paths {
         patch: operations["patch_partie"];
         trace?: never;
     };
+    "/qualites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["creer_qualite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qualites/{qualite_id}/retrait": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["retirer_qualite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/repertoires": {
         parameters: {
             query?: never;
@@ -2073,6 +2105,14 @@ export interface components {
             idempotence_cle: string;
             nom: string;
             role: string;
+        };
+        CreerQualiteRequest: {
+            admet_rattachement: boolean;
+            code: string;
+            /** Format: uuid */
+            id: string;
+            idempotence_cle: string;
+            libelle: string;
         };
         CreerRepertoireRequest: {
             /** Format: uuid */
@@ -2798,12 +2838,18 @@ export interface components {
             id: string;
             retire: boolean;
         };
+        RetirerQualiteRequest: {
+            idempotence_cle: string;
+        };
         /** @description Résultat du retrait d'un élément d'agenda. */
         RetraitAgendaResponse: {
             /** @description `true` si l'élément a été retiré ; `false` si la requête était un rejeu (clé d'idempotence déjà vue). */
             retire: boolean;
         };
         RetraitContactResponse: {
+            effet: string;
+        };
+        RetraitQualiteResponse: {
             effet: string;
         };
         Sante: {
@@ -7240,6 +7286,127 @@ export interface operations {
                 };
             };
             /** @description Partie ou dossier introuvable, ou hors de vos droits */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    creer_qualite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreerQualiteRequest"];
+            };
+        };
+        responses: {
+            /** @description Qualité créée ou déjà présente */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Code ou libellé invalide */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Réservé aux administrateurs du cabinet */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Ce code existe déjà */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    retirer_qualite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Qualité à retirer */
+                qualite_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetirerQualiteRequest"];
+            };
+        };
+        responses: {
+            /** @description Archivée si elle est utilisée, supprimée sinon */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetraitQualiteResponse"];
+                };
+            };
+            /** @description Clé d'idempotence manquante */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Réservé aux administrateurs du cabinet */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Qualité introuvable */
             404: {
                 headers: {
                     [name: string]: unknown;

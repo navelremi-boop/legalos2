@@ -18,6 +18,7 @@ pub mod intercalaires;
 pub mod invitations;
 pub mod messagerie;
 pub mod modeles_documents;
+pub mod qualites;
 pub mod recherche_messages;
 pub mod redaction;
 pub mod temps;
@@ -87,6 +88,11 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route(
             "/dossiers/{dossier_id}/intervenants",
             post(contacts::creer_intervenant),
+        )
+        .route("/qualites", post(qualites::creer_qualite))
+        .route(
+            "/qualites/{qualite_id}/retrait",
+            post(qualites::retirer_qualite),
         )
         .route("/dossiers/{dossier_id}/agenda", post(agenda::creer_element))
         .route(

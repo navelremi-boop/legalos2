@@ -13,6 +13,7 @@ export const SECTIONS_REGLAGES: readonly SectionReglages[] = [
   { id: "collaborateurs", titre: "Collaborateurs et droits", disponible: false },
   { id: "messagerie", titre: "Messagerie", disponible: true },
   { id: "modeles", titre: "Modèles de documents", disponible: true },
+  { id: "qualites", titre: "Qualités", disponible: true },
   { id: "taux", titre: "Taux et facturation", disponible: false },
   { id: "postes", titre: "Postes et sécurité", disponible: false },
   { id: "apparence", titre: "Apparence", disponible: true },
