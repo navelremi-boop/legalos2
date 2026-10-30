@@ -17,6 +17,17 @@ export class FusionIncomplete extends Error {
   }
 }
 
+export type LigneIntervenant = {
+  nom: string;
+  designation: string;
+  adresse: string;
+  rattache_a: string;
+};
+
+export type DonneesFusion = Readonly<Record<string, string | readonly LigneIntervenant[]>>;
+
+const CHAMPS_BOUCLE_OBLIGATOIRES = ["nom", "designation", "adresse"] as const;
+
 const STYLES_LIVRES =
   '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:styleId="Normal" w:type="paragraph"><w:name w:val="Normal"/><w:rPr><w:sz w:val="22"/></w:rPr></w:style></w:styles>';
 
@@ -62,20 +73,55 @@ function texteDocument(octets: Uint8Array): string {
   return xml.replace(/<[^>]+>/g, "");
 }
 
-/** Balises de données. Les préfixes `@`, `#` et `/` sont laissés au cœur (rawXml ou boucle, plus tard). */
+function decouper(texte: string): { hors: string; boucles: { nom: string; champs: string[] }[] } {
+  const boucles: { nom: string; champs: string[] }[] = [];
+  let hors = "";
+  const motif = /\{#([A-Za-z0-9_]+)\}([\s\S]*?)\{\/\1\}/g;
+  let curseur = 0;
+  for (const trouve of texte.matchAll(motif)) {
+    const index = trouve.index;
+    hors += texte.slice(curseur, index);
+    const interieur = trouve[2] ?? "";
+    const champs = [...interieur.matchAll(/\{([A-Za-z0-9_]+)\}/g)].map((item) => item[1] ?? "");
+    boucles.push({ nom: trouve[1] ?? "", champs: champs.filter((champ) => champ !== "") });
+    curseur = index + trouve[0].length;
+  }
+  hors += texte.slice(curseur);
+  return { boucles, hors };
+}
+
+/** Balises de données hors boucle. Les préfixes `@`, `#` et `/` sont laissés au cœur. */
 export function balisesDuModele(octets: Uint8Array): string[] {
-  const trouvees = texteDocument(octets).match(/\{[^{}]+\}/g) ?? [];
+  const { hors } = decouper(texteDocument(octets));
+  const trouvees = hors.match(/\{[^{}]+\}/g) ?? [];
   const noms = trouvees
     .map((balise) => balise.slice(1, -1).trim())
     .filter((nom) => nom !== "" && !nom.startsWith("@") && !nom.startsWith("#") && !nom.startsWith("/"));
   return [...new Set(noms)];
 }
 
-export function champsManquants(balises: readonly string[], donnees: Readonly<Record<string, string>>): string[] {
-  return balises.filter((nom) => {
+export function champsManquants(balises: readonly string[], donnees: DonneesFusion, octets?: Uint8Array): string[] {
+  const manquants = balises.filter((nom) => {
     const valeur = donnees[nom];
-    return valeur === undefined || valeur.trim() === "";
+    return typeof valeur !== "string" || valeur.trim() === "";
   });
+  if (octets === undefined) return manquants;
+  const { boucles } = decouper(texteDocument(octets));
+  for (const boucle of boucles) {
+    const lignes = donnees[boucle.nom];
+    if (!Array.isArray(lignes)) {
+      manquants.push(boucle.nom);
+      continue;
+    }
+    for (const ligne of lignes as readonly LigneIntervenant[]) {
+      for (const champ of CHAMPS_BOUCLE_OBLIGATOIRES) {
+        if (!boucle.champs.includes(champ)) continue;
+        const valeur = ligne[champ];
+        if (valeur.trim() === "") manquants.push(`${boucle.nom}.${champ}`);
+      }
+    }
+  }
+  return manquants;
 }
 
 export function balisesResiduelles(octets: Uint8Array): number {
@@ -93,8 +139,8 @@ export function stylesIdentiques(avant: Uint8Array, apres: Uint8Array): boolean 
 }
 
 /** Fusion hors ligne. Un champ absent ou vide arrête avant d'écrire. Aucun module payant. */
-export function fusionnerDocx(octets: Uint8Array, donnees: Readonly<Record<string, string>>): Uint8Array {
-  const manquants = champsManquants(balisesDuModele(octets), donnees);
+export function fusionnerDocx(octets: Uint8Array, donnees: DonneesFusion): Uint8Array {
+  const manquants = champsManquants(balisesDuModele(octets), donnees, octets);
   if (manquants.length > 0) throw new FusionIncomplete(manquants);
   const zip = new PizZip(octets);
   const doc = new Docxtemplater(zip, {

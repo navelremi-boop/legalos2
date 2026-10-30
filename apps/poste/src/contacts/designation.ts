@@ -267,6 +267,16 @@ export type ContexteDesignation = {
 
 const CONTEXTE_VIDE: ContexteDesignation = { liens: [], contacts: [] };
 
+/** Personne du mandat en cours qui représente la société, s'il y en a une. */
+export function ficheRepresentant(
+  societeId: string,
+  contexte: ContexteDesignation = CONTEXTE_VIDE,
+): ContactListe | null {
+  const mandat = mandatRepresentant(societeId, contexte.liens);
+  if (mandat === null) return null;
+  return contexte.contacts.find((contact) => contact.id === mandat.sourceId) ?? null;
+}
+
 /** Désignation calculée. Le texte n'invente pas une mention absente : elle est nommée à part. */
 export function designationActe(
   contact: ContactListe,

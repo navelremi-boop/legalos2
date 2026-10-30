@@ -42,6 +42,47 @@ describe("fusion documentaire", () => {
     );
   });
 
+  it("restitue la désignation du client et de l'adversaire, et la boucle des intervenants", () => {
+    const modele = construireModele([
+      "Acte",
+      "{client_nom}",
+      "{client_designation}",
+      "{client_adresse}",
+      "{client_representant_designation}",
+      "{adversaire_designation}",
+      "{#intervenants_client}{nom} — {designation} — {adresse} — {rattache_a}{/intervenants_client}",
+      "{#intervenants_adversaire}{nom} — {designation} — {adresse} — {rattache_a}{/intervenants_adversaire}",
+    ]);
+    const produit = fusionnerDocx(modele, {
+      ...donnees,
+      client_designation: "SAS Ferrand, société par actions simplifiée, au capital de 10 000 €",
+      client_adresse: "4 place Bellecour, 69002 Lyon",
+      client_representant_designation: "Monsieur Antoine Ferrand, né le 1er octobre 1975 à Paris",
+      adversaire_designation: "SARL Duclos Industrie, société à responsabilité limitée",
+      intervenants_client: [
+        {
+          nom: "SAS Ferrand",
+          designation: "SAS Ferrand, société par actions simplifiée",
+          adresse: "4 place Bellecour, 69002 Lyon",
+          rattache_a: "—",
+        },
+      ],
+      intervenants_adversaire: [
+        {
+          nom: "SARL Duclos Industrie",
+          designation: "SARL Duclos Industrie, société à responsabilité limitée",
+          adresse: "8 quai Saint-Vincent, 69001 Lyon",
+          rattache_a: "—",
+        },
+      ],
+    });
+    assert.equal(balisesResiduelles(produit), 0);
+    const texte = new TextDecoder().decode(produit);
+    assert.equal(texte.includes("Monsieur Antoine Ferrand, né le 1er octobre 1975 à Paris"), true);
+    assert.equal(texte.includes("SARL Duclos Industrie, société à responsabilité limitée"), true);
+    assert.equal(texte.includes("8 quai Saint-Vincent, 69001 Lyon"), true);
+  });
+
   it("garde les délimiteurs du cœur gratuit, sans module payant", () => {
     assert.deepEqual(DELIMITEURS_FUSION, { start: "{", end: "}" });
     const paquet = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as {

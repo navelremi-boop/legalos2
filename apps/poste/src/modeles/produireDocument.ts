@@ -1,10 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
+import { lireAnnuaireLocal } from "@/contacts/lireAnnuaire";
 import { lireAttente, memoriserAttente, oublierAttente, type DepotEnAttente } from "@/modeles/attenteDepot";
+import { champsAnnuaireFusion } from "@/modeles/champsFusionAnnuaire";
 import { DepotDiffere, empreinteSha256, verserDocument } from "@/modeles/depotCabinet";
 import {
   balisesResiduelles,
   fusionnerDocx,
   stylesIdentiques,
+  type DonneesFusion,
   type GenreModele,
 } from "@/modeles/fusionDocx";
 import { lireModele } from "@/modeles/stockModeles";
@@ -26,7 +29,7 @@ const NOMS: Record<GenreModele, string> = {
 
 async function donneesDossier(dossierId: string): Promise<{
   cabinetId: string;
-  donnees: Record<string, string>;
+  donnees: DonneesFusion;
 }> {
   const database = await getPowerSyncDatabase();
   const dossiers = await database.getAll<{
@@ -43,6 +46,24 @@ async function donneesDossier(dossierId: string): Promise<{
     "SELECT nom FROM parties WHERE dossier_id = ? AND role = 'client' ORDER BY cree_le LIMIT 1",
     [dossierId],
   );
+  const annuaire = await lireAnnuaireLocal();
+  const parties = await database.getAll<{ role: string; contact_id: string | null }>(
+    "SELECT role, contact_id FROM parties WHERE dossier_id = ? ORDER BY cree_le",
+    [dossierId],
+  );
+  const intervenants = await database.getAll<{
+    id: string;
+    contact_id: string;
+    code: string;
+    rattache_a: string | null;
+  }>(
+    `SELECT i.id, i.contact_id, q.code AS code, i.rattache_a
+     FROM dossier_intervenants i
+     JOIN qualites q ON q.id = i.qualite_id
+     WHERE i.dossier_id = ?`,
+    [dossierId],
+  );
+  const codes = await database.getAll<{ code: string }>("SELECT code FROM qualites");
   return {
     cabinetId: dossier.cabinet_id,
     donnees: {
@@ -50,6 +71,18 @@ async function donneesDossier(dossierId: string): Promise<{
       dossier_reference: dossier.reference ?? "",
       client_nom: clients[0]?.nom ?? "",
       cabinet_nom: cabinets[0]?.nom ?? "",
+      ...champsAnnuaireFusion({
+        parties: parties.map((partie) => ({ role: partie.role, contactId: partie.contact_id })),
+        intervenants: intervenants.map((ligne) => ({
+          id: ligne.id,
+          contactId: ligne.contact_id,
+          code: ligne.code,
+          rattacheA: ligne.rattache_a,
+        })),
+        codes: codes.map((ligne) => ligne.code),
+        contacts: annuaire.contacts,
+        liens: annuaire.liens,
+      }),
     },
   };
 }

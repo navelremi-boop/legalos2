@@ -29,7 +29,17 @@ if (dependances.some((nom) => nom.startsWith("docxtemplater-"))) fail("module pa
 ok("cœur gratuit de docxtemplater, aucun module payant");
 
 const catalogue = readFileSync(new URL("../../docs/modeles-champs.md", import.meta.url), "utf8");
-for (const champ of ["dossier_nom", "dossier_reference", "client_nom", "cabinet_nom"]) {
+for (const champ of [
+  "dossier_nom",
+  "dossier_reference",
+  "client_nom",
+  "client_designation",
+  "client_adresse",
+  "client_representant_designation",
+  "adversaire_designation",
+  "cabinet_nom",
+  "intervenants_<code>",
+]) {
   if (!catalogue.includes(`\`${champ}\``)) fail(`catalogue sans ${champ}`);
 }
 ok("catalogue des champs");
