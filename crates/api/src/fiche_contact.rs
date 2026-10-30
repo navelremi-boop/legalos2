@@ -58,11 +58,36 @@ pub fn valider_capital(centimes: i64) -> Result<(), ApiError> {
     Ok(())
 }
 
+const GENRES_COORDONNEE: &[&str] = &["adresse", "telephone", "email", "site"];
+const USAGES_COORDONNEE: &[&str] = &[
+    "domicile",
+    "siege",
+    "correspondance",
+    "facturation",
+    "cabinet",
+    "etude",
+    "autre",
+];
+
+pub fn valider_genre_coordonnee(genre: &str) -> Result<(), ApiError> {
+    if !GENRES_COORDONNEE.contains(&genre) {
+        return Err(ApiError::bad_request("Genre de coordonnée inconnu"));
+    }
+    Ok(())
+}
+
+pub fn valider_usage_coordonnee(usage: &str) -> Result<(), ApiError> {
+    if !USAGES_COORDONNEE.contains(&usage) {
+        return Err(ApiError::bad_request("Type de coordonnée inconnu"));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         valider_accord, valider_capital, valider_civilite, valider_date_naissance,
-        valider_profession_reglementee,
+        valider_genre_coordonnee, valider_profession_reglementee, valider_usage_coordonnee,
     };
 
     #[test]
@@ -82,5 +107,9 @@ mod tests {
         assert!(valider_date_naissance("14/03/1980").is_err());
         assert!(valider_capital(0).is_ok());
         assert!(valider_capital(-1).is_err());
+        assert!(valider_genre_coordonnee("adresse").is_ok());
+        assert!(valider_genre_coordonnee("fax").is_err());
+        assert!(valider_usage_coordonnee("domicile").is_ok());
+        assert!(valider_usage_coordonnee("fax").is_err());
     }
 }

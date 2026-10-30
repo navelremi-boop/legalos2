@@ -260,6 +260,22 @@ export interface paths {
         patch: operations["patch_contact"];
         trace?: never;
     };
+    "/contacts/{contact_id}/coordonnees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["creer_coordonnee"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/contacts/{contact_id}/historique": {
         parameters: {
             query?: never;
@@ -1695,6 +1711,18 @@ export interface components {
             toque?: string | null;
             type_client: string;
         };
+        CoordonneeResponse: {
+            /** Format: uuid */
+            contact_id: string;
+            genre: string;
+            /** Format: uuid */
+            id: string;
+            principale: boolean;
+            /** Format: int64 */
+            revision: number;
+            usage: string;
+            valeur: string;
+        };
         CorpsMessage: {
             texte: string;
         };
@@ -1797,6 +1825,16 @@ export interface components {
             specialite?: string | null;
             toque?: string | null;
             type_client: string;
+        };
+        CreerCoordonneeRequest: {
+            genre: string;
+            /** Format: uuid */
+            id: string;
+            idempotence_cle: string;
+            pays?: string | null;
+            principale: boolean;
+            usage: string;
+            valeur: string;
         };
         CreerDocumentRequest: {
             /** Format: uuid */
@@ -3470,6 +3508,60 @@ export interface operations {
                 };
             };
             /** @description Requête invalide (clé d'idempotence, version de base, type de client, SIREN ou TVA) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Contact introuvable */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    creer_coordonnee: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifiant du contact */
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreerCoordonneeRequest"];
+            };
+        };
+        responses: {
+            /** @description Coordonnée créée ou déjà présente */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoordonneeResponse"];
+                };
+            };
+            /** @description Requête invalide */
             400: {
                 headers: {
                     [name: string]: unknown;

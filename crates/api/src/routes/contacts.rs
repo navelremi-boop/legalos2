@@ -108,6 +108,28 @@ pub struct PatchContactRequest {
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
+pub struct CreerCoordonneeRequest {
+    pub id: Uuid,
+    pub idempotence_cle: String,
+    pub genre: String,
+    pub usage: String,
+    pub valeur: String,
+    pub principale: bool,
+    pub pays: Option<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct CoordonneeResponse {
+    pub id: Uuid,
+    pub contact_id: Uuid,
+    pub genre: String,
+    pub usage: String,
+    pub valeur: String,
+    pub principale: bool,
+    pub revision: i64,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct LierDossiersRequest {
     pub id: Uuid,
     pub idempotence_cle: String,
@@ -787,6 +809,157 @@ async fn inserer_lien(
     .await
     .map_err(|_| ApiError::internal("lien de dossiers"))?;
     Ok(())
+}
+
+#[utoipa::path(
+    post,
+    path = "/contacts/{contact_id}/coordonnees",
+    tag = "contacts",
+    security(("bearer_auth" = [])),
+    params(("contact_id" = Uuid, Path, description = "Identifiant du contact")),
+    request_body = CreerCoordonneeRequest,
+    responses(
+        (status = 200, description = "Coordonnée créée ou déjà présente", body = CoordonneeResponse),
+        (status = 400, description = "Requête invalide", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Contact introuvable", body = crate::error::ApiErrorBody),
+    )
+)]
+pub async fn creer_coordonnee(
+    State(state): State<Arc<AppState>>,
+    AuthAccess(claims): AuthAccess,
+    axum::extract::Path(contact_id): axum::extract::Path<Uuid>,
+    Json(body): Json<CreerCoordonneeRequest>,
+) -> Result<Json<CoordonneeResponse>, ApiError> {
+    if body.idempotence_cle.trim().is_empty() {
+        return Err(ApiError::bad_request("Clé d'idempotence requise"));
+    }
+    let valeur = body.valeur.trim();
+    if valeur.is_empty() {
+        return Err(ApiError::bad_request("Coordonnée requise"));
+    }
+    crate::fiche_contact::valider_genre_coordonnee(&body.genre)?;
+    crate::fiche_contact::valider_usage_coordonnee(&body.usage)?;
+    let mut tx = state
+        .pool
+        .begin()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+    let existe = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS(SELECT 1 FROM contacts WHERE id = $1 AND cabinet_id = $2)",
+    )
+    .bind(contact_id)
+    .bind(claims.cabinet_id)
+    .fetch_one(
+        tx.acquire()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?,
+    )
+    .await
+    .map_err(|_| ApiError::internal("lecture contact"))?;
+    if !existe {
+        return Err(ApiError::not_found("Contact introuvable"));
+    }
+    let cle = cle_idempotence(claims.poste_id, &body.idempotence_cle);
+    if !reserver_idempotence(&mut tx, &cle).await? {
+        tx.commit()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?;
+        return lire_coordonnee(&state, claims.cabinet_id, body.id)
+            .await
+            .map(Json);
+    }
+    if body.principale {
+        sqlx::query(
+            r#"
+            UPDATE contact_coordonnees
+            SET principale = FALSE, revision = revision + 1
+            WHERE contact_id = $1 AND cabinet_id = $2 AND genre = $3 AND principale
+            "#,
+        )
+        .bind(contact_id)
+        .bind(claims.cabinet_id)
+        .bind(&body.genre)
+        .execute(
+            tx.acquire()
+                .await
+                .map_err(|_| ApiError::internal("Transaction"))?,
+        )
+        .await
+        .map_err(|_| ApiError::internal("coordonnée principale"))?;
+    }
+    sqlx::query(
+        r#"
+        INSERT INTO contact_coordonnees (
+            id, cabinet_id, contact_id, genre, usage, valeur, principale, pays, revision
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1)
+        "#,
+    )
+    .bind(body.id)
+    .bind(claims.cabinet_id)
+    .bind(contact_id)
+    .bind(&body.genre)
+    .bind(&body.usage)
+    .bind(valeur)
+    .bind(body.principale)
+    .bind(texte_option(&body.pays))
+    .execute(
+        tx.acquire()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?,
+    )
+    .await
+    .map_err(|_| ApiError::internal("création coordonnée"))?;
+    noter_historique(
+        &mut tx,
+        &ContexteChamp {
+            cabinet_id: claims.cabinet_id,
+            poste_id: claims.poste_id,
+            auteur_id: claims.sub,
+            base_revision: 1,
+            enregistrement_id: body.id,
+            table_cible: "contact_coordonnees",
+            dossier_id: None,
+        },
+        "valeur",
+        valeur,
+    )
+    .await?;
+    tx.commit()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+    lire_coordonnee(&state, claims.cabinet_id, body.id)
+        .await
+        .map(Json)
+}
+
+async fn lire_coordonnee(
+    state: &AppState,
+    cabinet_id: Uuid,
+    id: Uuid,
+) -> Result<CoordonneeResponse, ApiError> {
+    let row = sqlx::query_as::<_, (Uuid, String, String, String, bool, i64)>(
+        r#"
+        SELECT contact_id, genre, usage, valeur, principale, revision
+        FROM contact_coordonnees WHERE id = $1 AND cabinet_id = $2
+        "#,
+    )
+    .bind(id)
+    .bind(cabinet_id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("lecture coordonnée"))?
+    .ok_or_else(|| ApiError::not_found("Coordonnée introuvable"))?;
+    Ok(CoordonneeResponse {
+        id,
+        contact_id: row.0,
+        genre: row.1,
+        usage: row.2,
+        valeur: row.3,
+        principale: row.4,
+        revision: row.5,
+    })
 }
 
 async fn lire_contact(

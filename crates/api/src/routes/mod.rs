@@ -57,6 +57,10 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/contacts", post(contacts::creer_contact))
         .route("/contacts/{contact_id}", patch(contacts::patch_contact))
         .route(
+            "/contacts/{contact_id}/coordonnees",
+            post(contacts::creer_coordonnee),
+        )
+        .route(
             "/contacts/{contact_id}/historique",
             get(contacts::historique_contact),
         )

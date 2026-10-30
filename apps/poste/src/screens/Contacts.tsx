@@ -12,6 +12,7 @@ import {
   libelleTypeClient,
   ONGLETS_FICHE,
   type ContactListe,
+  type CoordonneeLue,
   type FiltreContacts,
   type NatureContactListe,
   type OngletFicheContact,
@@ -19,6 +20,7 @@ import {
   type TypeClientListe,
 } from "@/contacts/listeContacts";
 import { designationActe } from "@/contacts/designation";
+import { ecrireCoordonnee, type GenreCoordonnee, type UsageCoordonnee } from "@/contacts/ecrireCoordonnee";
 import { Feuille } from "@/coque/Feuille";
 import { fr } from "@/lib/fr";
 import { getPowerSyncDatabase } from "@/sync/database";
@@ -56,6 +58,7 @@ type CoordSql = {
   usage: string;
   valeur: string;
   principale: number | null;
+  cree_le: string | null;
 };
 
 const VIDE_ONGLET: Record<Exclude<OngletFicheContact, "general">, string> = {
@@ -115,6 +118,7 @@ type ContactsProps = {
 
 export function Contacts({ lignesFixes }: ContactsProps = {}) {
   const [lignesSync, setLignesSync] = useState<ContactListe[] | null>(null);
+  const [coordsSync, setCoordsSync] = useState<CoordonneeLue[]>([]);
   const [filtre, setFiltre] = useState<FiltreContacts>("tous");
   const [recherche, setRecherche] = useState("");
   const [selection, setSelection] = useState<string | null>(null);
@@ -135,7 +139,7 @@ export function Contacts({ lignesFixes }: ContactsProps = {}) {
              FROM contacts ORDER BY nom COLLATE NOCASE`,
           );
           const coords = await database.getAll<CoordSql>(
-            "SELECT contact_id, genre, usage, valeur, principale FROM contact_coordonnees",
+            "SELECT contact_id, genre, usage, valeur, principale, cree_le FROM contact_coordonnees",
           );
           if (ignore) return;
           const contacts: ContactListe[] = [];
@@ -143,18 +147,16 @@ export function Contacts({ lignesFixes }: ContactsProps = {}) {
             const contact = versContact(ligne);
             if (contact !== null) contacts.push(contact);
           }
-          setLignesSync(
-            appliquerCoordonnees(
-              contacts,
-              coords.map((ligne) => ({
-                contactId: ligne.contact_id,
-                genre: ligne.genre,
-                usage: ligne.usage,
-                valeur: ligne.valeur,
-                principale: ligne.principale === 1,
-              })),
-            ),
-          );
+          const lues: CoordonneeLue[] = coords.map((ligne) => ({
+            contactId: ligne.contact_id,
+            genre: ligne.genre,
+            usage: ligne.usage,
+            valeur: ligne.valeur,
+            principale: ligne.principale === 1,
+            creeLe: ligne.cree_le ?? "",
+          }));
+          setCoordsSync(lues);
+          setLignesSync(appliquerCoordonnees(contacts, lues));
         } catch {
           if (!ignore) setLignesSync([]);
         }
@@ -293,7 +295,10 @@ export function Contacts({ lignesFixes }: ContactsProps = {}) {
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4" role="tabpanel">
                   {onglet === "general" ? (
-                    <FicheGenerale contact={choisi} />
+                    <FicheGenerale
+                      contact={choisi}
+                      coordonnees={coordsSync.filter((ligne) => ligne.contactId === choisi.id)}
+                    />
                   ) : (
                     <p className="etat-vide">{fr(VIDE_ONGLET[onglet])}</p>
                   )}
@@ -307,9 +312,37 @@ export function Contacts({ lignesFixes }: ContactsProps = {}) {
   );
 }
 
-function FicheGenerale({ contact }: { contact: ContactListe }) {
+const GENRES_COORDONNEE: { id: GenreCoordonnee; label: string }[] = [
+  { id: "adresse", label: "Adresse" },
+  { id: "telephone", label: "Téléphone" },
+  { id: "email", label: "E-mail" },
+  { id: "site", label: "Site" },
+];
+
+const USAGES_COORDONNEE: { id: UsageCoordonnee; label: string }[] = [
+  { id: "domicile", label: "Domicile" },
+  { id: "siege", label: "Siège" },
+  { id: "correspondance", label: "Correspondance" },
+  { id: "facturation", label: "Facturation" },
+  { id: "cabinet", label: "Cabinet" },
+  { id: "etude", label: "Étude" },
+  { id: "autre", label: "Autre" },
+];
+
+function FicheGenerale({
+  contact,
+  coordonnees,
+}: {
+  contact: ContactListe;
+  coordonnees: readonly CoordonneeLue[];
+}) {
   const acte = designationActe(contact);
   const [copie, setCopie] = useState(false);
+  const [genre, setGenre] = useState<GenreCoordonnee>("adresse");
+  const [usage, setUsage] = useState<UsageCoordonnee>(contact.nature === "morale" ? "siege" : "domicile");
+  const [valeur, setValeur] = useState("");
+  const [principale, setPrincipale] = useState(true);
+  const [message, setMessage] = useState("");
   return (
     <div className="flex flex-col gap-4">
       <div data-testid="contacts-designation">
@@ -358,6 +391,127 @@ function FicheGenerale({ contact }: { contact: ContactListe }) {
         <dt>{fr("Type de client")}</dt>
         <dd>{fr(libelleTypeClient(contact.typeClient))}</dd>
       </dl>
+      <div>
+        <p className="font-bold">{fr("Coordonnées")}</p>
+        {coordonnees.length === 0 ? (
+          <p className="etat-vide">{fr("Aucune coordonnée.")}</p>
+        ) : (
+          <ul data-testid="contacts-coordonnees">
+            {coordonnees.map((ligne) => (
+              <li key={`${ligne.genre}-${ligne.usage}-${ligne.creeLe}-${ligne.valeur}`} data-testid="contacts-coordonnee">
+                {fr(`${libelleGenre(ligne.genre)}, ${libelleUsage(ligne.usage)} : ${ligne.valeur}`)}
+                {ligne.principale ? fr(" (principale)") : ""}
+              </li>
+            ))}
+          </ul>
+        )}
+        <form
+            className="mt-3 flex flex-col gap-2"
+            data-testid="contacts-coordonnee-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setMessage("");
+              void ecrireCoordonnee({
+                contactId: contact.id,
+                genre,
+                usage,
+                valeur,
+                principale,
+              }).then(
+                () => {
+                  setValeur("");
+                  setMessage("Coordonnée enregistrée.");
+                },
+                () => {
+                  setMessage("La coordonnée n'a pas pu être enregistrée.");
+                },
+              );
+            }}
+          >
+            <label>
+              <span className="sr-only">{fr("Genre")}</span>
+              <select
+                className="champ"
+                aria-label={fr("Genre de coordonnée")}
+                data-testid="contacts-coordonnee-genre"
+                value={genre}
+                onChange={(event) => {
+                  const choisi = event.target.value;
+                  if (choisi === "adresse" || choisi === "telephone" || choisi === "email" || choisi === "site") {
+                    setGenre(choisi);
+                  }
+                }}
+              >
+                {GENRES_COORDONNEE.map((entree) => (
+                  <option key={entree.id} value={entree.id}>
+                    {fr(entree.label)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span className="sr-only">{fr("Type")}</span>
+              <select
+                className="champ"
+                aria-label={fr("Type de coordonnée")}
+                data-testid="contacts-coordonnee-usage"
+                value={usage}
+                onChange={(event) => {
+                  const choisi = event.target.value;
+                  if (
+                    choisi === "domicile" ||
+                    choisi === "siege" ||
+                    choisi === "correspondance" ||
+                    choisi === "facturation" ||
+                    choisi === "cabinet" ||
+                    choisi === "etude" ||
+                    choisi === "autre"
+                  ) {
+                    setUsage(choisi);
+                  }
+                }}
+              >
+                {USAGES_COORDONNEE.map((entree) => (
+                  <option key={entree.id} value={entree.id}>
+                    {fr(entree.label)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <input
+              className="champ"
+              aria-label={fr("Valeur de la coordonnée")}
+              data-testid="contacts-coordonnee-valeur"
+              value={valeur}
+              onChange={(event) => {
+                setValeur(event.target.value);
+              }}
+            />
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                data-testid="contacts-coordonnee-principale"
+                checked={principale}
+                onChange={(event) => {
+                  setPrincipale(event.target.checked);
+                }}
+              />
+              {fr("Principale")}
+            </label>
+            <button type="submit" className="filtre" data-testid="contacts-coordonnee-ajouter">
+              {fr("Ajouter")}
+            </button>
+            {message !== "" ? <p data-testid="contacts-coordonnee-message">{fr(message)}</p> : null}
+          </form>
+      </div>
     </div>
   );
+}
+
+function libelleGenre(genre: string): string {
+  return GENRES_COORDONNEE.find((entree) => entree.id === genre)?.label ?? genre;
+}
+
+function libelleUsage(usage: string): string {
+  return USAGES_COORDONNEE.find((entree) => entree.id === usage)?.label ?? usage;
 }

@@ -1060,6 +1060,83 @@
         ]
       }
     },
+    "/contacts/{contact_id}/coordonnees": {
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "operationId": "creer_coordonnee",
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "description": "Identifiant du contact",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreerCoordonneeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Coordonnée créée ou déjà présente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoordonneeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Requête invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contact introuvable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/contacts/{contact_id}/historique": {
       "get": {
         "tags": [
@@ -6794,6 +6871,44 @@
           }
         }
       },
+      "CoordonneeResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "contact_id",
+          "genre",
+          "usage",
+          "valeur",
+          "principale",
+          "revision"
+        ],
+        "properties": {
+          "contact_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "genre": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "principale": {
+            "type": "boolean"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "usage": {
+            "type": "string"
+          },
+          "valeur": {
+            "type": "string"
+          }
+        }
+      },
       "CorpsMessage": {
         "type": "object",
         "required": [
@@ -7204,6 +7319,44 @@
             ]
           },
           "type_client": {
+            "type": "string"
+          }
+        }
+      },
+      "CreerCoordonneeRequest": {
+        "type": "object",
+        "required": [
+          "id",
+          "idempotence_cle",
+          "genre",
+          "usage",
+          "valeur",
+          "principale"
+        ],
+        "properties": {
+          "genre": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "idempotence_cle": {
+            "type": "string"
+          },
+          "pays": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "principale": {
+            "type": "boolean"
+          },
+          "usage": {
+            "type": "string"
+          },
+          "valeur": {
             "type": "string"
           }
         }

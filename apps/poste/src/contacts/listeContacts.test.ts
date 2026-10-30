@@ -101,6 +101,7 @@ describe("liste des contacts", () => {
           usage: "siege",
           valeur: "8 quai Saint-Vincent",
           principale: true,
+          creeLe: "2026-10-30T12:00:00Z",
         },
         {
           contactId: "3",
@@ -108,6 +109,7 @@ describe("liste des contacts", () => {
           usage: "domicile",
           valeur: "ignorée",
           principale: false,
+          creeLe: "2026-10-01T00:00:00Z",
         },
       ],
     );

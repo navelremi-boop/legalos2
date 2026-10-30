@@ -193,6 +193,7 @@ export type CoordonneeLue = {
   usage: string;
   valeur: string;
   principale: boolean;
+  creeLe: string;
 };
 
 /** Reprend l'adresse principale du domicile ou du siège, quand elle existe. */
@@ -209,14 +210,15 @@ export function appliquerCoordonnees(contacts: readonly ContactListe[], lignes: 
 }
 
 function adressePrincipale(lignes: readonly CoordonneeLue[], contactId: string, usage: string): string | null {
-  const trouve = lignes.find(
+  const trouvees = lignes.filter(
     (ligne) =>
       ligne.contactId === contactId &&
       ligne.genre === "adresse" &&
       ligne.usage === usage &&
       ligne.principale,
   );
-  const valeur = trouve?.valeur.trim() ?? "";
+  trouvees.sort((a, b) => b.creeLe.localeCompare(a.creeLe));
+  const valeur = trouvees[0]?.valeur.trim() ?? "";
   return valeur === "" ? null : valeur;
 }
 

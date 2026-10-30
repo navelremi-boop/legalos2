@@ -303,6 +303,18 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
         champs_entiers: &["capital_centimes"],
         champs_booleens: &[],
     };
+    static COORDONNEES: Ressource = Ressource {
+        table: "contact_coordonnees",
+        patch_chemin: |id| format!("/api/coordonnees/{id}"),
+        put_chemin: |data| {
+            let contact_id = json_text(data.get("contact_id"))
+                .ok_or_else(|| "contact de la coordonnée absent".to_string())?;
+            Ok(format!("/api/contacts/{contact_id}/coordonnees"))
+        },
+        champs_modifiables: &["genre", "usage", "valeur", "pays"],
+        champs_entiers: &[],
+        champs_booleens: &["principale"],
+    };
     static DOSSIER_LIENS: Ressource = Ressource {
         table: "dossier_liens",
         patch_chemin: |id| format!("/api/dossier-liens/{id}"),
@@ -337,6 +349,7 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
         "intercalaires_personnalises" => Some(&INTERCALAIRES),
         "intercalaire_elements" => Some(&INTERCALAIRE_ELEMENTS),
         "contacts" => Some(&CONTACTS),
+        "contact_coordonnees" => Some(&COORDONNEES),
         "dossier_liens" => Some(&DOSSIER_LIENS),
         "agenda_elements" => Some(&AGENDA),
         _ => None,
