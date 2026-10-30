@@ -48,6 +48,9 @@ pub struct CreerContactRequest {
     pub toque: Option<String>,
     pub specialite: Option<String>,
     pub cour_appel: Option<String>,
+    /// Vrai quand la fiche est créée à partir d'une proposition de registre retenue.
+    #[serde(default)]
+    pub depuis_registre: bool,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -313,6 +316,9 @@ pub async fn creer_contact(
     )
     .await
     .map_err(|_| ApiError::internal("création contact"))?;
+    if body.depuis_registre {
+        crate::recherche_entreprises::poser_marque(&mut tx, body.id).await?;
+    }
     noter_historique(
         &mut tx,
         &ContexteChamp {
@@ -882,6 +888,125 @@ pub async fn rechercher_siren(
     )
     .await
     .map(Json)
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct AppliquerImportRequest {
+    pub idempotence_cle: String,
+    pub denomination: Option<String>,
+    pub forme: Option<String>,
+    pub activite: Option<String>,
+    pub adresse_siege: Option<String>,
+    pub adresse_id: Option<Uuid>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ImportEnregistre {
+    pub source_import: String,
+    pub importe_le: String,
+}
+
+#[utoipa::path(
+    post,
+    path = "/contacts/{contact_id}/import-siren",
+    tag = "contacts",
+    security(("bearer_auth" = [])),
+    params(("contact_id" = Uuid, Path, description = "Fiche à mettre à jour")),
+    request_body = AppliquerImportRequest,
+    responses(
+        (status = 200, description = "Champs retenus enregistrés, source et date consignées", body = ImportEnregistre),
+        (status = 400, description = "Aucun champ retenu", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Contact introuvable", body = crate::error::ApiErrorBody),
+    )
+)]
+pub async fn appliquer_import_siren(
+    State(state): State<Arc<AppState>>,
+    AuthAccess(claims): AuthAccess,
+    axum::extract::Path(contact_id): axum::extract::Path<Uuid>,
+    Json(body): Json<AppliquerImportRequest>,
+) -> Result<Json<ImportEnregistre>, ApiError> {
+    if body.idempotence_cle.trim().is_empty() {
+        return Err(ApiError::bad_request("Clé d'idempotence requise"));
+    }
+    let (champs, adresse_id) = crate::recherche_entreprises::retenir_champs(
+        body.denomination,
+        body.forme,
+        body.activite,
+        body.adresse_siege,
+        body.adresse_id,
+    )?;
+    let mut tx = state
+        .pool
+        .begin()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+    let cle = cle_idempotence(claims.poste_id, &body.idempotence_cle);
+    if !reserver_idempotence(&mut tx, &cle).await? {
+        tx.commit()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?;
+        return lire_import(&state, claims.cabinet_id, contact_id)
+            .await
+            .map(Json);
+    }
+    crate::recherche_entreprises::enregistrer_import(
+        &mut tx,
+        claims.cabinet_id,
+        contact_id,
+        adresse_id,
+        &champs,
+    )
+    .await?;
+    if let Some(denomination) = champs.denomination.as_deref() {
+        noter_historique(
+            &mut tx,
+            &ContexteChamp {
+                cabinet_id: claims.cabinet_id,
+                poste_id: claims.poste_id,
+                auteur_id: claims.sub,
+                base_revision: 1,
+                enregistrement_id: contact_id,
+                table_cible: "contacts",
+                dossier_id: None,
+            },
+            "nom",
+            denomination,
+        )
+        .await?;
+    }
+    tx.commit()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+    lire_import(&state, claims.cabinet_id, contact_id)
+        .await
+        .map(Json)
+}
+
+async fn lire_import(
+    state: &AppState,
+    cabinet_id: Uuid,
+    id: Uuid,
+) -> Result<ImportEnregistre, ApiError> {
+    let row = sqlx::query_as::<_, (Option<String>, Option<String>)>(
+        "SELECT source_import, importe_le::text FROM contacts WHERE id = $1 AND cabinet_id = $2",
+    )
+    .bind(id)
+    .bind(cabinet_id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("lecture import"))?
+    .ok_or_else(|| ApiError::not_found("Contact introuvable"))?;
+    let source = row
+        .0
+        .ok_or_else(|| ApiError::not_found("Import introuvable"))?;
+    let importe = row
+        .1
+        .ok_or_else(|| ApiError::not_found("Import introuvable"))?;
+    Ok(ImportEnregistre {
+        source_import: source,
+        importe_le: importe,
+    })
 }
 
 #[utoipa::path(

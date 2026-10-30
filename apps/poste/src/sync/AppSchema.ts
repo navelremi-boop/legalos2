@@ -255,6 +255,8 @@ const contacts = new Table(
     specialite: column.text,
     cour_appel: column.text,
     a_completer: column.integer,
+    source_import: column.text,
+    importe_le: column.text,
     revision: column.integer,
     cree_le: column.text,
   },

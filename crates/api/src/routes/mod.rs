@@ -66,6 +66,10 @@ pub fn router(state: Arc<AppState>) -> Router {
         )
         .route("/contacts/{contact_id}/liens", post(contacts::creer_lien))
         .route(
+            "/contacts/{contact_id}/import-siren",
+            post(contacts::appliquer_import_siren),
+        )
+        .route(
             "/contacts/{contact_id}/historique",
             get(contacts::historique_contact),
         )

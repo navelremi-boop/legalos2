@@ -308,6 +308,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/contacts/{contact_id}/import-siren": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["appliquer_import_siren"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/contacts/{contact_id}/liens": {
         parameters: {
             query?: never;
@@ -1541,6 +1557,15 @@ export interface components {
             /** @description `true` si `LEGALOS_OAUTH_MICROSOFT_CLIENT_ID` est renseigné. */
             microsoft: boolean;
         };
+        AppliquerImportRequest: {
+            activite?: string | null;
+            /** Format: uuid */
+            adresse_id?: string | null;
+            adresse_siege?: string | null;
+            denomination?: string | null;
+            forme?: string | null;
+            idempotence_cle: string;
+        };
         Autorisation: {
             state: string;
             url: string;
@@ -1853,6 +1878,8 @@ export interface components {
             civilite?: string | null;
             cour_appel?: string | null;
             date_naissance?: string | null;
+            /** @description Vrai quand la fiche est créée à partir d'une proposition de registre retenue. */
+            depuis_registre?: boolean;
             email?: string | null;
             forme?: string | null;
             greffe_rcs?: string | null;
@@ -2270,6 +2297,10 @@ export interface components {
             smtp_hote: string;
             /** Format: int32 */
             smtp_port: number;
+        };
+        ImportEnregistre: {
+            importe_le: string;
+            source_import: string;
         };
         IntercalaireResponse: {
             /** Format: uuid */
@@ -3776,6 +3807,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HistoriqueLigne"][];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Contact introuvable */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    appliquer_import_siren: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Fiche à mettre à jour */
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppliquerImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Champs retenus enregistrés, source et date consignées */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportEnregistre"];
+                };
+            };
+            /** @description Aucun champ retenu */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
                 };
             };
             /** @description Non authentifié */

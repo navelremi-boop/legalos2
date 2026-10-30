@@ -8,6 +8,7 @@ import {
 } from "@/contacts/propositionSiren";
 import type { ContactListe } from "@/contacts/listeContacts";
 import { fr } from "@/lib/fr";
+import { formatDateActe } from "@/lib/format";
 import { assurerJetonAcces } from "@/lib/session/rafraichir";
 
 const COCHES_VIDES: Record<ChampImport, boolean> = {
@@ -48,6 +49,7 @@ export function PropositionImport({
   const [proposition, setProposition] = useState<PropositionSiren | null>(null);
   const [coches, setCoches] = useState<Record<ChampImport, boolean>>(COCHES_VIDES);
   const [message, setMessage] = useState("");
+  const [source, setSource] = useState("");
   const siren = contact.siren?.trim() ?? "";
   if (contact.nature !== "morale" || siren === "") return null;
 
@@ -95,6 +97,54 @@ export function PropositionImport({
 
   const lignes = proposition === null ? [] : lignesProposition(contact, proposition);
   const retenus = proposition === null ? {} : champsRetenus(proposition, coches);
+  const enregistrer = () => {
+    if (Object.keys(retenus).length === 0) {
+      setMessage("Aucun champ retenu.");
+      return;
+    }
+    setMessage("");
+    if (instanceUrl === undefined || propositionFixe !== null) {
+      setSource("Source : Recherche d'entreprises.");
+      return;
+    }
+    const adresseId = retenus.adresseSiege === undefined ? undefined : crypto.randomUUID();
+    void (async () => {
+      const jeton = await assurerJetonAcces();
+      if (jeton === null) {
+        setMessage("La session a expiré. Reconnectez-vous.");
+        return;
+      }
+      try {
+        const reponse = await fetch(apiUrl(instanceUrl, `/contacts/${contact.id}/import-siren`), {
+          method: "POST",
+          headers: { authorization: `Bearer ${jeton}`, "content-type": "application/json" },
+          body: JSON.stringify({
+            idempotence_cle: crypto.randomUUID(),
+            denomination: retenus.denomination,
+            forme: retenus.forme,
+            activite: retenus.activite,
+            adresse_siege: retenus.adresseSiege,
+            adresse_id: adresseId,
+          }),
+          signal: AbortSignal.timeout(12_000),
+        });
+        const json: unknown = await reponse.json().catch(() => null);
+        if (!reponse.ok) {
+          const corps = json as { message?: string } | null;
+          setMessage(corps?.message ?? "L'import n'a pas été enregistré.");
+          return;
+        }
+        const importe =
+          json !== null && typeof json === "object" && typeof (json as { importe_le?: unknown }).importe_le === "string"
+            ? (json as { importe_le: string }).importe_le
+            : "";
+        const jour = formatDateActe(importe.slice(0, 10));
+        setSource(jour === "" ? "Source : Recherche d'entreprises." : `Source : Recherche d'entreprises, le ${jour}.`);
+      } catch {
+        setMessage("L'import n'a pas été enregistré. La saisie manuelle reste possible.");
+      }
+    })();
+  };
 
   return (
     <div className="flex flex-col gap-3" data-testid="contacts-import">
@@ -151,6 +201,20 @@ export function PropositionImport({
                     .join(", ")}.`,
             )}
           </p>
+          <button
+            type="button"
+            className="filtre mt-2"
+            data-testid="contacts-import-enregistrer"
+            disabled={Object.keys(retenus).length === 0}
+            onClick={enregistrer}
+          >
+            {fr("Enregistrer la sélection")}
+          </button>
+          {source !== "" ? (
+            <p className="mt-2" data-testid="contacts-import-source">
+              {fr(source)}
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>

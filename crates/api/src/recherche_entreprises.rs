@@ -92,6 +92,128 @@ pub fn source_import() -> &'static str {
     SOURCE
 }
 
+pub fn marque_registre(depuis: bool) -> Option<&'static str> {
+    if depuis {
+        Some(SOURCE)
+    } else {
+        None
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct ChampsImport {
+    pub denomination: Option<String>,
+    pub forme: Option<String>,
+    pub activite: Option<String>,
+    pub adresse_siege: Option<String>,
+}
+
+pub fn retenir_champs(
+    denomination: Option<String>,
+    forme: Option<String>,
+    activite: Option<String>,
+    adresse_siege: Option<String>,
+    adresse_id: Option<uuid::Uuid>,
+) -> Result<(ChampsImport, Option<uuid::Uuid>), ApiError> {
+    let champs = ChampsImport {
+        denomination: texte_utile(denomination),
+        forme: texte_utile(forme),
+        activite: texte_utile(activite),
+        adresse_siege: texte_utile(adresse_siege),
+    };
+    if champs.denomination.is_none()
+        && champs.forme.is_none()
+        && champs.activite.is_none()
+        && champs.adresse_siege.is_none()
+    {
+        return Err(ApiError::bad_request("Aucun champ retenu."));
+    }
+    if champs.adresse_siege.is_some() && adresse_id.is_none() {
+        return Err(ApiError::bad_request("Identifiant de l'adresse requis"));
+    }
+    Ok((champs, adresse_id))
+}
+
+pub async fn poser_marque(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    contact_id: uuid::Uuid,
+) -> Result<(), ApiError> {
+    sqlx::query(
+        "UPDATE contacts SET source_import = $2, importe_le = NOW() WHERE id = $1 AND source_import IS NULL",
+    )
+    .bind(contact_id)
+    .bind(SOURCE)
+    .execute(&mut **tx)
+    .await
+    .map_err(|_| ApiError::internal("marque d'import"))?;
+    Ok(())
+}
+
+pub async fn enregistrer_import(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    cabinet_id: uuid::Uuid,
+    contact_id: uuid::Uuid,
+    adresse_id: Option<uuid::Uuid>,
+    champs: &ChampsImport,
+) -> Result<(), ApiError> {
+    let modifie = sqlx::query(
+        r#"
+        UPDATE contacts SET
+            nom = COALESCE($3, nom),
+            forme = COALESCE($4, forme),
+            activite = COALESCE($5, activite),
+            source_import = $6,
+            importe_le = NOW(),
+            revision = revision + 1
+        WHERE id = $1 AND cabinet_id = $2
+        "#,
+    )
+    .bind(contact_id)
+    .bind(cabinet_id)
+    .bind(champs.denomination.as_deref())
+    .bind(champs.forme.as_deref())
+    .bind(champs.activite.as_deref())
+    .bind(SOURCE)
+    .execute(&mut **tx)
+    .await
+    .map_err(|_| ApiError::internal("import de fiche"))?;
+    if modifie.rows_affected() == 0 {
+        return Err(ApiError::not_found("Contact introuvable"));
+    }
+    if let Some(adresse) = champs.adresse_siege.as_deref() {
+        let id =
+            adresse_id.ok_or_else(|| ApiError::bad_request("Identifiant de l'adresse requis"))?;
+        sqlx::query(
+            r#"
+            UPDATE contact_coordonnees
+            SET principale = FALSE, revision = revision + 1
+            WHERE contact_id = $1 AND cabinet_id = $2 AND genre = 'adresse' AND principale
+            "#,
+        )
+        .bind(contact_id)
+        .bind(cabinet_id)
+        .execute(&mut **tx)
+        .await
+        .map_err(|_| ApiError::internal("adresse principale"))?;
+        sqlx::query(
+            r#"
+            INSERT INTO contact_coordonnees (
+                id, cabinet_id, contact_id, genre, usage, valeur, principale, revision
+            )
+            VALUES ($1, $2, $3, 'adresse', 'siege', $4, TRUE, 1)
+            "#,
+        )
+        .bind(id)
+        .bind(cabinet_id)
+        .bind(contact_id)
+        .bind(adresse)
+        .execute(&mut **tx)
+        .await
+        .map_err(|_| ApiError::internal("adresse du siège"))?;
+    }
+    Ok(())
+}
+
 fn chiffres(brut: &str) -> String {
     brut.chars().filter(|c| c.is_ascii_digit()).collect()
 }
@@ -197,7 +319,7 @@ pub fn cache_partage() -> &'static CacheRegistre {
 
 #[cfg(test)]
 mod tests {
-    use super::{preparer_siren, proposition_depuis_json, resoudre, CacheRegistre};
+    use super::{preparer_siren, proposition_depuis_json, resoudre, retenir_champs, CacheRegistre};
     use time::OffsetDateTime;
 
     fn fixture() -> serde_json::Value {
@@ -286,5 +408,21 @@ mod tests {
             assert_eq!(err.status(), axum::http::StatusCode::SERVICE_UNAVAILABLE);
         }
         assert!(cache.lire("100000009", maintenant).is_none());
+    }
+
+    #[test]
+    fn aucun_champ_nest_pas_retenu_et_un_champ_coche_loue() {
+        assert!(retenir_champs(None, None, None, None, None).is_err());
+        assert!(
+            retenir_champs(Some("   ".into()), None, None, Some("8 quai".into()), None).is_err()
+        );
+        let retenu = retenir_champs(Some("  DUCLOS ".into()), None, None, None, None);
+        assert!(retenu.is_ok());
+        if let Ok((champs, adresse)) = retenu {
+            assert_eq!(champs.denomination.as_deref(), Some("DUCLOS"));
+            assert!(champs.forme.is_none());
+            assert!(champs.activite.is_none());
+            assert!(adresse.is_none());
+        }
     }
 }

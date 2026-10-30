@@ -1273,6 +1273,83 @@
         ]
       }
     },
+    "/contacts/{contact_id}/import-siren": {
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "operationId": "appliquer_import_siren",
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "description": "Fiche à mettre à jour",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppliquerImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Champs retenus enregistrés, source et date consignées",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportEnregistre"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Aucun champ retenu",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contact introuvable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/contacts/{contact_id}/liens": {
       "post": {
         "tags": [
@@ -6312,6 +6389,48 @@
           }
         }
       },
+      "AppliquerImportRequest": {
+        "type": "object",
+        "required": [
+          "idempotence_cle"
+        ],
+        "properties": {
+          "activite": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "adresse_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "adresse_siege": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "denomination": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "forme": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "idempotence_cle": {
+            "type": "string"
+          }
+        }
+      },
       "Autorisation": {
         "type": "object",
         "required": [
@@ -7450,6 +7569,10 @@
               "string",
               "null"
             ]
+          },
+          "depuis_registre": {
+            "type": "boolean",
+            "description": "Vrai quand la fiche est créée à partir d'une proposition de registre retenue."
           },
           "email": {
             "type": [
@@ -8868,6 +8991,21 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          }
+        }
+      },
+      "ImportEnregistre": {
+        "type": "object",
+        "required": [
+          "source_import",
+          "importe_le"
+        ],
+        "properties": {
+          "importe_le": {
+            "type": "string"
+          },
+          "source_import": {
+            "type": "string"
           }
         }
       },
