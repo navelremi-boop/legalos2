@@ -23,6 +23,8 @@ type PaletteCommandesProps = {
   ) => void;
   /** Commande « Nouveau dossier » depuis la palette. */
   onNouveauDossier?: () => void;
+  /** Ouvre l'écran Contacts. */
+  onOuvrirContacts?: () => void;
   /** Démarre ouverte (panneau modal depuis la barre). */
   ouverteParDefaut?: boolean;
 };
@@ -30,6 +32,7 @@ type PaletteCommandesProps = {
 export function PaletteCommandes({
   onChoisirDossier,
   onNouveauDossier,
+  onOuvrirContacts,
   ouverteParDefaut = false,
 }: PaletteCommandesProps = {}) {
   const [ouverte, setOuverte] = useState(ouverteParDefaut);
@@ -114,6 +117,23 @@ export function PaletteCommandes({
               }}
             >
               {fr("Nouveau dossier")}
+            </button>
+          </li>
+        ) : null}
+        {onOuvrirContacts !== undefined &&
+        (requete.trim() === "" || /contact/i.test(requete)) ? (
+          <li>
+            <button
+              type="button"
+              className="w-full rounded-[var(--radius-control)] px-2 py-1.5 text-left font-bold hover:bg-survol"
+              data-testid="palette-contacts"
+              onClick={() => {
+                onOuvrirContacts();
+                setOuverte(false);
+                setRequete("");
+              }}
+            >
+              {fr("Contacts")}
             </button>
           </li>
         ) : null}

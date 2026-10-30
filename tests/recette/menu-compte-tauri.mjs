@@ -3,7 +3,7 @@
  * Coque claire — le menu du compte dans l'application Tauri (PLAN, jalon « Coque claire »).
  *
  * Application connectée : Temps, Réglages et Palette de commandes s'ouvrent depuis le menu ; la
- * navigation principale n'a que cinq entrées ; Se déconnecter ramène à l'écran de connexion.
+ * navigation principale place Contacts entre Dossiers et Mails ; Se déconnecter ramène à l'écran de connexion.
  * Application relancée (coque locale hors ligne) : Verrouiller ramène à l'authentification sans
  * perdre les données locales.
  * Lancement par `ouvrirPoste` (relance unique sur la signature « #root vide »).
@@ -17,7 +17,7 @@ const session = creerSession("menu-compte-tauri");
 const { fail, ok, assurerInstance, evaluate, marque } = session;
 const POSTE = "mca";
 const PORT = "9281";
-const NAVIGATION = ["journee", "dossiers", "mails", "agenda", "facturation"];
+const NAVIGATION = ["journee", "dossiers", "contacts", "mails", "agenda", "facturation"];
 
 await assurerInstance();
 session.resetPostes([POSTE]);
@@ -68,7 +68,7 @@ const creds = { email: demoEmail, password: demoPassword, secret: totpSecretB32,
       `JSON.stringify([...document.querySelectorAll("[data-testid^=nav-]")].map((e) => e.getAttribute("data-testid").replace("nav-", "")))`,
     );
     if (nav !== JSON.stringify(NAVIGATION)) fail(`navigation principale : ${nav} au lieu de ${JSON.stringify(NAVIGATION)}`);
-    ok("navigation principale : cinq entrées (La journée, Dossiers, Mails, Agenda, Facturation)");
+    ok("navigation principale : La journée, Dossiers, Contacts, Mails, Agenda, Facturation");
 
     await ouvrirMenu(send);
     const entrees = await evaluate(

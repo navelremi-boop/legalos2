@@ -15,6 +15,8 @@ import { EcranMails, type DemonstrationMails } from "@/messagerie/EcranMails";
 import type { InvitationLocale } from "@/messagerie/typesMails";
 import type { DemonstrationMessagerie } from "@/messagerie/ReglagesMessagerie";
 import { Dossiers } from "@/screens/Dossiers";
+import { Contacts } from "@/screens/Contacts";
+import type { ContactListe } from "@/contacts/listeContacts";
 import { Journee } from "@/screens/Journee";
 import { EcranConnexion } from "@/onboarding/EcranConnexion";
 import {
@@ -25,6 +27,36 @@ import {
 import { Reglages } from "@/screens/Reglages";
 import type { ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
+
+const CONTACTS_DEMO: ContactListe[] = [
+  {
+    id: "anne",
+    nature: "physique",
+    nom: "Anne Perrin",
+    siren: null,
+    numeroTva: null,
+    typeClient: "professionnel",
+    professionReglementee: true,
+  },
+  {
+    id: "martin",
+    nature: "physique",
+    nom: "Martin",
+    siren: null,
+    numeroTva: null,
+    typeClient: "particulier",
+    professionReglementee: false,
+  },
+  {
+    id: "duclos",
+    nature: "morale",
+    nom: "SARL Duclos Industrie",
+    siren: "123456789",
+    numeroTva: null,
+    typeClient: "professionnel",
+    professionReglementee: false,
+  },
+];
 
 function jourDans(jours: number): string {
   return decalerJour(jourCivil(new Date()), jours);
@@ -168,7 +200,16 @@ export function GalerieDemo() {
   /** Dernière entrée choisie dans le menu du compte (la galerie n'exécute rien), lue par les recettes. */
   const [dernierChoixCompte, setDernierChoixCompte] = useState("");
   const [vue, setVue] = useState<
-    "dossier" | "journee" | "dossiers" | "mails" | "agenda" | "facturation" | "reglages" | "temps" | "connexion"
+    | "dossier"
+    | "journee"
+    | "dossiers"
+    | "contacts"
+    | "mails"
+    | "agenda"
+    | "facturation"
+    | "reglages"
+    | "temps"
+    | "connexion"
   >("dossier");
   const [etatConnexion, setEtatConnexion] = useState<EtatConnexion>("adresse");
   const [chronoTemps, setChronoTemps] = useState<EtatChrono>({
@@ -642,6 +683,7 @@ export function GalerieDemo() {
           {(
             [
               ["dossiers", "Dossiers"],
+              ["contacts", "Contacts"],
               ["mails", "Mails"],
               ["agenda", "Agenda"],
               ["facturation", "Facturation"],
@@ -654,6 +696,7 @@ export function GalerieDemo() {
               key={id}
               type="button"
               className={`px-3 py-1.5 ${vue === id ? "bg-encre font-bold text-feuille" : "text-graphite"}`}
+              data-testid={`galerie-vue-${id}`}
               onClick={() => {
                 setVue(id);
               }}
@@ -781,6 +824,7 @@ export function GalerieDemo() {
               onSaisirTemps={() => undefined}
             />
           ) : null}
+          {vue === "contacts" ? <Contacts lignesFixes={CONTACTS_DEMO} /> : null}
           {vue === "mails" ? (
             <EcranMails
               instanceUrl="http://127.0.0.1:8088"

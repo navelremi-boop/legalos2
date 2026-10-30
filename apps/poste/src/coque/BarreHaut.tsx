@@ -14,6 +14,7 @@ import { libelleEtiquetteReference, libelleReferenceDossier } from "@/lib/refere
 export type NavId =
   | "journee"
   | "dossiers"
+  | "contacts"
   | "mails"
   | "agenda"
   | "facturation"
@@ -56,6 +57,7 @@ type BarreHautProps = {
 const NAV: { id: NavId; label: string }[] = [
   { id: "journee", label: "La journée" },
   { id: "dossiers", label: "Dossiers" },
+  { id: "contacts", label: "Contacts" },
   { id: "mails", label: "Mails" },
   { id: "agenda", label: "Agenda" },
   { id: "facturation", label: "Facturation" },

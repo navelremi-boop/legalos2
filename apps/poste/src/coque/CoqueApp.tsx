@@ -30,6 +30,7 @@ import { libelleReferenceDossier } from "@/lib/referenceDossier";
 import { clearSession, loadSessionTokens } from "@/lib/session/storage";
 import { DossierOuvert, type DossierVue } from "@/screens/DossierOuvert";
 import { Dossiers } from "@/screens/Dossiers";
+import { Contacts } from "@/screens/Contacts";
 import { CONDITION_SQL_A_CLASSER } from "@/messagerie/classement";
 import { EcranMails } from "@/messagerie/EcranMails";
 import { Journee } from "@/screens/Journee";
@@ -443,6 +444,8 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect, onVerrouill
         }}
       />
     );
+  } else if (nav === "contacts") {
+    contenu = <Contacts />;
   } else if (nav === "temps") {
     contenu = (
       <EcranTemps
@@ -677,6 +680,10 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect, onVerrouill
                 onChoisirDossier={ouvrirDossier}
                 onNouveauDossier={() => {
                   setPanneau("dossier-form");
+                }}
+                onOuvrirContacts={() => {
+                  setNav("contacts");
+                  setPanneau("aucun");
                 }}
               />
             ) : null}

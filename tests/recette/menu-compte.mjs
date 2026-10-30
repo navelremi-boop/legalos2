@@ -4,7 +4,7 @@
  *
  * - s'ouvre au clic et à la touche Entrée (Espace aussi) ; se ferme par Échap et par clic extérieur ;
  * - cinq entrées : Temps, Réglages, Palette de commandes, Verrouiller, Se déconnecter ;
- * - la navigation principale n'a que cinq entrées (La journée, Dossiers, Mails, Agenda, Facturation) ;
+ * - la navigation principale a six entrées (La journée, Dossiers, Contacts, Mails, Agenda, Facturation) ;
  * - `data-testid` stables ; le menu n'est pas coupé par la barre (`overflow: hidden`).
  * Que Temps et Réglages s'ouvrent vraiment depuis lui : `menu-compte-tauri.mjs` (application).
  *
@@ -31,7 +31,7 @@ const ENTREES = [
   ["menu-compte-verrouiller", "Verrouiller", "verrouiller"],
   ["menu-compte-deconnexion", "Se déconnecter", "deconnexion"],
 ];
-const NAVIGATION = ["journee", "dossiers", "mails", "agenda", "facturation"];
+const NAVIGATION = ["journee", "dossiers", "contacts", "mails", "agenda", "facturation"];
 
 let chromium;
 try {
@@ -79,14 +79,14 @@ try {
   if (avatar.nom !== "Menu du compte") fail(`avatar : nom accessible ${avatar.nom}`);
   ok("état initial : fermé, avatar « JM » de 32 px, texte « Compte » conservé");
 
-  // — navigation principale : cinq entrées, ni Temps ni Réglages —
+  // — navigation principale : six entrées, ni Temps ni Réglages —
   const nav = await page.locator("[data-testid^=nav-]").evaluateAll((els) =>
     els.map((e) => e.getAttribute("data-testid")?.replace("nav-", "")),
   );
   if (JSON.stringify(nav) !== JSON.stringify(NAVIGATION)) {
     fail(`navigation principale : ${JSON.stringify(nav)} au lieu de ${JSON.stringify(NAVIGATION)}`);
   }
-  ok("navigation principale : La journée, Dossiers, Mails, Agenda, Facturation (cinq entrées)");
+  ok("navigation principale : La journée, Dossiers, Contacts, Mails, Agenda, Facturation");
 
   // — ouverture au clic —
   await bouton.click();
