@@ -1,12 +1,15 @@
 import { useState } from "react";
-import { fichesDuDirigeant, type DirigeantRegistre } from "@/contacts/dirigeants";
+import { fichesDuDirigeant, lienDepuisDirigeant, type DirigeantRegistre } from "@/contacts/dirigeants";
 import { champsFicheVides, type ContactListe } from "@/contacts/listeContacts";
+import type { LienAffiche } from "@/contacts/liensContacts";
 import { fr } from "@/lib/fr";
 
 type DirigeantsProposesProps = {
   dirigeants: readonly DirigeantRegistre[];
   contacts: readonly ContactListe[];
+  societe?: Pick<ContactListe, "id" | "nom">;
   onCreer: (contact: ContactListe) => void;
+  onRelier?: (lien: LienAffiche) => Promise<void> | void;
 };
 
 function libelle(dirigeant: DirigeantRegistre): string {
@@ -18,7 +21,7 @@ function libelle(dirigeant: DirigeantRegistre): string {
   return `${nom}${naissance}`;
 }
 
-export function DirigeantsProposes({ dirigeants, contacts, onCreer }: DirigeantsProposesProps) {
+export function DirigeantsProposes({ dirigeants, contacts, societe, onCreer, onRelier }: DirigeantsProposesProps) {
   const [choix, setChoix] = useState<Record<number, string>>({});
   if (dirigeants.length === 0) return null;
   return (
@@ -39,7 +42,18 @@ export function DirigeantsProposes({ dirigeants, contacts, onCreer }: Dirigeants
                     className="filtre"
                     data-testid="contacts-dirigeant-relier"
                     onClick={() => {
-                      setChoix((etatCourant) => ({ ...etatCourant, [index]: `Relié à ${fiche.prenoms ? `${fiche.prenoms} ` : ""}${fiche.nom}` }));
+                      const nomAffiche = fiche.prenoms ? `${fiche.prenoms} ${fiche.nom}` : fiche.nom;
+                      const poser = () => {
+                        setChoix((etatCourant) => ({ ...etatCourant, [index]: `Relié à ${nomAffiche}` }));
+                      };
+                      if (societe === undefined || onRelier === undefined) {
+                        poser();
+                        return;
+                      }
+                      const lien = lienDepuisDirigeant(societe, fiche, dirigeant, crypto.randomUUID());
+                      void Promise.resolve(onRelier(lien)).then(poser, () => {
+                        setChoix((etatCourant) => ({ ...etatCourant, [index]: "Le lien n'a pas été enregistré." }));
+                      });
                     }}
                   >
                     {fr(`Relier à ${fiche.prenoms ? `${fiche.prenoms} ${fiche.nom}` : fiche.nom}`)}

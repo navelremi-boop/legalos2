@@ -28,6 +28,7 @@ type PropositionImportProps = {
   propositionFixe?: PropositionSiren | null;
   contacts?: readonly ContactListe[];
   onCreer?: (contact: ContactListe) => void;
+  onRelier?: (lien: import("@/contacts/liensContacts").LienAffiche) => Promise<void> | void;
 };
 
 function lireProposition(json: unknown): PropositionSiren | null {
@@ -52,6 +53,7 @@ export function PropositionImport({
   propositionFixe = null,
   contacts = [],
   onCreer,
+  onRelier,
 }: PropositionImportProps) {
   const [proposition, setProposition] = useState<PropositionSiren | null>(null);
   const [coches, setCoches] = useState<Record<ChampImport, boolean>>(COCHES_VIDES);
@@ -225,9 +227,11 @@ export function PropositionImport({
           <DirigeantsProposes
             dirigeants={proposition.dirigeants ?? []}
             contacts={contacts}
-            onCreer={(contact) => {
-              onCreer?.(contact);
+            societe={contact}
+            onCreer={(cree) => {
+              onCreer?.(cree);
             }}
+            onRelier={onRelier}
           />
         </div>
       ) : null}

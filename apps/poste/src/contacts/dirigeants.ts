@@ -1,4 +1,5 @@
 import type { ContactListe } from "@/contacts/listeContacts";
+import type { LienAffiche } from "@/contacts/liensContacts";
 
 export type DirigeantRegistre = {
   nature: "physique" | "morale";
@@ -44,6 +45,52 @@ export function fichesDuDirigeant(
     if (normaliser(contact.prenoms ?? "") !== prenoms) return false;
     return (contact.dateNaissance ?? "").slice(0, 7) === naissance;
   });
+}
+
+function fonctionDepuisQualite(qualite: string | null): string | null {
+  const net = normaliser(qualite ?? "");
+  const fonctions: Record<string, string> = {
+    gerant: "gerant",
+    gerante: "gerant",
+    presidente: "president",
+    president: "president",
+    "directeur general": "directeur_general",
+    "directrice generale": "directeur_general",
+    "directeur general delegue": "directeur_general_delegue",
+    "directrice generale deleguee": "directeur_general_delegue",
+    administrateur: "administrateur",
+    administratrice: "administrateur",
+    "membre du directoire": "membre_directoire",
+    "membre du conseil de surveillance": "membre_conseil_surveillance",
+    "liquidateur amiable": "liquidateur_amiable",
+    "liquidatrice amiable": "liquidateur_amiable",
+  };
+  return fonctions[net] ?? null;
+}
+
+/** Lien à enregistrer. Ne représente pas la société : ce choix reste à part. */
+export function lienDepuisDirigeant(
+  societe: Pick<ContactListe, "id" | "nom">,
+  fiche: ContactListe,
+  dirigeant: DirigeantRegistre,
+  id: string,
+): LienAffiche {
+  const fonction = fonctionDepuisQualite(dirigeant.qualite);
+  return {
+    id,
+    sourceId: fiche.id,
+    cibleId: societe.id,
+    sourceCivilite: fiche.civilite,
+    sourcePrenoms: fiche.prenoms,
+    sourceNom: fiche.nom,
+    cibleNom: societe.nom,
+    typeLien: fonction === null ? "autre" : "mandat_social",
+    fonction,
+    libelle: fonction === null ? dirigeant.qualite?.trim() || "Dirigeant" : null,
+    representeSociete: false,
+    debut: null,
+    fin: null,
+  };
 }
 
 export function dirigeantsDepuisJson(valeur: unknown): DirigeantRegistre[] {

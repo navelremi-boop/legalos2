@@ -16,6 +16,7 @@ import { lireAnnuaireLocal } from "@/contacts/lireAnnuaire";
 import { designationActe } from "@/contacts/designation";
 import { ecrireCoordonnee, type GenreCoordonnee, type UsageCoordonnee } from "@/contacts/ecrireCoordonnee";
 import { libelleLien, type LienAffiche } from "@/contacts/liensContacts";
+import { envoyerLien } from "@/contacts/envoyerLien";
 import { PropositionImport } from "@/contacts/PropositionImport";
 import { CreationSociete } from "@/contacts/CreationSociete";
 import type { PropositionSiren } from "@/contacts/propositionSiren";
@@ -57,6 +58,7 @@ export function Contacts({
   const [onglet, setOnglet] = useState<OngletFicheContact>("general");
   const [creation, setCreation] = useState(false);
   const [creees, setCreees] = useState<ContactListe[]>([]);
+  const [liensAjoutes, setLiensAjoutes] = useState<LienAffiche[]>([]);
 
   useEffect(() => {
     if (lignesFixes !== undefined) return;
@@ -87,7 +89,10 @@ export function Contacts({
     if (base === null) return null;
     return [...base, ...creees.filter((cree) => !base.some((ligne) => ligne.id === cree.id))];
   }, [lignesFixes, lignesSync, creees]);
-  const liens = liensFixes ?? liensSync;
+  const liens = useMemo(() => {
+    const base = liensFixes ?? liensSync;
+    return [...base, ...liensAjoutes.filter((ajoute) => !base.some((lien) => lien.id === ajoute.id))];
+  }, [liensFixes, liensSync, liensAjoutes]);
 
   const comptes = useMemo(() => compteursFiltres(lignes ?? []), [lignes]);
   const visibles = useMemo(
@@ -247,6 +252,12 @@ export function Contacts({
                       onCreer={(contact) => {
                         setCreees((etat) => [...etat, contact]);
                       }}
+                      onRelier={async (lien) => {
+                        if (instanceUrl !== undefined && propositionFixe === null) {
+                          await envoyerLien(instanceUrl, lien);
+                        }
+                        setLiensAjoutes((etat) => [...etat, lien]);
+                      }}
                     />
                   ) : onglet === "liens" ? (
                     <LiensFiche contactId={choisi.id} liens={liens} />
@@ -311,6 +322,7 @@ function FicheGenerale({
   instanceUrl,
   propositionFixe,
   onCreer,
+  onRelier,
 }: {
   contact: ContactListe;
   coordonnees: readonly CoordonneeLue[];
@@ -320,6 +332,7 @@ function FicheGenerale({
   instanceUrl?: string;
   propositionFixe: PropositionSiren | null;
   onCreer: (contact: ContactListe) => void;
+  onRelier: (lien: LienAffiche) => Promise<void> | void;
 }) {
   const acte = designationActe(contact, { liens, contacts });
   const [copie, setCopie] = useState(false);
@@ -372,6 +385,7 @@ function FicheGenerale({
         propositionFixe={propositionFixe}
         contacts={contacts}
         onCreer={onCreer}
+        onRelier={onRelier}
       />
       <dl className="fiche-infos">
         <dt>{fr("Nom")}</dt>
