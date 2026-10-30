@@ -4437,3 +4437,12 @@
     font-weight: 700;
   }
 }
+
+@layer components {
+  /* Référence de dossier : la colonne s'élargit pour une référence longue, sans chevaucher le nom */
+  .dossiers-ligne__ref {
+    width: auto;
+    min-width: 4.75rem;
+    white-space: nowrap;
+  }
+}
