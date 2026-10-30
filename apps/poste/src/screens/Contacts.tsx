@@ -29,6 +29,15 @@ import { DoublonsFiche } from "@/contacts/DoublonsFiche";
 import { CreationSociete } from "@/contacts/CreationSociete";
 import { centimesDepuisSaisie, estMonnaie, MONNAIES, saisieDepuisCentimes } from "@/contacts/capitalFiche";
 import { poserCapital } from "@/contacts/poserCapital";
+import { poserIdentite } from "@/contacts/poserIdentite";
+import {
+  appliquerIdentite,
+  accordDemande,
+  identiteDepuis,
+  normaliserIdentite,
+  optionsCivilite,
+  type IdentiteSaisie,
+} from "@/contacts/identiteFiche";
 import { poserProfession } from "@/contacts/poserProfession";
 import {
   champsDeProfession,
@@ -101,6 +110,7 @@ export function Contacts({
   const [greffes, setGreffes] = useState<Record<string, string | null>>({});
   const [activites, setActivites] = useState<Record<string, string | null>>({});
   const [professions, setProfessions] = useState<Record<string, ProfessionSaisie>>({});
+  const [identites, setIdentites] = useState<Record<string, IdentiteSaisie>>({});
   const [dossiersSync, setDossiersSync] = useState<DossierFiche[]>([]);
   const [mailsSync, setMailsSync] = useState<MailFiche[]>([]);
   const indexRef = useRef<IndexAnnuaire | null>(null);
@@ -166,11 +176,12 @@ export function Contacts({
   }, [lignesFixes, corpsParId, recherche]);
 
   const visibles = useMemo(() => {
-    const filtres = filtrerContacts(lignes ?? [], filtre, "");
+    const sources = (lignes ?? []).map((contact) => appliquerIdentite(contact, identites[contact.id]));
+    const filtres = filtrerContacts(sources, filtre, "");
     if (recherche.trim() === "") return filtres;
     if (idsRecherche !== null) return filtres.filter((contact) => idsRecherche.has(contact.id));
-    return filtrerContacts(lignes ?? [], filtre, recherche, corpsParId);
-  }, [lignes, filtre, recherche, idsRecherche, corpsParId]);
+    return filtrerContacts(sources, filtre, recherche, corpsParId);
+  }, [lignes, filtre, recherche, idsRecherche, corpsParId, identites]);
   const groupes = useMemo(() => grouperAlphabetique(visibles), [visibles]);
   const choisi = visibles.find((contact) => contact.id === selection) ?? visibles[0] ?? null;
   const capitalPose = choisi === null ? undefined : capitaux[choisi.id];
@@ -451,6 +462,11 @@ export function Contacts({
                         setProfessions((etat) => ({ ...etat, [choisi.id]: retenue }));
                         if (lignesFixes !== undefined) return;
                         void poserProfession(choisi.id, retenue);
+                      }}
+                      onIdentite={(identite) => {
+                        setIdentites((etat) => ({ ...etat, [choisi.id]: identite }));
+                        if (lignesFixes !== undefined) return;
+                        void poserIdentite(choisi.id, identite);
                       }}
                     />
                   ) : onglet === "liens" ? (
@@ -758,6 +774,151 @@ function ProfessionContact({
   );
 }
 
+function IdentitePersonne({
+  contactId,
+  identite,
+  onIdentite,
+}: {
+  contactId: string;
+  identite: IdentiteSaisie;
+  onIdentite: (identite: IdentiteSaisie) => void;
+}) {
+  const [pour, setPour] = useState(contactId);
+  const [brouillon, setBrouillon] = useState(identite);
+  if (pour !== contactId) {
+    setPour(contactId);
+    setBrouillon(identite);
+  }
+  const publier = (suite: IdentiteSaisie) => {
+    setBrouillon(suite);
+    const nette = normaliserIdentite(suite);
+    if (nette !== null) onIdentite(nette);
+  };
+  const demandeAccord = accordDemande(brouillon.civilite);
+  return (
+    <div className="flex flex-col gap-1" data-testid="contacts-identite">
+      <label className="flex flex-col gap-1">
+        <span>{fr("Civilité")}</span>
+        <select
+          className="champ"
+          data-testid="contacts-civilite"
+          value={brouillon.civilite ?? ""}
+          onChange={(event) => {
+            publier({ ...brouillon, civilite: event.target.value === "" ? null : event.target.value });
+          }}
+        >
+          <option value="">{fr("Non renseignée")}</option>
+          {optionsCivilite(brouillon.civilite).map((libelle) => (
+            <option key={libelle} value={libelle}>
+              {fr(libelle)}
+            </option>
+          ))}
+        </select>
+      </label>
+      {demandeAccord ? (
+        <label className="flex flex-col gap-1">
+          <span>{fr("Accord grammatical")}</span>
+          <select
+            className="champ"
+            data-testid="contacts-accord"
+            value={brouillon.accord ?? ""}
+            onChange={(event) => {
+              const accord = event.target.value;
+              publier({
+                ...brouillon,
+                accord: accord === "masculin" || accord === "feminin" ? accord : null,
+              });
+            }}
+          >
+            <option value="">{fr("À préciser")}</option>
+            <option value="feminin">{fr("Féminin")}</option>
+            <option value="masculin">{fr("Masculin")}</option>
+          </select>
+        </label>
+      ) : null}
+      <label className="flex flex-col gap-1">
+        <span>{fr("Prénoms")}</span>
+        <input
+          className="champ"
+          data-testid="contacts-prenoms"
+          value={brouillon.prenoms ?? ""}
+          onChange={(event) => {
+            publier({ ...brouillon, prenoms: event.target.value });
+          }}
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span>{fr("Nom")}</span>
+        <input
+          className="champ"
+          data-testid="contacts-nom"
+          value={brouillon.nom}
+          onChange={(event) => {
+            publier({ ...brouillon, nom: event.target.value });
+          }}
+        />
+      </label>
+      {brouillon.nom.trim() === "" ? <p data-testid="contacts-identite-message">{fr("Le nom est requis.")}</p> : null}
+      <label className="flex flex-col gap-1">
+        <span>{fr("Nom de naissance")}</span>
+        <input
+          className="champ"
+          data-testid="contacts-nom-naissance"
+          value={brouillon.nomNaissance ?? ""}
+          onChange={(event) => {
+            publier({ ...brouillon, nomNaissance: event.target.value });
+          }}
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span>{fr("Date de naissance")}</span>
+        <input
+          className="champ"
+          type="date"
+          data-testid="contacts-date-naissance"
+          value={brouillon.dateNaissance ?? ""}
+          onChange={(event) => {
+            publier({ ...brouillon, dateNaissance: event.target.value });
+          }}
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span>{fr("Lieu de naissance")}</span>
+        <input
+          className="champ"
+          data-testid="contacts-lieu-naissance"
+          value={brouillon.lieuNaissance ?? ""}
+          onChange={(event) => {
+            publier({ ...brouillon, lieuNaissance: event.target.value });
+          }}
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span>{fr("Nationalité")}</span>
+        <input
+          className="champ"
+          data-testid="contacts-nationalite"
+          value={brouillon.nationalite ?? ""}
+          onChange={(event) => {
+            publier({ ...brouillon, nationalite: event.target.value });
+          }}
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span>{fr("Profession")}</span>
+        <input
+          className="champ"
+          data-testid="contacts-profession-libre"
+          value={brouillon.profession ?? ""}
+          onChange={(event) => {
+            publier({ ...brouillon, profession: event.target.value });
+          }}
+        />
+      </label>
+    </div>
+  );
+}
+
 function FicheGenerale({
   contact,
   coordonnees,
@@ -774,6 +935,7 @@ function FicheGenerale({
   onGreffe,
   onActivite,
   onProfession,
+  onIdentite,
 }: {
   contact: ContactListe;
   coordonnees: readonly CoordonneeLue[];
@@ -790,6 +952,7 @@ function FicheGenerale({
   onGreffe: (valeur: string | null) => void;
   onActivite: (valeur: string | null) => void;
   onProfession: (profession: ProfessionSaisie) => void;
+  onIdentite: (identite: IdentiteSaisie) => void;
 }) {
   const acte = designationActe(contact, { liens, contacts });
   const [copie, setCopie] = useState(false);
@@ -858,6 +1021,9 @@ function FicheGenerale({
         <dt>{fr("Type de client")}</dt>
         <dd>{fr(libelleTypeClient(contact.typeClient))}</dd>
       </dl>
+      {contact.nature === "physique" ? (
+        <IdentitePersonne contactId={contact.id} identite={identiteDepuis(contact)} onIdentite={onIdentite} />
+      ) : null}
       {contact.nature === "physique" ? (
         <label className="flex flex-col gap-1">
           <span>{fr("Situation familiale")}</span>
