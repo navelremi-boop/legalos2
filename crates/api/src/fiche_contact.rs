@@ -102,12 +102,71 @@ pub fn valider_usage_coordonnee(usage: &str) -> Result<(), ApiError> {
     Ok(())
 }
 
+const TYPES_LIEN: &[&str] = &[
+    "mandat_social",
+    "representant_permanent",
+    "associe",
+    "salarie",
+    "conjoint_pacs",
+    "parent",
+    "expert_comptable",
+    "commissaire_comptes",
+    "autre",
+];
+
+const FONCTIONS_MANDAT: &[&str] = &[
+    "gerant",
+    "president",
+    "directeur_general",
+    "directeur_general_delegue",
+    "administrateur",
+    "membre_directoire",
+    "membre_conseil_surveillance",
+    "liquidateur_amiable",
+];
+
+pub fn valider_lien(
+    type_lien: &str,
+    fonction: Option<&str>,
+    libelle: Option<&str>,
+    debut: Option<&str>,
+    fin: Option<&str>,
+    represente: bool,
+) -> Result<(), ApiError> {
+    if !TYPES_LIEN.contains(&type_lien) {
+        return Err(ApiError::bad_request("Type de lien inconnu"));
+    }
+    if type_lien == "mandat_social" {
+        let fonction = fonction.unwrap_or("").trim();
+        if !FONCTIONS_MANDAT.contains(&fonction) {
+            return Err(ApiError::bad_request("Fonction de mandat inconnue"));
+        }
+    }
+    if type_lien == "autre" && libelle.unwrap_or("").trim().is_empty() {
+        return Err(ApiError::bad_request("Libellé du lien requis"));
+    }
+    if represente && type_lien != "mandat_social" {
+        return Err(ApiError::bad_request(
+            "Seul un mandat social représente la société",
+        ));
+    }
+    if let Some(fin) = fin.map(str::trim).filter(|s| !s.is_empty()) {
+        let debut = debut.unwrap_or("").trim();
+        if debut.is_empty() || fin <= debut {
+            return Err(ApiError::bad_request(
+                "La fin doit être postérieure au début",
+            ));
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         controler_rattachement, valider_accord, valider_capital, valider_civilite,
-        valider_date_naissance, valider_genre_coordonnee, valider_profession_reglementee,
-        valider_usage_coordonnee,
+        valider_date_naissance, valider_genre_coordonnee, valider_lien,
+        valider_profession_reglementee, valider_usage_coordonnee,
     };
 
     #[test]
@@ -135,5 +194,25 @@ mod tests {
         assert!(controler_rattachement(false, false, true).is_err());
         assert!(controler_rattachement(false, true, false).is_err());
         assert!(controler_rattachement(false, true, true).is_ok());
+        assert!(valider_lien(
+            "mandat_social",
+            Some("president"),
+            None,
+            Some("2020-01-01"),
+            None,
+            true
+        )
+        .is_ok());
+        assert!(valider_lien(
+            "mandat_social",
+            Some("president"),
+            None,
+            Some("2024-01-01"),
+            Some("2020-01-01"),
+            false
+        )
+        .is_err());
+        assert!(valider_lien("autre", None, None, None, None, false).is_err());
+        assert!(valider_lien("salarie", None, None, None, None, true).is_err());
     }
 }

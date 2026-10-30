@@ -55,6 +55,7 @@ const fluxAttendus = [
   "intercalaire_elements_restreints",
   "contacts_cabinet",
   "contact_coordonnees_cabinet",
+  "contact_liens_cabinet",
   "qualites_cabinet",
   "intervenants_publics",
   "intervenants_restreints",
@@ -242,6 +243,16 @@ if (!/\bFROM contacts\b/i.test(contactsCabinet)) {
 if (/\bdossier_id\b/.test(contactsCabinet)) {
   fail("contacts_cabinet : l'annuaire ne porte pas le dossier");
 }
+const liensCabinet = blocFlux("contact_liens_cabinet");
+if (/JOIN\s+dossiers/i.test(liensCabinet)) {
+  fail("contact_liens_cabinet : JOIN dossiers interdit (un seul seau cabinet)");
+}
+if (!/auth\.parameter\('cabinet_id'\)/.test(liensCabinet)) {
+  fail("contact_liens_cabinet : auth.parameter('cabinet_id') requis");
+}
+if (/\bdossier_id\b/.test(liensCabinet)) {
+  fail("contact_liens_cabinet : un lien de l'annuaire ne porte pas le dossier");
+}
 if (!/\bnom\b/.test(contactsCabinet) || !/\bsiren\b/.test(contactsCabinet)) {
   fail("contacts_cabinet : nom et SIREN requis (annuaire commun)");
 }
@@ -326,6 +337,7 @@ for (const table of [
   "intercalaire_elements",
   "contacts",
   "contact_coordonnees",
+  "contact_liens",
   "qualites",
   "dossier_intervenants",
   "dossier_liens",

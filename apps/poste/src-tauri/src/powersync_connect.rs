@@ -315,6 +315,27 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
         champs_entiers: &[],
         champs_booleens: &["principale"],
     };
+    static LIENS_CONTACT: Ressource = Ressource {
+        table: "contact_liens",
+        patch_chemin: |id| format!("/api/contact-liens/{id}"),
+        put_chemin: |data| {
+            let source = json_text(data.get("contact_source_id"))
+                .ok_or_else(|| "contact source du lien absent".to_string())?;
+            Ok(format!("/api/contacts/{source}/liens"))
+        },
+        champs_modifiables: &[
+            "type_lien",
+            "fonction",
+            "libelle",
+            "pour_le_compte_de",
+            "debut",
+            "fin",
+            "source",
+            "note",
+        ],
+        champs_entiers: &[],
+        champs_booleens: &["represente_societe"],
+    };
     static INTERVENANTS: Ressource = Ressource {
         table: "dossier_intervenants",
         patch_chemin: |id| format!("/api/intervenants/{id}"),
@@ -362,6 +383,7 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
         "intercalaire_elements" => Some(&INTERCALAIRE_ELEMENTS),
         "contacts" => Some(&CONTACTS),
         "contact_coordonnees" => Some(&COORDONNEES),
+        "contact_liens" => Some(&LIENS_CONTACT),
         "dossier_intervenants" => Some(&INTERVENANTS),
         "dossier_liens" => Some(&DOSSIER_LIENS),
         "agenda_elements" => Some(&AGENDA),

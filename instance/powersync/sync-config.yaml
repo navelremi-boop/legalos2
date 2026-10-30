@@ -193,6 +193,10 @@ streams:
     auto_subscribe: true
     query: SELECT id, cabinet_id, contact_id, genre, usage, valeur, principale::int AS principale, pays, revision, cree_le::text AS cree_le FROM contact_coordonnees WHERE cabinet_id::text = auth.parameter('cabinet_id')
 
+  contact_liens_cabinet:
+    auto_subscribe: true
+    query: SELECT id, cabinet_id, contact_source_id, contact_cible_id, type_lien, fonction, libelle, represente_societe::int AS represente_societe, pour_le_compte_de, debut, fin, source, note, revision, cree_le::text AS cree_le FROM contact_liens WHERE cabinet_id::text = auth.parameter('cabinet_id')
+
   qualites_cabinet:
     auto_subscribe: true
     query: SELECT id, cabinet_id, code, libelle, admet_rattachement::int AS admet_rattachement, archivee::int AS archivee, revision, cree_le::text AS cree_le FROM qualites WHERE cabinet_id::text = auth.parameter('cabinet_id')

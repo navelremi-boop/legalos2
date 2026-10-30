@@ -118,6 +118,30 @@ pub struct CreerCoordonneeRequest {
     pub pays: Option<String>,
 }
 
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct CreerLienContactRequest {
+    pub id: Uuid,
+    pub idempotence_cle: String,
+    pub contact_cible_id: Uuid,
+    pub type_lien: String,
+    pub fonction: Option<String>,
+    pub libelle: Option<String>,
+    pub represente_societe: bool,
+    pub pour_le_compte_de: Option<Uuid>,
+    pub debut: Option<String>,
+    pub fin: Option<String>,
+    pub source: Option<String>,
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct LienContactResponse {
+    pub id: Uuid,
+    pub contact_source_id: Uuid,
+    pub contact_cible_id: Uuid,
+    pub revision: i64,
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 pub struct CoordonneeResponse {
     pub id: Uuid,
@@ -979,6 +1003,212 @@ async fn lire_coordonnee(
         valeur: row.3,
         principale: row.4,
         revision: row.5,
+    })
+}
+
+#[utoipa::path(
+    post,
+    path = "/contacts/{contact_id}/liens",
+    tag = "contacts",
+    security(("bearer_auth" = [])),
+    params(("contact_id" = Uuid, Path, description = "Contact source du lien")),
+    request_body = CreerLienContactRequest,
+    responses(
+        (status = 200, description = "Lien créé ou déjà présent", body = LienContactResponse),
+        (status = 400, description = "Lien refusé", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Contact introuvable", body = crate::error::ApiErrorBody),
+    )
+)]
+pub async fn creer_lien(
+    State(state): State<Arc<AppState>>,
+    AuthAccess(claims): AuthAccess,
+    axum::extract::Path(contact_id): axum::extract::Path<Uuid>,
+    Json(body): Json<CreerLienContactRequest>,
+) -> Result<Json<LienContactResponse>, ApiError> {
+    if body.idempotence_cle.trim().is_empty() {
+        return Err(ApiError::bad_request("Clé d'idempotence requise"));
+    }
+    if body.contact_cible_id == contact_id {
+        return Err(ApiError::bad_request("Un contact ne se lie pas à lui-même"));
+    }
+    let fonction = texte_option(&body.fonction);
+    let libelle = texte_option(&body.libelle);
+    let debut = texte_option(&body.debut);
+    let fin = texte_option(&body.fin);
+    crate::fiche_contact::valider_lien(
+        &body.type_lien,
+        fonction.as_deref(),
+        libelle.as_deref(),
+        debut.as_deref(),
+        fin.as_deref(),
+        body.represente_societe,
+    )?;
+    let mut tx = state
+        .pool
+        .begin()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+    let source_ok = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS(SELECT 1 FROM contacts WHERE id = $1 AND cabinet_id = $2)",
+    )
+    .bind(contact_id)
+    .bind(claims.cabinet_id)
+    .fetch_one(
+        tx.acquire()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?,
+    )
+    .await
+    .map_err(|_| ApiError::internal("lecture contact"))?;
+    if !source_ok {
+        return Err(ApiError::not_found("Contact introuvable"));
+    }
+    let nature_cible = sqlx::query_scalar::<_, String>(
+        "SELECT nature FROM contacts WHERE id = $1 AND cabinet_id = $2",
+    )
+    .bind(body.contact_cible_id)
+    .bind(claims.cabinet_id)
+    .fetch_optional(
+        tx.acquire()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?,
+    )
+    .await
+    .map_err(|_| ApiError::internal("lecture contact"))?;
+    let Some(nature_cible) = nature_cible else {
+        return Err(ApiError::not_found("Contact introuvable"));
+    };
+    if body.type_lien == "mandat_social" && nature_cible != "morale" {
+        return Err(ApiError::bad_request(
+            "Un mandat social vise une personne morale",
+        ));
+    }
+    if let Some(compte) = body.pour_le_compte_de {
+        let ok = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM contacts WHERE id = $1 AND cabinet_id = $2)",
+        )
+        .bind(compte)
+        .bind(claims.cabinet_id)
+        .fetch_one(
+            tx.acquire()
+                .await
+                .map_err(|_| ApiError::internal("Transaction"))?,
+        )
+        .await
+        .map_err(|_| ApiError::internal("lecture contact"))?;
+        if !ok {
+            return Err(ApiError::bad_request("Le mandant est introuvable"));
+        }
+    }
+    let cle = cle_idempotence(claims.poste_id, &body.idempotence_cle);
+    if !reserver_idempotence(&mut tx, &cle).await? {
+        tx.commit()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?;
+        return lire_lien(&state, claims.cabinet_id, body.id)
+            .await
+            .map(Json);
+    }
+    if body.represente_societe {
+        let deja = sqlx::query_scalar::<_, bool>(
+            r#"
+            SELECT EXISTS(
+                SELECT 1 FROM contact_liens
+                WHERE contact_cible_id = $1 AND fonction = $2
+                  AND represente_societe AND fin IS NULL AND type_lien = 'mandat_social'
+            )
+            "#,
+        )
+        .bind(body.contact_cible_id)
+        .bind(fonction.as_deref())
+        .fetch_one(
+            tx.acquire()
+                .await
+                .map_err(|_| ApiError::internal("Transaction"))?,
+        )
+        .await
+        .map_err(|_| ApiError::internal("lecture lien"))?;
+        if deja {
+            return Err(ApiError::bad_request(
+                "Un mandat en cours représente déjà la société pour cette fonction",
+            ));
+        }
+    }
+    sqlx::query(
+        r#"
+        INSERT INTO contact_liens (
+            id, cabinet_id, contact_source_id, contact_cible_id, type_lien, fonction, libelle,
+            represente_societe, pour_le_compte_de, debut, fin, source, note, revision
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 1)
+        "#,
+    )
+    .bind(body.id)
+    .bind(claims.cabinet_id)
+    .bind(contact_id)
+    .bind(body.contact_cible_id)
+    .bind(&body.type_lien)
+    .bind(fonction.as_deref())
+    .bind(libelle.as_deref())
+    .bind(body.represente_societe)
+    .bind(body.pour_le_compte_de)
+    .bind(debut.as_deref())
+    .bind(fin.as_deref())
+    .bind(texte_option(&body.source))
+    .bind(texte_option(&body.note))
+    .execute(
+        tx.acquire()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?,
+    )
+    .await
+    .map_err(|_| ApiError::internal("création lien"))?;
+    noter_historique(
+        &mut tx,
+        &ContexteChamp {
+            cabinet_id: claims.cabinet_id,
+            poste_id: claims.poste_id,
+            auteur_id: claims.sub,
+            base_revision: 1,
+            enregistrement_id: body.id,
+            table_cible: "contact_liens",
+            dossier_id: None,
+        },
+        "type_lien",
+        &body.type_lien,
+    )
+    .await?;
+    tx.commit()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+    lire_lien(&state, claims.cabinet_id, body.id)
+        .await
+        .map(Json)
+}
+
+async fn lire_lien(
+    state: &AppState,
+    cabinet_id: Uuid,
+    id: Uuid,
+) -> Result<LienContactResponse, ApiError> {
+    let row = sqlx::query_as::<_, (Uuid, Uuid, i64)>(
+        r#"
+        SELECT contact_source_id, contact_cible_id, revision
+        FROM contact_liens WHERE id = $1 AND cabinet_id = $2
+        "#,
+    )
+    .bind(id)
+    .bind(cabinet_id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|_| ApiError::internal("lecture lien"))?
+    .ok_or_else(|| ApiError::not_found("Lien introuvable"))?;
+    Ok(LienContactResponse {
+        id,
+        contact_source_id: row.0,
+        contact_cible_id: row.1,
+        revision: row.2,
     })
 }
 

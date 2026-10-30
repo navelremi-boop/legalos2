@@ -870,7 +870,27 @@ export function GalerieDemo() {
               onSaisirTemps={() => undefined}
             />
           ) : null}
-          {vue === "contacts" ? <Contacts lignesFixes={CONTACTS_DEMO} /> : null}
+          {vue === "contacts" ? (
+            <Contacts
+              lignesFixes={CONTACTS_DEMO}
+              liensFixes={[
+                {
+                  id: "lien-anne-duclos",
+                  sourceId: "anne",
+                  cibleId: "duclos",
+                  sourceCivilite: "Madame",
+                  sourcePrenoms: "Camille",
+                  sourceNom: "Martin",
+                  cibleNom: "SARL Duclos Industrie",
+                  typeLien: "mandat_social",
+                  fonction: "gerant",
+                  libelle: null,
+                  debut: "2018-06-01",
+                  fin: null,
+                },
+              ]}
+            />
+          ) : null}
           {vue === "mails" ? (
             <EcranMails
               instanceUrl="http://127.0.0.1:8088"

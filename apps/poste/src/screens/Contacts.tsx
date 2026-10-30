@@ -1,65 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  appliquerCoordonnees,
-  champsFicheVides,
   compteursFiltres,
-  estProfessionReglementee,
   FILTRES_CONTACTS,
   filtrerContacts,
   grouperAlphabetique,
-  libelleCapital,
   libelleNature,
   libelleTypeClient,
   ONGLETS_FICHE,
   type ContactListe,
   type CoordonneeLue,
   type FiltreContacts,
-  type NatureContactListe,
   type OngletFicheContact,
-  type ProfessionReglementee,
-  type TypeClientListe,
 } from "@/contacts/listeContacts";
+import { lireAnnuaireLocal } from "@/contacts/lireAnnuaire";
 import { designationActe } from "@/contacts/designation";
 import { ecrireCoordonnee, type GenreCoordonnee, type UsageCoordonnee } from "@/contacts/ecrireCoordonnee";
+import { libelleLien, type LienAffiche } from "@/contacts/liensContacts";
 import { Feuille } from "@/coque/Feuille";
 import { fr } from "@/lib/fr";
-import { getPowerSyncDatabase } from "@/sync/database";
-
-type LigneSql = {
-  id: string;
-  nature: string;
-  nom: string;
-  siren: string | null;
-  numero_tva: string | null;
-  type_client: string;
-  civilite: string | null;
-  accord: string | null;
-  prenoms: string | null;
-  nom_naissance: string | null;
-  date_naissance: string | null;
-  lieu_naissance: string | null;
-  nationalite: string | null;
-  profession: string | null;
-  forme: string | null;
-  capital_centimes: number | null;
-  monnaie: string | null;
-  greffe_rcs: string | null;
-  activite: string | null;
-  profession_reglementee: string | null;
-  barreau: string | null;
-  toque: string | null;
-  specialite: string | null;
-  cour_appel: string | null;
-};
-
-type CoordSql = {
-  contact_id: string;
-  genre: string;
-  usage: string;
-  valeur: string;
-  principale: number | null;
-  cree_le: string | null;
-};
 
 const VIDE_ONGLET: Record<Exclude<OngletFicheContact, "general">, string> = {
   liens: "Aucun lien.",
@@ -69,56 +27,17 @@ const VIDE_ONGLET: Record<Exclude<OngletFicheContact, "general">, string> = {
   notes: "Aucune note.",
 };
 
-function estNature(valeur: string): valeur is NatureContactListe {
-  return valeur === "physique" || valeur === "morale";
-}
-
-function estTypeClient(valeur: string): valeur is TypeClientListe {
-  return valeur === "professionnel" || valeur === "particulier" || valeur === "etranger";
-}
-
-function versContact(ligne: LigneSql): ContactListe | null {
-  if (!estNature(ligne.nature) || !estTypeClient(ligne.type_client)) return null;
-  const code: ProfessionReglementee | null = estProfessionReglementee(ligne.profession_reglementee)
-    ? ligne.profession_reglementee
-    : null;
-  const accord = ligne.accord === "masculin" || ligne.accord === "feminin" ? ligne.accord : null;
-  return {
-    id: ligne.id,
-    nature: ligne.nature,
-    nom: ligne.nom,
-    siren: ligne.siren,
-    numeroTva: ligne.numero_tva,
-    typeClient: ligne.type_client,
-    professionReglementee: code !== null,
-    ...champsFicheVides(),
-    civilite: ligne.civilite,
-    accordSaisi: accord,
-    prenoms: ligne.prenoms,
-    nomNaissance: ligne.nom_naissance,
-    dateNaissance: ligne.date_naissance,
-    lieuNaissance: ligne.lieu_naissance,
-    nationalite: ligne.nationalite,
-    profession: ligne.profession,
-    forme: ligne.forme,
-    capitalLibelle:
-      ligne.capital_centimes === null ? null : libelleCapital(ligne.capital_centimes, ligne.monnaie),
-    greffe: ligne.greffe_rcs,
-    professionCode: code,
-    barreau: ligne.barreau,
-    specialite: ligne.specialite,
-    courAppel: ligne.cour_appel,
-  };
-}
-
 type ContactsProps = {
   /** Jeu figé de la galerie. Sans cela, la liste est lue dans la base locale. */
   lignesFixes?: readonly ContactListe[];
+  /** Liens figés de la galerie. Sans cela, ils sont lus dans la base locale. */
+  liensFixes?: readonly LienAffiche[];
 };
 
-export function Contacts({ lignesFixes }: ContactsProps = {}) {
+export function Contacts({ lignesFixes, liensFixes }: ContactsProps = {}) {
   const [lignesSync, setLignesSync] = useState<ContactListe[] | null>(null);
   const [coordsSync, setCoordsSync] = useState<CoordonneeLue[]>([]);
+  const [liensSync, setLiensSync] = useState<LienAffiche[]>([]);
   const [filtre, setFiltre] = useState<FiltreContacts>("tous");
   const [recherche, setRecherche] = useState("");
   const [selection, setSelection] = useState<string | null>(null);
@@ -130,33 +49,11 @@ export function Contacts({ lignesFixes }: ContactsProps = {}) {
     const charger = () => {
       void (async () => {
         try {
-          const database = await getPowerSyncDatabase();
-          const rows = await database.getAll<LigneSql>(
-            `SELECT id, nature, nom, siren, numero_tva, type_client, civilite, accord, prenoms,
-              nom_naissance, date_naissance, lieu_naissance, nationalite, profession, forme,
-              capital_centimes, monnaie, greffe_rcs, activite, profession_reglementee, barreau,
-              toque, specialite, cour_appel
-             FROM contacts ORDER BY nom COLLATE NOCASE`,
-          );
-          const coords = await database.getAll<CoordSql>(
-            "SELECT contact_id, genre, usage, valeur, principale, cree_le FROM contact_coordonnees",
-          );
+          const annuaire = await lireAnnuaireLocal();
           if (ignore) return;
-          const contacts: ContactListe[] = [];
-          for (const ligne of rows) {
-            const contact = versContact(ligne);
-            if (contact !== null) contacts.push(contact);
-          }
-          const lues: CoordonneeLue[] = coords.map((ligne) => ({
-            contactId: ligne.contact_id,
-            genre: ligne.genre,
-            usage: ligne.usage,
-            valeur: ligne.valeur,
-            principale: ligne.principale === 1,
-            creeLe: ligne.cree_le ?? "",
-          }));
-          setCoordsSync(lues);
-          setLignesSync(appliquerCoordonnees(contacts, lues));
+          setCoordsSync(annuaire.coordonnees);
+          setLiensSync(annuaire.liens);
+          setLignesSync(annuaire.contacts);
         } catch {
           if (!ignore) setLignesSync([]);
         }
@@ -171,6 +68,7 @@ export function Contacts({ lignesFixes }: ContactsProps = {}) {
   }, [lignesFixes]);
 
   const lignes = lignesFixes ?? lignesSync;
+  const liens = liensFixes ?? liensSync;
 
   const comptes = useMemo(() => compteursFiltres(lignes ?? []), [lignes]);
   const visibles = useMemo(
@@ -299,6 +197,8 @@ export function Contacts({ lignesFixes }: ContactsProps = {}) {
                       contact={choisi}
                       coordonnees={coordsSync.filter((ligne) => ligne.contactId === choisi.id)}
                     />
+                  ) : onglet === "liens" ? (
+                    <LiensFiche contactId={choisi.id} liens={liens} />
                   ) : (
                     <p className="etat-vide">{fr(VIDE_ONGLET[onglet])}</p>
                   )}
@@ -328,6 +228,28 @@ const USAGES_COORDONNEE: { id: UsageCoordonnee; label: string }[] = [
   { id: "etude", label: "Étude" },
   { id: "autre", label: "Autre" },
 ];
+
+function LiensFiche({ contactId, liens }: { contactId: string; liens: readonly LienAffiche[] }) {
+  const vus = liens.filter((lien) => lien.sourceId === contactId || lien.cibleId === contactId);
+  if (vus.length === 0) {
+    return <p className="etat-vide">{fr(VIDE_ONGLET.liens)}</p>;
+  }
+  return (
+    <ul className="flex flex-col gap-3" data-testid="contacts-liens">
+      {vus.map((lien) => {
+        const libelle = libelleLien(lien, contactId);
+        return (
+          <li key={lien.id} data-testid="contacts-lien">
+            <p>{fr(libelle.texte)}</p>
+            {libelle.periode !== null ? (
+              <p className="text-[length:var(--font-size-dense)] text-graphite">{fr(libelle.periode)}</p>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 function FicheGenerale({
   contact,

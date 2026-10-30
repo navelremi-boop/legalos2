@@ -261,6 +261,27 @@ const contacts = new Table(
   { indexes: { cabinet: ["cabinet_id"] } },
 );
 
+/** Liens entre contacts du cabinet (mandats, associés, parenté). Pas de dossier. */
+const contactLiens = new Table(
+  {
+    cabinet_id: column.text,
+    contact_source_id: column.text,
+    contact_cible_id: column.text,
+    type_lien: column.text,
+    fonction: column.text,
+    libelle: column.text,
+    represente_societe: column.integer,
+    pour_le_compte_de: column.text,
+    debut: column.text,
+    fin: column.text,
+    source: column.text,
+    note: column.text,
+    revision: column.integer,
+    cree_le: column.text,
+  },
+  { indexes: { source: ["contact_source_id"], cible: ["contact_cible_id"] } },
+);
+
 /** Adresses, téléphones, e-mails et sites d'un contact. Une valeur principale par genre. */
 const contactCoordonnees = new Table(
   {
@@ -468,6 +489,7 @@ export const AppSchema = new Schema({
   intercalaire_elements: intercalaireElements,
   contacts,
   contact_coordonnees: contactCoordonnees,
+  contact_liens: contactLiens,
   qualites,
   dossier_intervenants: dossierIntervenants,
   dossier_liens: dossierLiens,

@@ -292,6 +292,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/contacts/{contact_id}/liens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["creer_lien"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/documents": {
         parameters: {
             query?: never;
@@ -1946,6 +1962,23 @@ export interface components {
             /** Format: uuid */
             rattache_a?: string | null;
         };
+        CreerLienContactRequest: {
+            /** Format: uuid */
+            contact_cible_id: string;
+            debut?: string | null;
+            fin?: string | null;
+            fonction?: string | null;
+            /** Format: uuid */
+            id: string;
+            idempotence_cle: string;
+            libelle?: string | null;
+            note?: string | null;
+            /** Format: uuid */
+            pour_le_compte_de?: string | null;
+            represente_societe: boolean;
+            source?: string | null;
+            type_lien: string;
+        };
         CreerModeleRequest: {
             corps_html?: string;
             /** Format: uuid */
@@ -2298,6 +2331,16 @@ export interface components {
             empreinte: string;
             genre: string;
             url: string;
+        };
+        LienContactResponse: {
+            /** Format: uuid */
+            contact_cible_id: string;
+            /** Format: uuid */
+            contact_source_id: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            revision: number;
         };
         LienResponse: {
             /** Format: uuid */
@@ -3651,6 +3694,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HistoriqueLigne"][];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Contact introuvable */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    creer_lien: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Contact source du lien */
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreerLienContactRequest"];
+            };
+        };
+        responses: {
+            /** @description Lien créé ou déjà présent */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LienContactResponse"];
+                };
+            };
+            /** @description Lien refusé */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
                 };
             };
             /** @description Non authentifié */

@@ -1197,6 +1197,83 @@
         ]
       }
     },
+    "/contacts/{contact_id}/liens": {
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "operationId": "creer_lien",
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "description": "Contact source du lien",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreerLienContactRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Lien créé ou déjà présent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LienContactResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Lien refusé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contact introuvable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/documents": {
       "post": {
         "tags": [
@@ -7718,6 +7795,78 @@
           }
         }
       },
+      "CreerLienContactRequest": {
+        "type": "object",
+        "required": [
+          "id",
+          "idempotence_cle",
+          "contact_cible_id",
+          "type_lien",
+          "represente_societe"
+        ],
+        "properties": {
+          "contact_cible_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "debut": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fin": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fonction": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "idempotence_cle": {
+            "type": "string"
+          },
+          "libelle": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pour_le_compte_de": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "represente_societe": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type_lien": {
+            "type": "string"
+          }
+        }
+      },
       "CreerModeleRequest": {
         "type": "object",
         "required": [
@@ -8851,6 +9000,33 @@
           },
           "url": {
             "type": "string"
+          }
+        }
+      },
+      "LienContactResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "contact_source_id",
+          "contact_cible_id",
+          "revision"
+        ],
+        "properties": {
+          "contact_cible_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "contact_source_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
