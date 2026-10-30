@@ -291,4 +291,8 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Annuaire, écran Tauri (30/10).** `node tests/recette/annuaire.mjs` exit 0 en 134 s. Contacts est entre Dossiers et Mails. Filtres Tous, Personnes, Sociétés, Professions. Onglets Général, Liens, Dossiers, Factures, Mails, Notes. Pas de Mademoiselle, pas de champ sexe, pas de fax. Fiche personne : civilités Madame et Maître, désignation avec le prénom. Fiche société : dénomination, forme, capital, SIREN 100000009, greffe, TVA FR88100000009, activité, désignation qui reprend le SIREN. La palette ouvre Contacts. La reprise, la recherche des 10 000, la fusion et les conflits restent dans leurs recettes. Le jalon n'est pas coché.
 
-**État de session.** Fait : recette Tauri de l'écran Contacts. En cours : Annuaire. Prochaine action : onglets Dossiers, Factures et Mails de la fiche dans la recette, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+**État de session.** Fait : recette Tauri de l'écran Contacts. En cours : Annuaire. Prochaine action : onglets Dossiers, Factures et Mails, recette lancée, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+
+- **Annuaire, onglets de la fiche (30/10).** `node tests/recette/annuaire.mjs` exit 0. L'onglet Dossiers montre le dossier et la qualité client. L'onglet Mails montre le courrier classé dont l'expéditeur est l'adresse de la fiche. La lecture des factures du client est branchée sur la table locale. Le flux qui les aurait synchronisées a été retiré : PowerSync refusait alors le point de contrôle (PSYNC_S2305, trop de paramètres). Le jalon n'est pas coché.
+
+**État de session.** Fait : onglets Dossiers et Mails de la fiche, dans la recette. En cours : Annuaire. Prochaine action : synchroniser les factures du client sans dépasser la limite de paramètres PowerSync, sans anticiper le classeur Documents ni l'aperçu des fichiers.

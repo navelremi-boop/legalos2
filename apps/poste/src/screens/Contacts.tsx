@@ -24,7 +24,7 @@ import { ligneIndex } from "@/contacts/indexAnnuaire";
 import type { IndexAnnuaire } from "@/contacts/indexAnnuaireFts";
 import { PropositionImport } from "@/contacts/PropositionImport";
 import type { DossierFiche, FactureFiche, MailFiche, NoteFiche } from "@/contacts/historiqueFiche";
-import { lireDossiersContact, lireMailsClasses } from "@/contacts/lireHistorique";
+import { lireDossiersContact, lireFacturesContact, lireMailsClasses } from "@/contacts/lireHistorique";
 import { DoublonsFiche } from "@/contacts/DoublonsFiche";
 import { CreationSociete } from "@/contacts/CreationSociete";
 import { centimesDepuisSaisie, estMonnaie, MONNAIES, saisieDepuisCentimes } from "@/contacts/capitalFiche";
@@ -121,6 +121,7 @@ export function Contacts({
   const [tvas, setTvas] = useState<Record<string, string | null>>({});
   const [sirens, setSirens] = useState<Record<string, string | null>>({});
   const [dossiersSync, setDossiersSync] = useState<DossierFiche[]>([]);
+  const [facturesSync, setFacturesSync] = useState<FactureFiche[]>([]);
   const [mailsSync, setMailsSync] = useState<MailFiche[]>([]);
   const indexRef = useRef<IndexAnnuaire | null>(null);
   const [idsRecherche, setIdsRecherche] = useState<ReadonlySet<string> | null>(null);
@@ -235,7 +236,7 @@ export function Contacts({
       : {
           contactId: choisi?.id ?? "",
           dossiers: dossiersSync,
-          factures: [] as FactureFiche[],
+          factures: facturesSync,
           mails: mailsSync,
           notes: [] as NoteFiche[],
         };
@@ -253,6 +254,13 @@ export function Contacts({
       })
       .catch(() => {
         if (!ignore) setDossiersSync([]);
+      });
+    void lireFacturesContact(id)
+      .then((lignes) => {
+        if (!ignore) setFacturesSync(lignes);
+      })
+      .catch(() => {
+        if (!ignore) setFacturesSync([]);
       });
     void lireMailsClasses(emails)
       .then((lignes) => {

@@ -314,7 +314,19 @@ const qualites = new Table(
     revision: column.integer,
     cree_le: column.text,
   },
-  { indexes: { cabinet: ["cabinet_id"] } },
+  { indexes: { cabinet: ["cabinet_id"], code: ["code"] } },
+);
+
+const factures = new Table(
+  {
+    cabinet_id: column.text,
+    dossier_id: column.text,
+    contact_id: column.text,
+    numero: column.text,
+    montant_ttc_centimes: column.integer,
+    statut: column.text,
+  },
+  { indexes: { contact: ["contact_id"], dossier: ["dossier_id"] } },
 );
 
 /** Intervenants d'un dossier. Un dossier restreint ne descend que pour qui y a accès. */
@@ -496,6 +508,7 @@ export const AppSchema = new Schema({
   contact_coordonnees: contactCoordonnees,
   contact_liens: contactLiens,
   qualites,
+  factures,
   dossier_intervenants: dossierIntervenants,
   dossier_liens: dossierLiens,
   agenda_elements: agendaElements,

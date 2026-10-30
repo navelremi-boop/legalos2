@@ -91,6 +91,57 @@ try {
        greffe_rcs = 'RCS de Lyon', activite = 'Metallurgie', numero_tva = 'FR88100000009'
      WHERE id = '${societeId}'`,
   );
+  const dossierId = randomUUID();
+  const dossier = await ui.apiJson(jeton, "POST", "/dossiers", {
+    id: dossierId,
+    idempotence_cle: `annuaire-dossier-${marque}`,
+    nom: `Dossier ${marque}`,
+    chemise: "kraft",
+    juridiction: "TJ fictif",
+    numero_rg: `RG-ANNU-${marque}`,
+    restreint: false,
+  });
+  if (dossier.status !== 200) fail(`dossier ${dossier.status} ${dossier.texte.slice(0, 180)}`);
+  const email = `camille-${marque}@example.test`;
+  const intervenantId = randomUUID();
+  const coordId = randomUUID();
+  const messageId = randomUUID();
+  await sqlServeur(
+    `INSERT INTO dossier_intervenants (id, cabinet_id, dossier_id, contact_id, qualite_id, visibilite, revision)
+     SELECT '${intervenantId}', c.cabinet_id, '${dossierId}', c.id, q.id, 'public', 1
+     FROM contacts c
+     JOIN qualites q ON q.cabinet_id = c.cabinet_id AND q.code = 'client'
+     WHERE c.id = '${personneId}'`,
+  );
+  await sqlServeur(
+    `INSERT INTO contact_coordonnees (id, cabinet_id, contact_id, genre, usage, valeur, principale)
+     SELECT '${coordId}', cabinet_id, id, 'email', 'domicile', '${email}', TRUE
+     FROM contacts WHERE id = '${personneId}'`,
+  );
+  let compte = (
+    await sqlServeur(
+      `SELECT id FROM comptes_mail WHERE type_compte = 'classement' AND cabinet_id = (SELECT cabinet_id FROM contacts WHERE id = '${personneId}') LIMIT 1`,
+    )
+  ).trim();
+  if (compte === "") {
+    compte = randomUUID();
+    await sqlServeur(
+      `INSERT INTO comptes_mail (id, cabinet_id, type_compte, adresse, secret_ref)
+       SELECT '${compte}', cabinet_id, 'classement', 'classement@cabinet.example', 'srv:annuaire'
+       FROM contacts WHERE id = '${personneId}'`,
+    );
+  }
+  const uid = Date.now() % 1_000_000_000;
+  await sqlServeur(
+    `INSERT INTO messages (
+       id, cabinet_id, compte_id, dossier_id, message_id, uid_validity, uid,
+       objet, expediteur, etat_classement, visibilite, restreint
+     )
+     SELECT '${messageId}', cabinet_id, '${compte}', '${dossierId}',
+            '<annuaire-${marque}@cabinet.example>', 1, ${uid},
+            'Courrier ${marque}', '${email}', 'classe', 'public', FALSE
+     FROM contacts WHERE id = '${personneId}'`,
+  );
   ok("fiches créées");
 
   spawnSync("docker", ["restart", "legalos-instance-powersync-1"], { stdio: "inherit" });
@@ -102,6 +153,8 @@ try {
   const cdp = await connectCdp(app.port);
   await login(cdp.send, demoEmail, demoPassword, totpSecretB32, `Annuaire ${marque}`);
   await attendreSqlite(posteId, `SELECT COUNT(*) FROM contacts WHERE id = '${personneId}'`, (v) => v === "1");
+  await attendreSqlite(posteId, `SELECT COUNT(*) FROM dossier_intervenants WHERE id = '${intervenantId}'`, (v) => v === "1");
+  await attendreSqlite(posteId, `SELECT COUNT(*) FROM messages WHERE id = '${messageId}'`, (v) => v === "1");
   ok("synchronisé");
 
   const ordre = await evaluate(
@@ -147,6 +200,25 @@ try {
   if (!personneEcran.options.includes("Madame") || !personneEcran.options.includes("Maître")) fail("civilités de départ absentes");
   if (!personneEcran.designation.includes("Camille")) fail(`désignation : ${personneEcran.designation.slice(0, 120)}`);
   ok("fiche personne");
+
+  async function attendreTexte(selecteur, morceau) {
+    const debut = Date.now();
+    while (Date.now() - debut < 20_000) {
+      const lu = String(
+        (await evaluate(cdp.send, `document.querySelector(${JSON.stringify(selecteur)})?.textContent ?? ""`)) ?? "",
+      ).replace(/[\u00a0\u202f]/g, " ");
+      if (lu.includes(morceau)) return;
+      await sleep(400);
+    }
+    fail(`texte absent (${selecteur}) : ${morceau}`);
+  }
+
+  await cliquer(cdp.send, "[data-testid=contacts-onglet-dossiers]");
+  await attendreTexte("[data-testid=contacts-dossiers]", `Dossier ${marque}`);
+  await attendreTexte("[data-testid=contacts-dossiers]", "client");
+  await cliquer(cdp.send, "[data-testid=contacts-onglet-mails]");
+  await attendreTexte("[data-testid=contacts-mails]", `Courrier ${marque}`);
+  ok("historique");
 
   await cliquer(cdp.send, `[data-testid=contacts-ligne][data-contact-id="${societeId}"]`);
   await sleep(400);
