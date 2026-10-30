@@ -29,7 +29,9 @@ import { DoublonsFiche } from "@/contacts/DoublonsFiche";
 import { CreationSociete } from "@/contacts/CreationSociete";
 import { centimesDepuisSaisie, estMonnaie, MONNAIES, saisieDepuisCentimes } from "@/contacts/capitalFiche";
 import { poserCapital } from "@/contacts/poserCapital";
+import { poserDenomination } from "@/contacts/poserDenomination";
 import { poserIdentite } from "@/contacts/poserIdentite";
+import { normaliserDenomination } from "@/contacts/denominationFiche";
 import {
   appliquerIdentite,
   accordDemande,
@@ -111,6 +113,7 @@ export function Contacts({
   const [activites, setActivites] = useState<Record<string, string | null>>({});
   const [professions, setProfessions] = useState<Record<string, ProfessionSaisie>>({});
   const [identites, setIdentites] = useState<Record<string, IdentiteSaisie>>({});
+  const [denominations, setDenominations] = useState<Record<string, string>>({});
   const [dossiersSync, setDossiersSync] = useState<DossierFiche[]>([]);
   const [mailsSync, setMailsSync] = useState<MailFiche[]>([]);
   const indexRef = useRef<IndexAnnuaire | null>(null);
@@ -176,12 +179,16 @@ export function Contacts({
   }, [lignesFixes, corpsParId, recherche]);
 
   const visibles = useMemo(() => {
-    const sources = (lignes ?? []).map((contact) => appliquerIdentite(contact, identites[contact.id]));
+    const sources = (lignes ?? []).map((contact) => {
+      const avecIdentite = appliquerIdentite(contact, identites[contact.id]);
+      const denomination = denominations[contact.id];
+      return denomination === undefined ? avecIdentite : { ...avecIdentite, nom: denomination };
+    });
     const filtres = filtrerContacts(sources, filtre, "");
     if (recherche.trim() === "") return filtres;
     if (idsRecherche !== null) return filtres.filter((contact) => idsRecherche.has(contact.id));
     return filtrerContacts(sources, filtre, recherche, corpsParId);
-  }, [lignes, filtre, recherche, idsRecherche, corpsParId, identites]);
+  }, [lignes, filtre, recherche, idsRecherche, corpsParId, identites, denominations]);
   const groupes = useMemo(() => grouperAlphabetique(visibles), [visibles]);
   const choisi = visibles.find((contact) => contact.id === selection) ?? visibles[0] ?? null;
   const capitalPose = choisi === null ? undefined : capitaux[choisi.id];
@@ -468,6 +475,11 @@ export function Contacts({
                         if (lignesFixes !== undefined) return;
                         void poserIdentite(choisi.id, identite);
                       }}
+                      onDenomination={(nom) => {
+                        setDenominations((etat) => ({ ...etat, [choisi.id]: nom }));
+                        if (lignesFixes !== undefined) return;
+                        void poserDenomination(choisi.id, nom);
+                      }}
                     />
                   ) : onglet === "liens" ? (
                     <LiensFiche contactId={choisi.id} liens={liens} />
@@ -530,16 +542,24 @@ function LiensFiche({ contactId, liens }: { contactId: string; liens: readonly L
 }
 
 function CapitalSociete({
+  contactId,
   centimes,
   monnaie,
   onCapital,
 }: {
+  contactId: string;
   centimes: number | null;
   monnaie: string | null;
   onCapital: (centimes: number | null, monnaie: string | null) => void;
 }) {
+  const [pour, setPour] = useState(contactId);
   const [montant, setMontant] = useState(saisieDepuisCentimes(centimes));
   const [message, setMessage] = useState("");
+  if (pour !== contactId) {
+    setPour(contactId);
+    setMontant(saisieDepuisCentimes(centimes));
+    setMessage("");
+  }
   const code = monnaie !== null && monnaie !== "" ? monnaie : "EUR";
   const enregistrer = (prochainMontant: string, prochaineMonnaie: string) => {
     try {
@@ -593,6 +613,42 @@ function CapitalSociete({
   );
 }
 
+function DenominationSociete({
+  contactId,
+  nom,
+  onDenomination,
+}: {
+  contactId: string;
+  nom: string;
+  onDenomination: (nom: string) => void;
+}) {
+  const [pour, setPour] = useState(contactId);
+  const [brouillon, setBrouillon] = useState(nom);
+  if (pour !== contactId) {
+    setPour(contactId);
+    setBrouillon(nom);
+  }
+  return (
+    <label className="flex flex-col gap-1" data-testid="contacts-denomination">
+      <span>{fr("Dénomination")}</span>
+      <input
+        className="champ"
+        data-testid="contacts-denomination-nom"
+        value={brouillon}
+        onChange={(event) => {
+          const saisie = event.target.value;
+          setBrouillon(saisie);
+          const nette = normaliserDenomination(saisie);
+          if (nette !== null) onDenomination(nette);
+        }}
+      />
+      {brouillon.trim() === "" ? (
+        <p data-testid="contacts-denomination-message">{fr("La dénomination est requise.")}</p>
+      ) : null}
+    </label>
+  );
+}
+
 function FormeSociete({
   forme,
   onForme,
@@ -641,18 +697,26 @@ function FormeSociete({
 }
 
 function GreffeActivite({
+  contactId,
   greffe,
   activite,
   onGreffe,
   onActivite,
 }: {
+  contactId: string;
   greffe: string | null;
   activite: string | null;
   onGreffe: (valeur: string | null) => void;
   onActivite: (valeur: string | null) => void;
 }) {
+  const [pour, setPour] = useState(contactId);
   const [greffeSaisi, setGreffeSaisi] = useState(greffe ?? "");
   const [activiteSaisie, setActiviteSaisie] = useState(activite ?? "");
+  if (pour !== contactId) {
+    setPour(contactId);
+    setGreffeSaisi(greffe ?? "");
+    setActiviteSaisie(activite ?? "");
+  }
   return (
     <div className="flex flex-col gap-1">
       <label className="flex flex-col gap-1">
@@ -936,6 +1000,7 @@ function FicheGenerale({
   onActivite,
   onProfession,
   onIdentite,
+  onDenomination,
 }: {
   contact: ContactListe;
   coordonnees: readonly CoordonneeLue[];
@@ -953,6 +1018,7 @@ function FicheGenerale({
   onActivite: (valeur: string | null) => void;
   onProfession: (profession: ProfessionSaisie) => void;
   onIdentite: (identite: IdentiteSaisie) => void;
+  onDenomination: (nom: string) => void;
 }) {
   const acte = designationActe(contact, { liens, contacts });
   const [copie, setCopie] = useState(false);
@@ -999,7 +1065,6 @@ function FicheGenerale({
         </div>
       ) : null}
       <PropositionImport
-        key={contact.id}
         contact={contact}
         horsLigne={horsLigne}
         instanceUrl={instanceUrl}
@@ -1047,11 +1112,14 @@ function FicheGenerale({
         </label>
       ) : null}
       {contact.nature === "morale" ? (
+        <DenominationSociete contactId={contact.id} nom={contact.nom} onDenomination={onDenomination} />
+      ) : null}
+      {contact.nature === "morale" ? (
         <FormeSociete forme={contact.forme} onForme={onForme} />
       ) : null}
       {contact.nature === "morale" ? (
         <CapitalSociete
-          key={contact.id}
+          contactId={contact.id}
           centimes={contact.capitalCentimes}
           monnaie={contact.monnaie}
           onCapital={onCapital}
@@ -1059,7 +1127,7 @@ function FicheGenerale({
       ) : null}
       {contact.nature === "morale" ? (
         <GreffeActivite
-          key={contact.id}
+          contactId={contact.id}
           greffe={contact.greffe}
           activite={contact.activite}
           onGreffe={onGreffe}
@@ -1067,7 +1135,6 @@ function FicheGenerale({
         />
       ) : null}
       <ProfessionContact
-        key={contact.id}
         profession={{
           code: contact.professionCode,
           barreau: contact.barreau,

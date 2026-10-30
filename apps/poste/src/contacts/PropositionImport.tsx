@@ -59,6 +59,14 @@ export function PropositionImport({
   const [coches, setCoches] = useState<Record<ChampImport, boolean>>(COCHES_VIDES);
   const [message, setMessage] = useState("");
   const [source, setSource] = useState("");
+  const [pour, setPour] = useState(contact.id);
+  if (pour !== contact.id) {
+    setPour(contact.id);
+    setProposition(null);
+    setCoches(COCHES_VIDES);
+    setMessage("");
+    setSource("");
+  }
   const siren = contact.siren?.trim() ?? "";
   if (contact.nature !== "morale" || siren === "") return null;
 
