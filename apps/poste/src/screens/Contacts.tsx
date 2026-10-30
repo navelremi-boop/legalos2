@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   compteursFiltres,
   FILTRES_CONTACTS,
@@ -18,6 +18,8 @@ import { ecrireCoordonnee, type GenreCoordonnee, type UsageCoordonnee } from "@/
 import { libelleLien, type LienAffiche } from "@/contacts/liensContacts";
 import { envoyerLien, envoyerRetrait } from "@/contacts/envoyerLien";
 import { HistoriqueFiche } from "@/contacts/OngletsHistorique";
+import { ligneIndex } from "@/contacts/indexAnnuaire";
+import type { IndexAnnuaire } from "@/contacts/indexAnnuaireFts";
 import { PropositionImport } from "@/contacts/PropositionImport";
 import type { DossierFiche, FactureFiche, MailFiche, NoteFiche } from "@/contacts/historiqueFiche";
 import { lireDossiersContact, lireMailsClasses } from "@/contacts/lireHistorique";
@@ -75,6 +77,8 @@ export function Contacts({
   const [retires, setRetires] = useState<ReadonlySet<string>>(new Set());
   const [dossiersSync, setDossiersSync] = useState<DossierFiche[]>([]);
   const [mailsSync, setMailsSync] = useState<MailFiche[]>([]);
+  const indexRef = useRef<IndexAnnuaire | null>(null);
+  const [idsRecherche, setIdsRecherche] = useState<ReadonlySet<string> | null>(null);
 
   useEffect(() => {
     if (lignesFixes !== undefined) return;
@@ -113,10 +117,34 @@ export function Contacts({
   }, [liensFixes, liensSync, liensAjoutes]);
 
   const comptes = useMemo(() => compteursFiltres(lignes ?? []), [lignes]);
-  const visibles = useMemo(
-    () => filtrerContacts(lignes ?? [], filtre, recherche),
-    [lignes, filtre, recherche],
-  );
+  const corpsParId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const contact of lignes ?? []) map.set(contact.id, ligneIndex(contact, coordsSync).corps);
+    return map;
+  }, [lignes, coordsSync]);
+
+  useEffect(() => {
+    if (lignesFixes !== undefined) return;
+    void (async () => {
+      try {
+        const { IndexAnnuaire: Ouvrir } = await import("@/contacts/indexAnnuaireFts");
+        const index = indexRef.current ?? (await Ouvrir.ouvrir());
+        indexRef.current = index;
+        index.remplacer([...corpsParId].map(([id, corps]) => ({ id, corps })));
+        const trouves = index.chercher(recherche);
+        setIdsRecherche(trouves === null ? null : new Set(trouves));
+      } catch {
+        setIdsRecherche(null);
+      }
+    })();
+  }, [lignesFixes, corpsParId, recherche]);
+
+  const visibles = useMemo(() => {
+    const filtres = filtrerContacts(lignes ?? [], filtre, "");
+    if (recherche.trim() === "") return filtres;
+    if (idsRecherche !== null) return filtres.filter((contact) => idsRecherche.has(contact.id));
+    return filtrerContacts(lignes ?? [], filtre, recherche, corpsParId);
+  }, [lignes, filtre, recherche, idsRecherche, corpsParId]);
   const groupes = useMemo(() => grouperAlphabetique(visibles), [visibles]);
   const choisi = visibles.find((contact) => contact.id === selection) ?? visibles[0] ?? null;
   const historique =

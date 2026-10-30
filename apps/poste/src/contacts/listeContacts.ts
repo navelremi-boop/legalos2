@@ -118,15 +118,13 @@ function compact(valeur: string): string {
   return sansAccent(valeur).replace(/\s/g, "");
 }
 
-export function correspondRecherche(contact: ContactListe, recherche: string): boolean {
+export function correspondRecherche(contact: ContactListe, recherche: string, corps = ""): boolean {
   const q = sansAccent(recherche.trim());
   if (q === "") return true;
   const qCompact = q.replace(/\s/g, "");
-  return (
-    sansAccent(contact.nom).includes(q) ||
-    compact(contact.siren ?? "").includes(qCompact) ||
-    compact(contact.numeroTva ?? "").includes(qCompact)
-  );
+  const haystack = sansAccent([contact.prenoms, contact.nom, corps].filter((part) => part !== null && part !== "").join(" "));
+  const compactHaystack = compact([contact.siren, contact.numeroTva, corps].filter((part) => part !== null).join(" "));
+  return haystack.includes(q) || (qCompact !== "" && compactHaystack.includes(qCompact));
 }
 
 /** Fiches encore proposées quand on saisit un intervenant ou une partie. */
@@ -138,9 +136,12 @@ export function filtrerContacts(
   contacts: readonly ContactListe[],
   filtre: FiltreContacts,
   recherche: string,
+  corpsParId?: ReadonlyMap<string, string>,
 ): ContactListe[] {
   return contacts.filter(
-    (contact) => correspondFiltre(contact, filtre) && correspondRecherche(contact, recherche),
+    (contact) =>
+      correspondFiltre(contact, filtre) &&
+      correspondRecherche(contact, recherche, corpsParId?.get(contact.id) ?? ""),
   );
 }
 
