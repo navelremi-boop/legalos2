@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LEGAL OS — prototype de l’intercalaire Diligences</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--page:#D9DEDC;--texte:#1F2629;--doux:#5A6569;--filet:#C3CAC7;--btn:#FFFFFF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0E1213;--texte:#E4EAE8;--doux:#9CA8AC;--filet:#323B3E;--btn:#1E2427}}
+:root[data-theme="dark"]{--page:#0E1213;--texte:#E4EAE8;--doux:#9CA8AC;--filet:#323B3E;--btn:#1E2427}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--page);color:var(--texte);font-family:"Atkinson Hyperlegible Next",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.45;font-variant-numeric:lining-nums proportional-nums;font-feature-settings:"zero" 0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer;text-align:inherit}
+:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.tete{max-width:1300px;margin:0 auto;padding:22px 24px 6px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px}
+.tete h1{font-size:20px;margin:0;font-weight:800}
+.choix{display:flex;border:1px solid var(--filet);border-radius:8px;overflow:hidden;background:var(--btn)}
+.choix button{padding:6px 14px;border-left:1px solid var(--filet);color:var(--doux)}
+.choix button:first-child{border-left:0}
+.choix button[aria-pressed="true"]{background:var(--texte);color:var(--page);font-weight:700}
+.intro{max-width:1300px;margin:0 auto;padding:4px 24px 14px;color:var(--doux)}
+.intro p{margin:0;max-width:105ch}
+.scene{overflow-x:auto;padding:0 24px 36px}
+.note{max-width:1240px;margin:14px auto 0;color:var(--doux);font-size:13px}
+
+/* ====================== Fenêtre (reprise des maquettes validées) ====================== */
+.win{
+ --encre:#141A1C;--graphite:#5A6569;--feuille:#FFFFFF;--feuille-2:#F6F8F7;--filet-m:#E8ECEB;--survol:#F3F6F5;
+ --verre:rgba(255,255,255,.3);--verre-bord:rgba(255,255,255,.42);--verre-fort:rgba(255,255,255,.6);
+ --definitif:#43388A;--definitif-fond:rgba(67,56,138,.07);--definitif-bord:rgba(67,56,138,.2);
+ --ombre-carte:0 1px 0 rgba(255,255,255,.9) inset,0 28px 56px -28px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.06);
+ --sur-chemise:#141A1C;--ok:#2F7D4B;--attente:#9A6A12;--attente-fond:rgba(154,106,18,.08);--attente-bord:rgba(154,106,18,.25);
+ --barre-fond:rgba(255,255,255,.74);--barre-ligne:rgba(20,26,28,.1);--barre-texte:#141A1C;--barre-doux:#4A565B;--barre-actif:rgba(20,26,28,.08);--barre-pastille:rgba(20,26,28,.06);--barre-kbd:rgba(20,26,28,.08);--sync:#2F9E5B;
+ --dock-fond:rgba(255,255,255,.82);--dock-texte:#141A1C;--dock-survol:rgba(20,26,28,.07);--dock-prim-f:#141A1C;--dock-prim-t:#F2F5F4;--dock-bord:rgba(20,26,28,.1);--dock-ombre:0 18px 40px -20px rgba(0,0,0,.35);
+ /* Parts du graphique : couleurs des chemises */
+ --p1:#6FA2E0;--p2:#CE9A55;--p3:#6CBF84;--p4:#A493D6;--p5:#D98BB0;--p6:#5FB8B0;--p0:#DDE3E1;
+ width:1240px;height:800px;margin:0 auto;border-radius:14px;overflow:hidden;color:var(--encre);position:relative;isolation:isolate;
+ background-color:var(--c);background-image:var(--lumiere),var(--grain);transition:background-color .3s ease}
+.win{--lumiere:radial-gradient(120% 90% at 8% -12%,rgba(255,255,255,.22),rgba(255,255,255,0) 55%),radial-gradient(90% 80% at 110% 120%,rgba(0,0,0,.22),rgba(0,0,0,0) 60%)}
+.m-neutre{--c:#C5D0D4;--c-t:#E4EBEE;--c-e:#26353C;--c-s:#4F7383;--verre:rgba(255,255,255,.5);--verre-bord:rgba(255,255,255,.7)}
+.win[data-fond="lin"]:not(.nuit){--c:#D6CFC2;--c-t:#EFEAE1;--c-e:#3A3022;--c-s:#7C6C50}
+.win.nuit{--encre:#E8EEEC;--graphite:#9CA8AC;--feuille:#1A2023;--feuille-2:#20272A;--filet-m:#2B3438;--survol:#222A2D;
+ --verre:rgba(0,0,0,.18);--verre-bord:rgba(255,255,255,.1);--verre-fort:rgba(255,255,255,.1);
+ --definitif:#BDB4F5;--definitif-fond:rgba(189,180,245,.08);--definitif-bord:rgba(189,180,245,.25);
+ --ombre-carte:0 1px 0 rgba(255,255,255,.05) inset,0 28px 56px -24px rgba(0,0,0,.7),0 2px 8px rgba(0,0,0,.3);
+ --sur-chemise:#F2F5F4;--ok:#7BD89A;--attente:#E8B85C;--attente-fond:rgba(232,184,92,.08);--attente-bord:rgba(232,184,92,.25);
+ --barre-fond:rgba(16,21,23,.86);--barre-ligne:rgba(255,255,255,.06);--barre-texte:#F2F5F4;--barre-doux:#AEB8BC;--barre-actif:rgba(255,255,255,.1);--barre-pastille:rgba(255,255,255,.08);--barre-kbd:rgba(255,255,255,.1);--sync:#7BD89A;
+ --dock-fond:rgba(16,21,23,.86);--dock-texte:#E6ECEA;--dock-survol:rgba(255,255,255,.1);--dock-prim-f:#F2F5F4;--dock-prim-t:#141A1C;--dock-bord:rgba(255,255,255,.14);--dock-ombre:0 18px 40px -12px rgba(0,0,0,.8);
+ --p1:#86B6F0;--p2:#D9A860;--p3:#86CF9C;--p4:#BDB0F0;--p5:#E9A6C6;--p6:#7FD0C8;--p0:#323B3E}
+.win.nuit{--lumiere:radial-gradient(120% 90% at 8% -12%,rgba(255,255,255,.08),rgba(255,255,255,0) 55%),radial-gradient(90% 80% at 110% 120%,rgba(0,0,0,.35),rgba(0,0,0,0) 60%)}
+.nuit.m-neutre{--c:#1E2629;--c-t:#25323A;--c-e:#D5E1E5;--c-s:#8FB6C6}
+.d-kraft{--dc:#CE9A55;--dt:#F6E7CE;--de:#5A3F14}
+.d-bleu{--dc:#6FA2E0;--dt:#E1ECFA;--de:#1C4273}
+.d-amande{--dc:#6CBF84;--dt:#E1F3E7;--de:#1F5431}
+.nuit .d-kraft{--dc:#D9A860;--dt:#3A2E1C;--de:#F2D6AB}
+.nuit .d-bleu{--dc:#86B6F0;--dt:#1E2F48;--de:#D2E3F8}
+.nuit .d-amande{--dc:#86CF9C;--dt:#1C3827;--de:#CFEDD8}
+
+.barre{position:absolute;inset:0 0 auto 0;height:58px;display:flex;align-items:center;gap:20px;padding:0 18px;z-index:5;
+ background:var(--barre-fond);color:var(--barre-texte);-webkit-backdrop-filter:blur(20px) saturate(1.1);backdrop-filter:blur(20px) saturate(1.1);box-shadow:inset 0 -1px 0 var(--barre-ligne)}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.nav{display:flex;gap:4px;font-size:13px;flex:1}
+.nav span{padding:5px 10px;border-radius:8px;color:var(--barre-doux)}
+.nav span.on{color:var(--barre-texte);font-weight:700;background:var(--barre-actif)}
+.nav span b{margin-left:6px;font-size:11px;padding:1px 6px;border-radius:999px;background:var(--barre-kbd);color:var(--barre-texte)}
+.outils{display:flex;gap:8px;font-size:13px;color:var(--barre-doux);align-items:center}
+.pilule{display:flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:999px;background:var(--barre-pastille);box-shadow:inset 0 0 0 1px var(--barre-ligne)}
+.kbd{font-size:11px;padding:1px 6px;border-radius:5px;background:var(--barre-kbd);color:var(--barre-doux)}
+.sync{display:flex;align-items:center;gap:6px;font-size:12px;margin-right:4px}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--sync)}
+.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--barre-actif);color:var(--barre-texte);box-shadow:inset 0 0 0 1px var(--barre-ligne);flex:none}
+
+.ecran{position:absolute;inset:58px 0 0 0;padding:22px 30px 0;display:grid;grid-template-rows:auto minmax(0,1fr);color:var(--sur-chemise)}
+.ecran-tete{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:0 4px}
+.ecran-tete h2{font-size:26px;line-height:1.15;margin:0;font-weight:800;letter-spacing:-.015em}
+.ecran-tete p{margin:4px 0 0;font-size:13px;opacity:.78}
+.releve{display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:999px;font-size:12.5px;background:var(--verre);box-shadow:inset 0 0 0 1px var(--verre-bord);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.releve svg{width:14px;height:14px}
+.pile{position:relative;margin-top:22px;min-height:0}
+.c2{position:absolute;inset:0;border-radius:18px 18px 0 0;transform:translateY(-7px) scaleX(.97);background:var(--verre-fort)}
+.feuille{position:relative;height:100%;border-radius:18px 18px 0 0;background:var(--feuille);box-shadow:var(--ombre-carte);display:grid;grid-template-columns:368px minmax(0,1fr);grid-template-rows:minmax(0,1fr);color:var(--encre);overflow:hidden}
+.feuille>*{min-height:0}
+
+.seg{display:flex;gap:4px;flex-wrap:wrap;margin:12px 0 0}
+.seg button{font-size:12.5px;padding:4px 10px;border-radius:999px;color:var(--graphite);background:var(--feuille-2)}
+.seg button[aria-pressed="true"]{background:var(--encre);color:var(--feuille);font-weight:700}
+.seg button b{margin-left:5px;font-size:11.5px;opacity:.75;font-weight:400}
+/* ====================== Vue du dossier ====================== */
+.win.chemise{--c:#CE9A55;--c-t:#F6E7CE;--c-e:#5A3F14;--c-s:#A9783A;--verre:rgba(255,255,255,.3);--verre-bord:rgba(255,255,255,.45);--verre-fort:rgba(255,255,255,.55)}
+.win.chemise.nuit{--c:#6E5128;--c-t:#3A2E1C;--c-e:#F2D6AB;--c-s:#D9A860;--verre:rgba(0,0,0,.18);--verre-bord:rgba(255,255,255,.1);--verre-fort:rgba(255,255,255,.12)}
+.ongd{display:inline-flex;align-items:center;gap:7px;padding:5px 10px;border-radius:8px;background:var(--barre-actif);color:var(--barre-texte);font-weight:700}
+.ongd i{width:8px;height:8px;border-radius:50%;background:#CE9A55}
+.chrono-p{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:999px;background:var(--barre-pastille);box-shadow:inset 0 0 0 1px var(--barre-ligne);font-size:13px;color:var(--barre-texte);white-space:nowrap}
+.chrono-p i{width:9px;height:9px;border-radius:50%;background:#CE9A55;flex:none}
+.chrono-p b{font-weight:800;font-variant-numeric:tabular-nums}
+.ecran.dossier{grid-template-rows:auto minmax(0,1fr);padding-top:24px}
+.dtete{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:28px;align-items:start}
+.etiq{display:inline-block;padding:9px 16px 11px;border-radius:12px;background:var(--feuille);color:var(--encre);box-shadow:0 8px 20px -14px rgba(0,0,0,.5),0 1px 2px rgba(0,0,0,.08)}
+.etiq .r{font-size:12px;font-weight:700;color:var(--graphite);font-variant-numeric:tabular-nums slashed-zero;font-feature-settings:"zero" 1}
+.etiq h2{margin:1px 0 0;font-size:22px;font-weight:800;letter-spacing:-.01em;line-height:1.2}
+.infos{display:flex;flex-wrap:wrap;gap:12px 28px;margin:14px 0 0 16px}
+.infos dt{font-size:12px;opacity:.72}
+.infos dd{margin:2px 0 0;font-weight:700;font-size:13px}
+.jauge{display:grid;grid-template-columns:auto auto;gap:14px;align-items:center;padding:11px 16px 11px 12px;border-radius:16px;background:var(--verre);box-shadow:inset 0 0 0 1px var(--verre-bord);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.jauge svg{width:44px;height:44px}
+.jauge b{display:block;font-size:13px}
+.jauge span{font-size:12px;opacity:.8}
+.cadre{position:relative;margin:20px 130px 0 0;min-height:0}
+.feuille.d{display:flex;flex-direction:column;border-radius:18px 18px 0 0}
+.inters{position:absolute;right:-130px;top:16px;width:130px;display:flex;flex-direction:column;gap:6px}
+.inter{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:9px 10px 9px 14px;border-radius:0 12px 12px 0;font-size:13px;color:var(--sur-chemise);background:var(--verre);box-shadow:inset 0 0 0 1px var(--verre-bord)}
+.inter em{font-style:normal;font-size:11.5px;padding:0 7px;border-radius:999px;background:var(--verre-fort)}
+.inter.on{margin-left:-2px;font-weight:700;color:var(--encre);background:var(--feuille);box-shadow:12px 10px 24px -18px rgba(0,0,0,.45)}
+.inter.on em{background:var(--feuille-2)}
+.inter.nv{box-shadow:inset 0 0 0 1.5px var(--encre)}
+
+/* ====================== Diligences ====================== */
+.dg-tete{display:flex;align-items:center;gap:14px;padding:16px 20px 0;flex-wrap:wrap}
+.dg-tete h3{margin:0;font-size:17px;font-weight:800}
+.dg-tete .seg{margin:0}
+.taux{margin-left:auto;font-size:12px;color:var(--graphite);display:flex;align-items:center;gap:6px}
+.taux svg{width:14px;height:14px}
+.recap{display:grid;grid-template-columns:auto repeat(6,minmax(0,1fr));gap:6px;align-items:stretch;margin:12px 20px 0;padding:6px;border-radius:13px;background:var(--feuille-2)}
+.recap .lb{display:flex;flex-direction:column;justify-content:center;padding:0 10px 0 8px;font-size:12px;color:var(--graphite);min-width:118px}
+.recap .lb b{color:var(--encre);font-size:13px}
+.recap div.c{padding:6px 10px;border-radius:9px}
+.recap div.c span{display:block;font-size:11.5px;color:var(--graphite);white-space:nowrap}
+.recap div.c b{font-size:14px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.recap div.c.ttc{background:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.tablo{flex:1;min-height:0;overflow:auto;padding:6px 20px 96px;margin-top:8px}
+table.dg{width:100%;border-collapse:collapse;font-size:13px}
+table.dg th{position:sticky;top:0;background:var(--feuille);z-index:1;font-weight:400;font-size:12px;color:var(--graphite);text-align:left;padding:8px 6px 6px;border-bottom:1px solid var(--filet-m);white-space:nowrap}
+table.dg th.n,table.dg td.n{text-align:right}
+table.dg td{padding:4px 6px;border-bottom:1px solid var(--filet-m);vertical-align:middle}
+table.dg tr.sel td{background:var(--c-t)}
+.nuit table.dg tr.sel td{background:var(--survol)}
+table.dg tr:hover td{background:var(--survol)}
+table.dg tr.sel:hover td{background:var(--c-t)}
+table.dg tr.verrou td{color:var(--graphite)}
+table.dg tr.gr td{background:transparent!important;border-bottom:0;padding:16px 6px 4px;font-size:12px;color:var(--graphite);font-weight:700}
+table.dg tr.gr td button{font-weight:700}
+.cb{width:16px;height:16px;accent-color:var(--encre);margin:0;vertical-align:middle}
+.dt{white-space:nowrap;font-size:12.5px}
+.qui{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;font-size:11px;font-weight:800;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);color:var(--c-s)}
+.ed{width:100%;min-width:0;height:30px;padding:0 7px;border:0;border-radius:7px;background:transparent;outline:0;color:inherit;font-size:13px}
+.ed:hover{box-shadow:inset 0 0 0 1px var(--filet-m)}
+.ed:focus{background:var(--feuille);box-shadow:inset 0 0 0 2px var(--c-s)}
+.ed[disabled]{box-shadow:none;cursor:default}
+.ed.num{text-align:right;font-variant-numeric:tabular-nums}
+select.ed{appearance:none;-webkit-appearance:none;padding-right:20px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%235A6569' stroke-width='1.6'%3E%3Cpath d='m1 1 4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center}
+select.ed[disabled]{background-image:none}
+.cat{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:2px;vertical-align:middle}
+.cat-h{background:var(--c-s)}
+.cat-f{background:#6FA2E0}
+.cat-d{background:#8A8F91}
+.nuit .cat-f{background:#86B6F0}
+.typec{display:flex;align-items:center;gap:6px}
+.mt{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mt.raye{text-decoration:line-through;color:var(--graphite);font-weight:400}
+.etat{font-size:11.5px;font-weight:700;padding:1px 8px;border-radius:999px;white-space:nowrap}
+.etat.nf{background:var(--feuille-2);color:var(--graphite)}
+.etat.br{background:var(--attente-fond);color:var(--attente)}
+.etat.ok{color:var(--graphite);font-weight:400;padding:0;display:inline-flex;align-items:center;gap:4px}
+.etat.ok svg{width:12px;height:12px}
+.etat.dh{background:transparent;color:var(--graphite);font-weight:400;padding:0}
+tr.nouv td{background:var(--feuille-2)!important;border-bottom:0}
+tr.nouv .ed{background:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m)}
+tr.nouv .ed:focus{box-shadow:inset 0 0 0 2px var(--c-s)}
+.mini{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:9px;font-size:12.5px;font-weight:700;background:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m);white-space:nowrap}
+.mini:hover{background:var(--survol)}
+.mini.fort{background:var(--encre);color:var(--feuille);box-shadow:none}
+.mini svg{width:13px;height:13px}
+.mini:focus-visible,.ed:focus-visible,.seg button:focus-visible,.cb:focus-visible,.lk:focus-visible{outline:2px solid var(--c-s);outline-offset:1px}
+.prop-l td{background:var(--c-t)!important;color:var(--c-e)}
+.prop-l td b{color:var(--encre)}
+.prop-l svg{width:14px;height:14px;vertical-align:-2px;margin-right:6px}
+.avis{position:absolute;left:50%;bottom:78px;transform:translateX(-50%);z-index:6;padding:8px 14px;border-radius:10px;background:var(--encre);color:var(--feuille);font-size:12.5px;font-weight:700;box-shadow:0 12px 30px -12px rgba(0,0,0,.5);max-width:80%;text-align:center}
+.lk{font-weight:700;color:var(--encre);text-decoration:underline;text-decoration-color:var(--filet-m);text-underline-offset:3px}
+
+/* Panneau du brouillon */
+.voile{position:absolute;inset:0;background:rgba(20,26,28,.18);z-index:5;border-radius:18px 18px 0 0}
+.pan{position:absolute;top:0;right:0;bottom:0;width:440px;background:var(--feuille);z-index:6;box-shadow:-24px 0 48px -28px rgba(0,0,0,.5);display:flex;flex-direction:column;border-left:1px solid var(--filet-m)}
+.pan-t{padding:18px 20px 12px;border-bottom:1px solid var(--filet-m)}
+.pan-t h4{margin:0;font-size:17px;font-weight:800}
+.pan-t p{margin:3px 0 0;font-size:12.5px;color:var(--graphite)}
+.pan-c{flex:1;overflow:auto;padding:14px 20px 20px}
+.pan-p{padding:12px 20px 16px;border-top:1px solid var(--filet-m);display:flex;gap:10px;align-items:center}
+.cli{padding:10px 12px;border-radius:11px;background:var(--feuille-2);font-size:12.5px}
+.cli b{font-size:13.5px;display:block}
+.cli span{color:var(--graphite)}
+.f{margin:12px 0 0}
+.f label{display:block;font-size:12px;color:var(--graphite);margin-bottom:4px}
+.f input[type=text],.f select{width:100%;height:36px;padding:0 11px;border:0;border-radius:10px;background:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m);outline:0;color:var(--encre);font-size:13.5px}
+.f select{appearance:none;-webkit-appearance:none;padding-right:28px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%235A6569' stroke-width='1.6'%3E%3Cpath d='m1 1 4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center}
+.f input:focus,.f select:focus{box-shadow:inset 0 0 0 2px var(--c-s)}
+.sec-t{font-size:12px;color:var(--graphite);margin:18px 0 6px;font-weight:700}
+.lf{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:7px 0;border-top:1px solid var(--filet-m);font-size:12.5px}
+.lf:first-child{border-top:0}
+.lf small{display:block;color:var(--graphite);font-size:11.5px}
+.lf b{font-variant-numeric:tabular-nums;white-space:nowrap}
+.tot{margin-top:8px;padding-top:8px;border-top:1px solid var(--graphite);font-size:12.5px}
+.tot div{display:flex;justify-content:space-between;padding:2px 0}
+.tot div b{font-variant-numeric:tabular-nums}
+.tot div.g{font-size:14px;font-weight:800;padding-top:6px}
+.coche{display:flex;gap:10px;align-items:flex-start;font-size:13px;padding:10px 0 0}
+.coche input{margin-top:2px;width:16px;height:16px;accent-color:var(--encre)}
+.coche small{display:block;font-size:12px;color:var(--graphite)}
+.releve{margin-top:8px;border-radius:10px;box-shadow:inset 0 0 0 1px var(--filet-m);padding:4px 10px}
+.releve div{display:grid;grid-template-columns:62px 28px minmax(0,1fr) auto;gap:8px;padding:5px 0;border-top:1px solid var(--filet-m);font-size:12px}
+.releve div:first-child{border-top:0}
+.releve span:last-child{font-variant-numeric:tabular-nums;color:var(--graphite)}
+.mention{display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--graphite);margin:12px 0 0}
+.mention svg{width:14px;height:14px;flex:none;margin-top:1px}
+.creer{display:inline-flex;align-items:center;height:36px;padding:0 16px;border-radius:10px;font-weight:800;background:var(--encre);color:var(--feuille)}
+.bt-f{font-size:12.5px;font-weight:700;color:var(--graphite);padding:8px 6px}
+.depl{position:absolute;left:50%;bottom:76px;transform:translateX(-50%);z-index:7;width:380px;border-radius:14px;background:var(--feuille);box-shadow:0 24px 50px -20px rgba(0,0,0,.55),inset 0 0 0 1px var(--filet-m);padding:12px}
+.depl h5{margin:0 0 6px;font-size:13px}
+.depl button.dd{display:flex;gap:10px;align-items:center;width:100%;padding:7px 8px;border-radius:9px;font-size:13px;text-align:left}
+.depl button.dd:hover,.depl button.dd:focus-visible{background:var(--survol);outline:0}
+.pd{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:2px 9px 2px 7px;border-radius:999px;background:var(--dt);color:var(--de);white-space:nowrap;font-variant-numeric:tabular-nums slashed-zero;font-feature-settings:"zero" 1}
+.pd i{width:8px;height:8px;border-radius:50%;background:var(--dc);flex:none}
+.d-kraft{--dc:#CE9A55;--dt:#F6E7CE;--de:#5A3F14}
+.d-bleu{--dc:#6FA2E0;--dt:#E1ECFA;--de:#1C4273}
+.d-amande{--dc:#6CBF84;--dt:#E1F3E7;--de:#1F5431}
+.nuit .d-kraft{--dc:#D9A860;--dt:#3A2E1C;--de:#F2D6AB}
+.nuit .d-bleu{--dc:#86B6F0;--dt:#1E2F48;--de:#D2E3F8}
+.nuit .d-amande{--dc:#86CF9C;--dt:#1C3827;--de:#CFEDD8}
+.dock{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;gap:2px;padding:6px;border-radius:16px;z-index:4;background:var(--dock-fond);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);box-shadow:var(--dock-ombre),inset 0 0 0 1px var(--dock-bord);align-items:center}
+.dock button{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:11px;color:var(--dock-texte);font-size:13px;white-space:nowrap}
+.dock button:hover{background:var(--dock-survol)}
+.dock button.prim{background:var(--dock-prim-f);color:var(--dock-prim-t);font-weight:700}
+.dock button[disabled]{opacity:.4;cursor:not-allowed}
+.dock svg{width:15px;height:15px}
+.dock .nb{padding:0 10px 0 8px;font-size:12.5px;color:var(--dock-texte);opacity:.8;white-space:nowrap}
+.dock button:focus-visible{outline:2px solid var(--dock-texte);outline-offset:1px}
+.kbd2{font-size:11px;padding:1px 6px;border-radius:5px;background:var(--dock-survol);opacity:.85}
+
+/* Extrait Temps */
+.titre2{max-width:1240px;margin:28px auto 8px;font-size:16px;font-weight:800}
+.intro2{max-width:1240px;margin:0 auto 12px;color:var(--doux);font-size:13px}
+.win.extrait{height:auto;padding:26px 30px 30px}
+.carte{max-width:760px;border-radius:16px;background:var(--feuille);box-shadow:var(--ombre-carte);color:var(--encre);padding:16px 18px 18px}
+.carte h4{margin:0 0 2px;font-size:12px;color:var(--graphite);font-weight:400}
+.g4{display:grid;grid-template-columns:1.5fr 1fr 1.1fr;gap:10px}
+.g4b{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
+.f .aide{display:block;font-size:11.5px;color:var(--graphite);margin-top:3px}
+.montant{display:flex;align-items:flex-end;height:36px;font-weight:800;font-size:15px;font-variant-numeric:tabular-nums}
+.nouveau-ch{display:inline-block;font-size:11px;font-weight:800;padding:1px 7px;border-radius:999px;background:var(--attente-fond);color:var(--attente);margin-left:6px;vertical-align:1px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="tete">
+  <h1>Diligences du dossier, proposition</h1>
+  <div class="choix" role="group" aria-label="Apparence de la maquette">
+    <button data-t="jour" aria-pressed="true">Jour</button>
+    <button data-t="nuit" aria-pressed="false">Nuit</button>
+  </div>
+  <span style="color:var(--doux);font-size:13px">Modifiez une ligne, ajoutez une diligence, reprenez le chronomètre, cochez des lignes puis « Facturer la sélection », ou « Préparer une facture » pour tout ce qui est à facturer.</span>
+</div>
+<div class="intro"><p>Nouvel intercalaire « Diligences » dans la vue du dossier, avant « Factures ». Le registre est la seule source de la facturation : temps passé, frais et débours, chacun en quantité × prix unitaire. Les diligences non facturées forment le réservoir du dossier ; une facture en reprend tout ou partie, regroupé par type, avec le relevé détaillé en annexe si on le souhaite. Une fois la facture validée, ses diligences sont verrouillées.</p></div>
+<div class="scene">
+<section class="win chemise" id="win" aria-label="Maquette de l’intercalaire Diligences">
+  <div class="barre">
+    <div class="lights" aria-hidden="true"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></div>
+    <nav class="nav"><span>La journée</span><span>Dossiers</span><span>Contacts</span><span>Mails<b>2</b></span><span>Agenda</span><span>Facturation</span><span class="ongd"><i></i>2026-042 Les Tilleuls</span></nav>
+    <div class="outils">
+      <span class="chrono-p" title="Chronomètre en cours sur 2026-042"><i></i><b id="chrono-b">0 h 12</b></span>
+      <span class="sync"><i></i>Synchronisé</span>
+      <span class="pilule">Rechercher <span class="kbd">Ctrl K</span></span>
+      <span class="avatar">JM</span>
+    </div>
+  </div>
+  <div class="ecran dossier">
+    <div class="dtete">
+      <div>
+        <div class="etiq"><div class="r">2026-042</div><h2>SCI Les Tilleuls c/ Banque Rhodanienne</h2></div>
+        <dl class="infos">
+          <div><dt>Juridiction</dt><dd>Cour d’appel de Lyon, 1re chambre civile</dd></div>
+          <div><dt>RG</dt><dd>26/04417</dd></div>
+          <div><dt>Client</dt><dd>SCI Les Tilleuls</dd></div>
+          <div><dt>Adversaire</dt><dd>Banque Rhodanienne</dd></div>
+          <div><dt>Confrère</dt><dd>Me Clément Vasseur</dd></div>
+        </dl>
+      </div>
+      <div class="jauge"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" fill="none" stroke="currentColor" stroke-opacity=".22" stroke-width="5"/><circle cx="22" cy="22" r="18" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-dasharray="102 113" transform="rotate(-90 22 22)"/></svg><div><b>9 jours</b><span>Conclusions d’appelant, 14 octobre</span></div></div>
+    </div>
+    <div class="cadre">
+      <div class="feuille d" id="feuille"></div>
+      <div class="inters" role="tablist" aria-label="Intercalaires">
+        <span class="inter">Chrono<em>24</em></span><span class="inter">Procédure<em>6</em></span><span class="inter">Pièces<em>32</em></span><span class="inter">Mails<em>11</em></span>
+        <span class="inter on" role="tab" aria-selected="true">Diligences<em id="nb-inter">6</em></span><span class="inter">Factures<em>1</em></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<h2 class="titre2">Extrait de l’écran Temps : la saisie devient une diligence</h2>
+<p class="intro2">La maquette Temps validée le 10/10 garde sa disposition. Seul le formulaire de saisie change : une date, qui n’est plus forcément aujourd’hui, et un type, qui ouvre la saisie des frais et des débours. Le journal en dessous liste toutes les diligences, pas seulement le temps.</p>
+<section class="win m-neutre extrait" id="win2" data-fond="lin" aria-label="Extrait de l’écran Temps">
+  <div class="carte" id="carte"></div>
+</section>
+<p class="note">Maquette statique, données fictives, cohérentes avec les maquettes Temps et Facturation (4 h 15 non facturées sur 2026-042 au taux du client de 250 €). Attendu dans l’app : montants en centimes, arrondi de la TVA selon F2 ; taux figé à la saisie, recalculé seulement si la diligence change de dossier ; diligence réservée par un brouillon non modifiable tant qu’elle n’en est pas retirée ; diligence d’une facture validée verrouillée, libérée seulement par un avoir ; suppression d’une diligence non facturée inscrite au journal ; saisie hors ligne ; dates à la française. Le zéro barré visible ici vient de la police chargée en ligne ; dans l’app, il reste réservé aux références.</p>
+</div>
+<script>
+function svgUrl(s){return 'url("data:image/svg+xml,'+encodeURIComponent(s)+'")'}
+document.documentElement.style.setProperty('--grain',svgUrl(`<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' seed='4' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .3 0 0 0 -.1'/></filter><rect width='100%' height='100%' filter='url(#n)'/></svg>`));
+const S=(p,w)=>`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="${w||1.7}">${p}</svg>`;
+const ic={cadenas:S('<rect x="3.5" y="7" width="9" height="7" rx="1.8"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',1.8),
+ lettre:S('<rect x="2" y="3.5" width="12" height="9" rx="2"/><path d="m2.5 5 5.5 4 5.5-4"/>'),info:S('<circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.6M8 5.2v.2"/>'),
+ plus:S('<path d="M8 3v10M3 8h10"/>',1.9),temps:S('<circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3l2 1.5M6.5 1.5h3"/>'),
+ facture:S('<path d="M4 2h8v12l-2-1.2-2 1.2-2-1.2L4 14z"/><path d="M6 5.5h4M6 8h4"/>'),depl:S('<path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z"/><path d="M6.5 9h4M9 7l1.8 2L9 11"/>'),
+ corb:S('<path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/>'),nf:S('<circle cx="8" cy="8" r="5.5"/><path d="m4.2 11.8 7.6-7.6"/>'),croix:S('<path d="m4 4 8 8M12 4l-8 8"/>',1.9)};
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const eurC=c=>{const n=c/100;const s=Math.abs(n).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'\u202F');return (n<0?'−':'')+s+'\u00A0€'};
+const MC=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'],MN=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const dj=(y,m,d)=>new Date(y,m,d),TODAY=dj(2026,9,5);
+const court=d=>`${d.getDate()}${d.getDate()===1?'er':''} ${MC[d.getMonth()]}`;
+const hm=m=>`${Math.floor(m/60)} h ${String(m%60).padStart(2,'0')}`;
+function parseDur(s){s=String(s).trim().toLowerCase().replace(',','.');if(!s)return 0;let m;
+ if(m=s.match(/^(\d+(?:\.\d+)?)\s*(?:h|:)\s*(\d{1,2})?\s*(?:min|m)?$/))return Math.round(parseFloat(m[1])*60+(m[2]?parseInt(m[2],10):0));
+ if(m=s.match(/^(\d+)\s*(?:min|mn|m)$/))return parseInt(m[1],10);
+ if(/^\d+(?:\.\d+)?$/.test(s)){const v=parseFloat(s);return(s.includes('.')||v<10)?Math.round(v*60):Math.round(v)}return 0}
+const parseNum=s=>{const v=parseFloat(String(s).replace(/\s|\u202F|€/g,'').replace(',','.'));return isNaN(v)?0:v};
+const fmtNum=v=>String(Math.round(v*100)/100).replace('.',',');
+function parseDate(s){s=s.trim().toLowerCase();if(!s||s.startsWith('auj'))return TODAY;if(s==='hier')return new Date(TODAY.getTime()-864e5);
+ const m=s.match(/^(\d{1,2})[\/.](\d{1,2})(?:[\/.](\d{2,4}))?$/);if(m){const y=m[3]?(m[3].length===2?2000+ +m[3]:+m[3]):2026;return dj(y,+m[2]-1,+m[1]);}return null}
+
+const CAT={h:'Honoraires',f:'Frais',d:'Débours'};
+const TY=[
+ {k:'temps',c:'h',n:'Temps passé',u:'h',pu:250,t:1},{k:'forfait',c:'h',n:'Forfait',u:'forfait',pu:0},{k:'resultat',c:'h',n:'Résultat',u:'forfait',pu:0},{k:'remise',c:'h',n:'Remise',u:'forfait',pu:0},
+ {k:'copies',c:'f',n:'Copies',u:'pages',pu:.15},{k:'poste',c:'f',n:'Frais postaux',u:'envois',pu:8},{k:'km',c:'f',n:'Indemnités kilométriques',u:'km',pu:.6},{k:'trad',c:'f',n:'Traduction',u:'unités',pu:0},{k:'fdiv',c:'f',n:'Frais divers',u:'unités',pu:0},
+ {k:'plaid',c:'d',n:'Droit de plaidoirie',u:'unités',pu:13},{k:'appel',c:'d',n:'Droit d’appel',u:'unités',pu:225},{k:'greffe',c:'d',n:'Frais de greffe',u:'unités',pu:0},{k:'cj',c:'d',n:'Commissaire de justice',u:'actes',pu:0},{k:'pub',c:'d',n:'Publicité légale',u:'unités',pu:0},{k:'ddiv',c:'d',n:'Débours divers',u:'unités',pu:0}];
+const T=k=>TY.find(x=>x.k===k);
+const WHO={JM:'Me Julien Marchal',CR:'Me Camille Roux'};
+let nid=0;const L=(d,who,desc,type,q,pu,o)=>Object.assign({id:++nid,d,who,desc,type,q,pu,etat:'',fact:''},o||{});
+let D=[
+ L(dj(2026,9,5),'JM','Lecture des pièces adverses nᵒˢ 14 à 19','temps',45,250),
+ L(dj(2026,9,2),'JM','Rédaction des conclusions d’appelant','temps',150,250),
+ L(dj(2026,9,2),'JM','Copies des pièces nᵒˢ 1 à 32 pour la cour','copies',240,.15),
+ L(dj(2026,8,30),'JM','Relecture avec la cliente','temps',60,250),
+ L(dj(2026,8,30),'CR','Point interne sur la stratégie d’appel','temps',30,250,{etat:'nf'}),
+ L(dj(2026,8,30),'JM','Envoi recommandé du projet de conclusions à la cliente','poste',1,8),
+ L(dj(2026,6,14),'JM','Droit d’appel acquitté à la déclaration (article 1635 bis P du CGI)','appel',1,225),
+ L(dj(2026,6,14),'JM','Déclaration d’appel','temps',180,250,{fact:'2026-0142'})];
+/* Montant HT en centimes : temps = minutes × taux / 60, division entière (F0) */
+const ht=x=>{const t=T(x.type);const c=Math.round(x.pu*100);let v=t.t?Math.floor(x.q*c/60):Math.round(x.q*c);return x.type==='remise'?-Math.abs(v):v};
+const tva=b=>Math.floor((b*2000+5000)/10000);
+let st={filtre:'af',sel:new Set(),pan:false,releve:false,depl:false,avis:'',sugg:true,brouillon:null,
+ nv:{date:'Aujourd’hui',who:'JM',desc:'',type:'temps',q:'',pu:'250'}};
+const libre=x=>!x.fact&&x.etat!=='br';
+function totaux(rows){let h=0,f=0,d=0;rows.filter(x=>x.etat!=='nf').forEach(x=>{const v=ht(x),c=T(x.type).c;if(c==='h')h+=v;else if(c==='f')f+=v;else d+=v;});const b=h+f,tv=tva(b);return {h,f,b,tv,d,ttc:b+tv+d}}
+function avis(t){st.avis=t;render();clearTimeout(window._av);window._av=setTimeout(()=>{st.avis='';render()},3200)}
+function qAff(x){const t=T(x.type);return t.t?hm(x.q):fmtNum(x.q)}
+function typeSelect(cur,dis,id){return `<select class="ed" ${dis?'disabled':''} ${id?`data-f="type" data-id="${id}"`:'id="nv-type"'} aria-label="Type">${['h','f','d'].map(c=>`<optgroup label="${CAT[c]}">${TY.filter(t=>t.c===c).map(t=>`<option value="${t.k}"${t.k===cur?' selected':''}>${t.n}</option>`).join('')}</optgroup>`).join('')}</select>`}
+function ligne(x){
+ const t=T(x.type),lock=!!x.fact||x.etat==='br',sel=st.sel.has(x.id);
+ let etat='';
+ if(x.fact)etat=`<span class="etat ok">${ic.cadenas}Facturée</span>`;
+ else if(x.etat==='br')etat=`<span class="etat br">Dans le brouillon</span>`;
+ else if(x.etat==='nf')etat=`<span class="etat nf">Non facturable</span>`;
+ else etat=`<span class="etat dh">À facturer</span>`;
+ return `<tr class="${sel?'sel':''}${lock?' verrou':''}" data-row="${x.id}">
+  <td><input type="checkbox" class="cb" data-cb="${x.id}" ${sel?'checked':''} ${lock?'disabled':''} aria-label="Sélectionner"></td>
+  <td class="dt">${court(x.d)}</td>
+  <td><span class="qui" title="${WHO[x.who]}">${x.who}</span></td>
+  <td><input class="ed" data-f="desc" data-id="${x.id}" value="${esc(x.desc)}" ${lock?'disabled':''} aria-label="Description"></td>
+  <td><div class="typec"><span class="cat cat-${t.c}" title="${CAT[t.c]}"></span>${typeSelect(x.type,lock,x.id)}</div></td>
+  <td class="n"><input class="ed num" data-f="q" data-id="${x.id}" value="${qAff(x)}" ${lock?'disabled':''} aria-label="Quantité" style="width:78px"></td>
+  <td class="n"><input class="ed num" data-f="pu" data-id="${x.id}" value="${eurC(Math.round(x.pu*100))}" ${lock||t.t?'disabled':''} aria-label="Prix unitaire" title="${t.t?'Taux figé à la saisie : taux du client':''}" style="width:86px"></td>
+  <td class="n"><span class="mt${x.etat==='nf'?' raye':''}">${eurC(ht(x))}</span></td>
+  <td>${etat}</td></tr>`;
+}
+function rendreFeuille(){
+ const af=D.filter(x=>!x.fact&&x.etat!=='br').sort((a,b)=>b.d-a.d);
+ const br=D.filter(x=>x.etat==='br').sort((a,b)=>b.d-a.d);
+ const fa=D.filter(x=>x.fact).sort((a,b)=>b.d-a.d);
+ const selRows=D.filter(x=>st.sel.has(x.id));
+ const base=selRows.length?selRows:af;
+ const t=totaux(base);
+ const nvT=T(st.nv.type);
+ const nvMt=(()=>{const q=nvT.t?parseDur(st.nv.q):parseNum(st.nv.q);const x={type:st.nv.type,q,pu:parseNum(st.nv.pu)};return q?eurC(ht(x)):'—'})();
+ let h=`<div class="dg-tete"><h3>Diligences</h3>
+  <div class="seg" role="group" aria-label="Afficher"><button data-fl="af" aria-pressed="${st.filtre==='af'}">À facturer<b>${af.filter(x=>x.etat!=='nf').length}</b></button><button data-fl="fa" aria-pressed="${st.filtre==='fa'}">Facturées<b>${fa.length}</b></button><button data-fl="tout" aria-pressed="${st.filtre==='tout'}">Toutes<b>${D.length}</b></button></div>
+  <span class="taux">${ic.cadenas}Temps passé au taux du client : 250,00 € de l’heure, figé à la saisie</span></div>
+ <div class="recap" aria-live="polite"><div class="lb">${selRows.length?`<b>Sélection</b>${selRows.length} diligence${selRows.length>1?'s':''}`:(n=>`<b>À facturer</b>${n} diligence${n>1?'s':''}`)(af.filter(x=>x.etat!=='nf').length)}</div>
+  <div class="c"><span>Honoraires</span><b>${eurC(t.h)}</b></div><div class="c"><span>Frais</span><b>${eurC(t.f)}</b></div><div class="c"><span>Total HT</span><b>${eurC(t.b)}</b></div><div class="c"><span>TVA 20 %</span><b>${eurC(t.tv)}</b></div><div class="c"><span>Débours</span><b>${eurC(t.d)}</b></div><div class="c ttc"><span>Total TTC</span><b>${eurC(t.ttc)}</b></div></div>
+ <div class="tablo"><table class="dg"><thead><tr><th style="width:26px"><input type="checkbox" class="cb" id="tout-cb" aria-label="Tout sélectionner" ${af.length&&af.every(x=>st.sel.has(x.id))?'checked':''}></th><th style="width:62px">Date</th><th style="width:36px">Par</th><th>Description</th><th style="width:164px">Type</th><th class="n" style="width:90px">Quantité</th><th class="n" style="width:98px">Prix unitaire</th><th class="n" style="width:96px">Montant HT</th><th style="width:104px">État</th></tr></thead><tbody>`;
+ if(st.filtre!=='fa'){
+  h+=`<tr class="nouv"><td></td><td><input class="ed" id="nv-date" value="${esc(st.nv.date)}" aria-label="Date" style="width:96px" title="Aujourd’hui, hier, 2/10…"></td>
+   <td><select class="ed" id="nv-who" aria-label="Intervenant" style="width:48px;padding-right:4px;background-image:none"><option${st.nv.who==='JM'?' selected':''}>JM</option><option${st.nv.who==='CR'?' selected':''}>CR</option></select></td>
+   <td><input class="ed" id="nv-desc" value="${esc(st.nv.desc)}" placeholder="Nouvelle diligence : ce que vous avez fait" aria-label="Description"></td>
+   <td><div class="typec"><span class="cat cat-${nvT.c}"></span>${typeSelect(st.nv.type,false,null)}</div></td>
+   <td class="n"><input class="ed num" id="nv-q" value="${esc(st.nv.q)}" placeholder="${nvT.t?'1 h 30':'Quantité'}" aria-label="Quantité" style="width:78px"></td>
+   <td class="n"><input class="ed num" id="nv-pu" value="${esc(st.nv.pu)}" ${nvT.t?'disabled':''} aria-label="Prix unitaire" style="width:86px"></td>
+   <td class="n"><span class="mt" id="nv-mt">${nvMt}</span></td>
+   <td><button class="mini fort" id="nv-ok">${ic.plus}Ajouter</button></td></tr>
+   <tr class="nouv"><td></td><td colspan="8" style="padding:0 6px 8px"><button class="mini" id="nv-chrono">${ic.temps}Reprendre le chronomètre : 0 h 12 sur « Lecture des pièces adverses »</button> <span style="font-size:12px;color:var(--graphite);margin-left:8px">Entrée pour ajouter, Tab pour passer d’un champ à l’autre.</span></td></tr>`;
+  if(st.sugg)h+=`<tr class="prop-l"><td></td><td colspan="6">${ic.lettre}Proposée d’après le mail « Communication de pièces adverses nᵒˢ 14 à 19 » (Me Vasseur) : <b>0 h 14</b> de lecture.</td><td colspan="2" style="text-align:right;white-space:nowrap"><button class="mini fort" id="sg-ok">Ajouter</button> <button class="mini" id="sg-no">Ignorer</button></td></tr>`;
+  h+=af.map(ligne).join('');
+  if(!af.length)h+=`<tr><td colspan="9" style="padding:18px 6px;color:var(--graphite)">Tout est facturé sur ce dossier.</td></tr>`;
+  if(br.length){h+=`<tr class="gr"><td colspan="9">Dans un brouillon de facture, à valider dans Facturation</td></tr>`+br.map(ligne).join('');}
+ }
+ if(st.filtre!=='af'){
+  const fs=[...new Set(fa.map(x=>x.fact))];
+  fs.forEach(f=>{const rows=fa.filter(x=>x.fact===f);h+=`<tr class="gr"><td colspan="9">${ic.cadenas.replace('<svg','<svg style="width:12px;height:12px;vertical-align:-1px;margin-right:4px"')}Facture <button class="lk">${f}</button> du 19 septembre, validée : diligences verrouillées</td></tr>`+rows.map(ligne).join('');});
+ }
+ h+=`</tbody></table></div>`;
+ // dock
+ const nsel=selRows.length;
+ const tousNf=nsel&&selRows.every(x=>x.etat==='nf');
+ h+= nsel?`<div class="dock"><span class="nb">${nsel} sélectionnée${nsel>1?'s':''}</span><button class="prim" id="d-fact">${ic.facture}Facturer la sélection</button><button id="d-depl">${ic.depl}Déplacer</button><button id="d-nf">${ic.nf}${tousNf?'Rendre facturable':'Non facturable'}</button><button id="d-supp">${ic.corb}Supprimer</button><button id="d-x" aria-label="Annuler la sélection">${ic.croix}</button></div>`
+  :`<div class="dock"><button class="prim">${ic.temps}Saisir du temps <span class="kbd2">T</span></button><button id="d-tout" ${af.filter(x=>x.etat!=='nf').length?'':'disabled'}>${ic.facture}Préparer une facture</button></div>`;
+ if(st.depl)h+=`<div class="depl" role="dialog" aria-label="Déplacer vers un autre dossier"><h5>Déplacer ${nsel} diligence${nsel>1?'s':''} vers</h5>${[['2026-031','bleu','SAS Ferrand Métal c/ SARL Duclos Industrie'],['2026-052','kraft','SARL Bensaïd Bâtiment c/ SAS Logistique du Rhône'],['2026-057','amande','Succession Moreau'],['2026-021','bleu','Holding Perrache, restructuration']].map(([r,c,n])=>`<button class="dd" data-vers="${r}"><span class="pd d-${c}"><i></i>${r}</span>${n}</button>`).join('')}<p class="mention" style="margin-top:8px">${ic.info}<span>Le taux du temps passé est recalculé pour le dossier d’arrivée ; le déplacement est inscrit au journal des deux dossiers.</span></p></div>`;
+ if(st.pan)h+=panneau();
+ if(st.avis)h+=`<div class="avis" role="status">${esc(st.avis)}</div>`;
+ document.getElementById('feuille').innerHTML=h;
+ document.getElementById('nb-inter').textContent=af.filter(x=>x.etat!=='nf').length;
+}
+function lignesFacture(rows){
+ const g=new Map();
+ rows.filter(x=>x.etat!=='nf').forEach(x=>{const t=T(x.type);const k=t.t?`${x.type}|${x.who}|${x.pu}`:`${x.type}|${x.pu}`;if(!g.has(k))g.set(k,{t,who:x.who,pu:x.pu,q:0,v:0});const e=g.get(k);e.q+=x.q;e.v+=ht(x);});
+ const ordre={h:0,f:1,d:2};
+ return [...g.values()].sort((a,b)=>ordre[a.t.c]-ordre[b.t.c]).map(e=>{
+  const pu=eurC(Math.round(e.pu*100));
+  const lib=e.t.t?`Temps passé, ${WHO[e.who]}, ${hm(e.q)} au taux de ${pu}`:`${e.t.n}, ${fmtNum(e.q)} ${e.q>1?e.t.u:e.t.u.replace(/s$/,'')} à ${pu}`;
+  return {lib,c:e.t.c,v:e.v};});
+}
+function panneau(){
+ const rows=st.panRows.map(id=>D.find(x=>x.id===id)).filter(Boolean);
+ const nf=rows.filter(x=>x.etat==='nf').length;
+ const lf=lignesFacture(rows);const t=totaux(rows);
+ return `<div class="voile" id="voile"></div><aside class="pan" role="dialog" aria-label="Brouillon de facture">
+  <div class="pan-t"><h4>Brouillon de facture</h4><p>${rows.length-nf} diligence${rows.length-nf>1?'s':''} du dossier 2026-042${nf?`, ${nf} non facturable écartée`:''}</p></div>
+  <div class="pan-c">
+   <div class="cli"><b>SCI Les Tilleuls</b><span>Professionnel, SIREN 532 418 902, n° TVA FR10532418902 (fiche du client)</span></div>
+   <div class="sec-t">Lignes de la facture, regroupées par type</div>
+   <div>${lf.map(l=>`<div class="lf"><span>${esc(l.lib)}<small>${CAT[l.c]}${l.c==='d'?', hors TVA':''}</small></span><b>${eurC(l.v)}</b></div>`).join('')}</div>
+   <div class="tot"><div><span>Total HT</span><b>${eurC(t.b)}</b></div><div><span>TVA 20 %</span><b>${eurC(t.tv)}</b></div><div><span>Débours</span><b>${eurC(t.d)}</b></div><div class="g"><span>Total TTC</span><b>${eurC(t.ttc)}</b></div></div>
+   <label class="coche"><input type="checkbox" id="rel" checked><span>Joindre le relevé détaillé des diligences<small>Annexe du PDF : date, intervenant, description, quantité. Le Factur-X garde les lignes regroupées.</small></span></label>
+   <button class="lk" id="voir-rel" style="font-size:12.5px;margin:6px 0 0 26px">${st.releve?'Masquer':'Afficher'} le relevé</button>
+   ${st.releve?`<div class="releve">${rows.filter(x=>x.etat!=='nf').sort((a,b)=>a.d-b.d).map(x=>`<div><span>${court(x.d)}</span><span>${x.who}</span><span>${esc(x.desc)}</span><span>${T(x.type).t?hm(x.q):fmtNum(x.q)+' '+T(x.type).u}</span></div>`).join('')}</div>`:''}
+   <p class="mention">${ic.info}<span>Le numéro est attribué par le serveur à la validation. Jusque-là, ces diligences sont réservées par le brouillon ; à la validation, elles sont verrouillées.</span></p>
+  </div>
+  <div class="pan-p"><button class="creer" id="p-ok">Créer le brouillon</button><button class="bt-f" id="p-x">Annuler</button></div></aside>`;
+}
+/* ---------- Événements ---------- */
+const fe=document.getElementById('feuille');
+fe.addEventListener('click',e=>{
+ const g=s=>e.target.closest(s);
+ if(g('[data-fl]')){st.filtre=g('[data-fl]').dataset.fl;st.sel.clear();render();return;}
+ if(g('#nv-ok')){ajouter();return;}
+ if(g('#nv-chrono')){st.nv={...st.nv,type:'temps',q:'0 h 12',pu:'250',desc:st.nv.desc||'Lecture des pièces adverses'};render();document.getElementById('nv-desc').focus();return;}
+ if(g('#sg-ok')){D.push(L(TODAY,'JM','Lecture du mail de Me Vasseur, communication de pièces nᵒˢ 14 à 19','temps',14,250));st.sugg=false;avis('Diligence ajoutée : 0 h 14 de lecture, 58,33 € HT.');return;}
+ if(g('#sg-no')){st.sugg=false;render();return;}
+ if(g('#d-x')){st.sel.clear();st.depl=false;render();return;}
+ if(g('#d-fact')){st.panRows=[...st.sel];st.pan=true;st.releve=false;render();return;}
+ if(g('#d-tout')){st.panRows=D.filter(x=>libre(x)).map(x=>x.id);st.pan=true;st.releve=false;render();return;}
+ if(g('#d-depl')){st.depl=!st.depl;render();return;}
+ if(g('[data-vers]')){const n=st.sel.size,v=g('[data-vers]').dataset.vers;D=D.filter(x=>!st.sel.has(x.id));st.sel.clear();st.depl=false;avis(`${n} diligence${n>1?'s':''} déplacée${n>1?'s':''} vers ${v}.`);return;}
+ if(g('#d-nf')){const rows=D.filter(x=>st.sel.has(x.id));const tous=rows.every(x=>x.etat==='nf');rows.forEach(x=>x.etat=tous?'':'nf');st.sel.clear();render();return;}
+ if(g('#d-supp')){const n=st.sel.size;D=D.filter(x=>!st.sel.has(x.id));st.sel.clear();avis(`${n} diligence${n>1?'s':''} supprimée${n>1?'s':''} ; la suppression est inscrite au journal du dossier.`);return;}
+ if(g('#voile')||g('#p-x')){st.pan=false;render();return;}
+ if(g('#voir-rel')){st.releve=!st.releve;render();return;}
+ if(g('#p-ok')){const ids=st.panRows;let n=0;ids.forEach(id=>{const x=D.find(y=>y.id===id);if(x&&x.etat!=='nf'){x.etat='br';n++;}});st.pan=false;st.sel.clear();avis(`Brouillon créé dans Facturation : ${n} diligences réservées, verrouillées à la validation.`);return;}
+});
+fe.addEventListener('change',e=>{
+ const t=e.target;
+ if(t.matches('[data-cb]')){const id=+t.dataset.cb;t.checked?st.sel.add(id):st.sel.delete(id);render();return;}
+ if(t.id==='tout-cb'){const af=D.filter(x=>libre(x));if(t.checked)af.forEach(x=>st.sel.add(x.id));else st.sel.clear();render();return;}
+ if(t.dataset.f&&t.dataset.id){const x=D.find(y=>y.id===+t.dataset.id);const f=t.dataset.f;
+  if(f==='desc')x.desc=t.value;
+  if(f==='type'){const ty=T(t.value),old=T(x.type);x.type=t.value;if(ty.t&&!old.t){x.q=Math.round(x.q*60)||60;x.pu=250;}else if(!ty.t&&old.t){x.q=1;x.pu=ty.pu;}else if(!ty.t)x.pu=ty.pu||x.pu;}
+  if(f==='q'){const v=T(x.type).t?parseDur(t.value):parseNum(t.value);if(v>0)x.q=v;}
+  if(f==='pu'){const v=parseNum(t.value);if(v>=0)x.pu=v;}
+  render();return;}
+ if(t.id==='nv-type'){const ty=T(t.value);st.nv.type=t.value;st.nv.pu=ty.t?'250':fmtNum(ty.pu);st.nv.q='';render();document.getElementById('nv-q').focus();return;}
+ if(t.id==='nv-who'){st.nv.who=t.value;return;}
+ if(t.id==='rel'&&!t.checked){st.releve=false;render();}
+});
+fe.addEventListener('input',e=>{const t=e.target;
+ if(['nv-date','nv-desc','nv-q','nv-pu'].includes(t.id)){st.nv[t.id.slice(3)]=t.value;
+  const nvT=T(st.nv.type);const q=nvT.t?parseDur(st.nv.q):parseNum(st.nv.q);document.getElementById('nv-mt').textContent=q?eurC(ht({type:st.nv.type,q,pu:parseNum(st.nv.pu)})):'—';}
+});
+fe.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.closest('tr.nouv')&&e.target.tagName==='INPUT'){e.preventDefault();ajouter();}
+ if(e.key==='Enter'&&e.target.classList.contains('ed')&&!e.target.closest('tr.nouv')){e.target.blur();}
+ if(e.key==='Escape'&&(st.pan||st.depl)){st.pan=false;st.depl=false;render();}});
+function ajouter(){
+ const nvT=T(st.nv.type);const q=nvT.t?parseDur(st.nv.q):parseNum(st.nv.q);const d=parseDate(st.nv.date);
+ if(!st.nv.desc.trim()||!q||!d){avis(!d?'Date non reconnue : essayez « hier » ou « 2/10 ».':!q?(nvT.t?'Durée non reconnue : essayez « 1 h 30 », « 45 min » ou « 0,75 ».':'Indiquez une quantité.'):'Décrivez la diligence.');return;}
+ D.push(L(d,st.nv.who,st.nv.desc.trim(),st.nv.type,q,parseNum(st.nv.pu)));
+ st.nv={date:'Aujourd’hui',who:st.nv.who,desc:'',type:st.nv.type,q:'',pu:nvT.t?'250':fmtNum(nvT.pu)};
+ st.filtre=st.filtre==='fa'?'af':st.filtre;render();document.getElementById('nv-desc').focus();
+}
+
+/* ---------- Extrait Temps ---------- */
+let ex={dos:'2026-042',date:'Aujourd’hui',type:'temps',q:'',pu:'250',desc:''};
+const DOSX=[['2026-042','SCI Les Tilleuls c/ Banque Rhodanienne',250],['2026-021','Holding Perrache, restructuration',280],['2026-057','Succession Moreau',280],['2026-031','SAS Ferrand Métal c/ SARL Duclos Industrie',280]];
+function rendreCarte(){
+ const t=T(ex.type),dx=DOSX.find(x=>x[0]===ex.dos);
+ const q=t.t?parseDur(ex.q):parseNum(ex.q);
+ const mt=q?eurC(ht({type:ex.type,q,pu:t.t?dx[2]:parseNum(ex.pu)})):'—';
+ const pd=parseDate(ex.date);
+ document.getElementById('carte').innerHTML=`<h4>Saisir une diligence</h4>
+ <div class="g4"><div class="f"><label for="x-dos">Dossier</label><select id="x-dos">${DOSX.map(([r,n])=>`<option value="${r}"${r===ex.dos?' selected':''}>${r}, ${n}</option>`).join('')}</select></div>
+  <div class="f"><label for="x-date">Date <span class="nouveau-ch">nouveau</span></label><input type="text" id="x-date" value="${esc(ex.date)}"><span class="aide">${pd?(pd.getTime()===TODAY.getTime()?'Lundi 5 octobre':`${['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'][pd.getDay()].replace(/^./,c=>c.toUpperCase())} ${pd.getDate()}${pd.getDate()===1?'er':''} ${MN[pd.getMonth()]}`):'Date non reconnue : « hier », « 2/10 »…'}</span></div>
+  <div class="f"><label for="x-type">Type <span class="nouveau-ch">nouveau</span></label><select id="x-type">${['h','f','d'].map(c=>`<optgroup label="${CAT[c]}">${TY.filter(y=>y.c===c).map(y=>`<option value="${y.k}"${y.k===ex.type?' selected':''}>${y.n}</option>`).join('')}</optgroup>`).join('')}</select></div></div>
+ <div class="g4b"><div class="f"><label for="x-q">${t.t?'Durée':'Quantité ('+t.u+')'}</label><input type="text" id="x-q" value="${esc(ex.q)}" placeholder="${t.t?'1 h 30':'120'}"></div>
+  <div class="f"><label for="x-pu">${t.t?'Taux':'Prix unitaire'}</label><input type="text" id="x-pu" value="${t.t?eurC(dx[2]*100)+' de l’heure':esc(ex.pu)}" ${t.t?'disabled':''}><span class="aide">${t.t?(ex.dos==='2026-042'?'Taux du client':'Taux de Me Marchal'):'Prix par défaut du type'}</span></div>
+  <div class="f"><label>Montant HT</label><div class="montant" id="x-mt">${mt}</div></div>
+  <div class="f"><label for="x-who">Intervenant</label><select id="x-who"><option>Me Julien Marchal</option><option>Me Camille Roux</option></select></div></div>
+ <div class="f"><label for="x-desc">Description</label><input type="text" id="x-desc" value="${esc(ex.desc)}" placeholder="Ce que vous avez fait"></div>
+ <div style="margin-top:12px;display:flex;gap:10px;align-items:center"><button class="creer">Enregistrer</button><span style="font-size:12px;color:var(--graphite)">${CAT[t.c]}${t.c==='d'?', hors TVA':''}.${t.t?' Durées acceptées : 1 h 30, 45 min, 0,75.':' Montant = quantité × prix unitaire.'}</span></div>`;
+}
+document.getElementById('carte').addEventListener('change',e=>{const t=e.target;
+ if(t.id==='x-dos'){ex.dos=t.value;rendreCarte();}
+ if(t.id==='x-type'){ex.type=t.value;const ty=T(t.value);ex.pu=ty.t?'':fmtNum(ty.pu);ex.q='';rendreCarte();document.getElementById('x-q').focus();}
+});
+document.getElementById('carte').addEventListener('input',e=>{const t=e.target;const k={'x-q':'q','x-pu':'pu','x-date':'date','x-desc':'desc'}[t.id];if(!k)return;ex[k]=t.value;
+ if(k==='date'){const pos=t.selectionStart;rendreCarte();const n=document.getElementById('x-date');n.focus();n.setSelectionRange(pos,pos);return;}
+ const ty=T(ex.type),dx=DOSX.find(x=>x[0]===ex.dos);const q=ty.t?parseDur(ex.q):parseNum(ex.q);document.getElementById('x-mt').textContent=q?eurC(ht({type:ex.type,q,pu:ty.t?dx[2]:parseNum(ex.pu)})):'—';});
+
+function render(){rendreFeuille();}
+document.querySelectorAll('.choix button').forEach(b=>b.onclick=()=>{const nuit=b.dataset.t==='nuit';
+ document.querySelectorAll('.choix button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+ document.getElementById('win').classList.toggle('nuit',nuit);document.getElementById('win2').classList.toggle('nuit',nuit);document.documentElement.dataset.theme=nuit?'dark':'light';});
+/* Chronomètre de la barre */
+let sec=754;setInterval(()=>{sec++;document.getElementById('chrono-b').textContent=hm(Math.floor(sec/60));},1000);
+render();rendreCarte();
+</script>
+
+</body>
+</html>

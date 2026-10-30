@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LEGAL OS — prototype de l’écran Contacts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--page:#D9DEDC;--texte:#1F2629;--doux:#5A6569;--filet:#C3CAC7;--btn:#FFFFFF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0E1213;--texte:#E4EAE8;--doux:#9CA8AC;--filet:#323B3E;--btn:#1E2427}}
+:root[data-theme="dark"]{--page:#0E1213;--texte:#E4EAE8;--doux:#9CA8AC;--filet:#323B3E;--btn:#1E2427}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--page);color:var(--texte);font-family:"Atkinson Hyperlegible Next",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.45;font-variant-numeric:lining-nums proportional-nums;font-feature-settings:"zero" 0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer;text-align:inherit}
+:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.tete{max-width:1300px;margin:0 auto;padding:22px 24px 6px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px}
+.tete h1{font-size:20px;margin:0;font-weight:800}
+.choix{display:flex;border:1px solid var(--filet);border-radius:8px;overflow:hidden;background:var(--btn)}
+.choix button{padding:6px 14px;border-left:1px solid var(--filet);color:var(--doux)}
+.choix button:first-child{border-left:0}
+.choix button[aria-pressed="true"]{background:var(--texte);color:var(--page);font-weight:700}
+.intro{max-width:1300px;margin:0 auto;padding:4px 24px 14px;color:var(--doux)}
+.intro p{margin:0;max-width:105ch}
+.scene{overflow-x:auto;padding:0 24px 36px}
+.note{max-width:1240px;margin:14px auto 0;color:var(--doux);font-size:13px}
+
+/* ====================== Fenêtre (reprise des maquettes validées) ====================== */
+.win{
+ --encre:#141A1C;--graphite:#5A6569;--feuille:#FFFFFF;--feuille-2:#F6F8F7;--filet-m:#E8ECEB;--survol:#F3F6F5;
+ --verre:rgba(255,255,255,.3);--verre-bord:rgba(255,255,255,.42);--verre-fort:rgba(255,255,255,.6);
+ --definitif:#43388A;--definitif-fond:rgba(67,56,138,.07);--definitif-bord:rgba(67,56,138,.2);
+ --ombre-carte:0 1px 0 rgba(255,255,255,.9) inset,0 28px 56px -28px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.06);
+ --sur-chemise:#141A1C;--ok:#2F7D4B;--attente:#9A6A12;--attente-fond:rgba(154,106,18,.08);--attente-bord:rgba(154,106,18,.25);
+ --barre-fond:rgba(255,255,255,.74);--barre-ligne:rgba(20,26,28,.1);--barre-texte:#141A1C;--barre-doux:#4A565B;--barre-actif:rgba(20,26,28,.08);--barre-pastille:rgba(20,26,28,.06);--barre-kbd:rgba(20,26,28,.08);--sync:#2F9E5B;
+ --dock-fond:rgba(255,255,255,.82);--dock-texte:#141A1C;--dock-survol:rgba(20,26,28,.07);--dock-prim-f:#141A1C;--dock-prim-t:#F2F5F4;--dock-bord:rgba(20,26,28,.1);--dock-ombre:0 18px 40px -20px rgba(0,0,0,.35);
+ /* Parts du graphique : couleurs des chemises */
+ --p1:#6FA2E0;--p2:#CE9A55;--p3:#6CBF84;--p4:#A493D6;--p5:#D98BB0;--p6:#5FB8B0;--p0:#DDE3E1;
+ width:1240px;height:800px;margin:0 auto;border-radius:14px;overflow:hidden;color:var(--encre);position:relative;isolation:isolate;
+ background-color:var(--c);background-image:var(--lumiere),var(--grain);transition:background-color .3s ease}
+.win{--lumiere:radial-gradient(120% 90% at 8% -12%,rgba(255,255,255,.22),rgba(255,255,255,0) 55%),radial-gradient(90% 80% at 110% 120%,rgba(0,0,0,.22),rgba(0,0,0,0) 60%)}
+.m-neutre{--c:#C5D0D4;--c-t:#E4EBEE;--c-e:#26353C;--c-s:#4F7383;--verre:rgba(255,255,255,.5);--verre-bord:rgba(255,255,255,.7)}
+.win[data-fond="lin"]:not(.nuit){--c:#D6CFC2;--c-t:#EFEAE1;--c-e:#3A3022;--c-s:#7C6C50}
+.win.nuit{--encre:#E8EEEC;--graphite:#9CA8AC;--feuille:#1A2023;--feuille-2:#20272A;--filet-m:#2B3438;--survol:#222A2D;
+ --verre:rgba(0,0,0,.18);--verre-bord:rgba(255,255,255,.1);--verre-fort:rgba(255,255,255,.1);
+ --definitif:#BDB4F5;--definitif-fond:rgba(189,180,245,.08);--definitif-bord:rgba(189,180,245,.25);
+ --ombre-carte:0 1px 0 rgba(255,255,255,.05) inset,0 28px 56px -24px rgba(0,0,0,.7),0 2px 8px rgba(0,0,0,.3);
+ --sur-chemise:#F2F5F4;--ok:#7BD89A;--attente:#E8B85C;--attente-fond:rgba(232,184,92,.08);--attente-bord:rgba(232,184,92,.25);
+ --barre-fond:rgba(16,21,23,.86);--barre-ligne:rgba(255,255,255,.06);--barre-texte:#F2F5F4;--barre-doux:#AEB8BC;--barre-actif:rgba(255,255,255,.1);--barre-pastille:rgba(255,255,255,.08);--barre-kbd:rgba(255,255,255,.1);--sync:#7BD89A;
+ --dock-fond:rgba(16,21,23,.86);--dock-texte:#E6ECEA;--dock-survol:rgba(255,255,255,.1);--dock-prim-f:#F2F5F4;--dock-prim-t:#141A1C;--dock-bord:rgba(255,255,255,.14);--dock-ombre:0 18px 40px -12px rgba(0,0,0,.8);
+ --p1:#86B6F0;--p2:#D9A860;--p3:#86CF9C;--p4:#BDB0F0;--p5:#E9A6C6;--p6:#7FD0C8;--p0:#323B3E}
+.win.nuit{--lumiere:radial-gradient(120% 90% at 8% -12%,rgba(255,255,255,.08),rgba(255,255,255,0) 55%),radial-gradient(90% 80% at 110% 120%,rgba(0,0,0,.35),rgba(0,0,0,0) 60%)}
+.nuit.m-neutre{--c:#1E2629;--c-t:#25323A;--c-e:#D5E1E5;--c-s:#8FB6C6}
+.d-kraft{--dc:#CE9A55;--dt:#F6E7CE;--de:#5A3F14}
+.d-bleu{--dc:#6FA2E0;--dt:#E1ECFA;--de:#1C4273}
+.d-amande{--dc:#6CBF84;--dt:#E1F3E7;--de:#1F5431}
+.nuit .d-kraft{--dc:#D9A860;--dt:#3A2E1C;--de:#F2D6AB}
+.nuit .d-bleu{--dc:#86B6F0;--dt:#1E2F48;--de:#D2E3F8}
+.nuit .d-amande{--dc:#86CF9C;--dt:#1C3827;--de:#CFEDD8}
+
+.barre{position:absolute;inset:0 0 auto 0;height:58px;display:flex;align-items:center;gap:20px;padding:0 18px;z-index:5;
+ background:var(--barre-fond);color:var(--barre-texte);-webkit-backdrop-filter:blur(20px) saturate(1.1);backdrop-filter:blur(20px) saturate(1.1);box-shadow:inset 0 -1px 0 var(--barre-ligne)}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.nav{display:flex;gap:4px;font-size:13px;flex:1}
+.nav span{padding:5px 10px;border-radius:8px;color:var(--barre-doux)}
+.nav span.on{color:var(--barre-texte);font-weight:700;background:var(--barre-actif)}
+.nav span b{margin-left:6px;font-size:11px;padding:1px 6px;border-radius:999px;background:var(--barre-kbd);color:var(--barre-texte)}
+.outils{display:flex;gap:8px;font-size:13px;color:var(--barre-doux);align-items:center}
+.pilule{display:flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:999px;background:var(--barre-pastille);box-shadow:inset 0 0 0 1px var(--barre-ligne)}
+.kbd{font-size:11px;padding:1px 6px;border-radius:5px;background:var(--barre-kbd);color:var(--barre-doux)}
+.sync{display:flex;align-items:center;gap:6px;font-size:12px;margin-right:4px}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--sync)}
+.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--barre-actif);color:var(--barre-texte);box-shadow:inset 0 0 0 1px var(--barre-ligne);flex:none}
+
+.ecran{position:absolute;inset:58px 0 0 0;padding:22px 30px 0;display:grid;grid-template-rows:auto minmax(0,1fr);color:var(--sur-chemise)}
+.ecran-tete{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:0 4px}
+.ecran-tete h2{font-size:26px;line-height:1.15;margin:0;font-weight:800;letter-spacing:-.015em}
+.ecran-tete p{margin:4px 0 0;font-size:13px;opacity:.78}
+.releve{display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:999px;font-size:12.5px;background:var(--verre);box-shadow:inset 0 0 0 1px var(--verre-bord);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.releve svg{width:14px;height:14px}
+.pile{position:relative;margin-top:22px;min-height:0}
+.c2{position:absolute;inset:0;border-radius:18px 18px 0 0;transform:translateY(-7px) scaleX(.97);background:var(--verre-fort)}
+.feuille{position:relative;height:100%;border-radius:18px 18px 0 0;background:var(--feuille);box-shadow:var(--ombre-carte);display:grid;grid-template-columns:368px minmax(0,1fr);grid-template-rows:minmax(0,1fr);color:var(--encre);overflow:hidden}
+.feuille>*{min-height:0}
+
+/* ====================== Liste des contacts ====================== */
+.col-liste{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--filet-m)}
+.dl-tete{padding:16px 16px 4px}
+.rech{display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-radius:11px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);color:var(--graphite)}
+.rech svg{width:15px;height:15px;flex:none}
+.rech input{flex:1;min-width:0;border:0;background:transparent;outline:0;font-size:13.5px;color:var(--encre)}
+.rech input::placeholder{color:var(--graphite)}
+.rech:focus-within{box-shadow:inset 0 0 0 2px var(--c-s)}
+.seg{display:flex;gap:4px;flex-wrap:wrap;margin:12px 0 0}
+.seg button{font-size:12.5px;padding:4px 10px;border-radius:999px;color:var(--graphite);background:var(--feuille-2)}
+.seg button[aria-pressed="true"]{background:var(--encre);color:var(--feuille);font-weight:700}
+#seg{gap:4px 3px}
+#seg button{padding:4px 8px;font-size:12px;white-space:nowrap}
+.seg button b{margin-left:5px;font-size:11.5px;opacity:.75;font-weight:400}
+.dl-corps{overflow:auto;padding:0 8px 96px;flex:1;min-height:0}
+.groupe{font-size:12px;color:var(--graphite);margin:14px 10px 4px;font-weight:700}
+.ct-l{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;padding:8px 10px;border-radius:12px;transition:background-color .15s}
+.ct-l:hover{background:var(--survol)}
+.ct-l.sel{background:var(--c-t)}
+.nuit .ct-l.sel{background:var(--survol);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.ct-l:focus-visible,.act:focus-visible,.lk:focus-visible,.onglets button:focus-visible,.seg button:focus-visible{outline:2px solid var(--c-s);outline-offset:1px}
+.tuile{width:34px;height:34px;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--feuille-2);color:var(--c-s);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.tuile.pp{border-radius:50%}
+.tuile.pm{border-radius:9px}
+.tuile svg{width:16px;height:16px}
+.ct-l .tx{min-width:0}
+.ct-l .nom{display:block;font-weight:700;font-size:13.5px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ct-l .meta{display:block;font-size:12px;color:var(--graphite);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ct-l .nb{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--graphite)}
+.ct-l .nb svg{width:13px;height:13px}
+.vide-l{padding:30px 14px;color:var(--graphite)}
+.vide-l b{display:block;color:var(--encre);font-size:14.5px;margin-bottom:4px}
+
+/* ====================== Fiche ====================== */
+.fiche{display:flex;flex-direction:column;min-width:0;min-height:0}
+.fi-tete{padding:18px 24px 0;display:flex;gap:16px;align-items:flex-start;justify-content:space-between}
+.etq{min-width:0;padding:9px 15px 11px;border-radius:12px;background:var(--feuille);box-shadow:0 8px 20px -14px rgba(0,0,0,.5),0 1px 2px rgba(0,0,0,.08),inset 0 0 0 1px var(--filet-m);max-width:540px}
+.etq .nat{font-size:12px;color:var(--graphite);display:flex;align-items:center;gap:6px}
+.etq .nat svg{width:13px;height:13px;color:var(--c-s)}
+.etq h3{font-size:20px;line-height:1.2;margin:2px 0 0;font-weight:800;letter-spacing:-.01em}
+.etq .sous{font-size:12.5px;color:var(--graphite);margin-top:2px}
+.actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;padding-top:4px}
+.act{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:10px;font-size:12.5px;font-weight:700;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);transition:background-color .15s;white-space:nowrap}
+.act:hover{background:var(--survol)}
+.act svg{width:14px;height:14px}
+.act.fort{background:var(--encre);color:var(--feuille);box-shadow:none}
+.onglets{display:flex;gap:2px;padding:14px 20px 0;border-bottom:1px solid var(--filet-m)}
+.onglets button{padding:8px 11px;font-size:13px;color:var(--graphite);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.onglets button:hover{color:var(--encre)}
+.onglets button[aria-selected="true"]{color:var(--encre);font-weight:700;border-bottom-color:var(--encre)}
+.onglets button b{font-size:11px;margin-left:5px;padding:0 6px;border-radius:999px;background:var(--feuille-2);font-weight:700;color:var(--graphite)}
+.fi-corps{overflow:auto;padding:18px 24px 96px;flex:1;min-height:0}
+.sec-t{font-size:12px;color:var(--graphite);margin:20px 0 8px;font-weight:700;display:flex;align-items:center;gap:10px}
+.sec-t:first-child{margin-top:0}
+.sec-t .act{margin-left:auto;height:28px;font-size:12px}
+
+.desig{display:grid;grid-template-columns:18px 1fr auto;gap:10px;align-items:start;padding:12px 14px;border-radius:12px;background:var(--definitif-fond);box-shadow:inset 0 0 0 1px var(--definitif-bord)}
+.desig svg{width:16px;height:16px;color:var(--definitif);margin-top:2px}
+.desig .lb{font-size:12px;color:var(--definitif);font-weight:700}
+.desig p{margin:3px 0 0;font-size:13px;line-height:1.5;max-width:72ch}
+.desig .act{height:28px;font-size:12px}
+.alerte{display:grid;grid-template-columns:18px 1fr auto;gap:10px;align-items:center;padding:10px 14px;border-radius:12px;background:var(--attente-fond);box-shadow:inset 0 0 0 1px var(--attente-bord);font-size:12.5px;margin:0 0 12px}
+.alerte svg{width:16px;height:16px;color:var(--attente)}
+.alerte b{color:var(--encre)}
+.alerte .act{height:28px;font-size:12px}
+.faits{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 18px;margin:0}
+.faits div{min-width:0}
+.faits dt{font-size:12px;color:var(--graphite)}
+.faits dd{margin:1px 0 0;font-weight:700;font-size:13px}
+.faits dd.manque{font-weight:400;color:var(--attente)}
+.source{font-size:12px;color:var(--graphite);margin:10px 0 0}
+.coord{display:flex;flex-direction:column}
+.coord div{display:grid;grid-template-columns:150px minmax(0,1fr) auto;gap:12px;align-items:baseline;padding:7px 0;border-top:1px solid var(--filet-m);font-size:13px}
+.coord div:first-child{border-top:0}
+.coord span{font-size:12px;color:var(--graphite)}
+.coord em{font-style:normal;font-size:11.5px;color:var(--graphite);padding:1px 7px;border-radius:999px;background:var(--feuille-2)}
+
+.liens{display:flex;flex-direction:column}
+.lien{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:8px 0;border-top:1px solid var(--filet-m)}
+.lien:first-child{border-top:0}
+.lien .q{font-size:13px}
+.lien .q b{font-weight:700}
+.lien small{display:block;font-size:12px;color:var(--graphite);margin-top:1px}
+.lien.fin .q{color:var(--graphite)}
+.lien .date{font-size:12px;color:var(--graphite);text-align:right;white-space:nowrap}
+.lk{font-weight:700;color:var(--encre);text-decoration:underline;text-decoration-color:var(--filet-m);text-underline-offset:3px}
+.lk:hover{text-decoration-color:currentColor}
+.prop{display:grid;grid-template-columns:18px 1fr auto;gap:10px;align-items:center;padding:10px 14px;border-radius:12px;border:1px dashed var(--filet-m);font-size:12.5px;margin:0 0 12px}
+.prop svg{width:16px;height:16px;color:var(--c-s)}
+.prop .bts{display:flex;gap:6px}
+.prop .act{height:28px;font-size:12px}
+
+/* Structure du capital */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips div{padding:7px 12px;border-radius:11px;background:var(--feuille-2)}
+.chips span{display:block;font-size:11.5px;color:var(--graphite)}
+.chips b{font-size:14px}
+.st-outils{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin:16px 0 0}
+.st-outils .seg{margin:0}
+.st-outils .lbl{font-size:12px;color:var(--graphite)}
+.st-corps{display:grid;grid-template-columns:232px minmax(0,1fr);gap:24px;align-items:start;margin:14px 0 0}
+.donut{width:232px;height:232px;display:block}
+.donut circle.part{transition:opacity .15s;cursor:pointer}
+.donut .c1{font-size:19px;font-weight:800;fill:var(--encre)}
+.donut .c2t{font-size:12px;fill:var(--graphite)}
+.leg{width:100%;border-collapse:collapse;font-size:12.5px}
+.leg th{font-weight:400;font-size:12px;color:var(--graphite);text-align:right;padding:0 0 6px 10px;white-space:nowrap}
+.leg th:first-child{text-align:left;padding-left:0}
+.leg td{font-variant-numeric:tabular-nums;padding:7px 0 7px 10px;border-top:1px solid var(--filet-m);text-align:right;vertical-align:top;white-space:nowrap}
+.leg td:first-child{text-align:left;padding-left:0;white-space:normal}
+.leg tr.sur td{background:var(--survol)}
+.leg tr.total td{font-weight:700;border-top:1px solid var(--graphite)}
+.qui{display:grid;grid-template-columns:12px 1fr;gap:8px;align-items:start}
+.pastille{width:12px;height:12px;border-radius:3px;margin-top:3px}
+.pastille.hach{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.75) 0 2px,transparent 2px 5px)}
+.nuit .pastille.hach{background-image:repeating-linear-gradient(135deg,rgba(0,0,0,.55) 0 2px,transparent 2px 5px)}
+.qui small{display:block;font-size:11.5px;color:var(--graphite);margin-top:1px}
+.qui .dem{display:block;font-size:12px;margin-top:3px}
+.mention{display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--graphite);margin:14px 0 0;max-width:90ch}
+.mention svg{width:14px;height:14px;flex:none;margin-top:1px}
+.mvts{display:flex;flex-direction:column}
+.mvt{display:grid;grid-template-columns:120px minmax(0,1fr);gap:14px;padding:7px 0;border-top:1px solid var(--filet-m);font-size:12.5px}
+.mvt:first-child{border-top:0}
+.mvt .d{color:var(--graphite)}
+.mvt small{display:block;color:var(--graphite);font-size:11.5px;margin-top:1px}
+.mvt.apres{opacity:.5}
+.tab{width:100%;border-collapse:collapse;font-size:12.5px}
+.tab th{font-weight:400;font-size:12px;color:var(--graphite);text-align:left;padding:0 10px 6px 0;white-space:nowrap}
+.tab td{padding:8px 10px 8px 0;border-top:1px solid var(--filet-m);vertical-align:top}
+.tab .n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tab small{display:block;font-size:11.5px;color:var(--graphite)}
+.ok{color:var(--ok);font-weight:700}
+.att{color:var(--attente);font-weight:700}
+.chiffres{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 14px}
+.chiffres div{padding:8px 10px;border-radius:11px;background:var(--feuille-2)}
+.chiffres span{display:block;font-size:11.5px;color:var(--graphite)}
+.chiffres b{font-size:14px}
+.dos{display:grid;grid-template-columns:92px minmax(0,1fr);gap:14px;align-items:center;padding:9px 0;border-top:1px solid var(--filet-m)}
+.dos:first-child{border-top:0}
+.ref-l{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;padding:4px 10px 4px 8px;border-radius:9px;background:var(--dt);color:var(--de);white-space:nowrap;justify-self:start;font-variant-numeric:tabular-nums slashed-zero;font-feature-settings:"zero" 1}
+.ref-l i{width:9px;height:9px;border-radius:50%;background:var(--dc);flex:none}
+.dos .nom{font-weight:700;font-size:13px;display:block}
+.dos small{font-size:12px;color:var(--graphite)}
+.mails .m{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:8px 0;border-top:1px solid var(--filet-m);font-size:12.5px}
+.mails .m:first-child{border-top:0}
+.mails .m b{display:block;font-size:13px}
+.mails .m small{color:var(--graphite)}
+.notes{padding:12px 14px;border-radius:12px;background:var(--feuille-2);font-size:13px;line-height:1.55;max-width:72ch}
+.notes p{margin:0 0 8px}.notes p:last-child{margin:0}
+.notes small{color:var(--graphite)}
+.vide-f{padding:18px 0;color:var(--graphite);max-width:60ch}
+.vide-f b{display:block;color:var(--encre);margin-bottom:3px}
+
+/* Formulaires */
+.form{padding:14px;border-radius:12px;background:var(--feuille-2);box-shadow:inset 0 0 0 1px var(--filet-m);margin:0 0 14px}
+.f{margin:0 0 10px;min-width:0}
+.f label,.f .lab{display:block;font-size:12px;color:var(--graphite);margin-bottom:4px}
+.f input[type=text],.f input[type=date],.f input[type=number],.f select{width:100%;height:36px;padding:0 11px;border:0;border-radius:10px;background:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m);outline:0;color:var(--encre);font-size:13.5px}
+.f select{appearance:none;-webkit-appearance:none;padding-right:28px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%235A6569' stroke-width='1.6'%3E%3Cpath d='m1 1 4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center}
+.f input:focus,.f select:focus{box-shadow:inset 0 0 0 2px var(--c-s)}
+.f small{display:block;font-size:11.5px;color:var(--graphite);margin-top:3px}
+.f small.err{color:var(--attente)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.g-cp{display:grid;grid-template-columns:120px 1fr;gap:10px}
+.f-pied{display:flex;gap:10px;align-items:center;margin-top:4px}
+.f-pied .creer{display:inline-flex;align-items:center;height:36px;padding:0 16px;border-radius:10px;font-weight:800;background:var(--encre);color:var(--feuille)}
+.f-pied .bt-f{font-size:12.5px;font-weight:700;color:var(--graphite);padding:8px 6px}
+.ligne-siren{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.ligne-siren .act{height:36px}
+.coche{display:flex;gap:10px;align-items:flex-start;font-size:13px;padding:6px 0}
+.coche input{margin-top:3px;width:16px;height:16px;accent-color:var(--encre)}
+.coche small{display:block;font-size:12px;color:var(--graphite)}
+
+/* Barre d'actions flottante */
+.dock{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;gap:2px;padding:6px;border-radius:16px;z-index:4;
+ background:var(--dock-fond);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);box-shadow:var(--dock-ombre),inset 0 0 0 1px var(--dock-bord)}
+.dock button{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:11px;color:var(--dock-texte);font-size:13px;white-space:nowrap}
+.dock button:hover{background:var(--dock-survol)}
+.dock button.prim{background:var(--dock-prim-f);color:var(--dock-prim-t);font-weight:700}
+.dock svg{width:15px;height:15px}
+.dock button:focus-visible{outline:2px solid var(--dock-texte);outline-offset:1px}
+/* Référentiel public */
+.refbloc{border-radius:12px;box-shadow:inset 0 0 0 1px var(--filet-m);padding:12px 14px}
+.refbloc .rt{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--graphite);margin:0 0 10px}
+.refbloc .rt svg{width:14px;height:14px;color:var(--c-s)}
+.refbloc .rt b{color:var(--encre)}
+.verrou{display:inline-flex;align-items:center;gap:5px;margin-left:auto;font-size:11.5px;color:var(--graphite)}
+.verrou svg{width:12px;height:12px}
+.desig .bts{display:flex;gap:6px}
+.etat-f{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 8px;border-radius:999px;background:var(--attente-fond);color:var(--attente);margin-left:6px}
+.etat-f.ok{background:transparent;color:var(--ok);padding-left:0}
+.ch{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.3fr) 130px;gap:12px;align-items:baseline;padding:8px 0;border-top:1px solid var(--filet-m);font-size:13px}
+.ch:first-child{border-top:0}
+.ch b{font-weight:700}
+.ch small{display:block;font-size:12px;color:var(--graphite)}
+.ch span{font-size:12.5px}
+/* Extrait de la vue dossier */
+.titre2{max-width:1240px;margin:28px auto 8px;font-size:16px;font-weight:800}
+.intro2{max-width:1240px;margin:0 auto 12px;color:var(--doux);font-size:13px}
+.win.extrait{height:auto;padding:26px 30px 30px}
+.extrait .feuille-ex{border-radius:18px;background:var(--feuille);box-shadow:var(--ombre-carte);color:var(--encre);display:grid;grid-template-columns:minmax(0,1fr) 360px;overflow:hidden}
+.extrait .col-a{padding:20px 24px 24px}
+.extrait .col-b{padding:20px 22px 24px;border-left:1px solid var(--filet-m);background:var(--feuille-2)}
+.inst{display:flex;flex-direction:column}
+.in{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:14px;align-items:start;padding:12px 0;border-top:1px solid var(--filet-m)}
+.in:first-child{border-top:0}
+.in .pt{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:800;background:var(--encre);color:var(--feuille)}
+.in.cours .pt{background:var(--dc);color:#141A1C;box-shadow:0 0 0 4px var(--dt)}
+.in .deg{font-size:12px;color:var(--graphite)}
+.in .jur{font-size:14px;font-weight:800;display:block;margin:1px 0 2px}
+.in .det{font-size:12.5px;color:var(--graphite)}
+.in .det b{color:var(--encre);font-weight:700}
+.in .dec{font-size:12.5px;text-align:right;white-space:nowrap}
+.in .dec small{display:block;color:var(--graphite);font-size:11.5px}
+.champs{width:100%;border-collapse:collapse;font-size:12px}
+.champs td{padding:6px 0;border-top:1px solid var(--filet-m);vertical-align:top}
+.champs tr:first-child td{border-top:0}
+.champs code{font-family:inherit;font-size:11.5px;padding:1px 6px;border-radius:6px;background:var(--feuille);box-shadow:inset 0 0 0 1px var(--filet-m)}
+.champs td:last-child{padding-left:10px}
+.sugg{margin-top:4px;border-radius:10px;background:var(--feuille);box-shadow:0 12px 26px -14px rgba(0,0,0,.45),inset 0 0 0 1px var(--filet-m);overflow:hidden}
+.sugg button{display:block;width:100%;padding:7px 11px;font-size:13px;text-align:left}
+.sugg button small{display:block;font-size:11.5px;color:var(--graphite)}
+.sugg button:hover,.sugg button:focus-visible{background:var(--survol);outline:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="tete">
+  <h1>Écran Contacts, proposition</h1>
+  <div class="choix" role="group" aria-label="Apparence de la maquette">
+    <button data-t="jour" aria-pressed="true">Jour</button>
+    <button data-t="nuit" aria-pressed="false">Nuit</button>
+  </div>
+  <span style="color:var(--doux);font-size:13px">Cliquez un contact, changez d’onglet, ouvrez « Structure » sur Ferrand Métal, ou créez un contact avec « Nouveau contact ».</span>
+</div>
+<div class="intro"><p>Même système visuel que les écrans validés. Contacts prend place dans la navigation, entre Dossiers et Mails (proposition à valider). L’annuaire est commun au cabinet ; la qualité d’un contact ne vit que dans chaque dossier. La fiche donne la désignation exigée dans les actes, les liens datés entre personnes et sociétés, et, pour une société, la répartition de son capital à une date choisie. Les juridictions et les administrations viennent de l’Annuaire de l’administration (Service-Public.fr) ; le cabinet y ajoute ses chambres, ses services et ses notes.</p></div>
+<div class="scene">
+<section class="win m-neutre" id="win" data-fond="lin" aria-label="Maquette de l’écran Contacts">
+  <div class="barre">
+    <div class="lights" aria-hidden="true"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></div>
+    <nav class="nav"><span>La journée</span><span>Dossiers</span><span class="on">Contacts</span><span>Mails<b>2</b></span><span>Agenda</span><span>Facturation</span></nav>
+    <div class="outils">
+      <span class="sync" title="Toutes les modifications sont synchronisées"><i></i>Synchronisé</span>
+      <span class="pilule">Rechercher <span class="kbd">Ctrl K</span></span>
+      <span class="avatar" aria-label="Menu du compte">JM</span>
+    </div>
+  </div>
+  <div class="ecran">
+    <div class="ecran-tete">
+      <div><h2>Contacts</h2><p id="sous-titre"></p></div>
+      <span class="releve" title="Tous les membres du cabinet voient l’annuaire ; un dossier restreint n’apparaît qu’aux personnes autorisées"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="6" cy="6" r="2.5"/><path d="M1.8 13.5c.6-2.4 2.2-3.6 4.2-3.6s3.6 1.2 4.2 3.6"/><circle cx="11.5" cy="5.5" r="2"/><path d="M11 9.6c1.7.1 2.8 1.2 3.3 3.1"/></svg>Annuaire commun au cabinet</span>
+    </div>
+    <div class="pile">
+      <div class="c2"></div>
+      <div class="feuille">
+        <div class="col-liste">
+          <div class="dl-tete">
+            <label class="rech"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input id="q" type="search" placeholder="Nom, dénomination, SIREN, e-mail, ville" aria-label="Rechercher un contact"></label>
+            <div class="seg" id="seg" role="group" aria-label="Filtrer les contacts"></div>
+          </div>
+          <div class="dl-corps" id="liste"></div>
+        </div>
+        <section class="fiche" id="fiche" aria-live="polite"></section>
+        <div class="dock">
+          <button class="prim" id="nouveau"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.5" cy="5.5" r="2.7"/><path d="M1.8 13.5c.6-2.6 2.4-3.9 4.7-3.9 1.3 0 2.4.4 3.2 1.1M12.5 9v5M10 11.5h5"/></svg>Nouveau contact</button>
+          <button id="nouveau-siren"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 13.5h11M3.5 13.5V7M6.5 13.5V7M9.5 13.5V7M12.5 13.5V7M2 6.5 8 2.5l6 4z"/></svg>Importer par SIREN</button>
+          <button><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3.5" width="12" height="9" rx="2"/><path d="m2.5 5 5.5 4 5.5-4"/></svg>Nouveau mail</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<h2 class="titre2">Extrait de la vue dossier : les instances</h2>
+<p class="intro2">La juridiction n’est plus un champ du dossier mais une suite d’instances, chacune reliée à une fiche de l’annuaire. L’appel n’efface plus la première instance.</p>
+<section class="win m-neutre extrait" id="win2" data-fond="lin" aria-label="Extrait de la vue dossier">
+ <div class="feuille-ex d-kraft">
+  <div class="col-a" id="instances"></div>
+  <div class="col-b" id="champs"></div>
+ </div>
+</section>
+<p class="note">Maquette statique, données fictives (les fiches de juridictions et d’administrations reprennent les données publiques du référentiel). Attendu dans l’app : les pourcentages sont calculés, jamais saisis ; un excès de titres est refusé ; l’import par SIREN propose, l’utilisateur valide champ par champ ; un contact lié à un dossier s’archive, il ne se supprime pas ; un dossier restreint n’apparaît pas dans l’onglet Dossiers d’une personne qui n’y a pas accès, sans compteur ni mention ; les données publiques d’une juridiction ou d’une administration ne se modifient pas, seules les chambres, services et notes du cabinet s’y ajoutent ; dates à la française, jamais au format technique. Le zéro barré visible ici vient de la police chargée en ligne ; dans l’app, il reste réservé aux références.</p>
+</div>
+<script>
+function svgUrl(s){return 'url("data:image/svg+xml,'+encodeURIComponent(s)+'")'}
+document.documentElement.style.setProperty('--grain',svgUrl(`<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' seed='4' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .3 0 0 0 -.1'/></filter><rect width='100%' height='100%' filter='url(#n)'/></svg>`));
+
+const ic={
+ pm:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 14V3.5A1.5 1.5 0 0 1 4.5 2h5A1.5 1.5 0 0 1 11 3.5V14M11 7h1.5A1.5 1.5 0 0 1 14 8.5V14M2 14h12M5.5 5h2M5.5 8h2M5.5 11h2"/></svg>',
+ pp:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5.5" r="2.8"/><path d="M2.8 14c.7-2.8 2.7-4.2 5.2-4.2s4.5 1.4 5.2 4.2"/></svg>',
+ dossier:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H6l1.5 1.5h5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5z"/></svg>',
+ acte:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 2h5l3 3v9H4z"/><path d="M9 2v3h3M6 8.5h4M6 11h4"/></svg>',
+ alerte:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8 2 1.8 13h12.4z"/><path d="M8 6.5v3M8 11.3v.2"/></svg>',
+ info:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v4M8 5v.2"/></svg>',
+ registre:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 13.5h11M3.5 13.5V7M6.5 13.5V7M9.5 13.5V7M12.5 13.5V7M2 6.5 8 2.5l6 4z"/></svg>',
+ mail:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="3.5" width="12" height="9" rx="2"/><path d="m2.5 5 5.5 4 5.5-4"/></svg>',
+ plus:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3v10M3 8h10"/></svg>',
+ lien:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6.5 9.5 9.5 6.5M7 4.5l1-1a2.8 2.8 0 0 1 4 4l-1 1M9 11.5l-1 1a2.8 2.8 0 0 1-4-4l1-1"/></svg>',
+ copier:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="5" width="8.5" height="8.5" rx="1.5"/><path d="M3 10.5V3.8A1.3 1.3 0 0 1 4.3 2.5H11"/></svg>',
+ fusion:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 2.5v3c0 2 1.5 3 5 3s5 1 5 3v2M13 2.5v3c0 1.3-.6 2.1-1.8 2.6M8 8.5v5"/></svg>'
+};
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nf=new Intl.NumberFormat('fr-FR');
+const pf=new Intl.NumberFormat('fr-FR',{maximumFractionDigits:1});
+const n=x=>nf.format(x);
+const pct=x=>pf.format(x*100)+'\u00A0%';
+const eur=x=>nf.format(x)+'\u00A0€';
+
+/* ---------- Données fictives ---------- */
+const C={
+ ferrand:{nature:'pm',nom:'Ferrand Métal',forme:'SAS',formeLong:'Société par actions simplifiée',ville:'Lyon',siren:'812345676',rcs:'Lyon',tva:'FR19812345676',
+  capitalTxt:'50 000 €',creee:'4 avril 2019',naf:'Métallurgie, fabrication de structures métalliques',
+  desig:'La société Ferrand Métal, société par actions simplifiée au capital de 50 000 €, immatriculée au registre du commerce et des sociétés de Lyon sous le numéro 812 345 676, dont le siège social est situé 14 rue de la Forge, 69007 Lyon, prise en la personne de son président en exercice, M. Antoine Ferrand, domicilié en cette qualité audit siège.',
+  source:'Registre national des entreprises, importé le 2 octobre 2026. Capital saisi d’après le procès-verbal du 12 mars 2025.',
+  doublon:'Ferrand Metal SAS',
+  coord:[['Siège','14 rue de la Forge, 69007 Lyon',1],['Adresse de facturation','BP 3021, 69341 Lyon Cedex 07',1],['Téléphone','04 72 00 41 18',1],['E-mail','direction@ferrand-metal.example',1],['E-mail','compta@ferrand-metal.example',0]],
+  liens:[
+   {g:'Dirigeants',q:'Président',de:'antoine',dir:'in',d:'depuis le 4 avril 2019',s:'Kbis du 2 octobre 2026'},
+   {g:'Dirigeants',q:'Directrice générale',de:'claire',dir:'in',d:'du 4 avril 2019 au 12 mars 2025',s:'Procès-verbal du 12 mars 2025',fin:1},
+   {g:'Professionnels de la société',q:'Expert-comptable',de:'rivegauche',dir:'in',d:'depuis 2019',s:'Lettre de mission'},
+  ],
+  dossiers:[{ref:'2026-031',c:'bleu',nom:'SAS Ferrand Métal c/ SARL Duclos Industrie',q:'Client, demandeur'}],
+  factures:[['2026-0131','3 septembre 2026','Provision sur honoraires','2 400 €','Payée'],['2026-0158','2 octobre 2026','Honoraires, mise en état','3 600 €','En attente']],
+  chiffres:[['Facturé en 2026','6 000 €'],['Encaissé','2 400 €'],['Encours','3 600 €']],
+  mails:[['Re: Assignation Duclos, pièces complémentaires','M. Antoine Ferrand','27 octobre'],['Factures fournisseurs Duclos 2025','compta@ferrand-metal.example','14 octobre'],['Convocation à l’audience du 6 novembre','Vous','9 octobre']],
+  notes:['Interlocuteur habituel : M. Antoine Ferrand, joignable de préférence le matin.','Comptabilité tenue par Rive Gauche Expertise ; les relances de factures partent en copie à compta@ferrand-metal.example.'],
+  structure:'ferrand'},
+ antoine:{nature:'pp',civ:'M.',prenoms:'Antoine Louis',prenom:'Antoine',nom:'Ferrand',ville:'Craponne',profession:'Chef d’entreprise',
+  naissance:'3 février 1972 à Saint-Étienne (Loire)',nationalite:'Française',situation:'Marié',nomNaissance:'',
+  desig:'M. Antoine Louis Ferrand, né le 3 février 1972 à Saint-Étienne (Loire), de nationalité française, chef d’entreprise, demeurant 8 chemin des Vignes, 69290 Craponne.',
+  coord:[['Domicile','8 chemin des Vignes, 69290 Craponne',1],['Mobile','06 71 22 40 93',1],['E-mail','a.ferrand@ferrand-metal.example',1]],
+  liens:[
+   {g:'Mandats sociaux',q:'Président',vers:'ferrand',d:'depuis le 4 avril 2019',s:'Kbis du 2 octobre 2026'},
+   {g:'Mandats sociaux',q:'Gérant',vers:'afp',d:'depuis le 18 janvier 2025',s:'Statuts constitutifs'},
+   {g:'Mandats sociaux',q:'Gérant',vers:'ferrandlog',d:'depuis le 2 septembre 2021',s:'Kbis du 2 octobre 2026'},
+   {g:'Famille',q:'Conjoint',vers:'claire',d:'',s:''},
+   {g:'Famille',q:'Parent',vers:'hugo',d:'',s:''},
+  ],
+  dossiers:[{ref:'2026-031',c:'bleu',nom:'SAS Ferrand Métal c/ SARL Duclos Industrie',q:'Représentant légal, rattaché à SAS Ferrand Métal'}],
+  mails:[['Re: Assignation Duclos, pièces complémentaires','Vous','27 octobre']]},
+ claire:{nature:'pp',civ:'Mme',prenoms:'Claire',prenom:'Claire',nom:'Ferrand',nomNaissance:'Martin',ville:'Craponne',profession:'Consultante',
+  naissance:'21 août 1974 à Lyon (Rhône)',nationalite:'Française',situation:'Mariée',
+  desig:'Mme Claire Ferrand, née Martin le 21 août 1974 à Lyon (Rhône), de nationalité française, consultante, demeurant 8 chemin des Vignes, 69290 Craponne.',
+  coord:[['Domicile','8 chemin des Vignes, 69290 Craponne',1],['E-mail','claire.ferrand@example.fr',1]],
+  liens:[
+   {g:'Mandats sociaux',q:'Directrice générale',vers:'ferrand',d:'du 4 avril 2019 au 12 mars 2025',s:'Procès-verbal du 12 mars 2025',fin:1},
+   {g:'Famille',q:'Conjointe',vers:'antoine',d:'',s:''},
+   {g:'Famille',q:'Parent',vers:'hugo',d:'',s:''},
+  ],dossiers:[]},
+ hugo:{nature:'pp',civ:'M.',prenoms:'Hugo',prenom:'Hugo',nom:'Ferrand',ville:'Lyon',profession:'',
+  naissance:'12 mai 2001 à Lyon (Rhône)',nationalite:'Française',situation:'Célibataire',nomNaissance:'',manque:'profession',
+  desig:'M. Hugo Ferrand, né le 12 mai 2001 à Lyon (Rhône), de nationalité française, [profession], demeurant 22 rue Chevreul, 69007 Lyon.',
+  coord:[['Domicile','22 rue Chevreul, 69007 Lyon',1]],
+  liens:[{g:'Famille',q:'Enfant',vers:'antoine',d:'',s:''},{g:'Famille',q:'Enfant',vers:'claire',d:'',s:''}],dossiers:[]},
+ afp:{nature:'pm',nom:'AF Participations',forme:'SARL',formeLong:'Société à responsabilité limitée',ville:'Craponne',siren:'851902346',rcs:'Lyon',tva:'FR35851902346',capitalTxt:'10 000 €',creee:'18 janvier 2025',naf:'Activités des sociétés holding',
+  desig:'La société AF Participations, société à responsabilité limitée au capital de 10 000 €, immatriculée au registre du commerce et des sociétés de Lyon sous le numéro 851 902 346, dont le siège social est situé 8 chemin des Vignes, 69290 Craponne, prise en la personne de son gérant en exercice, M. Antoine Ferrand, domicilié en cette qualité audit siège.',
+  source:'Registre national des entreprises, importé le 2 octobre 2026.',
+  coord:[['Siège','8 chemin des Vignes, 69290 Craponne',1]],
+  liens:[{g:'Dirigeants',q:'Gérant',de:'antoine',dir:'in',d:'depuis le 18 janvier 2025',s:'Statuts constitutifs'}],
+  dossiers:[],structure:'afp'},
+ ferrandlog:{nature:'pm',nom:'Ferrand Logistique',forme:'SARL',formeLong:'Société à responsabilité limitée',ville:'Saint-Priest',siren:'903417566',rcs:'Lyon',tva:'FR57903417566',capitalTxt:'8 000 €',creee:'2 septembre 2021',naf:'Transports routiers de fret',
+  desig:'La société Ferrand Logistique, société à responsabilité limitée au capital de 8 000 €, immatriculée au registre du commerce et des sociétés de Lyon sous le numéro 903 417 566, dont le siège social est situé 5 avenue de l’Industrie, 69800 Saint-Priest, prise en la personne de son gérant en exercice, M. Antoine Ferrand, domicilié en cette qualité audit siège.',
+  source:'Registre national des entreprises, importé le 2 octobre 2026.',
+  proposition:{nom:'M. Hugo Ferrand',q:'cogérant',vers:'hugo',d:'né en mai 2001'},
+  coord:[['Siège','5 avenue de l’Industrie, 69800 Saint-Priest',1]],
+  liens:[{g:'Dirigeants',q:'Gérant',de:'antoine',dir:'in',d:'depuis le 2 septembre 2021',s:'Kbis du 2 octobre 2026'}],
+  dossiers:[],structure:'ferrandlog'},
+ rhone:{nature:'pm',nom:'Rhône Croissance Capital',forme:'SAS',formeLong:'Société par actions simplifiée',ville:'Lyon',siren:'788214567',rcs:'Lyon',tva:'FR23788214567',capitalTxt:'',creee:'',naf:'Gestion de fonds',
+  desig:'La société Rhône Croissance Capital, société par actions simplifiée au capital de [capital], immatriculée au registre du commerce et des sociétés de Lyon sous le numéro 788 214 567, dont le siège social est situé 40 quai Rambaud, 69002 Lyon, prise en la personne de [représentant], domicilié en cette qualité audit siège.',
+  manqueTxt:'le capital et l’organe représentant',source:'Registre national des entreprises, importé le 12 mars 2025.',
+  coord:[['Siège','40 quai Rambaud, 69002 Lyon',1]],liens:[],dossiers:[],structure:'rhone'},
+ duclos:{nature:'pm',nom:'Duclos Industrie',forme:'SARL',formeLong:'Société à responsabilité limitée',ville:'Villefranche-sur-Saône',siren:'494012305',rcs:'Villefranche-Tarare',tva:'FR20494012305',capitalTxt:'30 000 €',creee:'',naf:'Commerce de gros de fournitures industrielles',
+  desig:'La société Duclos Industrie, société à responsabilité limitée au capital de 30 000 €, immatriculée au registre du commerce et des sociétés de Villefranche-Tarare sous le numéro 494 012 305, dont le siège social est situé 120 rue de la République, 69400 Villefranche-sur-Saône, prise en la personne de [représentant], domicilié en cette qualité audit siège.',
+  manqueTxt:'l’organe représentant (aucun gérant renseigné)',source:'Saisie manuelle du 3 février 2026.',
+  coord:[['Siège','120 rue de la République, 69400 Villefranche-sur-Saône',1]],liens:[],
+  dossiers:[{ref:'2026-031',c:'bleu',nom:'SAS Ferrand Métal c/ SARL Duclos Industrie',q:'Adversaire, défendeur'}],structure:'vide'},
+ perrin:{nature:'pp',civ:'Me',prenoms:'Anne',prenom:'Anne',nom:'Perrin',ville:'Lyon',pro:'Avocate',barreau:'Lyon',toque:'1187',
+  desig:'Me Anne Perrin, avocate au barreau de Lyon, toque 1187, 18 quai de Bondy, 69005 Lyon.',
+  coord:[['Cabinet','18 quai de Bondy, 69005 Lyon',1],['Téléphone','04 78 37 52 10',1],['E-mail','a.perrin@perrin-avocats.example',1]],
+  liens:[],dossiers:[{ref:'2026-031',c:'bleu',nom:'SAS Ferrand Métal c/ SARL Duclos Industrie',q:'Avocate de SARL Duclos Industrie'}]},
+ vasseur:{nature:'pp',civ:'Me',prenoms:'Clément',prenom:'Clément',nom:'Vasseur',ville:'Lyon',pro:'Avocat',barreau:'Lyon',toque:'874',
+  desig:'Me Clément Vasseur, avocat au barreau de Lyon, toque 874, 6 rue de la Bourse, 69002 Lyon.',
+  coord:[['Cabinet','6 rue de la Bourse, 69002 Lyon',1],['E-mail','c.vasseur@vasseur-associes.example',1]],
+  liens:[],dossiers:[{ref:'2026-042',c:'kraft',nom:'SCI Les Tilleuls c/ Banque Rhodanienne',q:'Avocat de Banque Rhodanienne'}]},
+ banque:{nature:'pm',nom:'Banque Rhodanienne',forme:'SA',formeLong:'Société anonyme',ville:'Lyon',siren:'552100554',rcs:'Lyon',tva:'FR96552100554',capitalTxt:'84 000 000 €',creee:'',naf:'Autres intermédiations monétaires',
+  desig:'La société Banque Rhodanienne, société anonyme au capital de 84 000 000 €, immatriculée au registre du commerce et des sociétés de Lyon sous le numéro 552 100 554, dont le siège social est situé 2 place de la Bourse, 69002 Lyon, prise en la personne de son directeur général en exercice, M. Pierre Delorme, domicilié en cette qualité audit siège.',
+  source:'Registre national des entreprises, importé le 11 février 2026.',
+  coord:[['Siège','2 place de la Bourse, 69002 Lyon',1]],liens:[],
+  dossiers:[{ref:'2026-042',c:'kraft',nom:'SCI Les Tilleuls c/ Banque Rhodanienne',q:'Adversaire, intimée'}],structure:'vide'},
+ rivegauche:{nature:'pm',nom:'Rive Gauche Expertise',forme:'SARL',formeLong:'Société à responsabilité limitée',ville:'Lyon',siren:'837650118',rcs:'Lyon',tva:'FR78837650118',capitalTxt:'20 000 €',creee:'',naf:'Activités comptables',pro:'Expert-comptable',
+  desig:'La société Rive Gauche Expertise, société à responsabilité limitée au capital de 20 000 €, immatriculée au registre du commerce et des sociétés de Lyon sous le numéro 837 650 118, dont le siège social est situé 31 cours Gambetta, 69003 Lyon, prise en la personne de son gérant en exercice, Mme Inès Garnier, domiciliée en cette qualité audit siège.',
+  source:'Registre national des entreprises, importé le 2 octobre 2026.',
+  coord:[['Siège','31 cours Gambetta, 69003 Lyon',1],['Téléphone','04 78 62 19 40',1]],
+  liens:[{g:'Clients de la société',q:'Expert-comptable de',vers:'ferrand',d:'depuis 2019',s:'Lettre de mission'}],dossiers:[],structure:'vide'},
+ rambert:{nature:'pp',civ:'Me',prenoms:'Julie',prenom:'Julie',nom:'Rambert',ville:'Lyon',pro:'Commissaire de justice',ressort:'Cour d’appel de Lyon',
+  desig:'Me Julie Rambert, commissaire de justice, 9 rue Servient, 69003 Lyon.',
+  coord:[['Étude','9 rue Servient, 69003 Lyon',1],['Téléphone','04 78 95 60 21',1]],liens:[],
+  dossiers:[{ref:'2026-031',c:'bleu',nom:'SAS Ferrand Métal c/ SARL Duclos Industrie',q:'Commissaire de justice'}]},
+ moreau:{nature:'pp',civ:'Mme',prenoms:'Hélène',prenom:'Hélène',nom:'Moreau',ville:'Écully',profession:'Retraitée',naissance:'4 novembre 1951 à Mâcon (Saône-et-Loire)',nationalite:'Française',situation:'Veuve',nomNaissance:'Bouvier',
+  desig:'Mme Hélène Moreau, née Bouvier le 4 novembre 1951 à Mâcon (Saône-et-Loire), de nationalité française, retraitée, demeurant 3 allée des Cèdres, 69130 Écully.',
+  coord:[['Domicile','3 allée des Cèdres, 69130 Écully',1],['Téléphone','04 78 33 08 51',1]],liens:[],
+  dossiers:[{ref:'2026-057',c:'amande',nom:'Succession Moreau',q:'Cliente, héritière'}]},
+ perrache:{nature:'pm',nom:'Holding Perrache',forme:'SAS',formeLong:'Société par actions simplifiée',ville:'Lyon',siren:'920118841',rcs:'Lyon',tva:'FR84920118841',capitalTxt:'250 000 €',creee:'',naf:'Activités des sociétés holding',
+  desig:'La société Holding Perrache, société par actions simplifiée au capital de 250 000 €, immatriculée au registre du commerce et des sociétés de Lyon sous le numéro 920 118 841, dont le siège social est situé 11 cours de Verdun, 69002 Lyon, prise en la personne de son président en exercice, M. Olivier Perrache, domicilié en cette qualité audit siège.',
+  source:'Registre national des entreprises, importé le 6 septembre 2026.',
+  coord:[['Siège','11 cours de Verdun, 69002 Lyon',1]],
+  liens:[{g:'Dirigeants',q:'Président',de:'operrache',dir:'in',d:'depuis le 1er juillet 2022',s:'Kbis du 6 septembre 2026'}],
+  dossiers:[{ref:'2026-021',c:'bleu',nom:'Holding Perrache, restructuration',q:'Client'}],structure:'vide'},
+ operrache:{nature:'pp',civ:'M.',prenoms:'Olivier',prenom:'Olivier',nom:'Perrache',ville:'Lyon',profession:'Dirigeant de société',naissance:'17 juin 1968 à Grenoble (Isère)',nationalite:'Française',situation:'Marié',nomNaissance:'',
+  desig:'M. Olivier Perrache, né le 17 juin 1968 à Grenoble (Isère), de nationalité française, dirigeant de société, demeurant 27 quai Saint-Antoine, 69002 Lyon.',
+  coord:[['Domicile','27 quai Saint-Antoine, 69002 Lyon',1],['E-mail','o.perrache@holding-perrache.example',1]],
+  liens:[{g:'Mandats sociaux',q:'Président',vers:'perrache',d:'depuis le 1er juillet 2022',s:'Kbis du 6 septembre 2026'}],
+  dossiers:[{ref:'2026-021',c:'bleu',nom:'Holding Perrache, restructuration',q:'Représentant légal, rattaché à Holding Perrache'}]},
+};
+/* Juridictions et administrations (référentiel public + couche du cabinet) */
+Object.assign(C,{
+ tae:{nature:'pub',genre:'juridiction',sorte:'Tribunal des activités économiques',nom:'Tribunal des activités économiques de Lyon',ville:'Lyon',
+  acte:'devant le tribunal des activités économiques de Lyon, 44 rue de Bonnel, 69003 Lyon',
+  ref:{adr:'44 rue de Bonnel, 69003 Lyon',tel:'04 72 60 69 80',mail:'',horaires:'',ressort:'169 communes',maj:'24 mars 2026'},
+  ancien:'Tribunal de commerce de Lyon, jusqu’au 31 décembre 2024',ca:'ca',
+  chambres:[['Greffe, contentieux général','greffe.contentieux@tae-lyon.example','04 72 60 69 80','Pour les placements et les communications de pièces'],['Chambre 3','','','Audiences le jeudi matin'],['Service des procédures collectives','pc@tae-lyon.example','04 72 60 69 87',''],['Président, requêtes','requetes@tae-lyon.example','','Requêtes déposées au greffe avant 11 h']],
+  dossiers:[{ref:'2026-031',c:'bleu',nom:'SAS Ferrand Métal c/ SARL Duclos Industrie',q:'Instance en cours, chambre 3, RG 2026J00311'},{ref:'2026-052',c:'kraft',nom:'SARL Bensaïd Bâtiment c/ SAS Logistique du Rhône',q:'Instance en cours, RG 2026J00512'},{ref:'2025-094',c:'kraft',nom:'SARL Chavanel c/ Banque du Beaujolais',q:'Instance en cours, RG 2025J00877'}],
+  notes:['Le greffe ne publie pas d’adresse e-mail dans le référentiel : utiliser celles des services ci-contre.']},
+ ca:{nature:'pub',genre:'juridiction',sorte:'Cour d’appel',nom:'Cour d’appel de Lyon',ville:'Lyon',
+  acte:'devant la cour d’appel de Lyon, 1 rue du Palais de Justice, 69005 Lyon',
+  ref:{adr:'1 rue du Palais de Justice, 69005 Lyon',tel:'04 72 77 30 30',mail:'',horaires:'Du lundi au vendredi, de 8 h 45 à 12 h et de 13 h 15 à 17 h',ressort:'1 040 communes',maj:'17 septembre 2026'},
+  chambres:[['1re chambre civile','','04 72 77 30 41',''],['3e chambre commerciale','','04 72 77 30 52',''],['Premier président, référés','','04 72 77 30 30','Assignations en référé devant le premier président']],
+  dossiers:[{ref:'2026-042',c:'kraft',nom:'SCI Les Tilleuls c/ Banque Rhodanienne',q:'Appel en cours, 1re chambre civile, RG 26/04417'},{ref:'2026-017',c:'kraft',nom:'Groupe Vignal c/ ancien dirigeant',q:'Appel en cours, RG 25/02266'}]},
+ tj:{nature:'pub',genre:'juridiction',sorte:'Tribunal judiciaire',nom:'Tribunal judiciaire de Lyon',ville:'Lyon',
+  acte:'devant le tribunal judiciaire de Lyon, 67 rue Servient, 69003 Lyon',
+  ref:{adr:'67 rue Servient, 69003 Lyon',tel:'04 72 60 70 12',mail:'tj-lyon@justice.fr',horaires:'Du lundi au vendredi, de 8 h à 17 h',ressort:'',maj:'3 octobre 2025'},ca:'ca',
+  chambres:[['4e chambre civile','','',''],['Juge de l’exécution','','','']],
+  dossiers:[{ref:'2026-042',c:'kraft',nom:'SCI Les Tilleuls c/ Banque Rhodanienne',q:'Première instance, 4e chambre civile, RG 23/06118, jugement du 12 juin 2026'},{ref:'2026-044',c:'kraft',nom:'Établissements Roche c/ Mutuelle des Artisans',q:'Instance en cours, RG 26/03120'}]},
+ sie:{nature:'pub',genre:'administration',tutelle:'Direction générale des finances publiques',sorte:'Service des impôts des entreprises',nom:'Service des impôts des entreprises de Lyon 1',ville:'Lyon',
+  formule:'Le comptable public responsable du service des impôts des entreprises de Lyon 1, domicilié en ses bureaux, 3 rue de la Charité, 69002 Lyon',
+  ref:{adr:'3 rue de la Charité, 69002 Lyon',postale:'3 rue de la Charité, 69287 Lyon Cedex 02',tel:'0806 807 807',mail:'',horaires:'Lundi, mardi, jeudi et vendredi, de 8 h 45 à 12 h et de 13 h 30 à 15 h 30 ; mercredi, de 8 h 45 à 12 h',ressort:'',maj:'7 octobre 2026'},
+  dossiers:[]}
+});
+/* Couleur stable de chaque détenteur dans les graphiques */
+const COUL={antoine:'p1',afp:'p2',dem:'p4',rhone:'p3',claire:'p5',hugo:'p6',ferrand:'p1'};
+/* États du capital, datés */
+const S={
+ ferrand:{unite:'actions',etats:[
+  {cle:'auj',lab:'Aujourd’hui',titre:'au 29 octobre 2026',capital:50000,cats:[{nom:'Actions ordinaires',n:4500,v:1},{nom:'Actions de préférence sans droit de vote',n:500,v:0}],
+   parts:[{k:'antoine',cat:0,n:2400,depuis:'4 avril 2019'},{k:'afp',cat:0,n:1500,depuis:'12 mars 2025'},{k:'dem',cat:0,n:600,usu:'claire',np:'hugo',depuis:'15 juin 2023'},{k:'rhone',cat:1,n:500,depuis:'12 mars 2025'}]},
+  {cle:'2024',lab:'31 décembre 2024',titre:'au 31 décembre 2024',capital:45000,cats:[{nom:'Actions ordinaires',n:4500,v:1}],
+   parts:[{k:'antoine',cat:0,n:3000,depuis:'4 avril 2019'},{k:'claire',cat:0,n:900,depuis:'4 avril 2019'},{k:'dem',cat:0,n:600,usu:'claire',np:'hugo',depuis:'15 juin 2023'}]},
+  {cle:'2019',lab:'4 avril 2019',titre:'à la constitution, le 4 avril 2019',capital:45000,cats:[{nom:'Actions ordinaires',n:4500,v:1}],
+   parts:[{k:'antoine',cat:0,n:3000,depuis:'4 avril 2019'}]}],
+  mvts:[
+   {d:'12 mars 2025',cle:'auj',t:'Augmentation de capital de 5 000 € réservée à Rhône Croissance Capital : 500 actions de préférence sans droit de vote',s:'Procès-verbal d’assemblée générale extraordinaire du 12 mars 2025'},
+   {d:'12 mars 2025',cle:'auj',t:'Cession de 600 actions par M. Antoine Ferrand et de 900 actions par Mme Claire Ferrand à AF Participations',s:'Ordres de mouvement du 12 mars 2025'},
+   {d:'15 juin 2023',cle:'2024',t:'Donation de la nue-propriété de 600 actions par Mme Claire Ferrand à M. Hugo Ferrand',s:'Acte de donation du 15 juin 2023'},
+   {d:'4 avril 2019',cle:'2019',t:'Constitution : 4 500 actions de 10 €, soit un capital de 45 000 €',s:'Statuts constitutifs'}],
+  detient:[{soc:'ferrandlog',titres:'800 parts sociales',pct:'100\u00A0%',mode:'Pleine propriété',depuis:'2 septembre 2021'}]},
+ afp:{unite:'parts sociales',etats:[{cle:'auj',lab:'Aujourd’hui',titre:'au 29 octobre 2026',capital:10000,cats:[{nom:'Parts sociales',n:1000,v:1}],parts:[{k:'antoine',cat:0,n:1000,depuis:'18 janvier 2025'}]}],
+  mvts:[{d:'18 janvier 2025',cle:'auj',t:'Constitution : 1 000 parts sociales de 10 €, souscrites par M. Antoine Ferrand',s:'Statuts constitutifs'}],
+  detient:[{soc:'ferrand',titres:'1 500 actions ordinaires',pct:'30\u00A0%',mode:'Pleine propriété',depuis:'12 mars 2025'}]},
+ ferrandlog:{unite:'parts sociales',etats:[{cle:'auj',lab:'Aujourd’hui',titre:'au 29 octobre 2026',capital:8000,cats:[{nom:'Parts sociales',n:800,v:1}],parts:[{k:'ferrand',cat:0,n:800,depuis:'2 septembre 2021'}]}],
+  mvts:[{d:'2 septembre 2021',cle:'auj',t:'Constitution : 800 parts sociales de 10 €, souscrites par SAS Ferrand Métal',s:'Statuts constitutifs'}],detient:[]},
+ rhone:{unite:'actions',etats:[],mvts:[],detient:[{soc:'ferrand',titres:'500 actions de préférence sans droit de vote',pct:'10\u00A0%',mode:'Pleine propriété',depuis:'12 mars 2025'}]},
+ vide:{unite:'',etats:[],mvts:[],detient:[]}
+};
+/* Participations détenues par les personnes physiques */
+const PART={
+ antoine:[{soc:'ferrand',titres:'2 400 actions ordinaires',pct:'48\u00A0%',mode:'Pleine propriété',depuis:'4 avril 2019'},{soc:'afp',titres:'1 000 parts sociales',pct:'100\u00A0%',mode:'Pleine propriété',depuis:'18 janvier 2025'}],
+ claire:[{soc:'ferrand',titres:'600 actions ordinaires',pct:'12\u00A0%',mode:'Usufruit (nue-propriété : M. Hugo Ferrand)',depuis:'15 juin 2023'}],
+ hugo:[{soc:'ferrand',titres:'600 actions ordinaires',pct:'12\u00A0%',mode:'Nue-propriété (usufruit : Mme Claire Ferrand)',depuis:'15 juin 2023'}]
+};
+
+/* ---------- Affichage ---------- */
+const nomAff=c=>c.nature==='pub'?c.nom:c.nature==='pm'?(c.forme+' '+c.nom):((c.civ==='Me'?'Me ':'')+c.prenom+' '+c.nom);
+const nomCourt=c=>c.nature!=='pp'?c.nom:(c.civ+' '+c.prenom+' '+c.nom);
+const cle=c=>(c.nature!=='pp'?c.nom:c.nom+' '+c.prenom).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+const initiales=c=>c.nature!=='pp'?'':(c.prenom[0]+c.nom[0]);
+const sirenAff=s=>s.replace(/(\d{3})(\d{3})(\d{3})/,'$1 $2 $3');
+function meta(c){
+ if(c.nature==='pub')return c.sorte+', '+c.ville;
+ if(c.pro&&c.nature==='pp')return c.pro+(c.barreau?', barreau de '+c.barreau:'')+(c.ressort?', '+c.ville:'');
+ if(c.nature==='pm')return (c.pro?c.pro+', ':'')+c.ville+', SIREN '+sirenAff(c.siren);
+ return (c.profession||'Profession à compléter')+', '+c.ville;
+}
+const ids=Object.keys(C).sort((a,b)=>cle(C[a]).localeCompare(cle(C[b]),'fr'));
+let etat={sel:'ferrand',onglet:'general',filtre:'tous',q:'',dateCap:'auj',vue:'capital',mode:'fiche',form:null,nat:'pm',siren:'',reg:null};
+const FILTRES=[['tous','Tous'],['pp','Personnes'],['pm','Sociétés'],['pro','Professions'],['pub','Juridictions et administrations']];
+function visibles(){
+ const q=etat.q.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s/g,'');
+ return ids.filter(id=>{const c=C[id];
+  if(etat.filtre==='pp'&&c.nature!=='pp')return false;
+  if(etat.filtre==='pm'&&c.nature!=='pm')return false;
+  if(etat.filtre==='pro'&&!c.pro)return false;
+  if(etat.filtre==='pub'&&c.nature!=='pub')return false;
+  if(!q)return true;
+  const hay=(nomAff(c)+' '+(c.siren||'')+' '+c.ville+' '+(c.coord||[]).map(x=>x[1]).join(' ')).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s/g,'');
+  return hay.includes(q);});
+}
+function rendreSeg(){
+ document.getElementById('seg').innerHTML=FILTRES.map(([k,l])=>{
+  const nb=ids.filter(id=>k==='tous'||(k==='pro'?C[id].pro:C[id].nature===k)).length;
+  return `<button data-f="${k}" aria-pressed="${etat.filtre===k}">${l}<b>${nb}</b></button>`}).join('');
+}
+function rendreListe(){
+ const l=visibles();const el=document.getElementById('liste');
+ if(!l.length){el.innerHTML=`<div class="vide-l"><b>Aucun contact ne correspond</b>Vérifiez l’orthographe, cherchez par SIREN ou créez la fiche avec « Nouveau contact ».</div>`;return;}
+ let h='',g='';
+ l.forEach(id=>{const c=C[id];const L=cle(c)[0].toUpperCase();
+  if(L!==g){g=L;h+=`<div class="groupe">${L}</div>`;}
+  const nbD=(c.dossiers||[]).length;
+  h+=`<button class="ct-l${etat.sel===id&&etat.mode==='fiche'?' sel':''}" data-id="${id}" aria-current="${etat.sel===id}">
+   <span class="tuile ${c.nature==='pp'?'pp':'pm'}">${c.nature==='pm'?ic.pm:c.nature==='pub'?ic.registre:esc(initiales(c))}</span>
+   <span class="tx"><span class="nom">${esc(nomAff(c))}</span><span class="meta">${esc(meta(c))}</span></span>
+   <span class="nb" title="${nbD} dossier${nbD>1?'s':''}">${nbD?ic.dossier+nbD:''}</span></button>`;});
+ el.innerHTML=h;
+ document.getElementById('sous-titre').textContent=`${ids.filter(i=>C[i].nature!=='pub').length} contacts, ${ids.filter(i=>C[i].nature==='pub').length} juridictions et administrations utilisées`;
+}
+function onglets(c,id){
+ const o=[['general','Général']];
+ if(c.nature==='pub'){if(c.chambres)o.push(['chambres','Chambres et services',c.chambres.length]);o.push(['dossiers','Dossiers',c.dossiers.length]);o.push(['notes','Notes']);return o;}
+ o.push(['liens','Liens',(c.liens||[]).length]);
+ if(c.nature==='pm')o.push(['structure','Structure']);
+ else if(PART[id])o.push(['structure','Participations',PART[id].length]);
+ o.push(['dossiers','Dossiers',(c.dossiers||[]).length]);
+ if(c.factures)o.push(['factures','Factures',c.factures.length]);
+ if(c.mails)o.push(['mails','Mails',c.mails.length]);
+ o.push(['notes','Notes']);
+ return o;
+}
+function rendreFiche(){
+ const el=document.getElementById('fiche');
+ if(etat.mode==='nouveau'){el.innerHTML=formNouveau();bindForm();return;}
+ const id=etat.sel,c=C[id];const ong=onglets(c,id);
+ if(!ong.some(o=>o[0]===etat.onglet))etat.onglet='general';
+ const sous=c.nature==='pub'?(c.ca?'Ressort de la cour d’appel de Lyon':c.tutelle?c.tutelle:`${c.sorte}, ${c.ville}`):c.nature==='pm'?`${c.formeLong}${c.capitalTxt?' au capital de '+c.capitalTxt.replace(/ /g,'\u202F'):''}, ${c.ville}`:(c.pro?(c.pro+(c.barreau?' au barreau de '+c.barreau:'')+(c.ressort?', ressort de la '+c.ressort:'')):`${c.profession||'Profession à compléter'}, ${c.ville}`);
+ const actions=[];
+ if(c.nature!=='pub'||c.ref.mail)actions.push(`<button class="act">${ic.mail}Écrire</button>`);
+ actions.push(`<button class="act">${ic.dossier}Ajouter à un dossier</button>`);
+ if(c.nature==='pm')actions.push(`<button class="act">${ic.registre}Mettre à jour depuis le registre</button>`);
+ el.innerHTML=`<div class="fi-tete">
+   <div class="etq"><div class="nat">${c.nature==='pub'?ic.registre+(c.genre==='juridiction'?'Juridiction':'Administration'):c.nature==='pm'?ic.pm+'Personne morale':ic.pp+'Personne physique'}${c.pro?', '+esc(c.pro.toLowerCase()):''}</div><h3>${esc(nomAff(c))}</h3><div class="sous">${esc(sous)}</div></div>
+   <div class="actions">${actions.join('')}</div></div>
+  <div class="onglets" role="tablist" aria-label="Sections de la fiche">${ong.map(([k,l,nb])=>`<button role="tab" data-o="${k}" aria-selected="${etat.onglet===k}">${l}${nb?`<b>${nb}</b>`:''}</button>`).join('')}</div>
+  <div class="fi-corps" role="tabpanel">${corps(c,id)}</div>`;
+}
+function corps(c,id){
+ switch(etat.onglet){
+  case 'general':return c.nature==='pub'?generalPub(c):general(c,id);
+  case 'chambres':return chambres(c);
+  case 'liens':return liens(c,id);
+  case 'structure':return c.nature==='pm'?structure(c,id):participations(id);
+  case 'dossiers':return dossiers(c);
+  case 'factures':return factures(c);
+  case 'mails':return mails(c);
+  case 'notes':return notes(c);
+ }
+}
+function desig(c){
+ return `<div class="desig">${ic.acte}<div><div class="lb">Désignation dans les actes</div><p>${esc(c.desig).replace(/\[([^\]]+)\]/g,'<span class="att">[$1 à compléter]</span>')}</p></div><button class="act">${ic.copier}Copier</button></div>`;
+}
+function general(c,id){
+ let h='';
+ if(c.doublon)h+=`<div class="alerte">${ic.fusion}<div><b>Doublon possible.</b> La fiche « ${esc(c.doublon)} » porte le même SIREN.</div><button class="act">Comparer et fusionner</button></div>`;
+ if(c.manqueTxt)h+=`<div class="alerte">${ic.alerte}<div><b>Mention manquante pour un acte :</b> ${esc(c.manqueTxt)}. La fusion d’un modèle qui l’utilise s’arrêtera et nommera ce champ.</div><button class="act">${ic.registre}Chercher dans le registre</button></div>`;
+ if(c.manque)h+=`<div class="alerte">${ic.alerte}<div><b>Mention manquante pour un acte :</b> la profession. La fusion d’un modèle qui l’utilise s’arrêtera et nommera ce champ.</div><button class="act">Compléter</button></div>`;
+ h+=desig(c);
+ if(c.nature==='pm'){
+  h+=`<div class="sec-t">Identité</div><dl class="faits">
+   <div><dt>Dénomination</dt><dd>${esc(c.nom)}</dd></div>
+   <div><dt>Forme</dt><dd>${esc(c.formeLong)}</dd></div>
+   <div><dt>Capital</dt><dd${c.capitalTxt?'':' class="manque"'}>${c.capitalTxt||'Non renseigné'}</dd></div>
+   <div><dt>SIREN</dt><dd>${sirenAff(c.siren)}</dd></div>
+   <div><dt>Greffe du RCS</dt><dd>${esc(c.rcs)}</dd></div>
+   <div><dt>N° TVA intracommunautaire</dt><dd>${c.tva}</dd></div>
+   <div><dt>Activité</dt><dd>${esc(c.naf)}</dd></div>
+   ${c.creee?`<div><dt>Immatriculée le</dt><dd>${c.creee}</dd></div>`:''}
+   ${c.pro?`<div><dt>Profession réglementée</dt><dd>${esc(c.pro)}</dd></div>`:''}
+  </dl><p class="source">${esc(c.source)}</p>`;
+ }else if(c.pro){
+  h+=`<div class="sec-t">Profession</div><dl class="faits">
+   <div><dt>Profession</dt><dd>${esc(c.pro)}</dd></div>
+   ${c.barreau?`<div><dt>Barreau</dt><dd>${esc(c.barreau)}</dd></div><div><dt>Toque</dt><dd>${esc(c.toque)}</dd></div>`:''}
+   ${c.ressort?`<div><dt>Ressort</dt><dd>${esc(c.ressort)}</dd></div>`:''}
+   <div><dt>Civilité</dt><dd>Maître</dd></div><div><dt>Prénom et nom</dt><dd>${esc(c.prenoms+' '+c.nom)}</dd></div></dl>`;
+ }else{
+  h+=`<div class="sec-t">État civil</div><dl class="faits">
+   <div><dt>Civilité</dt><dd>${c.civ==='M.'?'Monsieur':'Madame'}</dd></div>
+   <div><dt>Prénoms</dt><dd>${esc(c.prenoms)}</dd></div>
+   <div><dt>Nom</dt><dd>${esc(c.nom)}</dd></div>
+   <div><dt>Nom de naissance</dt><dd>${esc(c.nomNaissance||c.nom)}</dd></div>
+   <div><dt>Né${c.civ==='Mme'?'e':''} le</dt><dd>${esc(c.naissance)}</dd></div>
+   <div><dt>Nationalité</dt><dd>${esc(c.nationalite)}</dd></div>
+   <div><dt>Profession</dt><dd${c.profession?'':' class="manque"'}>${esc(c.profession||'À compléter')}</dd></div>
+   <div><dt>Situation familiale</dt><dd>${esc(c.situation)}</dd></div></dl>`;
+ }
+ h+=`<div class="sec-t">Coordonnées <button class="act">${ic.plus}Ajouter</button></div><div class="coord">${c.coord.map(([t,v,p])=>`<div><span>${esc(t)}</span><b style="font-weight:400">${esc(v)}</b>${p?'<em>Principale</em>':''}</div>`).join('')}</div>`;
+ return h;
+}
+const cadenas='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="7" width="9" height="7" rx="1.8"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>';
+function generalPub(c){
+ const r=c.ref;let h='';
+ if(c.genre==='juridiction'){
+  h+=`<div class="desig">${ic.acte}<div><div class="lb">Dans les actes</div><p>${esc(c.acte)}</p></div><button class="act">${ic.copier}Copier</button></div>`;
+ }else{
+  h+=`<div class="desig">${ic.acte}<div><div class="lb">Désignation lorsque l’administration est partie <span class="etat-f">Proposée, à valider</span></div><p>${esc(c.formule)}</p></div><div class="bts"><button class="act">Valider</button><button class="act">Modifier</button></div></div>
+  <p class="source">Formule pré-remplie selon le type d’administration. Elle n’est utilisée dans un acte qu’une fois validée.</p>`;
+ }
+ h+=`<div class="sec-t">Données publiques</div><div class="refbloc"><div class="rt">${ic.registre}<span><b>Annuaire de l’administration</b>, mis à jour le ${esc(r.maj)}</span><span class="verrou">${cadenas}Mises à jour automatiques, non modifiables</span></div>
+ <dl class="faits">
+  <div><dt>Nom officiel</dt><dd>${esc(c.nom)}</dd></div>
+  <div><dt>Type</dt><dd>${esc(c.sorte)}</dd></div>
+  <div><dt>Téléphone</dt><dd>${esc(r.tel)}</dd></div>
+  <div style="grid-column:span 2"><dt>Adresse</dt><dd>${esc(r.adr)}</dd></div>
+  <div><dt>E-mail</dt><dd${r.mail?'':' class="manque"'}>${r.mail?esc(r.mail):'Non publié'}</dd></div>
+  ${r.postale?`<div style="grid-column:span 3"><dt>Adresse postale</dt><dd>${esc(r.postale)}</dd></div>`:''}
+  <div style="grid-column:span 3"><dt>Horaires</dt><dd${r.horaires?'':' class="manque"'}>${r.horaires?esc(r.horaires):'Non publiés'}</dd></div>
+  ${c.genre==='juridiction'?`<div><dt>Ressort</dt><dd${r.ressort?'':' class="manque"'}>${r.ressort?esc(r.ressort)+' <button class="lk" style="font-weight:400;font-size:12px">voir la liste</button>':'Non publié par le référentiel'}</dd></div>`:''}
+  ${c.ca?`<div><dt>Cour d’appel</dt><dd><button class="lk" data-va="${c.ca}">Cour d’appel de Lyon</button></dd></div>`:''}
+  ${c.ancien?`<div><dt>Ancien nom</dt><dd style="font-weight:400">${esc(c.ancien)}</dd></div>`:''}
+ </dl></div>`;
+ if(c.genre==='juridiction'&&!r.mail)h+=`<p class="source">Le référentiel ne publie pas d’e-mail pour ce greffe : ceux du cabinet sont dans « Chambres et services ».</p>`;
+ return h;
+}
+function chambres(c){
+ return `<div class="sec-t">Chambres et services <button class="act">${ic.plus}Ajouter</button></div>
+ <div>${c.chambres.map(([n,m,t,note])=>`<div class="ch"><span><b>${esc(n)}</b>${note?`<small>${esc(note)}</small>`:''}</span><span>${m?esc(m):'<span style="color:var(--graphite)">Pas d’e-mail</span>'}</span><span>${t?esc(t):''}</span></div>`).join('')}</div>
+ <p class="mention">${ic.info}<span>Propre au cabinet : ces informations ne sont jamais écrasées par les mises à jour du référentiel. Une chambre se choisit dans chaque instance d’un dossier.</span></p>`;
+}
+function lienForm(){
+ return `<div class="form" id="form-lien"><div class="g3">
+  <div class="f"><label for="l-type">Type de lien</label><select id="l-type"><option>Mandat social</option><option>Représentant permanent</option><option>Salarié</option><option>Conjoint ou partenaire de PACS</option><option>Parent</option><option>Expert-comptable</option><option>Commissaire aux comptes</option><option>Autre</option></select></div>
+  <div class="f"><label for="l-fct">Fonction</label><select id="l-fct"><option>Gérant</option><option>Président</option><option>Directeur général</option><option>Directeur général délégué</option><option>Administrateur</option><option>Membre du directoire</option><option>Membre du conseil de surveillance</option><option>Liquidateur amiable</option></select></div>
+  <div class="f"><label for="l-qui">Avec</label><input type="text" id="l-qui" placeholder="Chercher un contact"></div></div>
+  <div class="g3"><div class="f"><label for="l-deb">Depuis le</label><input type="date" id="l-deb"></div><div class="f"><label for="l-fin">Jusqu’au</label><input type="date" id="l-fin"><small>Vide si le lien est en cours</small></div>
+  <div class="f"><label for="l-src">Source</label><input type="text" id="l-src" placeholder="Kbis, statuts, procès-verbal…"></div></div>
+  <div class="f-pied"><button class="creer" data-ferme>Enregistrer le lien</button><button class="bt-f" data-ferme>Annuler</button></div></div>`;
+}
+function liens(c,id){
+ let h='';
+ if(c.proposition){const p=c.proposition;h+=`<div class="prop">${ic.registre}<div>Le registre indique un dirigeant absent de la fiche : <b>${esc(p.nom)}</b>, ${esc(p.q)} (${esc(p.d)}). Une fiche existe déjà à ce nom et cette date de naissance.</div><div class="bts"><button class="act">Ajouter le lien</button><button class="act">Ignorer</button></div></div>`;}
+ h+=`<div class="sec-t">Liens avec d’autres contacts <button class="act" id="aj-lien">${ic.plus}Ajouter un lien</button></div>`;
+ if(etat.form==='lien')h+=lienForm();
+ const L=c.liens||[];
+ if(!L.length){h+=`<div class="vide-f"><b>Aucun lien</b>Reliez ce contact à ses dirigeants, à sa société, à sa famille ou à ses conseils. Pour une société, « Mettre à jour depuis le registre » propose ses dirigeants.</div>`;return h;}
+ const groupes=[...new Set(L.map(x=>x.g))];
+ groupes.forEach(g=>{h+=`<div class="sec-t">${esc(g)}</div><div class="liens">`;
+  L.filter(x=>x.g===g).forEach(x=>{const autre=x.de||x.vers;const o=C[autre];
+   const cible=o.nature==='pm'?nomAff(o):nomCourt(o);
+   const texte=x.de?`<b>${esc(x.q)}</b> : <button class="lk" data-va="${autre}">${esc(cible)}</button>`:`<b>${esc(x.q)}</b> ${/ de$/.test(x.q)?'':'de '}<button class="lk" data-va="${autre}">${esc(cible)}</button>`;
+   h+=`<div class="lien${x.fin?' fin':''}"><div class="q">${texte}${x.s?`<small>Source : ${esc(x.s)}</small>`:''}</div><div class="date">${esc(x.d)}</div></div>`;});
+  h+=`</div>`;});
+ return h;
+}
+/* ---------- Structure du capital ---------- */
+function calcul(st,e,vue){
+ const totT=e.cats.reduce((a,x)=>a+x.n,0);
+ const totV=e.cats.reduce((a,x)=>a+x.n*x.v,0);
+ const tot=vue==='capital'?totT:totV;
+ const segs=e.parts.map(p=>{const v=vue==='capital'?p.n:p.n*e.cats[p.cat].v;return {...p,val:v,voix:p.n*e.cats[p.cat].v};});
+ const affect=e.cats.map((cat,i)=>e.parts.filter(p=>p.cat===i).reduce((a,p)=>a+p.n,0));
+ const reste=e.cats.reduce((a,cat,i)=>a+(cat.n-affect[i])*(vue==='capital'?1:cat.v),0);
+ const resteT=e.cats.reduce((a,cat,i)=>a+(cat.n-affect[i]),0);
+ return {totT,totV,tot,segs,reste,resteT};
+}
+function donut(r,e,vue){
+ const R=80,SW=38,Cf=2*Math.PI*R;let acc=0;
+ const items=r.segs.filter(s=>s.val>0).map(s=>({k:s.k,val:s.val,coul:COUL[s.k],hach:s.k==='dem'}));
+ if(r.reste>0)items.push({k:'reste',val:r.reste,coul:'p0',hach:false});
+ const gap=items.length>1?1.6:0;
+ let h=`<svg class="donut" viewBox="0 0 232 232" role="img" aria-label="Répartition ${vue==='capital'?'du capital':'des droits de vote'} ${e.titre}">
+  <defs><pattern id="hach" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)"><rect width="6" height="6" style="fill:var(--${COUL.dem})"/><rect width="2.2" height="6" style="fill:var(--feuille);opacity:.75"/></pattern></defs>
+  <g transform="rotate(-90 116 116)">`;
+ items.forEach(it=>{const L=Math.max(0,it.val/r.tot*Cf-gap);
+  h+=`<circle class="part" data-k="${it.k}" cx="116" cy="116" r="${R}" fill="none" stroke-width="${SW}" style="stroke:${it.hach?'url(#hach)':'var(--'+it.coul+')'}" stroke-dasharray="${L} ${Cf-L}" stroke-dashoffset="${-acc}"><title>${esc(libelle(it.k))} : ${pct(it.val/r.tot)}</title></circle>`;
+  acc+=it.val/r.tot*Cf;});
+ h+=`</g>`;
+ if(vue==='capital')h+=`<text class="c1" x="116" y="114" text-anchor="middle">${eur(e.capital)}</text><text class="c2t" x="116" y="134" text-anchor="middle">${n(r.totT)} titres</text>`;
+ else h+=`<text class="c1" x="116" y="114" text-anchor="middle">${n(r.totV)} voix</text><text class="c2t" x="116" y="134" text-anchor="middle">droits de vote</text>`;
+ return h+`</svg>`;
+}
+function libelle(k){if(k==='reste')return 'Non renseigné';if(k==='dem')return 'Titres démembrés';return nomCourt(C[k]);}
+function structure(c,id){
+ const st=S[c.structure];
+ let h='';
+ if(!st||!st.etats.length){
+  h+=`<div class="vide-f"><b>Aucun associé renseigné</b>Les associés et la répartition du capital ne figurent pas dans les registres publics. Saisissez-les d’après les statuts, un procès-verbal ou un ordre de mouvement, en citant la source.</div>
+   <div style="display:flex;gap:6px"><button class="act fort">${ic.plus}Renseigner le capital</button><button class="act">${ic.plus}Ajouter une participation</button></div>`;
+ }else{
+  const e=st.etats.find(x=>x.cle===etat.dateCap)||st.etats[0];
+  const vueOk=e.cats.length>1||e.cats.some(x=>x.v!==1);
+  const vue=vueOk?etat.vue:'capital';
+  const r=calcul(st,e,vue);
+  const nominal=e.capital/r.totT;
+  h+=`<div class="chips">
+   <div><span>Capital ${esc(e.titre)}</span><b>${eur(e.capital)}</b></div>
+   <div><span>Titres</span><b>${n(r.totT)} ${esc(st.unite)}</b></div>
+   <div><span>Valeur nominale</span><b>${pf.format(nominal)}\u00A0€</b></div>
+   <div><span>Catégories</span><b>${e.cats.length}</b></div></div>
+  <div class="st-outils">
+   ${st.etats.length>1?`<span class="lbl">Répartition</span><div class="seg" role="group" aria-label="Date de la répartition">${st.etats.map(x=>`<button data-date="${x.cle}" aria-pressed="${x.cle===e.cle}">${esc(x.lab)}</button>`).join('')}</div>`:''}
+   ${vueOk?`<div class="seg" role="group" aria-label="Mesure"><button data-vue="capital" aria-pressed="${vue==='capital'}">Capital</button><button data-vue="votes" aria-pressed="${vue==='votes'}">Droits de vote</button></div>`:''}
+  </div>
+  <div class="st-corps">${donut(r,e,vue)}<table class="leg"><thead><tr><th>Détenteur</th><th>Titres</th>${vue==='capital'?'<th>Nominal</th><th>Capital</th>':'<th>Voix</th><th>Votes</th>'}</tr></thead><tbody>`;
+  r.segs.forEach(s=>{
+   const coul=COUL[s.k];
+   let qui;
+   if(s.k==='dem')qui=`<span class="qui"><span class="pastille hach" style="background-color:var(--${coul})"></span><span>Titres démembrés<span class="dem">Usufruit : <button class="lk" data-va="${s.usu}">${esc(nomCourt(C[s.usu]))}</button></span><span class="dem">Nue-propriété : <button class="lk" data-va="${s.np}">${esc(nomCourt(C[s.np]))}</button></span><small>Depuis le ${esc(s.depuis)}</small></span></span>`;
+   else qui=`<span class="qui"><span class="pastille" style="background:var(--${coul})"></span><span><button class="lk" data-va="${s.k}">${esc(nomAff(C[s.k]))}</button><small>${esc(e.cats[s.cat].nom)}, pleine propriété, depuis le ${esc(s.depuis)}</small></span></span>`;
+   const v2=vue==='capital'?`<td>${eur(s.n*nominal)}</td><td><b>${pct(s.n/r.totT)}</b></td>`:`<td>${n(s.voix)}</td><td><b>${pct(r.totV?s.voix/r.totV:0)}</b></td>`;
+   h+=`<tr data-k="${s.k}"><td>${qui}</td><td>${n(s.n)}</td>${v2}</tr>`;});
+  if(r.resteT>0){
+   const v2=vue==='capital'?`<td>${eur(r.resteT*nominal)}</td><td><b>${pct(r.resteT/r.totT)}</b></td>`:`<td>${n(r.reste)}</td><td><b>${pct(r.reste/r.totV)}</b></td>`;
+   h+=`<tr data-k="reste"><td><span class="qui"><span class="pastille" style="background:var(--p0)"></span><span>Non renseigné<small>Titres dont le détenteur n’est pas saisi à cette date</small></span></span></td><td>${n(r.resteT)}</td>${v2}</tr>`;}
+  h+=`<tr class="total"><td>Total</td><td>${n(r.totT)}</td>${vue==='capital'?`<td>${eur(e.capital)}</td><td>100\u00A0%</td>`:`<td>${n(r.totV)}</td><td>100\u00A0%</td>`}</tr></tbody></table></div>`;
+  if(vue==='votes')h+=`<p class="mention">${ic.info}<span>Titres démembrés : le vote appartient au nu-propriétaire, sauf pour l’affectation des bénéfices où il appartient à l’usufruitier (article 1844 du Code civil), si les statuts n’en disposent pas autrement. Statuts de la société : régime légal.</span></p>`;
+  h+=`<p class="mention">${ic.info}<span>Données indicatives ${esc(e.titre)}, établies d’après les sources citées ci-dessous. Elles ne remplacent pas le registre des mouvements de titres de la société.</span></p>`;
+  h+=`<div class="sec-t">Mouvements enregistrés <button class="act">${ic.plus}Ajouter une participation</button><button class="act" style="margin-left:0">Modifier le capital</button></div><div class="mvts">`;
+  const ordre=st.etats.map(x=>x.cle);const iSel=ordre.indexOf(e.cle);
+  st.mvts.forEach(m=>{const later=ordre.indexOf(m.cle)<iSel;
+   h+=`<div class="mvt${later?' apres':''}"><span class="d">${esc(m.d)}</span><span>${esc(m.t)}<small>Source : ${esc(m.s)}</small></span></div>`;});
+  h+=`</div>`;
+ }
+ const det=(st&&st.detient)||[];
+ h+=`<div class="sec-t">Participations détenues par la société</div>`;
+ h+=det.length?tableParts(det):`<div class="vide-f">Aucune participation enregistrée.</div>`;
+ return h;
+}
+function tableParts(L){
+ return `<table class="tab"><thead><tr><th>Société</th><th class="n">Titres</th><th class="n">Capital</th><th>Détention</th><th>Depuis le</th></tr></thead><tbody>${L.map(p=>`<tr><td><button class="lk" data-va="${p.soc}" data-o2="structure">${esc(nomAff(C[p.soc]))}</button></td><td class="n">${esc(p.titres)}</td><td class="n"><b>${p.pct}</b></td><td>${esc(p.mode)}</td><td>${esc(p.depuis)}</td></tr>`).join('')}</tbody></table>`;
+}
+function participations(id){
+ return `<div class="sec-t">Participations détenues</div>${tableParts(PART[id])}<p class="mention">${ic.info}<span>Pourcentages calculés à partir du capital de chaque société au 29 octobre 2026. Ouvrez la société pour voir sa répartition complète et son historique.</span></p>`;
+}
+function dossiers(c){
+ const L=c.dossiers||[];
+ if(!L.length)return `<div class="vide-f"><b>Aucun dossier</b>Ce contact n’intervient dans aucun dossier que vous pouvez consulter. « Ajouter à un dossier » le rattache avec une qualité.</div>`;
+ return `<div>${L.map(d=>`<div class="dos d-${d.c}"><span class="ref-l"><i></i>${d.ref}</span><span><span class="nom">${esc(d.nom)}</span><small>${esc(d.q)}</small></span></div>`).join('')}</div>`;
+}
+function factures(c){
+ return `<div class="chiffres">${c.chiffres.map(([a,b])=>`<div><span>${a}</span><b>${b}</b></div>`).join('')}</div>
+ <table class="tab"><thead><tr><th>Facture</th><th>Date</th><th>Objet</th><th class="n">Montant TTC</th><th>Statut</th></tr></thead><tbody>${c.factures.map(f=>`<tr><td><span style="font-variant-numeric:slashed-zero;font-feature-settings:'zero' 1;font-weight:700">${f[0]}</span></td><td>${f[1]}</td><td>${esc(f[2])}</td><td class="n">${f[3]}</td><td class="${f[4]==='Payée'?'ok':'att'}">${f[4]}</td></tr>`).join('')}</tbody></table>`;
+}
+function mails(c){
+ return `<div class="mails">${c.mails.map(m=>`<div class="m"><span><b>${esc(m[0])}</b><small>${esc(m[1])}</small></span><small>${esc(m[2])}</small></div>`).join('')}</div><p class="mention">${ic.info}<span>Mails classés dont l’expéditeur ou un destinataire est une adresse de cette fiche.</span></p>`;
+}
+function notes(c){
+ const N=c.notes||[];
+ return N.length?`<div class="notes">${N.map(x=>`<p>${esc(x)}</p>`).join('')}<small>Modifié par Me Julien Marchal le 14 octobre 2026</small></div>`:`<div class="vide-f"><b>Aucune note</b>Ce que le cabinet doit savoir de ce contact et qui n’a pas sa place ailleurs.</div>`;
+}
+
+/* ---------- Création ---------- */
+const COMMUNES={'69290':['Craponne','Grézieu-la-Varenne','Pollionnay','Saint-Genis-les-Ollières'],'69007':['Lyon'],'69003':['Lyon'],'69800':['Saint-Priest'],'69130':['Écully']};
+function luhn(s){let t=0;for(let i=0;i<s.length;i++){let d=+s[s.length-1-i];if(i%2){d*=2;if(d>9)d-=9;}t+=d;}return t%10===0;}
+function formNouveau(){
+ const pm=etat.nat==='pm';const r=etat.reg;
+ let h=`<div class="fi-tete"><div class="etq"><div class="nat">${pm?ic.pm+'Personne morale':ic.pp+'Personne physique'}</div><h3>Nouveau contact</h3><div class="sous">La fiche rejoint l’annuaire commun du cabinet.</div></div></div>
+ <div class="fi-corps" style="padding-top:16px">
+ <div class="seg" role="group" aria-label="Nature" style="margin:0 0 14px"><button data-nat="pm" aria-pressed="${pm}">Personne morale</button><button data-nat="pp" aria-pressed="${!pm}">Personne physique</button></div>`;
+ if(pm){
+  h+=`<div class="f"><div class="ligne-siren"><div><label for="siren">SIREN</label><input type="text" id="siren" inputmode="numeric" value="${esc(etat.siren)}" placeholder="9 chiffres"></div><button class="act" id="chercher">${ic.registre}Chercher dans le registre</button></div>`;
+  if(r&&r.err)h+=`<small class="err">${esc(r.err)}</small>`;
+  else h+=`<small>Essayez 812 345 676 (fiche déjà présente) ou 879 201 341 (nouvelle société).</small>`;
+  h+=`</div>`;
+  if(r&&r.doublon){h+=`<div class="alerte">${ic.fusion}<div><b>Cette société est déjà dans l’annuaire :</b> SAS Ferrand Métal.</div><button class="act" data-va="ferrand">Ouvrir la fiche</button></div>`;}
+  const v=r&&r.ok?r:{};
+  if(r&&r.ok)h+=`<div class="prop">${ic.registre}<div>Proposé par le registre national des entreprises. Vérifiez chaque champ avant d’enregistrer ; le capital n’est pas publié par ce registre.</div><span></span></div>`;
+  h+=`<div class="g2"><div class="f"><label for="den">Dénomination</label><input type="text" id="den" value="${esc(v.den||'')}"></div><div class="f"><label for="forme">Forme</label><select id="forme"><option${v.forme==='SAS'?' selected':''}>Société par actions simplifiée</option><option>Société à responsabilité limitée</option><option>Société anonyme</option><option>Société civile immobilière</option><option>Entreprise individuelle</option><option>Association</option></select></div></div>
+  <div class="g3"><div class="f"><label for="cap">Capital</label><input type="text" id="cap" placeholder="En euros"></div><div class="f"><label for="rcs">Greffe du RCS</label><input type="text" id="rcs" value="${esc(v.rcs||'')}"></div><div class="f"><label for="tva">N° TVA intracommunautaire</label><input type="text" id="tva" value="${esc(v.tva||'')}"><small>Calculé à partir du SIREN</small></div></div>
+  <div class="f"><label for="adr">Adresse du siège</label><input type="text" id="adr" value="${esc(v.adr||'')}"></div>`;
+ }else{
+  h+=`<div class="g3"><div class="f"><label for="civ">Civilité</label><select id="civ"><option>Madame</option><option>Monsieur</option><option>Maître</option></select></div><div class="f"><label for="pre">Prénoms</label><input type="text" id="pre"></div><div class="f"><label for="nom">Nom</label><input type="text" id="nom"></div></div>
+  <div class="g3"><div class="f"><label for="nn">Nom de naissance</label><input type="text" id="nn"><small>Si différent du nom</small></div><div class="f"><label for="dn">Date de naissance</label><input type="date" id="dn"></div><div class="f"><label for="ln">Lieu de naissance</label><input type="text" id="ln" placeholder="Commune et département"></div></div>
+  <div class="g3"><div class="f"><label for="nat">Nationalité</label><input type="text" id="nat" value="Française"></div><div class="f"><label for="pro">Profession</label><input type="text" id="pro"></div><div class="f"><label for="preg">Profession réglementée</label><select id="preg"><option>Aucune</option><option>Avocat</option><option>Commissaire de justice</option><option>Notaire</option><option>Expert judiciaire</option><option>Administrateur judiciaire</option><option>Mandataire judiciaire</option><option>Expert-comptable</option></select></div></div>
+  <div class="f"><label for="adr">Adresse du domicile</label><input type="text" id="adr" placeholder="Numéro et voie"></div>`;
+ }
+ const cp=(r&&r.ok)?r.cp:(etat.cp||'');const com=COMMUNES[cp];
+ h+=`<div class="g-cp"><div class="f"><label for="cp">Code postal</label><input type="text" id="cp" inputmode="numeric" value="${esc(cp)}"></div><div class="f"><label for="com">Commune</label>${com?`<select id="com">${com.map(x=>`<option>${x}</option>`).join('')}</select>`:`<input type="text" id="com" placeholder="${cp.length===5?'Commune à saisir':'Proposée à partir du code postal'}">`}</div></div>`;
+ if(pm&&r&&r.ok){
+  h+=`<div class="sec-t">Dirigeants indiqués par le registre</div>
+  <label class="coche"><input type="checkbox" checked><span>Mme Laure Bérard, présidente<small>Née en mars 1980. Aucune fiche à ce nom : une fiche sera créée et reliée.</small></span></label>
+  <label class="coche"><input type="checkbox"><span>M. Thomas Bérard, directeur général<small>Né en octobre 1977. Aucune fiche à ce nom.</small></span></label>`;
+ }
+ h+=`<div class="f-pied" style="margin-top:12px"><button class="creer" data-ferme-n>Enregistrer la fiche</button><button class="bt-f" data-ferme-n>Annuler</button></div></div>`;
+ return h;
+}
+function bindForm(){
+ const el=document.getElementById('fiche');
+ el.querySelectorAll('[data-nat]').forEach(b=>b.onclick=()=>{etat.nat=b.dataset.nat;etat.reg=null;rendreFiche();});
+ const s=el.querySelector('#siren');
+ if(s)s.oninput=()=>{etat.siren=s.value;};
+ const ch=el.querySelector('#chercher');
+ if(ch)ch.onclick=()=>{const v=(etat.siren||'').replace(/\s/g,'');
+  if(!/^\d{9}$/.test(v))etat.reg={err:'Un numéro SIREN compte 9 chiffres.'};
+  else if(!luhn(v))etat.reg={err:'Ce numéro SIREN n’est pas valide : la clé de contrôle ne correspond pas.'};
+  else if(Object.values(C).some(c=>c.siren===v))etat.reg={doublon:true};
+  else{const k=(12+3*(Number(v)%97))%97;etat.reg={ok:true,den:'Atelier Bérard',forme:'SAS',rcs:'Lyon',tva:'FR'+String(k).padStart(2,'0')+v,adr:'47 rue Paul Bert',cp:'69003'};}
+  rendreFiche();};
+ const cp=el.querySelector('#cp');
+ if(cp)cp.oninput=()=>{etat.cp=cp.value;if(cp.value.length===5||cp.value.length===4){const pos=cp.selectionStart;rendreFiche();const n2=document.getElementById('cp');n2.focus();n2.setSelectionRange(pos,pos);}};
+ el.querySelectorAll('[data-ferme-n]').forEach(b=>b.onclick=()=>{etat.mode='fiche';etat.reg=null;etat.siren='';render();});
+ el.querySelectorAll('[data-va]').forEach(b=>b.onclick=()=>{etat.mode='fiche';etat.sel=b.dataset.va;etat.onglet='general';etat.reg=null;render();});
+}
+
+/* ---------- Extrait : instances du dossier 2026-042 ---------- */
+let ext={form:false,q:'',jur:null};
+const INST=[
+ {deg:'Première instance',jur:'tj',ch:'4e chambre civile',rg:'23/06118',sais:'Assignation du 9 novembre 2023',dec:'Jugement du 12 juin 2026',sens:'Débouté de l’ensemble des demandes'},
+ {deg:'Appel',jur:'ca',ch:'1re chambre civile',rg:'26/04417',sais:'Déclaration d’appel du 14 juillet 2026',dec:'En cours',sens:'Conclusions d’appelant avant le 14 octobre',cours:1}];
+function rendreExtrait(){
+ let h=`<div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><div><span class="ref-l"><i></i>2026-042</span><div style="font-size:18px;font-weight:800;margin-top:6px">SCI Les Tilleuls c/ Banque Rhodanienne</div></div><button class="act" id="aj-inst">${ic.plus}Ajouter une instance</button></div>
+ <div class="sec-t" style="margin-top:18px">Instances</div><div class="inst">`;
+ INST.forEach((x,i)=>{h+=`<div class="in${x.cours?' cours':''}"><span class="pt">${i+1}</span><span><span class="deg">${esc(x.deg)}</span><button class="lk jur" data-voir="${x.jur}">${esc(C[x.jur].nom)}</button><span class="det">${esc(x.ch)}, RG <b>${esc(x.rg)}</b>. ${esc(x.sais)}.</span></span><span class="dec"><b>${esc(x.dec)}</b><small>${esc(x.sens)}</small></span></div>`;});
+ h+=`</div>`;
+ if(ext.form){
+  const jurs=ids.filter(id=>C[id].nature==='pub'&&C[id].genre==='juridiction');
+  const q=ext.q.toLowerCase();
+  const res=q?jurs.filter(id=>C[id].nom.toLowerCase().includes(q)):[];
+  const j=ext.jur?C[ext.jur]:null;
+  h+=`<div class="form" style="margin-top:14px"><div class="g3">
+   <div class="f"><label for="i-deg">Degré</label><select id="i-deg"><option>Cassation</option><option>Renvoi après cassation</option><option>Référé</option><option>Première instance</option><option>Appel</option><option>Autre</option></select></div>
+   <div class="f" style="grid-column:span 2"><label for="i-jur">Juridiction</label><input type="text" id="i-jur" value="${esc(j?j.nom:ext.q)}" placeholder="Chercher dans le référentiel : « cour de cassation », « TAE Lyon »…" autocomplete="off">
+   ${res.length&&!j?`<div class="sugg">${res.map(id=>`<button data-jur="${id}">${esc(C[id].nom)}<small>${esc(C[id].ref.adr)}</small></button>`).join('')}<button>Chercher « ${esc(ext.q)} » dans le référentiel national<small>En ligne ; la fiche choisie rejoint l’annuaire du cabinet</small></button></div>`:''}
+   ${q&&!res.length&&!j?`<small>Absente de l’annuaire du cabinet : la recherche continue dans le référentiel national (en ligne).</small>`:''}</div></div>
+   <div class="g3"><div class="f"><label for="i-ch">Chambre</label><select id="i-ch">${j&&j.chambres?j.chambres.map(x=>`<option>${esc(x[0])}</option>`).join(''):'<option>Choisir d’abord la juridiction</option>'}</select></div>
+   <div class="f"><label for="i-rg">Numéro RG</label><input type="text" id="i-rg"></div><div class="f"><label for="i-sais">Date de saisine</label><input type="date" id="i-sais"></div></div>
+   <div class="f-pied"><button class="creer" data-ferme-i>Enregistrer l’instance</button><button class="bt-f" data-ferme-i>Annuler</button></div></div>`;
+ }
+ document.getElementById('instances').innerHTML=h;
+ document.getElementById('champs').innerHTML=`<div class="sec-t" style="margin-top:0">Champs de fusion de ce dossier</div>
+ <table class="champs"><tbody>
+  <tr><td><code>juridiction_nom</code></td><td>cour d’appel de Lyon</td></tr>
+  <tr><td><code>juridiction_adresse</code></td><td>1 rue du Palais de Justice, 69005 Lyon</td></tr>
+  <tr><td><code>chambre</code></td><td>1re chambre civile</td></tr>
+  <tr><td><code>rg</code></td><td>26/04417</td></tr>
+  <tr><td><code>instance_precedente_nom</code></td><td>tribunal judiciaire de Lyon</td></tr>
+  <tr><td><code>instance_precedente_rg</code></td><td>23/06118</td></tr>
+  <tr><td><code>instance_precedente_decision</code></td><td>jugement du 12 juin 2026</td></tr>
+ </tbody></table>
+ <p class="mention">${ic.info}<span>La reprise transforme chaque juridiction saisie en texte en une instance. Un nom sans correspondance exacte dans le référentiel reste marqué « à rapprocher » jusqu’à ce que quelqu’un choisisse la bonne fiche.</span></p>`;
+ const inp=document.getElementById('i-jur');
+ if(inp){inp.oninput=()=>{ext.q=inp.value;ext.jur=null;const pos=inp.selectionStart;rendreExtrait();const n2=document.getElementById('i-jur');n2.focus();n2.setSelectionRange(pos,pos);};}
+}
+document.getElementById('instances').addEventListener('click',e=>{
+ if(e.target.closest('#aj-inst')){ext.form=!ext.form;ext.q='';ext.jur=null;rendreExtrait();return;}
+ const j=e.target.closest('[data-jur]');if(j){ext.jur=j.dataset.jur;rendreExtrait();return;}
+ if(e.target.closest('[data-ferme-i]')){ext.form=false;rendreExtrait();return;}
+ const v=e.target.closest('[data-voir]');if(v){etat.sel=v.dataset.voir;etat.mode='fiche';etat.onglet='general';render();document.getElementById('win').scrollIntoView({behavior:'smooth'});}
+});
+
+/* ---------- Interactions ---------- */
+function render(){rendreSeg();rendreListe();rendreFiche();}
+document.getElementById('liste').addEventListener('click',e=>{const b=e.target.closest('.ct-l');if(!b)return;etat.sel=b.dataset.id;etat.mode='fiche';etat.form=null;if(etat.sel!=='ferrand')etat.dateCap='auj';render();});
+document.getElementById('seg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;etat.filtre=b.dataset.f;rendreSeg();rendreListe();});
+document.getElementById('q').addEventListener('input',e=>{etat.q=e.target.value;rendreListe();});
+document.getElementById('fiche').addEventListener('click',e=>{
+ if(etat.mode!=='fiche')return;
+ const t=e.target.closest('[data-o]');if(t){etat.onglet=t.dataset.o;etat.form=null;rendreFiche();return;}
+ const va=e.target.closest('[data-va]');if(va){etat.sel=va.dataset.va;if(va.dataset.o2)etat.onglet=va.dataset.o2;etat.dateCap='auj';etat.form=null;render();return;}
+ const d=e.target.closest('[data-date]');if(d){etat.dateCap=d.dataset.date;rendreFiche();return;}
+ const v=e.target.closest('[data-vue]');if(v){etat.vue=v.dataset.vue;rendreFiche();return;}
+ if(e.target.closest('#aj-lien')){etat.form=etat.form==='lien'?null:'lien';rendreFiche();return;}
+ if(e.target.closest('[data-ferme]')){etat.form=null;rendreFiche();return;}
+});
+/* Survol : la part et la ligne de légende se répondent */
+document.getElementById('fiche').addEventListener('mouseover',e=>{
+ const k=(e.target.closest('[data-k]')||{}).dataset?.k;const svg=document.querySelector('.donut');if(!svg)return;
+ svg.querySelectorAll('circle.part').forEach(c=>c.style.opacity=k&&c.dataset.k!==k?.35:1);
+ document.querySelectorAll('.leg tr[data-k]').forEach(r=>r.classList.toggle('sur',!!k&&r.dataset.k===k));
+});
+document.getElementById('nouveau').onclick=()=>{etat.mode='nouveau';etat.nat='pp';etat.reg=null;etat.siren='';etat.cp='';render();};
+document.getElementById('nouveau-siren').onclick=()=>{etat.mode='nouveau';etat.nat='pm';etat.reg=null;etat.siren='';etat.cp='';render();setTimeout(()=>{const s=document.getElementById('siren');s&&s.focus();},0);};
+document.querySelectorAll('.choix button').forEach(b=>b.onclick=()=>{const nuit=b.dataset.t==='nuit';
+ document.querySelectorAll('.choix button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+ document.getElementById('win').classList.toggle('nuit',nuit);document.getElementById('win2').classList.toggle('nuit',nuit);document.documentElement.dataset.theme=nuit?'dark':'light';});
+etat.onglet='structure';
+render();
+rendreExtrait();
+</script>
+</body>
+</html>
