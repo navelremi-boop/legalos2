@@ -36,9 +36,11 @@ export async function ecrireCoordonnee(saisie: {
   usage: UsageCoordonnee;
   valeur: string;
   principale: boolean;
+  pays?: string | null;
 }): Promise<string> {
   const valeur = saisie.valeur.trim();
   if (valeur === "") throw new Error("Coordonnée requise");
+  const pays = saisie.pays?.trim() ?? "";
   const database = await getPowerSyncDatabase();
   const cabinets = await database.getAll<{ id: string }>("SELECT id FROM cabinets LIMIT 1");
   const cabinetId = cabinets[0]?.id;
@@ -49,8 +51,18 @@ export async function ecrireCoordonnee(saisie: {
     await tx.execute(
       `INSERT INTO contact_coordonnees (
         id, cabinet_id, contact_id, genre, usage, valeur, principale, pays, revision, cree_le
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 1, ?)`,
-      [id, cabinetId, saisie.contactId, saisie.genre, saisie.usage, valeur, saisie.principale ? 1 : 0, creeLe],
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+      [
+        id,
+        cabinetId,
+        saisie.contactId,
+        saisie.genre,
+        saisie.usage,
+        valeur,
+        saisie.principale ? 1 : 0,
+        pays === "" ? null : pays,
+        creeLe,
+      ],
     );
   });
   return id;

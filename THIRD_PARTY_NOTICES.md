@@ -24,6 +24,12 @@ Aucun. `tauri-plugin-wdio-webdriver` est consommé depuis crates.io (1.5.1), san
 | docxtemplater | 3.71.1 | MIT | https://www.npmjs.com/package/docxtemplater |
 | pizzip | 3.3.0 | MIT OR GPL-3.0 (retenue : MIT) | https://www.npmjs.com/package/pizzip |
 
+## Données embarquées
+
+| Donnée | Licence | Fichier | Source |
+| --- | --- | --- | --- |
+| Base officielle des codes postaux | Licence Ouverte 2.0 | `apps/poste/src/contacts/codesPostaux.json` (table code → communes, tirée du CSV du 2026-10-08) | La Poste, https://www.data.gouv.fr/datasets/base-officielle-des-codes-postaux |
+
 ## Polices embarquées
 
 | Police | Licence | Fichiers | Remarque |

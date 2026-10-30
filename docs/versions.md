@@ -80,6 +80,7 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 | Rust (image build API) | **rust:1.98.1-bookworm** (alignée sur la toolchain du dépôt) | https://hub.docker.com/_/rust |
 | Images compose LEGAL OS | **legalos/api:0.1.0**, **legalos/caddy:2.10.0-alpine**, **legalos/simulateur-pa:s1-stub** (build local, pas de `latest`) | `instance/docker-compose.yml` |
 | API Recherche d'entreprises | **sans version** (service public, sans clé) | https://www.data.gouv.fr/dataservices/api-recherche-dentreprises — vérifié le 2026-10-30. Base `https://recherche-entreprises.api.gouv.fr`, recherche `GET /search?q=siren:{siren}&per_page=1&minimal=true&include=siege,dirigeants`. Limite annoncée : **7 appels par seconde** ; l'administration peut la baisser. Documentation : https://recherche-entreprises.api.gouv.fr/docs/ . Le poste ne l'appelle pas : `GET /contacts/recherche-siren/{siren}` sur l'instance, délai 10 s, cache 24 h. |
+| Base officielle des codes postaux | **fichier du 2026-10-08** (6 328 codes, 39 193 lignes) | https://www.data.gouv.fr/datasets/base-officielle-des-codes-postaux — vérifié le 2026-10-30. Producteur La Poste, Licence Ouverte 2.0. CSV `https://data.laposte.fr/data-fair/api/v1/datasets/laposte-hexasmal/raw` (`Last-Modified` 2026-10-08). Embarqué dans le poste (`apps/poste/src/contacts/codesPostaux.json`), hors ligne. |
 
 ## Outils CI (cibles)
 

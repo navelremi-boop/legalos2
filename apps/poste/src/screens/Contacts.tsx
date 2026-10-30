@@ -15,6 +15,7 @@ import {
 import { lireAnnuaireLocal } from "@/contacts/lireAnnuaire";
 import { designationActe } from "@/contacts/designation";
 import { ecrireCoordonnee, type GenreCoordonnee, type UsageCoordonnee } from "@/contacts/ecrireCoordonnee";
+import { avecCommune, communesDuCode, estAdresseFrance } from "@/contacts/codesPostaux";
 import { libelleLien, type LienAffiche } from "@/contacts/liensContacts";
 import { envoyerLien, envoyerRetrait } from "@/contacts/envoyerLien";
 import { HistoriqueFiche } from "@/contacts/OngletsHistorique";
@@ -454,6 +455,7 @@ function FicheGenerale({
   const [genre, setGenre] = useState<GenreCoordonnee>("adresse");
   const [usage, setUsage] = useState<UsageCoordonnee>(contact.nature === "morale" ? "siege" : "domicile");
   const [valeur, setValeur] = useState("");
+  const [pays, setPays] = useState("");
   const [principale, setPrincipale] = useState(true);
   const [message, setMessage] = useState("");
   return (
@@ -524,6 +526,9 @@ function FicheGenerale({
             {coordonnees.map((ligne) => (
               <li key={`${ligne.genre}-${ligne.usage}-${ligne.creeLe}-${ligne.valeur}`} data-testid="contacts-coordonnee">
                 {fr(`${libelleGenre(ligne.genre)}, ${libelleUsage(ligne.usage)} : ${ligne.valeur}`)}
+                {ligne.pays !== undefined && ligne.pays !== null && ligne.pays.trim() !== ""
+                  ? fr(`, ${ligne.pays}`)
+                  : ""}
                 {ligne.principale ? fr(" (principale)") : ""}
               </li>
             ))}
@@ -541,6 +546,7 @@ function FicheGenerale({
                 usage,
                 valeur,
                 principale,
+                pays: genre === "adresse" && !estAdresseFrance(pays) ? pays : null,
               }).then(
                 () => {
                   setValeur("");
@@ -611,6 +617,36 @@ function FicheGenerale({
                 setValeur(event.target.value);
               }}
             />
+            {genre === "adresse" ? (
+              <input
+                className="champ"
+                aria-label={fr("Pays, si l'adresse est à l'étranger")}
+                data-testid="contacts-coordonnee-pays"
+                placeholder={fr("Pays, si l'adresse est à l'étranger")}
+                value={pays}
+                onChange={(event) => {
+                  setPays(event.target.value);
+                }}
+              />
+            ) : null}
+            {genre === "adresse" && estAdresseFrance(pays) ? (
+              <ul data-testid="contacts-communes">
+                {communesDuCode(valeur).map((commune) => (
+                  <li key={commune}>
+                    <button
+                      type="button"
+                      className="filtre"
+                      data-testid="contacts-commune"
+                      onClick={() => {
+                        setValeur(avecCommune(valeur, commune));
+                      }}
+                    >
+                      {fr(commune)}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"

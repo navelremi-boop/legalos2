@@ -62,6 +62,7 @@ type CoordSql = {
   usage: string;
   valeur: string;
   principale: number | null;
+  pays: string | null;
   cree_le: string | null;
 };
 
@@ -126,7 +127,7 @@ export async function lireAnnuaireLocal(): Promise<AnnuaireLocal> {
      FROM contacts ORDER BY nom COLLATE NOCASE`,
   );
   const coords = await database.getAll<CoordSql>(
-    "SELECT contact_id, genre, usage, valeur, principale, cree_le FROM contact_coordonnees",
+    "SELECT contact_id, genre, usage, valeur, principale, pays, cree_le FROM contact_coordonnees",
   );
   const liens = await database.getAll<LienSql>(
     `SELECT l.id, l.contact_source_id, l.contact_cible_id, l.type_lien, l.fonction, l.libelle,
@@ -147,6 +148,7 @@ export async function lireAnnuaireLocal(): Promise<AnnuaireLocal> {
     usage: ligne.usage,
     valeur: ligne.valeur,
     principale: ligne.principale === 1,
+    pays: ligne.pays,
     creeLe: ligne.cree_le ?? "",
   }));
   return {

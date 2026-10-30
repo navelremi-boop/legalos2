@@ -204,6 +204,8 @@ export type CoordonneeLue = {
   valeur: string;
   principale: boolean;
   creeLe: string;
+  /** Pays saisi pour une adresse à l'étranger. Vide en France. */
+  pays?: string | null;
 };
 
 /** Reprend l'adresse principale du domicile ou du siège, quand elle existe. */
