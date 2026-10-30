@@ -37,6 +37,7 @@ type LigneSql = {
   toque: string | null;
   specialite: string | null;
   cour_appel: string | null;
+  archivee: number | null;
 };
 
 type LienSql = {
@@ -104,6 +105,7 @@ function versContact(ligne: LigneSql): ContactListe | null {
     barreau: ligne.barreau,
     specialite: ligne.specialite,
     courAppel: ligne.cour_appel,
+    archivee: ligne.archivee === 1,
   };
 }
 
@@ -120,7 +122,7 @@ export async function lireAnnuaireLocal(): Promise<AnnuaireLocal> {
     `SELECT id, nature, nom, siren, numero_tva, type_client, civilite, accord, prenoms,
       nom_naissance, date_naissance, lieu_naissance, nationalite, profession, forme,
       capital_centimes, monnaie, greffe_rcs, activite, profession_reglementee, barreau,
-      toque, specialite, cour_appel
+      toque, specialite, cour_appel, archivee
      FROM contacts ORDER BY nom COLLATE NOCASE`,
   );
   const coords = await database.getAll<CoordSql>(

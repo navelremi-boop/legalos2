@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   appliquerCoordonnees,
+  contactsProposables,
   compteursFiltres,
   filtrerContacts,
   grouperAlphabetique,
@@ -116,5 +117,13 @@ describe("liste des contacts", () => {
     );
     assert.equal(avecAdresse[0]?.adresseSiege, "8 quai Saint-Vincent");
     assert.equal(avecAdresse[0]?.adresseDomicile, null);
+  });
+
+  it("ne propose plus une fiche archivée à la saisie", () => {
+    const proposables = contactsProposables([
+      contact({ id: "1", nom: "Morel", nature: "physique" }),
+      contact({ id: "2", nom: "Archivé", nature: "physique", archivee: true }),
+    ]);
+    assert.deepEqual(proposables.map((fiche) => fiche.id), ["1"]);
   });
 });

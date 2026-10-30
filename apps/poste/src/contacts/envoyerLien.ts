@@ -29,3 +29,27 @@ export async function envoyerLien(instanceUrl: string, lien: LienAffiche): Promi
     throw new Error(message);
   }
 }
+
+export async function envoyerRetrait(instanceUrl: string, contactId: string): Promise<"archive" | "supprime"> {
+  const jeton = await assurerJetonAcces();
+  if (jeton === null) throw new Error("La session a expiré. Reconnectez-vous.");
+  const reponse = await fetch(apiUrl(instanceUrl, `/contacts/${contactId}`), {
+    method: "DELETE",
+    headers: { authorization: `Bearer ${jeton}`, "content-type": "application/json" },
+    body: JSON.stringify({ idempotence_cle: crypto.randomUUID() }),
+    signal: AbortSignal.timeout(12_000),
+  });
+  const json: unknown = await reponse.json().catch(() => null);
+  if (!reponse.ok) {
+    const message =
+      json !== null && typeof json === "object" && typeof (json as { message?: unknown }).message === "string"
+        ? (json as { message: string }).message
+        : "Le retrait a échoué.";
+    throw new Error(message);
+  }
+  const effet =
+    json !== null && typeof json === "object" && (json as { effet?: unknown }).effet === "supprime"
+      ? "supprime"
+      : "archive";
+  return effet;
+}

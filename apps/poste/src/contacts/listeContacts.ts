@@ -52,6 +52,8 @@ export type ContactListe = {
   barreau: string | null;
   specialite: string | null;
   courAppel: string | null;
+  /** Vrai quand la fiche est archivée : lisible, plus proposée à la saisie. */
+  archivee?: boolean;
 };
 
 export function champsFicheVides(): Omit<
@@ -125,6 +127,11 @@ export function correspondRecherche(contact: ContactListe, recherche: string): b
     compact(contact.siren ?? "").includes(qCompact) ||
     compact(contact.numeroTva ?? "").includes(qCompact)
   );
+}
+
+/** Fiches encore proposées quand on saisit un intervenant ou une partie. */
+export function contactsProposables(contacts: readonly ContactListe[]): ContactListe[] {
+  return contacts.filter((contact) => contact.archivee !== true);
 }
 
 export function filtrerContacts(

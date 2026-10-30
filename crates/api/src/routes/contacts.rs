@@ -920,6 +920,16 @@ pub struct FusionRequest {
     pub champs_absorbes: Vec<String>,
 }
 
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct RetirerContactRequest {
+    pub idempotence_cle: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct RetraitContactResponse {
+    pub effet: String,
+}
+
 #[utoipa::path(
     post,
     path = "/contacts/{contact_id}/import-siren",
@@ -1787,6 +1797,83 @@ pub async fn fusionner_contact(
     lire_contact(&state, claims.cabinet_id, contact_id)
         .await
         .map(Json)
+}
+
+#[utoipa::path(
+    delete,
+    path = "/contacts/{contact_id}",
+    tag = "contacts",
+    security(("bearer_auth" = [])),
+    params(("contact_id" = Uuid, Path, description = "Fiche à retirer")),
+    request_body = RetirerContactRequest,
+    responses(
+        (status = 200, description = "Archivée si elle est liée, supprimée sinon", body = RetraitContactResponse),
+        (status = 400, description = "Clé d'idempotence manquante", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Contact introuvable", body = crate::error::ApiErrorBody),
+    )
+)]
+pub async fn retirer_fiche(
+    State(state): State<Arc<AppState>>,
+    AuthAccess(claims): AuthAccess,
+    axum::extract::Path(contact_id): axum::extract::Path<Uuid>,
+    Json(body): Json<RetirerContactRequest>,
+) -> Result<Json<RetraitContactResponse>, ApiError> {
+    if body.idempotence_cle.trim().is_empty() {
+        return Err(ApiError::bad_request("Clé d'idempotence requise"));
+    }
+    let mut tx = state
+        .pool
+        .begin()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+    let cle = cle_idempotence(claims.poste_id, &body.idempotence_cle);
+    if !reserver_idempotence(&mut tx, &cle).await? {
+        let existe = sqlx::query_scalar::<_, bool>(
+            "SELECT archivee FROM contacts WHERE id = $1 AND cabinet_id = $2",
+        )
+        .bind(contact_id)
+        .bind(claims.cabinet_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|_| ApiError::internal("lecture contact"))?;
+        tx.commit()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?;
+        let effet = match existe {
+            None => "supprime",
+            Some(true) => "archive",
+            Some(false) => "archive",
+        };
+        return Ok(Json(RetraitContactResponse {
+            effet: effet.into(),
+        }));
+    }
+    let effet = crate::fusion_contacts::retirer_contact(
+        &mut tx,
+        claims.cabinet_id,
+        contact_id,
+        &ContexteChamp {
+            cabinet_id: claims.cabinet_id,
+            poste_id: claims.poste_id,
+            auteur_id: claims.sub,
+            base_revision: 1,
+            enregistrement_id: contact_id,
+            table_cible: "contacts",
+            dossier_id: None,
+        },
+    )
+    .await?;
+    tx.commit()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+    let libelle = match effet {
+        crate::fusion_contacts::EffetRetrait::Archive => "archive",
+        crate::fusion_contacts::EffetRetrait::Supprime => "supprime",
+    };
+    Ok(Json(RetraitContactResponse {
+        effet: libelle.into(),
+    }))
 }
 
 fn texte_option(valeur: &Option<String>) -> Option<String> {

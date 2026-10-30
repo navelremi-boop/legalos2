@@ -16,7 +16,7 @@ import { lireAnnuaireLocal } from "@/contacts/lireAnnuaire";
 import { designationActe } from "@/contacts/designation";
 import { ecrireCoordonnee, type GenreCoordonnee, type UsageCoordonnee } from "@/contacts/ecrireCoordonnee";
 import { libelleLien, type LienAffiche } from "@/contacts/liensContacts";
-import { envoyerLien } from "@/contacts/envoyerLien";
+import { envoyerLien, envoyerRetrait } from "@/contacts/envoyerLien";
 import { PropositionImport } from "@/contacts/PropositionImport";
 import { DoublonsFiche } from "@/contacts/DoublonsFiche";
 import { CreationSociete } from "@/contacts/CreationSociete";
@@ -60,6 +60,8 @@ export function Contacts({
   const [creation, setCreation] = useState(false);
   const [creees, setCreees] = useState<ContactListe[]>([]);
   const [liensAjoutes, setLiensAjoutes] = useState<LienAffiche[]>([]);
+  const [archives, setArchives] = useState<ReadonlySet<string>>(new Set());
+  const [retires, setRetires] = useState<ReadonlySet<string>>(new Set());
 
   useEffect(() => {
     if (lignesFixes !== undefined) return;
@@ -88,8 +90,10 @@ export function Contacts({
   const lignes = useMemo(() => {
     const base = lignesFixes ?? lignesSync;
     if (base === null) return null;
-    return [...base, ...creees.filter((cree) => !base.some((ligne) => ligne.id === cree.id))];
-  }, [lignesFixes, lignesSync, creees]);
+    return [...base, ...creees.filter((cree) => !base.some((ligne) => ligne.id === cree.id))].filter(
+      (contact) => !retires.has(contact.id),
+    );
+  }, [lignesFixes, lignesSync, creees, retires]);
   const liens = useMemo(() => {
     const base = liensFixes ?? liensSync;
     return [...base, ...liensAjoutes.filter((ajoute) => !base.some((lien) => lien.id === ajoute.id))];
@@ -102,6 +106,27 @@ export function Contacts({
   );
   const groupes = useMemo(() => grouperAlphabetique(visibles), [visibles]);
   const choisi = visibles.find((contact) => contact.id === selection) ?? visibles[0] ?? null;
+  const retirerChoisi = () => {
+    if (choisi === null) return;
+    const id = choisi.id;
+    void (async () => {
+      if (instanceUrl !== undefined && propositionFixe === null) {
+        const effet = await envoyerRetrait(instanceUrl, id);
+        if (effet === "supprime") {
+          setRetires((etat) => new Set(etat).add(id));
+        } else {
+          setArchives((etat) => new Set(etat).add(id));
+        }
+        return;
+      }
+      const lie = liens.some((lien) => lien.sourceId === id || lien.cibleId === id);
+      if (lie) {
+        setArchives((etat) => new Set(etat).add(id));
+        return;
+      }
+      setRetires((etat) => new Set(etat).add(id));
+    })();
+  };
 
   return (
     <div className="fond-neutre relative flex h-full min-h-0 flex-col ecran" data-testid="ecran-contacts" data-fond="neutre">
@@ -187,6 +212,7 @@ export function Contacts({
                           >
                             <span className="block font-bold">
                               {fr(contact.prenoms ? `${contact.prenoms} ${contact.nom}` : contact.nom)}
+                              {contact.archivee === true || archives.has(contact.id) ? fr(" — Archivé") : ""}
                             </span>
                             <span className="block text-[length:var(--font-size-dense)] text-graphite">
                               {fr(libelleNature(contact.nature))}
@@ -219,9 +245,14 @@ export function Contacts({
               <p className="etat-vide px-6 pt-6">{fr("Choisissez un contact pour voir sa fiche.")}</p>
             ) : (
               <>
-                <div className="px-6 pt-5">
-                  <h2 className="text-[length:var(--font-size-section)] font-extrabold">{fr(choisi.nom)}</h2>
-                  <p className="text-[length:var(--font-size-dense)] text-graphite">{fr(libelleNature(choisi.nature))}</p>
+                <div className="flex items-start justify-between gap-3 px-6 pt-5">
+                  <div>
+                    <h2 className="text-[length:var(--font-size-section)] font-extrabold">{fr(choisi.nom)}</h2>
+                    <p className="text-[length:var(--font-size-dense)] text-graphite">{fr(libelleNature(choisi.nature))}</p>
+                  </div>
+                  <button type="button" className="filtre" data-testid="contacts-retirer" onClick={retirerChoisi}>
+                    {fr("Retirer")}
+                  </button>
                 </div>
                 <div className="filtres px-6 pt-4" role="tablist" aria-label={fr("Sections de la fiche")}>
                   {ONGLETS_FICHE.map((entree) => (

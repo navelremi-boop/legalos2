@@ -59,7 +59,10 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/contacts/recherche-siren/{siren}",
             get(contacts::rechercher_siren),
         )
-        .route("/contacts/{contact_id}", patch(contacts::patch_contact))
+        .route(
+            "/contacts/{contact_id}",
+            patch(contacts::patch_contact).delete(contacts::retirer_fiche),
+        )
         .route(
             "/contacts/{contact_id}/coordonnees",
             post(contacts::creer_coordonnee),

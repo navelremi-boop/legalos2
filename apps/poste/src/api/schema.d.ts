@@ -270,7 +270,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        delete: operations["retirer_fiche"];
         options?: never;
         head?: never;
         patch: operations["patch_contact"];
@@ -2784,6 +2784,9 @@ export interface components {
             confirmer: boolean;
             idempotence_cle: string;
         };
+        RetirerContactRequest: {
+            idempotence_cle: string;
+        };
         RetirerIntercalaireRequest: {
             idempotence_cle: string;
         };
@@ -2796,6 +2799,9 @@ export interface components {
         RetraitAgendaResponse: {
             /** @description `true` si l'élément a été retiré ; `false` si la requête était un rejeu (clé d'idempotence déjà vue). */
             retire: boolean;
+        };
+        RetraitContactResponse: {
+            effet: string;
         };
         Sante: {
             /** @description Au moins un compte en alerte : le poste l'affiche dès qu'un compte ne se synchronise plus. */
@@ -3725,6 +3731,60 @@ export interface operations {
             };
             /** @description Registre indisponible */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    retirer_fiche: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Fiche à retirer */
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetirerContactRequest"];
+            };
+        };
+        responses: {
+            /** @description Archivée si elle est liée, supprimée sinon */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetraitContactResponse"];
+                };
+            };
+            /** @description Clé d'idempotence manquante */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Contact introuvable */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

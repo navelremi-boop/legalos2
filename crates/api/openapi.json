@@ -1060,6 +1060,81 @@
       }
     },
     "/contacts/{contact_id}": {
+      "delete": {
+        "tags": [
+          "contacts"
+        ],
+        "operationId": "retirer_fiche",
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "description": "Fiche à retirer",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetirerContactRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Archivée si elle est liée, supprimée sinon",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetraitContactResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Clé d'idempotence manquante",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contact introuvable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      },
       "patch": {
         "tags": [
           "contacts"
@@ -10675,6 +10750,17 @@
           }
         }
       },
+      "RetirerContactRequest": {
+        "type": "object",
+        "required": [
+          "idempotence_cle"
+        ],
+        "properties": {
+          "idempotence_cle": {
+            "type": "string"
+          }
+        }
+      },
       "RetirerIntercalaireRequest": {
         "type": "object",
         "required": [
@@ -10712,6 +10798,17 @@
           "retire": {
             "type": "boolean",
             "description": "`true` si l'élément a été retiré ; `false` si la requête était un rejeu (clé d'idempotence déjà vue)."
+          }
+        }
+      },
+      "RetraitContactResponse": {
+        "type": "object",
+        "required": [
+          "effet"
+        ],
+        "properties": {
+          "effet": {
+            "type": "string"
           }
         }
       },

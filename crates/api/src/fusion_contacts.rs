@@ -367,3 +367,81 @@ async fn reporter_references(
     .map_err(|_| ApiError::internal("doublons de liens"))?;
     Ok(())
 }
+
+pub enum EffetRetrait {
+    Archive,
+    Supprime,
+}
+
+pub async fn retirer_contact(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    cabinet_id: Uuid,
+    contact_id: Uuid,
+    contexte: &ContexteChamp,
+) -> Result<EffetRetrait, ApiError> {
+    let etat = sqlx::query_as::<_, (bool,)>(
+        "SELECT archivee FROM contacts WHERE id = $1 AND cabinet_id = $2",
+    )
+    .bind(contact_id)
+    .bind(cabinet_id)
+    .fetch_optional(&mut **tx)
+    .await
+    .map_err(|_| ApiError::internal("lecture contact"))?;
+    let Some((archivee,)) = etat else {
+        return Err(ApiError::not_found("Contact introuvable"));
+    };
+    if archivee {
+        return Ok(EffetRetrait::Archive);
+    }
+    let lie = sqlx::query_scalar::<_, bool>(
+        r#"
+        SELECT EXISTS (
+            SELECT 1 FROM dossier_intervenants WHERE contact_id = $1 AND cabinet_id = $2
+            UNION ALL
+            SELECT 1 FROM parties WHERE contact_id = $1 AND cabinet_id = $2
+            UNION ALL
+            SELECT 1 FROM factures WHERE contact_id = $1 AND cabinet_id = $2
+            UNION ALL
+            SELECT 1 FROM message_contacts WHERE contact_id = $1 AND cabinet_id = $2
+            UNION ALL
+            SELECT 1 FROM contact_liens
+            WHERE cabinet_id = $2 AND (
+                contact_source_id = $1 OR contact_cible_id = $1 OR pour_le_compte_de = $1
+            )
+            UNION ALL
+            SELECT 1 FROM contacts WHERE fusionnee_dans = $1 AND cabinet_id = $2
+        )
+        "#,
+    )
+    .bind(contact_id)
+    .bind(cabinet_id)
+    .fetch_one(&mut **tx)
+    .await
+    .map_err(|_| ApiError::internal("liens du contact"))?;
+    if lie {
+        sqlx::query(
+            "UPDATE contacts SET archivee = TRUE, revision = revision + 1 WHERE id = $1 AND cabinet_id = $2",
+        )
+        .bind(contact_id)
+        .bind(cabinet_id)
+        .execute(&mut **tx)
+        .await
+        .map_err(|_| ApiError::internal("archivage"))?;
+        noter_historique(tx, contexte, "archive", "archivee").await?;
+        return Ok(EffetRetrait::Archive);
+    }
+    noter_historique(tx, contexte, "suppression", &contact_id.to_string()).await?;
+    sqlx::query("DELETE FROM contact_coordonnees WHERE contact_id = $1 AND cabinet_id = $2")
+        .bind(contact_id)
+        .bind(cabinet_id)
+        .execute(&mut **tx)
+        .await
+        .map_err(|_| ApiError::internal("coordonnées"))?;
+    sqlx::query("DELETE FROM contacts WHERE id = $1 AND cabinet_id = $2")
+        .bind(contact_id)
+        .bind(cabinet_id)
+        .execute(&mut **tx)
+        .await
+        .map_err(|_| ApiError::internal("suppression"))?;
+    Ok(EffetRetrait::Supprime)
+}
