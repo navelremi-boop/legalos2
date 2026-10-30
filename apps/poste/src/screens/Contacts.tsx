@@ -31,6 +31,8 @@ import { centimesDepuisSaisie, estMonnaie, MONNAIES, saisieDepuisCentimes } from
 import { poserCapital } from "@/contacts/poserCapital";
 import { poserDenomination } from "@/contacts/poserDenomination";
 import { poserTva } from "@/contacts/poserTva";
+import { poserSiren } from "@/contacts/poserSiren";
+import { sirenSaisi } from "@/contacts/sirenFiche";
 import { tvaSaisie } from "@/contacts/tvaFiche";
 import { poserIdentite } from "@/contacts/poserIdentite";
 import { normaliserDenomination } from "@/contacts/denominationFiche";
@@ -117,6 +119,7 @@ export function Contacts({
   const [identites, setIdentites] = useState<Record<string, IdentiteSaisie>>({});
   const [denominations, setDenominations] = useState<Record<string, string>>({});
   const [tvas, setTvas] = useState<Record<string, string | null>>({});
+  const [sirens, setSirens] = useState<Record<string, string | null>>({});
   const [dossiersSync, setDossiersSync] = useState<DossierFiche[]>([]);
   const [mailsSync, setMailsSync] = useState<MailFiche[]>([]);
   const indexRef = useRef<IndexAnnuaire | null>(null);
@@ -187,13 +190,15 @@ export function Contacts({
       const denomination = denominations[contact.id];
       const nomme = denomination === undefined ? avecIdentite : { ...avecIdentite, nom: denomination };
       const tva = tvas[contact.id];
-      return tva === undefined ? nomme : { ...nomme, numeroTva: tva };
+      const avecTva = tva === undefined ? nomme : { ...nomme, numeroTva: tva };
+      const siren = sirens[contact.id];
+      return siren === undefined ? avecTva : { ...avecTva, siren };
     });
     const filtres = filtrerContacts(sources, filtre, "");
     if (recherche.trim() === "") return filtres;
     if (idsRecherche !== null) return filtres.filter((contact) => idsRecherche.has(contact.id));
     return filtrerContacts(sources, filtre, recherche, corpsParId);
-  }, [lignes, filtre, recherche, idsRecherche, corpsParId, identites, denominations, tvas]);
+  }, [lignes, filtre, recherche, idsRecherche, corpsParId, identites, denominations, tvas, sirens]);
   const groupes = useMemo(() => grouperAlphabetique(visibles), [visibles]);
   const choisi = visibles.find((contact) => contact.id === selection) ?? visibles[0] ?? null;
   const capitalPose = choisi === null ? undefined : capitaux[choisi.id];
@@ -490,6 +495,11 @@ export function Contacts({
                         if (lignesFixes !== undefined) return;
                         void poserTva(choisi.id, numero);
                       }}
+                      onSiren={(siren) => {
+                        setSirens((etat) => ({ ...etat, [choisi.id]: siren }));
+                        if (lignesFixes !== undefined) return;
+                        void poserSiren(choisi.id, siren);
+                      }}
                     />
                   ) : onglet === "liens" ? (
                     <LiensFiche contactId={choisi.id} liens={liens} />
@@ -703,6 +713,45 @@ function FormeSociete({
         ))}
       </select>
     </div>
+  );
+}
+
+function SirenSociete({
+  contactId,
+  siren,
+  tva,
+  onSiren,
+}: {
+  contactId: string;
+  siren: string | null;
+  tva: string | null;
+  onSiren: (siren: string | null) => void;
+}) {
+  const [pour, setPour] = useState(contactId);
+  const [brouillon, setBrouillon] = useState(siren ?? "");
+  const [message, setMessage] = useState("");
+  if (pour !== contactId) {
+    setPour(contactId);
+    setBrouillon(siren ?? "");
+    setMessage("");
+  }
+  return (
+    <label className="flex flex-col gap-1" data-testid="contacts-siren-bloc">
+      <span>{fr("SIREN")}</span>
+      <input
+        className="champ"
+        data-testid="contacts-siren"
+        value={brouillon}
+        onChange={(event) => {
+          const saisie = event.target.value;
+          setBrouillon(saisie);
+          const resultat = sirenSaisi(tva, saisie);
+          setMessage(resultat.message ?? "");
+          if (resultat.message === null) onSiren(resultat.valeur);
+        }}
+      />
+      {message !== "" ? <p data-testid="contacts-siren-message">{fr(message)}</p> : null}
+    </label>
   );
 }
 
@@ -1051,6 +1100,7 @@ function FicheGenerale({
   onIdentite,
   onDenomination,
   onTva,
+  onSiren,
 }: {
   contact: ContactListe;
   coordonnees: readonly CoordonneeLue[];
@@ -1070,6 +1120,7 @@ function FicheGenerale({
   onIdentite: (identite: IdentiteSaisie) => void;
   onDenomination: (nom: string) => void;
   onTva: (numero: string | null) => void;
+  onSiren: (siren: string | null) => void;
 }) {
   const acte = designationActe(contact, { liens, contacts });
   const [copie, setCopie] = useState(false);
@@ -1175,6 +1226,9 @@ function FicheGenerale({
           monnaie={contact.monnaie}
           onCapital={onCapital}
         />
+      ) : null}
+      {contact.nature === "morale" ? (
+        <SirenSociete contactId={contact.id} siren={contact.siren} tva={contact.numeroTva} onSiren={onSiren} />
       ) : null}
       {contact.nature === "morale" ? (
         <GreffeActivite
