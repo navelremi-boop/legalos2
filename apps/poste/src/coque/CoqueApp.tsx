@@ -445,7 +445,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect, onVerrouill
       />
     );
   } else if (nav === "contacts") {
-    contenu = <Contacts />;
+    contenu = <Contacts instanceUrl={instanceUrl} horsLigne={horsLigne} />;
   } else if (nav === "temps") {
     contenu = (
       <EcranTemps

@@ -856,6 +856,35 @@ async fn inserer_lien(
 }
 
 #[utoipa::path(
+    get,
+    path = "/contacts/recherche-siren/{siren}",
+    tag = "contacts",
+    security(("bearer_auth" = [])),
+    params(("siren" = String, Path, description = "SIREN à proposer depuis le registre public")),
+    responses(
+        (status = 200, description = "Proposition, non appliquée à la fiche", body = crate::recherche_entreprises::PropositionSiren),
+        (status = 400, description = "SIREN invalide", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "SIREN inconnu du registre", body = crate::error::ApiErrorBody),
+        (status = 503, description = "Registre indisponible", body = crate::error::ApiErrorBody),
+    )
+)]
+pub async fn rechercher_siren(
+    AuthAccess(_claims): AuthAccess,
+    axum::extract::Path(siren): axum::extract::Path<String>,
+) -> Result<Json<crate::recherche_entreprises::PropositionSiren>, ApiError> {
+    let maintenant = time::OffsetDateTime::now_utc();
+    crate::recherche_entreprises::resoudre(
+        crate::recherche_entreprises::cache_partage(),
+        &siren,
+        maintenant,
+        |normalise| async move { crate::recherche_entreprises::interroger_http(&normalise).await },
+    )
+    .await
+    .map(Json)
+}
+
+#[utoipa::path(
     post,
     path = "/contacts/{contact_id}/coordonnees",
     tag = "contacts",

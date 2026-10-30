@@ -244,6 +244,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/contacts/recherche-siren/{siren}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["rechercher_siren"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/contacts/{contact_id}": {
         parameters: {
             query?: never;
@@ -2596,6 +2612,13 @@ export interface components {
             /** Format: int32 */
             base_numero?: number | null;
         };
+        PropositionSiren: {
+            activite?: string | null;
+            adresse_siege?: string | null;
+            denomination?: string | null;
+            forme?: string | null;
+            siren: string;
+        };
         PutReferenceRequest: {
             idempotence_cle: string;
             modele: string;
@@ -3558,6 +3581,65 @@ export interface operations {
             };
             /** @description Non authentifié */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    rechercher_siren: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SIREN à proposer depuis le registre public */
+                siren: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Proposition, non appliquée à la fiche */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PropositionSiren"];
+                };
+            };
+            /** @description SIREN invalide */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description SIREN inconnu du registre */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Registre indisponible */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

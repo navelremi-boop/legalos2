@@ -17,6 +17,7 @@ pub mod oauth_mail;
 pub mod openapi;
 pub mod pdf_facturx;
 pub mod plateforme;
+pub mod recherche_entreprises;
 pub mod routes;
 pub mod state;
 pub mod texte_document;

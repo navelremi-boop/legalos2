@@ -27,6 +27,7 @@ function contact(partiel: Partial<ContactListe> & Pick<ContactListe, "id" | "nom
     capitalLibelle: null,
     greffe: null,
     adresseSiege: null,
+    activite: null,
     representant: null,
     professionCode: null,
     barreau: null,

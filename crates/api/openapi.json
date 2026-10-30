@@ -983,6 +983,82 @@
         ]
       }
     },
+    "/contacts/recherche-siren/{siren}": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "operationId": "rechercher_siren",
+        "parameters": [
+          {
+            "name": "siren",
+            "in": "path",
+            "description": "SIREN à proposer depuis le registre public",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposition, non appliquée à la fiche",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropositionSiren"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SIREN invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SIREN inconnu du registre",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Registre indisponible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/contacts/{contact_id}": {
       "patch": {
         "tags": [
@@ -9932,6 +10008,41 @@
               "null"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "PropositionSiren": {
+        "type": "object",
+        "required": [
+          "siren"
+        ],
+        "properties": {
+          "activite": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "adresse_siege": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "denomination": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "forme": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "siren": {
+            "type": "string"
           }
         }
       },

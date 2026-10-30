@@ -46,6 +46,7 @@ export type ContactListe = {
   capitalLibelle: string | null;
   greffe: string | null;
   adresseSiege: string | null;
+  activite: string | null;
   representant: RepresentantFiche | null;
   professionCode: ProfessionReglementee | null;
   barreau: string | null;
@@ -71,6 +72,7 @@ export function champsFicheVides(): Omit<
     capitalLibelle: null,
     greffe: null,
     adresseSiege: null,
+    activite: null,
     representant: null,
     professionCode: null,
     barreau: null,

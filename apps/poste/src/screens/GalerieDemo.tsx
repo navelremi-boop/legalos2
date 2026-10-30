@@ -883,6 +883,13 @@ export function GalerieDemo() {
                   fin: null,
                 },
               ]}
+              propositionFixe={{
+                siren: "123456789",
+                denomination: "DUCLOS INDUSTRIE",
+                forme: "5499",
+                adresseSiege: "8 QUAI SAINT-VINCENT 69001 LYON",
+                activite: "25.11Z",
+              }}
             />
           ) : null}
           {vue === "mails" ? (

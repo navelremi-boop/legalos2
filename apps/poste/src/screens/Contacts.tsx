@@ -16,6 +16,8 @@ import { lireAnnuaireLocal } from "@/contacts/lireAnnuaire";
 import { designationActe } from "@/contacts/designation";
 import { ecrireCoordonnee, type GenreCoordonnee, type UsageCoordonnee } from "@/contacts/ecrireCoordonnee";
 import { libelleLien, type LienAffiche } from "@/contacts/liensContacts";
+import { PropositionImport } from "@/contacts/PropositionImport";
+import type { PropositionSiren } from "@/contacts/propositionSiren";
 import { Feuille } from "@/coque/Feuille";
 import { fr } from "@/lib/fr";
 
@@ -32,9 +34,19 @@ type ContactsProps = {
   lignesFixes?: readonly ContactListe[];
   /** Liens figés de la galerie. Sans cela, ils sont lus dans la base locale. */
   liensFixes?: readonly LienAffiche[];
+  horsLigne?: boolean;
+  instanceUrl?: string;
+  /** Proposition figée, affichée par le bouton sans appeler le registre. */
+  propositionFixe?: PropositionSiren | null;
 };
 
-export function Contacts({ lignesFixes, liensFixes }: ContactsProps = {}) {
+export function Contacts({
+  lignesFixes,
+  liensFixes,
+  horsLigne = false,
+  instanceUrl,
+  propositionFixe = null,
+}: ContactsProps = {}) {
   const [lignesSync, setLignesSync] = useState<ContactListe[] | null>(null);
   const [coordsSync, setCoordsSync] = useState<CoordonneeLue[]>([]);
   const [liensSync, setLiensSync] = useState<LienAffiche[]>([]);
@@ -198,6 +210,9 @@ export function Contacts({ lignesFixes, liensFixes }: ContactsProps = {}) {
                       coordonnees={coordsSync.filter((ligne) => ligne.contactId === choisi.id)}
                       liens={liens}
                       contacts={lignes ?? []}
+                      horsLigne={horsLigne}
+                      instanceUrl={instanceUrl}
+                      propositionFixe={propositionFixe}
                     />
                   ) : onglet === "liens" ? (
                     <LiensFiche contactId={choisi.id} liens={liens} />
@@ -258,11 +273,17 @@ function FicheGenerale({
   coordonnees,
   liens,
   contacts,
+  horsLigne,
+  instanceUrl,
+  propositionFixe,
 }: {
   contact: ContactListe;
   coordonnees: readonly CoordonneeLue[];
   liens: readonly LienAffiche[];
   contacts: readonly ContactListe[];
+  horsLigne: boolean;
+  instanceUrl?: string;
+  propositionFixe: PropositionSiren | null;
 }) {
   const acte = designationActe(contact, { liens, contacts });
   const [copie, setCopie] = useState(false);
@@ -307,6 +328,13 @@ function FicheGenerale({
           </ul>
         </div>
       ) : null}
+      <PropositionImport
+        key={contact.id}
+        contact={contact}
+        horsLigne={horsLigne}
+        instanceUrl={instanceUrl}
+        propositionFixe={propositionFixe}
+      />
       <dl className="fiche-infos">
         <dt>{fr("Nom")}</dt>
         <dd>{fr(contact.prenoms ? `${contact.prenoms} ${contact.nom}` : contact.nom)}</dd>

@@ -79,6 +79,7 @@ Vérifiées le **2026-09-26** (mise à jour Node / Rust image) et le **2026-09-2
 | Rust toolchain | **stable** (`rust-toolchain.toml`) — **1.98.1** observé sur le poste 2026-09-26 | https://rust-lang.org |
 | Rust (image build API) | **rust:1.98.1-bookworm** (alignée sur la toolchain du dépôt) | https://hub.docker.com/_/rust |
 | Images compose LEGAL OS | **legalos/api:0.1.0**, **legalos/caddy:2.10.0-alpine**, **legalos/simulateur-pa:s1-stub** (build local, pas de `latest`) | `instance/docker-compose.yml` |
+| API Recherche d'entreprises | **sans version** (service public, sans clé) | https://www.data.gouv.fr/dataservices/api-recherche-dentreprises — vérifié le 2026-10-30. Base `https://recherche-entreprises.api.gouv.fr`, recherche `GET /search?q=siren:{siren}&per_page=1&minimal=true&include=siege`. Limite annoncée : **7 appels par seconde** ; l'administration peut la baisser. Documentation : https://recherche-entreprises.api.gouv.fr/docs/ . Le poste ne l'appelle pas : `GET /contacts/recherche-siren/{siren}` sur l'instance, délai 10 s, cache 24 h. |
 
 ## Outils CI (cibles)
 

@@ -96,6 +96,7 @@ function versContact(ligne: LigneSql): ContactListe | null {
     nationalite: ligne.nationalite,
     profession: ligne.profession,
     forme: ligne.forme,
+    activite: ligne.activite,
     capitalLibelle:
       ligne.capital_centimes === null ? null : libelleCapital(ligne.capital_centimes, ligne.monnaie),
     greffe: ligne.greffe_rcs,
