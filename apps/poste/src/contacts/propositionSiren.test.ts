@@ -27,6 +27,17 @@ describe("proposition d'import par SIREN", () => {
     assert.equal(lignes[3]?.registre, "25.11Z");
   });
 
+  it("à la création, l'ancienne valeur est vide", () => {
+    const lignes = lignesProposition(
+      { nom: "", forme: null, adresseSiege: null, activite: null },
+      PROPOSITION,
+    );
+    assert.equal(lignes[0]?.ancien, "—");
+    assert.equal(lignes[0]?.registre, "DUCLOS INDUSTRIE");
+    assert.equal(lignes[2]?.ancien, "—");
+    assert.equal(lignes[2]?.registre, "8 QUAI SAINT-VINCENT 69001 LYON");
+  });
+
   it("ne retient que les champs cochés", () => {
     const retenus = champsRetenus(PROPOSITION, {
       denomination: true,

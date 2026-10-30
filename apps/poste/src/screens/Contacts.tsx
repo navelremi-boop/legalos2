@@ -17,6 +17,7 @@ import { designationActe } from "@/contacts/designation";
 import { ecrireCoordonnee, type GenreCoordonnee, type UsageCoordonnee } from "@/contacts/ecrireCoordonnee";
 import { libelleLien, type LienAffiche } from "@/contacts/liensContacts";
 import { PropositionImport } from "@/contacts/PropositionImport";
+import { CreationSociete } from "@/contacts/CreationSociete";
 import type { PropositionSiren } from "@/contacts/propositionSiren";
 import { Feuille } from "@/coque/Feuille";
 import { fr } from "@/lib/fr";
@@ -54,6 +55,8 @@ export function Contacts({
   const [recherche, setRecherche] = useState("");
   const [selection, setSelection] = useState<string | null>(null);
   const [onglet, setOnglet] = useState<OngletFicheContact>("general");
+  const [creation, setCreation] = useState(false);
+  const [creees, setCreees] = useState<ContactListe[]>([]);
 
   useEffect(() => {
     if (lignesFixes !== undefined) return;
@@ -79,7 +82,11 @@ export function Contacts({
     };
   }, [lignesFixes]);
 
-  const lignes = lignesFixes ?? lignesSync;
+  const lignes = useMemo(() => {
+    const base = lignesFixes ?? lignesSync;
+    if (base === null) return null;
+    return [...base, ...creees.filter((cree) => !base.some((ligne) => ligne.id === cree.id))];
+  }, [lignesFixes, lignesSync, creees]);
   const liens = liensFixes ?? liensSync;
 
   const comptes = useMemo(() => compteursFiltres(lignes ?? []), [lignes]);
@@ -99,6 +106,16 @@ export function Contacts({
             {fr(`${String(comptes.tous)} contacts dans l'annuaire du cabinet`)}
           </p>
         </div>
+        <button
+          type="button"
+          className="filtre"
+          data-testid="contacts-nouvelle-societe"
+          onClick={() => {
+            setCreation(true);
+          }}
+        >
+          {fr("Nouvelle société")}
+        </button>
       </header>
       <Feuille uneColonne className="min-h-0 flex-1">
         <div className="grid h-full min-h-0 grid-cols-[23rem_minmax(0,1fr)]">
@@ -178,7 +195,20 @@ export function Contacts({
             </div>
           </div>
           <div className="flex min-h-0 flex-col overflow-hidden" data-testid="contacts-fiche">
-            {choisi === null ? (
+            {creation ? (
+              <CreationSociete
+                horsLigne={horsLigne}
+                instanceUrl={instanceUrl}
+                propositionFixe={propositionFixe}
+                onFermer={() => {
+                  setCreation(false);
+                }}
+                onCreee={(contact) => {
+                  setCreees((etat) => [...etat, contact]);
+                  setSelection(contact.id);
+                }}
+              />
+            ) : choisi === null ? (
               <p className="etat-vide px-6 pt-6">{fr("Choisissez un contact pour voir sa fiche.")}</p>
             ) : (
               <>
