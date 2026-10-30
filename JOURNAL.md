@@ -287,4 +287,8 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Annuaire, SIREN (30/10).** La fiche d'une société saisit le SIREN. La clé de Luhn est exigée. Un numéro refusé n'est pas enregistré. La désignation suit le numéro accepté. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/contacts/sirenFiche.test.ts` : 1/1. `pnpm --filter @legal-os/poste typecheck` exit 0. eslint de ces fichiers : exit 0. Galerie : 123456789 devient 100000009, désignation « numéro 100000009 » ; ressaisir 123456789 affiche « SIREN invalide. » et la désignation reste sur 100000009. Le jalon n'est pas coché.
 
-**État de session.** Fait : saisie du SIREN sur la fiche. En cours : Annuaire. Prochaine action : recette Tauri de l'annuaire, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+**État de session.** Fait : saisie du SIREN sur la fiche. En cours : Annuaire. Prochaine action : recette Tauri de l'écran Contacts, lancée, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+
+- **Annuaire, écran Tauri (30/10).** `node tests/recette/annuaire.mjs` exit 0 en 134 s. Contacts est entre Dossiers et Mails. Filtres Tous, Personnes, Sociétés, Professions. Onglets Général, Liens, Dossiers, Factures, Mails, Notes. Pas de Mademoiselle, pas de champ sexe, pas de fax. Fiche personne : civilités Madame et Maître, désignation avec le prénom. Fiche société : dénomination, forme, capital, SIREN 100000009, greffe, TVA FR88100000009, activité, désignation qui reprend le SIREN. La palette ouvre Contacts. La reprise, la recherche des 10 000, la fusion et les conflits restent dans leurs recettes. Le jalon n'est pas coché.
+
+**État de session.** Fait : recette Tauri de l'écran Contacts. En cours : Annuaire. Prochaine action : onglets Dossiers, Factures et Mails de la fiche dans la recette, sans anticiper le classeur Documents ni l'aperçu des fichiers.
