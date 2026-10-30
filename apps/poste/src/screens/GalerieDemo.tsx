@@ -95,6 +95,7 @@ const CONTACTS_DEMO: ContactListe[] = [
     monnaie: "EUR",
     capitalLibelle: "au capital de 10 000 €",
     greffe: "RCS de Lyon",
+    activite: "Fabrication de structures métalliques",
     adresseSiege: "8 quai Saint-Vincent, 69001 Lyon",
   },
 ];

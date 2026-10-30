@@ -29,6 +29,8 @@ import { DoublonsFiche } from "@/contacts/DoublonsFiche";
 import { CreationSociete } from "@/contacts/CreationSociete";
 import { centimesDepuisSaisie, estMonnaie, MONNAIES, saisieDepuisCentimes } from "@/contacts/capitalFiche";
 import { poserCapital } from "@/contacts/poserCapital";
+import { poserTexteContact } from "@/contacts/poserTexteContact";
+import { texteSaisi } from "@/contacts/texteSaisi";
 import { poserForme } from "@/contacts/poserForme";
 import { poserSituationFamiliale } from "@/contacts/poserSituation";
 import { formesFiltrees, libelleForme } from "@/contacts/formesJuridiques";
@@ -88,6 +90,8 @@ export function Contacts({
   const [capitaux, setCapitaux] = useState<
     Record<string, { centimes: number | null; monnaie: string | null }>
   >({});
+  const [greffes, setGreffes] = useState<Record<string, string | null>>({});
+  const [activites, setActivites] = useState<Record<string, string | null>>({});
   const [dossiersSync, setDossiersSync] = useState<DossierFiche[]>([]);
   const [mailsSync, setMailsSync] = useState<MailFiche[]>([]);
   const indexRef = useRef<IndexAnnuaire | null>(null);
@@ -177,6 +181,8 @@ export function Contacts({
               : capitalPose.centimes === null
                 ? null
                 : libelleCapital(capitalPose.centimes, capitalPose.monnaie),
+          greffe: greffes[choisi.id] === undefined ? choisi.greffe : greffes[choisi.id] ?? null,
+          activite: activites[choisi.id] === undefined ? choisi.activite : activites[choisi.id] ?? null,
         };
   const historique =
     historiqueFixe !== null && choisi?.id === historiqueFixe.contactId
@@ -413,6 +419,16 @@ export function Contacts({
                         if (lignesFixes !== undefined) return;
                         void poserCapital(choisi.id, centimes, monnaie);
                       }}
+                      onGreffe={(valeur) => {
+                        setGreffes((etat) => ({ ...etat, [choisi.id]: valeur }));
+                        if (lignesFixes !== undefined) return;
+                        void poserTexteContact(choisi.id, "greffe_rcs", valeur);
+                      }}
+                      onActivite={(valeur) => {
+                        setActivites((etat) => ({ ...etat, [choisi.id]: valeur }));
+                        if (lignesFixes !== undefined) return;
+                        void poserTexteContact(choisi.id, "activite", valeur);
+                      }}
                     />
                   ) : onglet === "liens" ? (
                     <LiensFiche contactId={choisi.id} liens={liens} />
@@ -585,6 +601,51 @@ function FormeSociete({
   );
 }
 
+function GreffeActivite({
+  greffe,
+  activite,
+  onGreffe,
+  onActivite,
+}: {
+  greffe: string | null;
+  activite: string | null;
+  onGreffe: (valeur: string | null) => void;
+  onActivite: (valeur: string | null) => void;
+}) {
+  const [greffeSaisi, setGreffeSaisi] = useState(greffe ?? "");
+  const [activiteSaisie, setActiviteSaisie] = useState(activite ?? "");
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="flex flex-col gap-1">
+        <span>{fr("Greffe du RCS")}</span>
+        <input
+          className="champ"
+          data-testid="contacts-greffe"
+          value={greffeSaisi}
+          onChange={(event) => {
+            const valeur = event.target.value;
+            setGreffeSaisi(valeur);
+            onGreffe(texteSaisi(valeur));
+          }}
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span>{fr("Activité")}</span>
+        <input
+          className="champ"
+          data-testid="contacts-activite"
+          value={activiteSaisie}
+          onChange={(event) => {
+            const valeur = event.target.value;
+            setActiviteSaisie(valeur);
+            onActivite(texteSaisi(valeur));
+          }}
+        />
+      </label>
+    </div>
+  );
+}
+
 function FicheGenerale({
   contact,
   coordonnees,
@@ -598,6 +659,8 @@ function FicheGenerale({
   onSituation,
   onForme,
   onCapital,
+  onGreffe,
+  onActivite,
 }: {
   contact: ContactListe;
   coordonnees: readonly CoordonneeLue[];
@@ -611,6 +674,8 @@ function FicheGenerale({
   onSituation: (code: string | null) => void;
   onForme: (code: string | null) => void;
   onCapital: (centimes: number | null, monnaie: string | null) => void;
+  onGreffe: (valeur: string | null) => void;
+  onActivite: (valeur: string | null) => void;
 }) {
   const acte = designationActe(contact, { liens, contacts });
   const [copie, setCopie] = useState(false);
@@ -710,6 +775,15 @@ function FicheGenerale({
           centimes={contact.capitalCentimes}
           monnaie={contact.monnaie}
           onCapital={onCapital}
+        />
+      ) : null}
+      {contact.nature === "morale" ? (
+        <GreffeActivite
+          key={contact.id}
+          greffe={contact.greffe}
+          activite={contact.activite}
+          onGreffe={onGreffe}
+          onActivite={onActivite}
         />
       ) : null}
       <div>
