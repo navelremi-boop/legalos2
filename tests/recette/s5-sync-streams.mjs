@@ -174,6 +174,7 @@ for (const nom of [
   "dossier_liens_publics",
   "agenda_publics",
   "messages_publics",
+  "intervenants_publics",
 ]) {
   const bloc = blocFlux(nom);
   if (/JOIN\s+dossiers/i.test(bloc)) fail(`${nom} : JOIN dossiers interdit (un bucket par dossier)`);
@@ -206,6 +207,7 @@ for (const nom of [
   "dossier_liens_restreints_croises",
   "agenda_restreints",
   "messages_restreints",
+  "intervenants_restreints",
 ]) {
   const bloc = blocFlux(nom);
   if (!/INNER JOIN groupe_acces_membres/i.test(bloc)) {
