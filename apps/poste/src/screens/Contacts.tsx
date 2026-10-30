@@ -6,6 +6,7 @@ import {
   grouperAlphabetique,
   libelleNature,
   libelleTypeClient,
+  libelleCapital,
   ONGLETS_FICHE,
   type ContactListe,
   type CoordonneeLue,
@@ -26,6 +27,8 @@ import type { DossierFiche, FactureFiche, MailFiche, NoteFiche } from "@/contact
 import { lireDossiersContact, lireMailsClasses } from "@/contacts/lireHistorique";
 import { DoublonsFiche } from "@/contacts/DoublonsFiche";
 import { CreationSociete } from "@/contacts/CreationSociete";
+import { centimesDepuisSaisie, estMonnaie, MONNAIES, saisieDepuisCentimes } from "@/contacts/capitalFiche";
+import { poserCapital } from "@/contacts/poserCapital";
 import { poserForme } from "@/contacts/poserForme";
 import { poserSituationFamiliale } from "@/contacts/poserSituation";
 import { formesFiltrees, libelleForme } from "@/contacts/formesJuridiques";
@@ -82,6 +85,9 @@ export function Contacts({
   const [retires, setRetires] = useState<ReadonlySet<string>>(new Set());
   const [situations, setSituations] = useState<Record<string, string | null>>({});
   const [formes, setFormes] = useState<Record<string, string | null>>({});
+  const [capitaux, setCapitaux] = useState<
+    Record<string, { centimes: number | null; monnaie: string | null }>
+  >({});
   const [dossiersSync, setDossiersSync] = useState<DossierFiche[]>([]);
   const [mailsSync, setMailsSync] = useState<MailFiche[]>([]);
   const indexRef = useRef<IndexAnnuaire | null>(null);
@@ -154,6 +160,7 @@ export function Contacts({
   }, [lignes, filtre, recherche, idsRecherche, corpsParId]);
   const groupes = useMemo(() => grouperAlphabetique(visibles), [visibles]);
   const choisi = visibles.find((contact) => contact.id === selection) ?? visibles[0] ?? null;
+  const capitalPose = choisi === null ? undefined : capitaux[choisi.id];
   const choisiVu =
     choisi === null
       ? null
@@ -162,6 +169,14 @@ export function Contacts({
           situationFamiliale:
             situations[choisi.id] === undefined ? choisi.situationFamiliale : situations[choisi.id] ?? null,
           forme: formes[choisi.id] === undefined ? choisi.forme : formes[choisi.id] ?? null,
+          capitalCentimes: capitalPose === undefined ? choisi.capitalCentimes : capitalPose.centimes,
+          monnaie: capitalPose === undefined ? choisi.monnaie : capitalPose.monnaie,
+          capitalLibelle:
+            capitalPose === undefined
+              ? choisi.capitalLibelle
+              : capitalPose.centimes === null
+                ? null
+                : libelleCapital(capitalPose.centimes, capitalPose.monnaie),
         };
   const historique =
     historiqueFixe !== null && choisi?.id === historiqueFixe.contactId
@@ -393,6 +408,11 @@ export function Contacts({
                         if (lignesFixes !== undefined) return;
                         void poserForme(choisi.id, code);
                       }}
+                      onCapital={(centimes, monnaie) => {
+                        setCapitaux((etat) => ({ ...etat, [choisi.id]: { centimes, monnaie } }));
+                        if (lignesFixes !== undefined) return;
+                        void poserCapital(choisi.id, centimes, monnaie);
+                      }}
                     />
                   ) : onglet === "liens" ? (
                     <LiensFiche contactId={choisi.id} liens={liens} />
@@ -451,6 +471,70 @@ function LiensFiche({ contactId, liens }: { contactId: string; liens: readonly L
         );
       })}
     </ul>
+  );
+}
+
+function CapitalSociete({
+  centimes,
+  monnaie,
+  onCapital,
+}: {
+  centimes: number | null;
+  monnaie: string | null;
+  onCapital: (centimes: number | null, monnaie: string | null) => void;
+}) {
+  const [montant, setMontant] = useState(saisieDepuisCentimes(centimes));
+  const [message, setMessage] = useState("");
+  const code = monnaie !== null && monnaie !== "" ? monnaie : "EUR";
+  const enregistrer = (prochainMontant: string, prochaineMonnaie: string) => {
+    try {
+      const suivant = centimesDepuisSaisie(prochainMontant);
+      setMessage("");
+      onCapital(suivant, prochaineMonnaie);
+    } catch {
+      setMessage("Capital invalide.");
+    }
+  };
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="flex flex-col gap-1">
+        <span>{fr("Capital")}</span>
+        <input
+          className="champ"
+          inputMode="decimal"
+          aria-label={fr("Montant du capital")}
+          data-testid="contacts-capital"
+          value={montant}
+          onChange={(event) => {
+            setMontant(event.target.value);
+          }}
+          onBlur={() => {
+            enregistrer(montant, code);
+          }}
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span>{fr("Monnaie")}</span>
+        <select
+          className="champ"
+          data-testid="contacts-monnaie"
+          value={code}
+          onChange={(event) => {
+            const choisi = event.target.value;
+            if (!estMonnaie(choisi) && choisi !== code) return;
+            enregistrer(montant, choisi);
+          }}
+        >
+          {code !== "EUR" && !estMonnaie(code) ? <option value={code}>{fr(code)}</option> : null}
+          {MONNAIES.map((entree) => (
+            <option key={entree} value={entree}>
+              {fr(entree)}
+            </option>
+          ))}
+        </select>
+      </label>
+      {message !== "" ? <p data-testid="contacts-capital-message">{fr(message)}</p> : null}
+    </div>
   );
 }
 
@@ -513,6 +597,7 @@ function FicheGenerale({
   onRelier,
   onSituation,
   onForme,
+  onCapital,
 }: {
   contact: ContactListe;
   coordonnees: readonly CoordonneeLue[];
@@ -525,6 +610,7 @@ function FicheGenerale({
   onRelier: (lien: LienAffiche) => Promise<void> | void;
   onSituation: (code: string | null) => void;
   onForme: (code: string | null) => void;
+  onCapital: (centimes: number | null, monnaie: string | null) => void;
 }) {
   const acte = designationActe(contact, { liens, contacts });
   const [copie, setCopie] = useState(false);
@@ -617,6 +703,14 @@ function FicheGenerale({
       ) : null}
       {contact.nature === "morale" ? (
         <FormeSociete forme={contact.forme} onForme={onForme} />
+      ) : null}
+      {contact.nature === "morale" ? (
+        <CapitalSociete
+          key={contact.id}
+          centimes={contact.capitalCentimes}
+          monnaie={contact.monnaie}
+          onCapital={onCapital}
+        />
       ) : null}
       <div>
         <p className="font-bold">{fr("Coordonnées")}</p>

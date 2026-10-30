@@ -91,6 +91,8 @@ const CONTACTS_DEMO: ContactListe[] = [
     professionReglementee: false,
     ...champsFicheVides(),
     forme: "5499",
+    capitalCentimes: 1_000_000,
+    monnaie: "EUR",
     capitalLibelle: "au capital de 10 000 €",
     greffe: "RCS de Lyon",
     adresseSiege: "8 quai Saint-Vincent, 69001 Lyon",

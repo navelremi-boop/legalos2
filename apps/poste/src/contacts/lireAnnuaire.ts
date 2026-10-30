@@ -100,6 +100,8 @@ function versContact(ligne: LigneSql): ContactListe | null {
     profession: ligne.profession,
     situationFamiliale: ligne.situation_familiale,
     forme: ligne.forme,
+    capitalCentimes: ligne.capital_centimes,
+    monnaie: ligne.monnaie,
     activite: ligne.activite,
     capitalLibelle:
       ligne.capital_centimes === null ? null : libelleCapital(ligne.capital_centimes, ligne.monnaie),

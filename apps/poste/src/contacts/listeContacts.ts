@@ -45,6 +45,9 @@ export type ContactListe = {
   situationFamiliale: string | null;
   adresseDomicile: string | null;
   forme: string | null;
+  /** Capital en centimes. Null si le montant n'est pas saisi. */
+  capitalCentimes: number | null;
+  monnaie: string | null;
   capitalLibelle: string | null;
   greffe: string | null;
   adresseSiege: string | null;
@@ -74,6 +77,8 @@ export function champsFicheVides(): Omit<
     situationFamiliale: null,
     adresseDomicile: null,
     forme: null,
+    capitalCentimes: null,
+    monnaie: null,
     capitalLibelle: null,
     greffe: null,
     adresseSiege: null,
