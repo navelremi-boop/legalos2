@@ -14,6 +14,19 @@ export async function lireDossiersContact(contactId: string): Promise<DossierFic
   );
 }
 
+/** Nombre de dossiers distincts par contact, pour le compteur de la liste. */
+export async function compterDossiersParContact(): Promise<Map<string, number>> {
+  const database = await getPowerSyncDatabase();
+  const lignes = await database.getAll<{ contact_id: string; n: number }>(
+    `SELECT contact_id AS contact_id, COUNT(DISTINCT dossier_id) AS n
+     FROM dossier_intervenants
+     GROUP BY contact_id`,
+  );
+  const map = new Map<string, number>();
+  for (const ligne of lignes) map.set(ligne.contact_id, ligne.n);
+  return map;
+}
+
 type FactureLue = {
   id: string;
   numero: string | null;

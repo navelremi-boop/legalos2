@@ -6,6 +6,11 @@ import {
   compteursFiltres,
   filtrerContacts,
   grouperAlphabetique,
+  initialesListeContact,
+  libelleListeContact,
+  metaListeContact,
+  natureEtiquetteFiche,
+  sirenListeContact,
   type ContactListe,
 } from "./listeContacts.ts";
 
@@ -129,5 +134,67 @@ describe("liste des contacts", () => {
       contact({ id: "2", nom: "Archivé", nature: "physique", archivee: true }),
     ]);
     assert.deepEqual(proposables.map((fiche) => fiche.id), ["1"]);
+  });
+
+  it("compose l'étiquette de nature pour la fiche", () => {
+    assert.equal(natureEtiquetteFiche(contact({ id: "1", nom: "Martin", nature: "physique" })), "Personne");
+    assert.equal(
+      natureEtiquetteFiche(
+        contact({
+          id: "1",
+          nom: "Martin",
+          nature: "physique",
+          professionCode: "avocat",
+          professionReglementee: true,
+        }),
+      ),
+      "Personne, avocat",
+    );
+    assert.equal(
+      natureEtiquetteFiche(contact({ id: "3", nom: "SARL Duclos Industrie", nature: "morale" })),
+      "Société",
+    );
+  });
+
+  it("compose le libellé, les initiales et la meta de la liste", () => {
+    assert.equal(
+      libelleListeContact(contact({ id: "1", nom: "Martin", nature: "physique", civilite: "Madame", prenoms: "Camille" })),
+      "Madame Camille Martin",
+    );
+    assert.equal(
+      libelleListeContact(contact({ id: "3", nom: "SARL Duclos Industrie", nature: "morale" })),
+      "SARL Duclos Industrie",
+    );
+    assert.equal(
+      initialesListeContact(contact({ id: "1", nom: "Martin", nature: "physique", prenoms: "Camille" })),
+      "CM",
+    );
+    assert.equal(sirenListeContact("123456789"), "123 456 789");
+    assert.equal(
+      metaListeContact(
+        contact({
+          id: "1",
+          nom: "Martin",
+          nature: "physique",
+          professionCode: "avocat",
+          professionReglementee: true,
+        }),
+        "Lyon",
+      ),
+      "Avocat, Lyon",
+    );
+    assert.equal(
+      metaListeContact(
+        contact({
+          id: "3",
+          nom: "SARL Duclos Industrie",
+          nature: "morale",
+          forme: "5499",
+          siren: "123456789",
+        }),
+        "Lyon",
+      ),
+      "Société à responsabilité limitée (sans autre indication), Lyon, SIREN 123 456 789",
+    );
   });
 });

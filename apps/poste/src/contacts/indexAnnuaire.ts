@@ -15,6 +15,20 @@ export function villeDepuisAdresse(adresse: string | null | undefined): string {
   return (morceaux[morceaux.length - 1] ?? "").replace(/\d/g, "").trim();
 }
 
+/** Ville pour la ligne meta : domicile ou siège, sinon première adresse des coordonnées. */
+export function villeListeContact(contact: ContactListe, coords: readonly CoordonneeLue[] = []): string {
+  const primaire =
+    contact.nature === "morale" ? contact.adresseSiege : contact.adresseDomicile;
+  const directe = villeDepuisAdresse(primaire);
+  if (directe !== "") return directe;
+  for (const ligne of coords) {
+    if (ligne.contactId !== contact.id || ligne.genre !== "adresse") continue;
+    const ville = villeDepuisAdresse(ligne.valeur);
+    if (ville !== "") return ville;
+  }
+  return "";
+}
+
 export function ligneIndex(contact: ContactListe, coords: readonly CoordonneeLue[]): LigneIndex {
   const siennes = coords.filter((ligne) => ligne.contactId === contact.id);
   const emails = siennes

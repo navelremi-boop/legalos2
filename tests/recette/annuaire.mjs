@@ -543,7 +543,8 @@ try {
   if (!coupeEcran.message.includes("indisponible")) fail(`registre coupé : ${coupeEcran.message.slice(0, 160)}`);
   ok("registre coupé");
 
-  await cliquer(cdp.send, "[data-testid=contacts-retirer]");
+  await attendre(cdp.send, "[data-testid=contacts-supprimer]");
+  await cliquer(cdp.send, "[data-testid=contacts-supprimer]");
   const debutSeul = Date.now();
   let seulPresent = true;
   while (Date.now() - debutSeul < 12_000) {
@@ -568,8 +569,8 @@ try {
   ok("contact jamais lié supprimé");
 
   await cliquer(cdp.send, `[data-testid=contacts-ligne][data-contact-id="${societeId}"]`);
-  await attendre(cdp.send, "[data-testid=contacts-retirer]");
-  await cliquer(cdp.send, "[data-testid=contacts-retirer]");
+  await attendre(cdp.send, "[data-testid=contacts-archiver]");
+  await cliquer(cdp.send, "[data-testid=contacts-archiver]");
   const debutArchive = Date.now();
   let archive = "";
   while (Date.now() - debutArchive < 12_000) {

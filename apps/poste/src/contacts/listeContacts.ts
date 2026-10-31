@@ -1,3 +1,4 @@
+import { libelleForme } from "@/contacts/formesJuridiques";
 import { formatMontant } from "@/lib/format";
 
 export type NatureContactListe = "physique" | "morale";
@@ -248,4 +249,82 @@ export function libelleTypeClient(typeClient: TypeClientListe): string {
   if (typeClient === "professionnel") return "Professionnel";
   if (typeClient === "particulier") return "Particulier";
   return "Étranger";
+}
+
+const LIBELLES_PROFESSION: Readonly<Record<ProfessionReglementee, string>> = {
+  avocat: "Avocat",
+  commissaire_justice: "Commissaire de justice",
+  notaire: "Notaire",
+  expert_judiciaire: "Expert judiciaire",
+  administrateur_judiciaire: "Administrateur judiciaire",
+  mandataire_judiciaire: "Mandataire judiciaire",
+  expert_comptable: "Expert-comptable",
+  commissaire_comptes: "Commissaire aux comptes",
+};
+
+/** Nature courte pour l'étiquette de fiche : Personne / Société, avec profession éventuelle. */
+export function natureEtiquetteFiche(contact: ContactListe): string {
+  const base = contact.nature === "physique" ? "Personne" : "Société";
+  if (contact.nature !== "physique") return base;
+  const code = contact.professionCode;
+  if (code !== null) return `${base}, ${LIBELLES_PROFESSION[code].toLocaleLowerCase("fr")}`;
+  const libre = contact.profession?.trim() ?? "";
+  if (libre !== "") return `${base}, ${libre.toLocaleLowerCase("fr")}`;
+  return base;
+}
+
+/** Nom affiché dans la liste : civilité, prénoms et nom, ou dénomination. */
+export function libelleListeContact(contact: ContactListe): string {
+  if (contact.nature === "morale") return contact.nom.trim();
+  return [contact.civilite, contact.prenoms, contact.nom]
+    .map((partie) => partie?.trim() ?? "")
+    .filter((partie) => partie !== "")
+    .join(" ");
+}
+
+/** Deux lettres pour la pastille d'une personne physique. */
+export function initialesListeContact(contact: ContactListe): string {
+  const prenom = contact.prenoms?.trim() ?? "";
+  const nom = contact.nom.trim();
+  const premiere = Array.from(prenom)[0];
+  const seconde = Array.from(nom)[0];
+  if (premiere !== undefined && seconde !== undefined) {
+    return (premiere + seconde).toLocaleUpperCase("fr");
+  }
+  if (seconde !== undefined) return seconde.toLocaleUpperCase("fr");
+  if (premiere !== undefined) return premiere.toLocaleUpperCase("fr");
+  return "";
+}
+
+/** SIREN espacé par groupes de trois chiffres pour la ligne meta. */
+export function sirenListeContact(siren: string | null | undefined): string {
+  const chiffres = (siren ?? "").replace(/\D/g, "");
+  if (chiffres === "") return "";
+  return chiffres.replace(/(\d{3})(?=\d)/g, "$1 ").trim();
+}
+
+/**
+ * Ligne meta sous le nom : profession ou forme, puis ville, puis SIREN (sociétés).
+ * Séparateur : virgule + espace (pas de point médian).
+ */
+export function metaListeContact(contact: ContactListe, ville = ""): string {
+  const parties: string[] = [];
+  if (contact.nature === "morale") {
+    const forme = contact.forme?.trim() ?? "";
+    if (forme !== "") parties.push(libelleForme(forme));
+  } else {
+    const code = contact.professionCode;
+    if (code !== null) parties.push(LIBELLES_PROFESSION[code]);
+    else {
+      const libre = contact.profession?.trim() ?? "";
+      if (libre !== "") parties.push(libre);
+    }
+  }
+  const villeNette = ville.trim();
+  if (villeNette !== "") parties.push(villeNette);
+  if (contact.nature === "morale") {
+    const siren = sirenListeContact(contact.siren);
+    if (siren !== "") parties.push(`SIREN ${siren}`);
+  }
+  return parties.join(", ");
 }

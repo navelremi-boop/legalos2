@@ -1,13 +1,27 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import {
+  IconAlertTriangle,
+  IconBuilding,
+  IconCopy,
+  IconFileText,
+  IconFolder,
+  IconFolderPlus,
+  IconMail,
+  IconPlus,
+  IconUser,
+} from "@tabler/icons-react";
 import {
   compteursFiltres,
   FILTRES_CONTACTS,
   filtrerContacts,
   grouperAlphabetique,
-  libelleNature,
-  libelleTypeClient,
+  initialesListeContact,
+  libelleListeContact,
   libelleCapital,
+  metaListeContact,
+  natureEtiquetteFiche,
   ONGLETS_FICHE,
+  sirenListeContact,
   type ContactListe,
   type CoordonneeLue,
   type FiltreContacts,
@@ -20,11 +34,17 @@ import { avecCommune, communesDuCode, estAdresseFrance } from "@/contacts/codesP
 import { libelleLien, type LienAffiche } from "@/contacts/liensContacts";
 import { envoyerLien, envoyerRetrait } from "@/contacts/envoyerLien";
 import { HistoriqueFiche } from "@/contacts/OngletsHistorique";
-import { ligneIndex } from "@/contacts/indexAnnuaire";
+import { ligneIndex, villeListeContact } from "@/contacts/indexAnnuaire";
 import type { IndexAnnuaire } from "@/contacts/indexAnnuaireFts";
-import { PropositionImport } from "@/contacts/PropositionImport";
+import { PropositionImport, type PropositionImportHandle } from "@/contacts/PropositionImport";
 import type { DossierFiche, FactureFiche, MailFiche, NoteFiche } from "@/contacts/historiqueFiche";
-import { lireDossiersContact, lireFacturesContact, lireMailsClasses, lireNotesContact } from "@/contacts/lireHistorique";
+import {
+  compterDossiersParContact,
+  lireDossiersContact,
+  lireFacturesContact,
+  lireMailsClasses,
+  lireNotesContact,
+} from "@/contacts/lireHistorique";
 import { DoublonsFiche } from "@/contacts/DoublonsFiche";
 import { CreationSociete } from "@/contacts/CreationSociete";
 import { centimesDepuisSaisie, estMonnaie, MONNAIES, saisieDepuisCentimes } from "@/contacts/capitalFiche";
@@ -58,9 +78,16 @@ import { poserForme } from "@/contacts/poserForme";
 import { poserSituationFamiliale } from "@/contacts/poserSituation";
 import { formesFiltrees, libelleForme } from "@/contacts/formesJuridiques";
 import { estSituationFamiliale, libelleSituation, SITUATIONS_FAMILIALES } from "@/contacts/situationFamiliale";
+import {
+  sectionPourChamp,
+  titreSectionEdition,
+  type SectionEditionFiche,
+} from "@/contacts/sectionEditionFiche";
 import type { PropositionSiren } from "@/contacts/propositionSiren";
 import { Feuille } from "@/coque/Feuille";
+import { PanneauLateral } from "@/coque/PanneauLateral";
 import { fr } from "@/lib/fr";
+import { formatDateActe, formatMontant } from "@/lib/format";
 
 const VIDE_ONGLET: Record<Exclude<OngletFicheContact, "general">, string> = {
   liens: "Aucun lien.",
@@ -124,8 +151,13 @@ export function Contacts({
   const [facturesSync, setFacturesSync] = useState<FactureFiche[]>([]);
   const [mailsSync, setMailsSync] = useState<MailFiche[]>([]);
   const [notesSync, setNotesSync] = useState<NoteFiche[]>([]);
+  const [dossiersParContactSync, setDossiersParContactSync] = useState<Map<string, number>>(
+    () => new Map(),
+  );
   const indexRef = useRef<IndexAnnuaire | null>(null);
+  const importRef = useRef<PropositionImportHandle | null>(null);
   const [idsRecherche, setIdsRecherche] = useState<ReadonlySet<string> | null>(null);
+  const [messageAction, setMessageAction] = useState("");
 
   useEffect(() => {
     if (lignesFixes !== undefined) return;
@@ -133,11 +165,15 @@ export function Contacts({
     const charger = () => {
       void (async () => {
         try {
-          const annuaire = await lireAnnuaireLocal();
+          const [annuaire, comptesDossiers] = await Promise.all([
+            lireAnnuaireLocal(),
+            compterDossiersParContact(),
+          ]);
           if (ignore) return;
           setCoordsSync(annuaire.coordonnees);
           setLiensSync(annuaire.liens);
           setLignesSync(annuaire.contacts);
+          setDossiersParContactSync(comptesDossiers);
         } catch {
           if (!ignore) setLignesSync([]);
         }
@@ -203,6 +239,16 @@ export function Contacts({
   }, [lignes, filtre, recherche, idsRecherche, corpsParId, identites, denominations, tvas, sirens]);
   const groupes = useMemo(() => grouperAlphabetique(visibles), [visibles]);
   const choisi = visibles.find((contact) => contact.id === selection) ?? visibles[0] ?? null;
+  const dossiersParContact = useMemo(() => {
+    const map = new Map(dossiersParContactSync);
+    if (historiqueFixe !== null) {
+      map.set(historiqueFixe.contactId, historiqueFixe.dossiers.length);
+    }
+    if (choisi !== null && (historiqueFixe === null || historiqueFixe.contactId !== choisi.id)) {
+      map.set(choisi.id, dossiersSync.length);
+    }
+    return map;
+  }, [dossiersParContactSync, historiqueFixe, choisi, dossiersSync]);
   const capitalPose = choisi === null ? undefined : capitaux[choisi.id];
   const professionPosee = choisi === null ? undefined : professions[choisi.id];
   const choisiVu =
@@ -303,6 +349,30 @@ export function Contacts({
     })();
   };
 
+  const contactLie =
+    choisi !== null && liens.some((lien) => lien.sourceId === choisi.id || lien.cibleId === choisi.id);
+  const emailsChoisi =
+    choisi === null
+      ? []
+      : coordsSync.filter((ligne) => ligne.contactId === choisi.id && ligne.genre === "email");
+  const peutEcrire = emailsChoisi.length > 0;
+  const sirenChoisi = (choisiVu?.siren ?? choisi?.siren)?.trim() ?? "";
+  const peutImporter = choisi !== null && choisi.nature === "morale" && sirenChoisi !== "";
+  const compteursOnglets: Partial<Record<OngletFicheContact, number>> =
+    choisi === null
+      ? {}
+      : {
+          liens: liens.filter((lien) => lien.sourceId === choisi.id || lien.cibleId === choisi.id).length,
+          dossiers: historique.dossiers.length,
+          factures: historique.factures.length,
+          mails: historique.mails.length,
+          notes: historique.notes.length,
+        };
+  const declencherImport = () => {
+    if (onglet !== "general") setOnglet("general");
+    importRef.current?.interroger();
+  };
+
   return (
     <div className="fond-neutre relative flex h-full min-h-0 flex-col ecran" data-testid="ecran-contacts" data-fond="neutre">
       <header className="ecran-tete">
@@ -372,29 +442,55 @@ export function Contacts({
                       {fr(groupe.lettre)} <span className="text-graphite">{groupe.contacts.length}</span>
                     </h2>
                     <ul>
-                      {groupe.contacts.map((contact) => (
-                        <li key={contact.id}>
-                          <button
-                            type="button"
-                            className="w-full rounded-[var(--radius-control)] px-2 py-2 text-left hover:bg-survol"
-                            data-testid="contacts-ligne"
-                            data-contact-id={contact.id}
-                            data-selected={choisi?.id === contact.id ? "true" : "false"}
-                            onClick={() => {
-                              setSelection(contact.id);
-                              setOnglet("general");
-                            }}
-                          >
-                            <span className="block font-bold">
-                              {fr(contact.prenoms ? `${contact.prenoms} ${contact.nom}` : contact.nom)}
-                              {contact.archivee === true || archives.has(contact.id) ? fr(" — Archivé") : ""}
-                            </span>
-                            <span className="block text-[length:var(--font-size-dense)] text-graphite">
-                              {fr(libelleNature(contact.nature))}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
+                      {groupe.contacts.map((contact) => {
+                        const selectionne = choisi?.id === contact.id;
+                        const archive = contact.archivee === true || archives.has(contact.id);
+                        const nomListe = libelleListeContact(contact);
+                        const meta = metaListeContact(contact, villeListeContact(contact, coordsSync));
+                        const nbDossiers = dossiersParContact.get(contact.id) ?? 0;
+                        return (
+                          <li key={contact.id}>
+                            <button
+                              type="button"
+                              className={`contacts-ligne${selectionne ? " contacts-ligne--sel" : ""}`}
+                              data-testid="contacts-ligne"
+                              data-contact-id={contact.id}
+                              data-selected={selectionne ? "true" : "false"}
+                              onClick={() => {
+                                setSelection(contact.id);
+                                setOnglet("general");
+                              }}
+                            >
+                              <span
+                                className={`contacts-tuile contacts-tuile--${contact.nature === "physique" ? "pp" : "pm"}`}
+                                aria-hidden="true"
+                              >
+                                {contact.nature === "morale" ? (
+                                  <IconBuilding size={16} stroke={1.8} />
+                                ) : (
+                                  fr(initialesListeContact(contact))
+                                )}
+                              </span>
+                              <span className="contacts-ligne__tx">
+                                <span className="contacts-ligne__nom">
+                                  {fr(nomListe)}
+                                  {archive ? fr(" — Archivé") : ""}
+                                </span>
+                                {meta !== "" ? (
+                                  <span className="contacts-ligne__meta">{fr(meta)}</span>
+                                ) : null}
+                              </span>
+                              <span
+                                className="contacts-ligne__nb"
+                                title={fr(`${String(nbDossiers)} dossier${nbDossiers > 1 ? "s" : ""}`)}
+                              >
+                                <IconFolder size={13} stroke={1.8} aria-hidden />
+                                {fr(String(nbDossiers))}
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </section>
                 ))
@@ -420,34 +516,99 @@ export function Contacts({
               <p className="etat-vide px-6 pt-6">{fr("Choisissez un contact pour voir sa fiche.")}</p>
             ) : (
               <>
-                <div className="flex items-start justify-between gap-3 px-6 pt-5">
-                  <div>
-                    <h2 className="text-[length:var(--font-size-section)] font-extrabold">{fr(choisi.nom)}</h2>
-                    <p className="text-[length:var(--font-size-dense)] text-graphite">{fr(libelleNature(choisi.nature))}</p>
+                <div className="contacts-fi-tete">
+                  <div className="contacts-etq">
+                    <div className="contacts-etq__nat">
+                      {choisi.nature === "morale" ? (
+                        <IconBuilding size={13} stroke={1.8} aria-hidden />
+                      ) : (
+                        <IconUser size={13} stroke={1.8} aria-hidden />
+                      )}
+                      {fr(natureEtiquetteFiche(choisiVu ?? choisi))}
+                    </div>
+                    <h2 className="contacts-etq__nom">{fr(libelleListeContact(choisiVu ?? choisi))}</h2>
+                    {(() => {
+                      const sous = metaListeContact(
+                        choisiVu ?? choisi,
+                        villeListeContact(choisiVu ?? choisi, coordsSync),
+                      );
+                      return sous !== "" ? <p className="contacts-etq__sous">{fr(sous)}</p> : null;
+                    })()}
                   </div>
-                  <button type="button" className="filtre" data-testid="contacts-retirer" onClick={retirerChoisi}>
-                    {fr("Retirer")}
-                  </button>
-                </div>
-                <div className="filtres px-6 pt-4" role="tablist" aria-label={fr("Sections de la fiche")}>
-                  {ONGLETS_FICHE.map((entree) => (
+                  <div className="contacts-actions">
                     <button
-                      key={entree.id}
                       type="button"
-                      role="tab"
-                      className="filtre"
-                      aria-selected={onglet === entree.id}
-                      data-testid={`contacts-onglet-${entree.id}`}
+                      className="contacts-act"
+                      data-testid="contacts-ecrire"
+                      disabled={!peutEcrire}
+                      title={
+                        peutEcrire
+                          ? undefined
+                          : fr("Aucun e-mail sur cette fiche — l'écriture n'est pas encore branchée.")
+                      }
                       onClick={() => {
-                        setOnglet(entree.id);
+                        /* Lot 2 : bouton présent ; messagerie non branchée. */
                       }}
                     >
-                      {fr(entree.label)}
+                      <IconMail size={14} stroke={1.8} aria-hidden />
+                      {fr("Écrire")}
                     </button>
-                  ))}
+                    <button
+                      type="button"
+                      className="contacts-act"
+                      data-testid="contacts-ajouter-dossier"
+                      onClick={() => {
+                        setMessageAction("À venir");
+                      }}
+                    >
+                      <IconFolderPlus size={14} stroke={1.8} aria-hidden />
+                      {fr("Ajouter à un dossier")}
+                    </button>
+                    {peutImporter ? (
+                      <button
+                        type="button"
+                        className="contacts-act"
+                        data-testid="contacts-import-siren"
+                        disabled={horsLigne}
+                        onClick={declencherImport}
+                      >
+                        <IconBuilding size={14} stroke={1.8} aria-hidden />
+                        {fr("Mettre à jour depuis le registre")}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                {messageAction !== "" ? (
+                  <p className="contacts-action-msg" role="status" data-testid="contacts-action-message">
+                    {fr(messageAction)}
+                  </p>
+                ) : null}
+                <div className="contacts-onglets" role="tablist" aria-label={fr("Sections de la fiche")}>
+                  {ONGLETS_FICHE.map((entree) => {
+                    const compte = compteursOnglets[entree.id];
+                    return (
+                      <button
+                        key={entree.id}
+                        type="button"
+                        role="tab"
+                        className="contacts-onglet"
+                        aria-selected={onglet === entree.id}
+                        data-testid={`contacts-onglet-${entree.id}`}
+                        onClick={() => {
+                          setOnglet(entree.id);
+                        }}
+                      >
+                        {fr(entree.label)}
+                        {compte !== undefined && compte > 0 ? <b>{fr(String(compte))}</b> : null}
+                      </button>
+                    );
+                  })}
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4" role="tabpanel">
-                  {onglet === "general" ? (
+                  <div
+                    className={onglet === "general" ? undefined : "hidden"}
+                    aria-hidden={onglet !== "general"}
+                  >
                     <FicheGenerale
                       contact={choisiVu ?? choisi}
                       coordonnees={coordsSync.filter((ligne) => ligne.contactId === choisi.id)}
@@ -456,6 +617,9 @@ export function Contacts({
                       horsLigne={horsLigne}
                       instanceUrl={instanceUrl}
                       propositionFixe={propositionFixe}
+                      importRef={importRef}
+                      contactLie={contactLie}
+                      onRetirer={retirerChoisi}
                       onCreer={(contact) => {
                         setCreees((etat) => [...etat, contact]);
                       }}
@@ -517,9 +681,10 @@ export function Contacts({
                         void poserSiren(choisi.id, siren);
                       }}
                     />
-                  ) : onglet === "liens" ? (
+                  </div>
+                  {onglet === "liens" ? (
                     <LiensFiche contactId={choisi.id} liens={liens} />
-                  ) : (
+                  ) : onglet !== "general" ? (
                     <HistoriqueFiche
                       onglet={onglet}
                       dossiers={historique.dossiers}
@@ -527,7 +692,7 @@ export function Contacts({
                       mails={historique.mails}
                       notes={historique.notes}
                     />
-                  )}
+                  ) : null}
                 </div>
               </>
             )}
@@ -1097,6 +1262,51 @@ function IdentitePersonne({
   );
 }
 
+function afficherCapitalLecture(
+  centimes: number | null,
+  monnaie: string | null,
+  libelle: string | null,
+): string | null {
+  if (centimes !== null) {
+    if (monnaie !== null && monnaie !== "" && monnaie !== "EUR") {
+      const entier = Math.trunc(centimes / 100);
+      const cent = Math.abs(centimes % 100);
+      return `${String(entier)},${String(cent).padStart(2, "0")} ${monnaie}`;
+    }
+    return formatMontant(centimes);
+  }
+  const brut = libelle?.trim() ?? "";
+  return brut === "" ? null : brut;
+}
+
+function FaitLecture({
+  libelle,
+  valeur,
+  manque,
+  placeholder = "Non renseigné",
+  onOuvrir,
+}: {
+  libelle: string;
+  valeur: string | null | undefined;
+  manque?: boolean;
+  placeholder?: string;
+  onOuvrir: () => void;
+}) {
+  const nette = valeur?.trim() ?? "";
+  const vide = nette === "";
+  const estManque = manque ?? vide;
+  return (
+    <div>
+      <dt>{fr(libelle)}</dt>
+      <dd className={estManque ? "manque" : undefined}>
+        <button type="button" className="faits__valeur" onClick={onOuvrir}>
+          {fr(vide ? placeholder : nette)}
+        </button>
+      </dd>
+    </div>
+  );
+}
+
 function FicheGenerale({
   contact,
   coordonnees,
@@ -1105,6 +1315,9 @@ function FicheGenerale({
   horsLigne,
   instanceUrl,
   propositionFixe,
+  importRef,
+  contactLie,
+  onRetirer,
   onCreer,
   onRelier,
   onSituation,
@@ -1125,6 +1338,9 @@ function FicheGenerale({
   horsLigne: boolean;
   instanceUrl?: string;
   propositionFixe: PropositionSiren | null;
+  importRef: RefObject<PropositionImportHandle | null>;
+  contactLie: boolean;
+  onRetirer: () => void;
   onCreer: (contact: ContactListe) => void;
   onRelier: (lien: LienAffiche) => Promise<void> | void;
   onSituation: (code: string | null) => void;
@@ -1146,14 +1362,72 @@ function FicheGenerale({
   const [pays, setPays] = useState("");
   const [principale, setPrincipale] = useState(true);
   const [message, setMessage] = useState("");
+  const [panneauOuvert, setPanneauOuvert] = useState(false);
+  const [section, setSection] = useState<SectionEditionFiche>(
+    contact.nature === "morale" ? "denomination" : "identite",
+  );
+  const corpsPanneau = useRef<HTMLDivElement>(null);
+
+  const ouvrir = (cible: SectionEditionFiche) => {
+    setSection(cible);
+    setPanneauOuvert(true);
+  };
+
+  useEffect(() => {
+    if (!panneauOuvert) return;
+    const ancre = corpsPanneau.current?.querySelector(`[data-section="${section}"]`);
+    ancre?.scrollIntoView({ block: "nearest" });
+  }, [panneauOuvert, section]);
+
+  const capitalLecture = afficherCapitalLecture(
+    contact.capitalCentimes,
+    contact.monnaie,
+    contact.capitalLibelle,
+  );
+  const libelleProfessionCode =
+    PROFESSIONS_FICHE.find((entree) => entree.code === contact.professionCode)?.libelle ?? null;
+  const mentionsLibelle = acte.mentions.map((mention) => mention.libelle).join(", ");
+
   return (
     <div className="flex flex-col gap-4">
-      <div data-testid="contacts-designation">
-        <p className="font-bold">{fr("Désignation dans les actes")}</p>
-        <p className="mt-1">{acte.texte === "" ? fr("Désignation incomplète.") : fr(acte.texte)}</p>
+      <DoublonsFiche contactId={contact.id} horsLigne={horsLigne} instanceUrl={instanceUrl} />
+      {acte.mentions.length > 0 ? (
+        <div className="alerte" data-testid="contacts-mentions">
+          <IconAlertTriangle size={16} stroke={1.8} aria-hidden />
+          <div>
+            <b>{fr("Mention manquante pour un acte :")}</b>{" "}
+            {fr(
+              `${mentionsLibelle}. La fusion d'un modèle qui l'utilise s'arrêtera et nommera ce champ.`,
+            )}
+            <ul className="sr-only">
+              {acte.mentions.map((mention) => (
+                <li key={mention.champ} data-testid="contacts-mention">
+                  {fr(mention.libelle)}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <button
+            type="button"
+            className="bouton bouton--petit act"
+            onClick={() => {
+              const premiere = acte.mentions[0];
+              ouvrir(premiere === undefined ? "identite" : sectionPourChamp(premiere.champ));
+            }}
+          >
+            {fr("Compléter")}
+          </button>
+        </div>
+      ) : null}
+      <div className="desig" data-testid="contacts-designation">
+        <IconFileText size={16} stroke={1.8} aria-hidden />
+        <div>
+          <div className="lb">{fr("Désignation dans les actes")}</div>
+          <p>{acte.texte === "" ? fr("Désignation incomplète.") : fr(acte.texte)}</p>
+        </div>
         <button
           type="button"
-          className="filtre mt-2"
+          className="bouton bouton--petit act"
           data-testid="contacts-copier-designation"
           disabled={acte.texte === ""}
           onClick={() => {
@@ -1168,21 +1442,12 @@ function FicheGenerale({
             );
           }}
         >
+          <IconCopy size={14} stroke={1.8} aria-hidden />
           {fr(copie ? "Copié" : "Copier")}
         </button>
       </div>
-      {acte.mentions.length > 0 ? (
-        <div className="message-attention" data-testid="contacts-mentions">
-          <ul>
-            {acte.mentions.map((mention) => (
-              <li key={mention.champ} data-testid="contacts-mention">
-                {fr(mention.libelle)}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
       <PropositionImport
+        ref={importRef}
         contact={contact}
         horsLigne={horsLigne}
         instanceUrl={instanceUrl}
@@ -1190,231 +1455,431 @@ function FicheGenerale({
         contacts={contacts}
         onCreer={onCreer}
         onRelier={onRelier}
+        afficherDeclencheur={false}
       />
-      <DoublonsFiche contactId={contact.id} horsLigne={horsLigne} instanceUrl={instanceUrl} />
-      <dl className="fiche-infos">
-        <dt>{fr("Nom")}</dt>
-        <dd>{fr(contact.prenoms ? `${contact.prenoms} ${contact.nom}` : contact.nom)}</dd>
-        <dt>{fr("Nature")}</dt>
-        <dd>{fr(libelleNature(contact.nature))}</dd>
-        <dt>{fr("SIREN")}</dt>
-        <dd>{contact.siren ? fr(contact.siren) : fr("Non renseigné")}</dd>
-        <dt>{fr("N° TVA")}</dt>
-        <dd>{contact.numeroTva ? fr(contact.numeroTva) : fr("Non renseigné")}</dd>
-        <dt>{fr("Type de client")}</dt>
-        <dd>{fr(libelleTypeClient(contact.typeClient))}</dd>
-      </dl>
-      {contact.nature === "physique" ? (
-        <IdentitePersonne contactId={contact.id} identite={identiteDepuis(contact)} onIdentite={onIdentite} />
-      ) : null}
-      {contact.nature === "physique" ? (
-        <label className="flex flex-col gap-1">
-          <span>{fr("Situation familiale")}</span>
-          <select
-            className="champ"
-            data-testid="contacts-situation"
-            value={contact.situationFamiliale ?? ""}
-            onChange={(event) => {
-              const code = event.target.value;
-              if (code !== "" && !estSituationFamiliale(code)) return;
-              onSituation(code === "" ? null : code);
-            }}
-          >
-            <option value="">{fr("Non renseignée")}</option>
-            {SITUATIONS_FAMILIALES.map((code) => (
-              <option key={code} value={code}>
-                {fr(libelleSituation(code, accordDe(contact.civilite ?? "", contact.accordSaisi)))}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
       {contact.nature === "morale" ? (
-        <DenominationSociete contactId={contact.id} nom={contact.nom} onDenomination={onDenomination} />
-      ) : null}
-      {contact.nature === "morale" ? (
-        <FormeSociete forme={contact.forme} onForme={onForme} />
-      ) : null}
-      {contact.nature === "morale" ? (
-        <CapitalSociete
-          contactId={contact.id}
-          centimes={contact.capitalCentimes}
-          monnaie={contact.monnaie}
-          onCapital={onCapital}
-        />
-      ) : null}
-      {contact.nature === "morale" ? (
-        <SirenSociete contactId={contact.id} siren={contact.siren} tva={contact.numeroTva} onSiren={onSiren} />
-      ) : null}
-      {contact.nature === "morale" ? (
-        <GreffeActivite
-          contactId={contact.id}
-          greffe={contact.greffe}
-          activite={contact.activite}
-          onGreffe={onGreffe}
-          onActivite={onActivite}
-        />
-      ) : null}
-      {contact.nature === "morale" ? (
-        <TvaSociete contactId={contact.id} siren={contact.siren} numero={contact.numeroTva} onTva={onTva} />
-      ) : null}
-      <ProfessionContact
-        profession={{
-          code: contact.professionCode,
-          barreau: contact.barreau,
-          toque: contact.toque,
-          specialite: contact.specialite,
-          courAppel: contact.courAppel,
-        }}
-        onProfession={onProfession}
-      />
-      <div>
-        <p className="font-bold">{fr("Coordonnées")}</p>
-        {coordonnees.length === 0 ? (
-          <p className="etat-vide">{fr("Aucune coordonnée.")}</p>
-        ) : (
-          <ul data-testid="contacts-coordonnees">
-            {coordonnees.map((ligne) => (
-              <li key={`${ligne.genre}-${ligne.usage}-${ligne.creeLe}-${ligne.valeur}`} data-testid="contacts-coordonnee">
-                {fr(`${libelleGenre(ligne.genre)}, ${libelleUsage(ligne.usage)} : ${ligne.valeur}`)}
-                {ligne.pays !== undefined && ligne.pays !== null && ligne.pays.trim() !== ""
-                  ? fr(`, ${ligne.pays}`)
-                  : ""}
-                {ligne.principale ? fr(" (principale)") : ""}
-              </li>
-            ))}
-          </ul>
-        )}
-        <form
-            className="mt-3 flex flex-col gap-2"
-            data-testid="contacts-coordonnee-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              setMessage("");
-              void ecrireCoordonnee({
-                contactId: contact.id,
-                genre,
-                usage,
-                valeur,
-                principale,
-                pays: genre === "adresse" && !estAdresseFrance(pays) ? pays : null,
-              }).then(
-                () => {
-                  setValeur("");
-                  setMessage("Coordonnée enregistrée.");
-                },
-                () => {
-                  setMessage("La coordonnée n'a pas pu être enregistrée.");
-                },
-              );
-            }}
-          >
-            <label>
-              <span className="sr-only">{fr("Genre")}</span>
-              <select
-                className="champ"
-                aria-label={fr("Genre de coordonnée")}
-                data-testid="contacts-coordonnee-genre"
-                value={genre}
-                onChange={(event) => {
-                  const choisi = event.target.value;
-                  if (choisi === "adresse" || choisi === "telephone" || choisi === "email" || choisi === "site") {
-                    setGenre(choisi);
-                  }
-                }}
-              >
-                {GENRES_COORDONNEE.map((entree) => (
-                  <option key={entree.id} value={entree.id}>
-                    {fr(entree.label)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span className="sr-only">{fr("Type")}</span>
-              <select
-                className="champ"
-                aria-label={fr("Type de coordonnée")}
-                data-testid="contacts-coordonnee-usage"
-                value={usage}
-                onChange={(event) => {
-                  const choisi = event.target.value;
-                  if (
-                    choisi === "domicile" ||
-                    choisi === "siege" ||
-                    choisi === "correspondance" ||
-                    choisi === "facturation" ||
-                    choisi === "cabinet" ||
-                    choisi === "etude" ||
-                    choisi === "autre"
-                  ) {
-                    setUsage(choisi);
-                  }
-                }}
-              >
-                {USAGES_COORDONNEE.map((entree) => (
-                  <option key={entree.id} value={entree.id}>
-                    {fr(entree.label)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <input
-              className="champ"
-              aria-label={fr("Valeur de la coordonnée")}
-              data-testid="contacts-coordonnee-valeur"
-              value={valeur}
-              onChange={(event) => {
-                setValeur(event.target.value);
-              }}
-            />
-            {genre === "adresse" ? (
-              <input
-                className="champ"
-                aria-label={fr("Pays, si l'adresse est à l'étranger")}
-                data-testid="contacts-coordonnee-pays"
-                placeholder={fr("Pays, si l'adresse est à l'étranger")}
-                value={pays}
-                onChange={(event) => {
-                  setPays(event.target.value);
-                }}
-              />
-            ) : null}
-            {genre === "adresse" && estAdresseFrance(pays) ? (
-              <ul data-testid="contacts-communes">
-                {communesDuCode(valeur).map((commune) => (
-                  <li key={commune}>
-                    <button
-                      type="button"
-                      className="filtre"
-                      data-testid="contacts-commune"
-                      onClick={() => {
-                        setValeur(avecCommune(valeur, commune));
-                      }}
-                    >
-                      {fr(commune)}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                data-testid="contacts-coordonnee-principale"
-                checked={principale}
-                onChange={(event) => {
-                  setPrincipale(event.target.checked);
-                }}
-              />
-              {fr("Principale")}
-            </label>
-            <button type="submit" className="filtre" data-testid="contacts-coordonnee-ajouter">
-              {fr("Ajouter")}
+        <>
+          <div className="sec-t">
+            {fr("Identité")}
+            <button type="button" className="bouton bouton--petit act" onClick={() => { ouvrir("denomination"); }}>
+              {fr("Modifier")}
             </button>
-            {message !== "" ? <p data-testid="contacts-coordonnee-message">{fr(message)}</p> : null}
-          </form>
+          </div>
+          <dl className="faits">
+            <FaitLecture libelle="Dénomination" valeur={contact.nom} onOuvrir={() => { ouvrir("denomination"); }} />
+            <FaitLecture
+              libelle="Forme"
+              valeur={contact.forme ? libelleForme(contact.forme) : null}
+              onOuvrir={() => { ouvrir("forme"); }}
+            />
+            <FaitLecture
+              libelle="Capital"
+              valeur={capitalLecture}
+              onOuvrir={() => { ouvrir("capital"); }}
+            />
+            <FaitLecture
+              libelle="SIREN"
+              valeur={sirenListeContact(contact.siren) || null}
+              onOuvrir={() => { ouvrir("siren"); }}
+            />
+            <FaitLecture libelle="Greffe du RCS" valeur={contact.greffe} onOuvrir={() => { ouvrir("greffe"); }} />
+            <FaitLecture
+              libelle="N° TVA intracommunautaire"
+              valeur={contact.numeroTva}
+              onOuvrir={() => { ouvrir("tva"); }}
+            />
+            <FaitLecture libelle="Activité" valeur={contact.activite} onOuvrir={() => { ouvrir("activite"); }} />
+            {contact.professionCode !== null ? (
+              <FaitLecture
+                libelle="Profession réglementée"
+                valeur={libelleProfessionCode}
+                onOuvrir={() => { ouvrir("profession"); }}
+              />
+            ) : null}
+          </dl>
+        </>
+      ) : contact.professionCode !== null ? (
+        <>
+          <div className="sec-t">
+            {fr("Profession")}
+            <button type="button" className="bouton bouton--petit act" onClick={() => { ouvrir("profession"); }}>
+              {fr("Modifier")}
+            </button>
+          </div>
+          <dl className="faits">
+            <FaitLecture
+              libelle="Profession"
+              valeur={libelleProfessionCode}
+              onOuvrir={() => { ouvrir("profession"); }}
+            />
+            {contact.barreau ? (
+              <FaitLecture libelle="Barreau" valeur={contact.barreau} onOuvrir={() => { ouvrir("profession"); }} />
+            ) : null}
+            {contact.toque ? (
+              <FaitLecture libelle="Toque" valeur={contact.toque} onOuvrir={() => { ouvrir("profession"); }} />
+            ) : null}
+            {contact.specialite ? (
+              <FaitLecture
+                libelle="Spécialité"
+                valeur={contact.specialite}
+                onOuvrir={() => { ouvrir("profession"); }}
+              />
+            ) : null}
+            {contact.courAppel ? (
+              <FaitLecture
+                libelle="Cour d'appel"
+                valeur={contact.courAppel}
+                onOuvrir={() => { ouvrir("profession"); }}
+              />
+            ) : null}
+            <FaitLecture libelle="Civilité" valeur={contact.civilite} onOuvrir={() => { ouvrir("identite"); }} />
+            <FaitLecture
+              libelle="Prénom et nom"
+              valeur={[contact.prenoms, contact.nom].filter(Boolean).join(" ")}
+              onOuvrir={() => { ouvrir("identite"); }}
+            />
+          </dl>
+        </>
+      ) : (
+        <>
+          <div className="sec-t">
+            {fr("État civil")}
+            <button type="button" className="bouton bouton--petit act" onClick={() => { ouvrir("identite"); }}>
+              {fr("Modifier")}
+            </button>
+          </div>
+          <dl className="faits">
+            <FaitLecture libelle="Civilité" valeur={contact.civilite} onOuvrir={() => { ouvrir("identite"); }} />
+            <FaitLecture libelle="Prénoms" valeur={contact.prenoms} onOuvrir={() => { ouvrir("identite"); }} />
+            <FaitLecture libelle="Nom" valeur={contact.nom} onOuvrir={() => { ouvrir("identite"); }} />
+            <FaitLecture
+              libelle="Nom de naissance"
+              valeur={contact.nomNaissance ?? contact.nom}
+              onOuvrir={() => { ouvrir("identite"); }}
+            />
+            <FaitLecture
+              libelle={
+                accordDe(contact.civilite ?? "", contact.accordSaisi) === "feminin" ? "Née le" : "Né le"
+              }
+              valeur={contact.dateNaissance ? formatDateActe(contact.dateNaissance) : null}
+              onOuvrir={() => { ouvrir("identite"); }}
+            />
+            <FaitLecture
+              libelle="Nationalité"
+              valeur={contact.nationalite}
+              onOuvrir={() => { ouvrir("identite"); }}
+            />
+            <FaitLecture
+              libelle="Profession"
+              valeur={contact.profession}
+              placeholder="À compléter"
+              manque={!contact.profession?.trim()}
+              onOuvrir={() => { ouvrir("identite"); }}
+            />
+            <FaitLecture
+              libelle="Situation familiale"
+              valeur={
+                contact.situationFamiliale
+                  ? libelleSituation(
+                      contact.situationFamiliale,
+                      accordDe(contact.civilite ?? "", contact.accordSaisi),
+                    )
+                  : null
+              }
+              onOuvrir={() => { ouvrir("situation"); }}
+            />
+          </dl>
+        </>
+      )}
+      <div className="sec-t">
+        {fr("Coordonnées")}
+        <button type="button" className="bouton bouton--petit act" onClick={() => { ouvrir("coordonnee"); }}>
+          <IconPlus size={14} stroke={1.8} aria-hidden />
+          {fr("Ajouter")}
+        </button>
       </div>
+      {coordonnees.length === 0 ? (
+        <p className="etat-vide">{fr("Aucune coordonnée.")}</p>
+      ) : (
+        <div className="coord" data-testid="contacts-coordonnees">
+          {coordonnees.map((ligne) => {
+            const libelle = `${libelleGenre(ligne.genre)} (${libelleUsage(ligne.usage)})`;
+            const detail =
+              ligne.pays !== undefined && ligne.pays !== null && ligne.pays.trim() !== ""
+                ? `${ligne.valeur}, ${ligne.pays}`
+                : ligne.valeur;
+            return (
+              <div
+                key={`${ligne.genre}-${ligne.usage}-${ligne.creeLe}-${ligne.valeur}`}
+                data-testid="contacts-coordonnee"
+              >
+                <span>{fr(libelle)}</span>
+                <button type="button" className="coord__valeur" onClick={() => { ouvrir("coordonnee"); }}>
+                  {fr(detail)}
+                </button>
+                {ligne.principale ? <em>{fr("Principale")}</em> : <span />}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div className="contacts-actions-secondaires">
+        {contactLie ? (
+          <button type="button" className="contacts-act" data-testid="contacts-archiver" onClick={onRetirer}>
+            {fr("Archiver")}
+          </button>
+        ) : (
+          <button type="button" className="contacts-act" data-testid="contacts-supprimer" onClick={onRetirer}>
+            {fr("Supprimer")}
+          </button>
+        )}
+      </div>
+      <PanneauLateral
+        ouvert={panneauOuvert}
+        titre={titreSectionEdition(section)}
+        sousTitre="Les modifications sont enregistrées dès la saisie."
+        onFermer={() => {
+          setPanneauOuvert(false);
+        }}
+        testId="contacts-panneau-edition"
+      >
+        <div ref={corpsPanneau} className="flex flex-col gap-4">
+          {contact.nature === "physique" ? (
+            <div data-section="identite" className="panneau-lateral__section">
+              <IdentitePersonne
+                contactId={contact.id}
+                identite={identiteDepuis(contact)}
+                onIdentite={onIdentite}
+              />
+            </div>
+          ) : null}
+          {contact.nature === "physique" ? (
+            <div data-section="situation" className="panneau-lateral__section">
+              <label className="flex flex-col gap-1">
+                <span className="etiquette-champ">{fr("Situation familiale")}</span>
+                <select
+                  className="champ"
+                  data-testid="contacts-situation"
+                  value={contact.situationFamiliale ?? ""}
+                  onChange={(event) => {
+                    const code = event.target.value;
+                    if (code !== "" && !estSituationFamiliale(code)) return;
+                    onSituation(code === "" ? null : code);
+                  }}
+                >
+                  <option value="">{fr("Non renseignée")}</option>
+                  {SITUATIONS_FAMILIALES.map((code) => (
+                    <option key={code} value={code}>
+                      {fr(libelleSituation(code, accordDe(contact.civilite ?? "", contact.accordSaisi)))}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          ) : null}
+          {contact.nature === "morale" ? (
+            <div data-section="denomination" className="panneau-lateral__section">
+              <DenominationSociete contactId={contact.id} nom={contact.nom} onDenomination={onDenomination} />
+            </div>
+          ) : null}
+          {contact.nature === "morale" ? (
+            <div data-section="forme" className="panneau-lateral__section">
+              <FormeSociete forme={contact.forme} onForme={onForme} />
+            </div>
+          ) : null}
+          {contact.nature === "morale" ? (
+            <div data-section="capital" className="panneau-lateral__section">
+              <CapitalSociete
+                contactId={contact.id}
+                centimes={contact.capitalCentimes}
+                monnaie={contact.monnaie}
+                onCapital={onCapital}
+              />
+            </div>
+          ) : null}
+          {contact.nature === "morale" ? (
+            <div data-section="siren" className="panneau-lateral__section">
+              <SirenSociete
+                contactId={contact.id}
+                siren={contact.siren}
+                tva={contact.numeroTva}
+                onSiren={onSiren}
+              />
+            </div>
+          ) : null}
+          {contact.nature === "morale" ? (
+            <div data-section="greffe" className="panneau-lateral__section">
+              <div data-section="activite">
+                <GreffeActivite
+                  contactId={contact.id}
+                  greffe={contact.greffe}
+                  activite={contact.activite}
+                  onGreffe={onGreffe}
+                  onActivite={onActivite}
+                />
+              </div>
+            </div>
+          ) : null}
+          {contact.nature === "morale" ? (
+            <div data-section="tva" className="panneau-lateral__section">
+              <TvaSociete
+                contactId={contact.id}
+                siren={contact.siren}
+                numero={contact.numeroTva}
+                onTva={onTva}
+              />
+            </div>
+          ) : null}
+          <div data-section="profession" className="panneau-lateral__section">
+            <ProfessionContact
+              profession={{
+                code: contact.professionCode,
+                barreau: contact.barreau,
+                toque: contact.toque,
+                specialite: contact.specialite,
+                courAppel: contact.courAppel,
+              }}
+              onProfession={onProfession}
+            />
+          </div>
+          <div data-section="coordonnee" className="panneau-lateral__section">
+            <form
+              className="flex flex-col gap-2"
+              data-testid="contacts-coordonnee-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                setMessage("");
+                void ecrireCoordonnee({
+                  contactId: contact.id,
+                  genre,
+                  usage,
+                  valeur,
+                  principale,
+                  pays: genre === "adresse" && !estAdresseFrance(pays) ? pays : null,
+                }).then(
+                  () => {
+                    setValeur("");
+                    setMessage("Coordonnée enregistrée.");
+                  },
+                  () => {
+                    setMessage("La coordonnée n'a pas pu être enregistrée.");
+                  },
+                );
+              }}
+            >
+              <label>
+                <span className="etiquette-champ">{fr("Genre")}</span>
+                <select
+                  className="champ"
+                  aria-label={fr("Genre de coordonnée")}
+                  data-testid="contacts-coordonnee-genre"
+                  value={genre}
+                  onChange={(event) => {
+                    const choisi = event.target.value;
+                    if (
+                      choisi === "adresse" ||
+                      choisi === "telephone" ||
+                      choisi === "email" ||
+                      choisi === "site"
+                    ) {
+                      setGenre(choisi);
+                    }
+                  }}
+                >
+                  {GENRES_COORDONNEE.map((entree) => (
+                    <option key={entree.id} value={entree.id}>
+                      {fr(entree.label)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span className="etiquette-champ">{fr("Type")}</span>
+                <select
+                  className="champ"
+                  aria-label={fr("Type de coordonnée")}
+                  data-testid="contacts-coordonnee-usage"
+                  value={usage}
+                  onChange={(event) => {
+                    const choisi = event.target.value;
+                    if (
+                      choisi === "domicile" ||
+                      choisi === "siege" ||
+                      choisi === "correspondance" ||
+                      choisi === "facturation" ||
+                      choisi === "cabinet" ||
+                      choisi === "etude" ||
+                      choisi === "autre"
+                    ) {
+                      setUsage(choisi);
+                    }
+                  }}
+                >
+                  {USAGES_COORDONNEE.map((entree) => (
+                    <option key={entree.id} value={entree.id}>
+                      {fr(entree.label)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <input
+                className="champ"
+                aria-label={fr("Valeur de la coordonnée")}
+                data-testid="contacts-coordonnee-valeur"
+                value={valeur}
+                onChange={(event) => {
+                  setValeur(event.target.value);
+                }}
+              />
+              {genre === "adresse" ? (
+                <input
+                  className="champ"
+                  aria-label={fr("Pays, si l'adresse est à l'étranger")}
+                  data-testid="contacts-coordonnee-pays"
+                  placeholder={fr("Pays, si l'adresse est à l'étranger")}
+                  value={pays}
+                  onChange={(event) => {
+                    setPays(event.target.value);
+                  }}
+                />
+              ) : null}
+              {genre === "adresse" && estAdresseFrance(pays) ? (
+                <ul data-testid="contacts-communes">
+                  {communesDuCode(valeur).map((commune) => (
+                    <li key={commune}>
+                      <button
+                        type="button"
+                        className="filtre"
+                        data-testid="contacts-commune"
+                        onClick={() => {
+                          setValeur(avecCommune(valeur, commune));
+                        }}
+                      >
+                        {fr(commune)}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  data-testid="contacts-coordonnee-principale"
+                  checked={principale}
+                  onChange={(event) => {
+                    setPrincipale(event.target.checked);
+                  }}
+                />
+                {fr("Principale")}
+              </label>
+              <button type="submit" className="bouton bouton--prim" data-testid="contacts-coordonnee-ajouter">
+                {fr("Ajouter")}
+              </button>
+              {message !== "" ? <p data-testid="contacts-coordonnee-message">{fr(message)}</p> : null}
+            </form>
+          </div>
+        </div>
+      </PanneauLateral>
     </div>
   );
 }
