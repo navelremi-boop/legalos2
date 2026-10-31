@@ -107,6 +107,7 @@ try {
   const coordId = randomUUID();
   const factureId = randomUUID();
   const encaissementId = randomUUID();
+  const noteId = randomUUID();
   const messageId = randomUUID();
   await sqlServeur(
     `INSERT INTO dossier_intervenants (id, cabinet_id, dossier_id, contact_id, qualite_id, visibilite, revision)
@@ -132,6 +133,11 @@ try {
   await sqlServeur(
     `INSERT INTO facture_encaissements (id, facture_id, montant_centimes, cle_idempotence)
      VALUES ('${encaissementId}', '${factureId}', 4000, 'annuaire-enc-${marque}')`,
+  );
+  await sqlServeur(
+    `INSERT INTO contact_notes (id, cabinet_id, contact_id, texte)
+     SELECT '${noteId}', cabinet_id, id, 'Note ${marque}'
+     FROM contacts WHERE id = '${personneId}'`,
   );
   let compte = (
     await sqlServeur(
@@ -171,6 +177,7 @@ try {
   await attendreSqlite(posteId, `SELECT COUNT(*) FROM dossier_intervenants WHERE id = '${intervenantId}'`, (v) => v === "1");
   await attendreSqlite(posteId, `SELECT COUNT(*) FROM factures WHERE id = '${factureId}'`, (v) => v === "1");
   await attendreSqlite(posteId, `SELECT COUNT(*) FROM facture_encaissements WHERE id = '${encaissementId}'`, (v) => v === "1");
+  await attendreSqlite(posteId, `SELECT COUNT(*) FROM contact_notes WHERE id = '${noteId}'`, (v) => v === "1");
   await attendreSqlite(posteId, `SELECT COUNT(*) FROM messages WHERE id = '${messageId}'`, (v) => v === "1");
   ok("synchronisé");
 
@@ -237,6 +244,8 @@ try {
   await attendreTexte("[data-testid=contacts-factures]", "120,00");
   await attendreTexte("[data-testid=contacts-facture-encaisse]", "40,00");
   await attendreTexte("[data-testid=contacts-facture-encours]", "80,00");
+  await cliquer(cdp.send, "[data-testid=contacts-onglet-notes]");
+  await attendreTexte("[data-testid=contacts-notes]", `Note ${marque}`);
   await cliquer(cdp.send, "[data-testid=contacts-onglet-mails]");
   await attendreTexte("[data-testid=contacts-mails]", `Courrier ${marque}`);
   ok("historique");

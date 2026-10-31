@@ -337,6 +337,17 @@ const factureEncaissements = new Table(
   { indexes: { facture: ["facture_id"] } },
 );
 
+const contactNotes = new Table(
+  {
+    cabinet_id: column.text,
+    contact_id: column.text,
+    texte: column.text,
+    revision: column.integer,
+    cree_le: column.text,
+  },
+  { indexes: { contact: ["contact_id"] } },
+);
+
 /** Intervenants d'un dossier. Un dossier restreint ne descend que pour qui y a accès. */
 const dossierIntervenants = new Table(
   {
@@ -518,6 +529,7 @@ export const AppSchema = new Schema({
   qualites,
   factures,
   facture_encaissements: factureEncaissements,
+  contact_notes: contactNotes,
   dossier_intervenants: dossierIntervenants,
   dossier_liens: dossierLiens,
   agenda_elements: agendaElements,

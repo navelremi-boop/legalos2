@@ -1,4 +1,4 @@
-import { mailsDuContact, type DossierFiche, type FactureFiche, type MailFiche } from "@/contacts/historiqueFiche";
+import { mailsDuContact, type DossierFiche, type FactureFiche, type MailFiche, type NoteFiche } from "@/contacts/historiqueFiche";
 import { getPowerSyncDatabase } from "@/sync/database";
 
 export async function lireDossiersContact(contactId: string): Promise<DossierFiche[]> {
@@ -50,4 +50,12 @@ export async function lireMailsClasses(emails: readonly string[]): Promise<MailF
      WHERE etat_classement = 'classe'`,
   );
   return mailsDuContact(lignes, emails);
+}
+
+export async function lireNotesContact(contactId: string): Promise<NoteFiche[]> {
+  const database = await getPowerSyncDatabase();
+  return database.getAll<NoteFiche>(
+    `SELECT id, texte FROM contact_notes WHERE contact_id = ? ORDER BY cree_le`,
+    [contactId],
+  );
 }

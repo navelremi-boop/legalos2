@@ -24,7 +24,7 @@ import { ligneIndex } from "@/contacts/indexAnnuaire";
 import type { IndexAnnuaire } from "@/contacts/indexAnnuaireFts";
 import { PropositionImport } from "@/contacts/PropositionImport";
 import type { DossierFiche, FactureFiche, MailFiche, NoteFiche } from "@/contacts/historiqueFiche";
-import { lireDossiersContact, lireFacturesContact, lireMailsClasses } from "@/contacts/lireHistorique";
+import { lireDossiersContact, lireFacturesContact, lireMailsClasses, lireNotesContact } from "@/contacts/lireHistorique";
 import { DoublonsFiche } from "@/contacts/DoublonsFiche";
 import { CreationSociete } from "@/contacts/CreationSociete";
 import { centimesDepuisSaisie, estMonnaie, MONNAIES, saisieDepuisCentimes } from "@/contacts/capitalFiche";
@@ -123,6 +123,7 @@ export function Contacts({
   const [dossiersSync, setDossiersSync] = useState<DossierFiche[]>([]);
   const [facturesSync, setFacturesSync] = useState<FactureFiche[]>([]);
   const [mailsSync, setMailsSync] = useState<MailFiche[]>([]);
+  const [notesSync, setNotesSync] = useState<NoteFiche[]>([]);
   const indexRef = useRef<IndexAnnuaire | null>(null);
   const [idsRecherche, setIdsRecherche] = useState<ReadonlySet<string> | null>(null);
 
@@ -238,7 +239,7 @@ export function Contacts({
           dossiers: dossiersSync,
           factures: facturesSync,
           mails: mailsSync,
-          notes: [] as NoteFiche[],
+          notes: notesSync,
         };
 
   useEffect(() => {
@@ -268,6 +269,13 @@ export function Contacts({
       })
       .catch(() => {
         if (!ignore) setMailsSync([]);
+      });
+    void lireNotesContact(id)
+      .then((lignes) => {
+        if (!ignore) setNotesSync(lignes);
+      })
+      .catch(() => {
+        if (!ignore) setNotesSync([]);
       });
     return () => {
       ignore = true;

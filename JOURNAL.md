@@ -303,4 +303,8 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Annuaire, encaissements (31/10).** Un encaissement copie la visibilité de sa facture. Le flux `encaissements_publics` ne joint aucune table. `node tests/recette/annuaire.mjs` exit 0 en 137 s. Facture 120,00 €, encaissé 40,00 €, encours 80,00 €. Le jalon n'est pas coché.
 
-**État de session.** Fait : encaissements publics sur la fiche. En cours : Annuaire. Prochaine action : l'onglet Notes de la fiche, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+**État de session.** Fait : encaissements publics sur la fiche. En cours : Annuaire. Prochaine action : reconstruction de l'API pour les notes de fiche, puis la recette, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+
+- **Annuaire, notes de la fiche (31/10).** Table `contact_notes`, commune au cabinet. Le flux ne joint aucune table. `node tests/recette/annuaire.mjs` exit 0 en 143 s. L'onglet Notes affiche la note du contact. Le jalon n'est pas coché.
+
+**État de session.** Fait : onglet Notes de la fiche. En cours : Annuaire. Prochaine action : l'import par SIREN sur la fiche, dans la recette, sans anticiper le classeur Documents ni l'aperçu des fichiers.
