@@ -323,4 +323,8 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Annuaire, dirigeants du registre (31/10).** `node tests/recette/annuaire.mjs` exit 0 en 140 s. Camille, déjà dans l'annuaire, est proposée au lien et reliée comme gérante. Paul Renard est ignoré et aucune fiche n'est créée pour lui. Les boutons Créer et Ignorer sont présents. Le jalon n'est pas coché.
 
-**État de session.** Fait : dirigeants proposés par le registre, relier ou ignorer. En cours : Annuaire. Prochaine action : les doublons sur la fiche, dans la recette, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+**État de session.** Fait : dirigeants proposés par le registre, relier ou ignorer. En cours : Annuaire. Prochaine action : les doublons sur la fiche, recette lancée, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+
+- **Annuaire, doublons (31/10).** `node tests/recette/annuaire.mjs` exit 0 en 140 s. La fiche trouve le jumeau (mêmes nom, prénoms et date de naissance) et le fusionne. La fiche absorbée est archivée, « fusionnée dans » la fiche gardée. Son téléphone est reporté, une seule fois. Un deuxième appel ne le duplique pas. Le jalon n'est pas coché.
+
+**État de session.** Fait : doublon détecté et fusionné depuis la fiche. En cours : Annuaire. Prochaine action : archiver un contact lié et supprimer un contact jamais lié, dans la recette, sans anticiper le classeur Documents ni l'aperçu des fichiers.

@@ -172,10 +172,30 @@ try {
     siren: "130025265",
   });
   if (coupe.status !== 200) fail(`société coupée ${coupe.status} ${coupe.texte.slice(0, 180)}`);
+  const jumeauId = randomUUID();
+  const jumeau = await ui.apiJson(jeton, "POST", "/contacts", {
+    id: jumeauId,
+    idempotence_cle: `annuaire-jumeau-${marque}`,
+    nature: "physique",
+    nom: `Martin ${marque}`,
+    prenoms: "Camille",
+    type_client: "particulier",
+    date_naissance: "1980-03-14",
+  });
+  if (jumeau.status !== 200) fail(`doublon ${jumeau.status} ${jumeau.texte.slice(0, 180)}`);
   await sqlServeur(
     `UPDATE contacts SET prenoms = 'Camille', civilite = 'Madame', nom_naissance = 'Dupont',
        date_naissance = '1980-03-14', lieu_naissance = 'Lyon', nationalite = 'française',
        profession = 'avocate', situation_familiale = 'marie' WHERE id = '${personneId}'`,
+  );
+  await sqlServeur(
+    `UPDATE contacts SET prenoms = 'Camille', date_naissance = '1980-03-14' WHERE id = '${jumeauId}'`,
+  );
+  const telJumeau = `06${marque}`;
+  await sqlServeur(
+    `INSERT INTO contact_coordonnees (id, cabinet_id, contact_id, genre, usage, valeur, principale)
+     SELECT '${randomUUID()}', cabinet_id, id, 'telephone', 'domicile', '${telJumeau}', TRUE
+     FROM contacts WHERE id = '${jumeauId}'`,
   );
   await sqlServeur(
     `UPDATE contacts SET forme = '5499', capital_centimes = 1000000, monnaie = 'EUR',
@@ -341,6 +361,52 @@ try {
   await cliquer(cdp.send, "[data-testid=contacts-onglet-mails]");
   await attendreTexte("[data-testid=contacts-mails]", `Courrier ${marque}`);
   ok("historique");
+
+  await cliquer(cdp.send, "[data-testid=contacts-onglet-general]");
+  await attendre(cdp.send, "[data-testid=contacts-doublons-chercher]");
+  const doublonInactif = await evaluate(
+    cdp.send,
+    `document.querySelector("[data-testid=contacts-doublons-chercher]")?.disabled ?? true`,
+  );
+  if (doublonInactif) fail("la recherche de doublons est désactivée en ligne");
+  await cliquer(cdp.send, "[data-testid=contacts-doublons-chercher]");
+  await attendreTexte("[data-testid=contacts-doublon]", "mêmes nom");
+  await cliquer(cdp.send, "[data-testid=contacts-doublon-fusionner]");
+  const debutFusion = Date.now();
+  let fusion = "";
+  while (Date.now() - debutFusion < 12_000) {
+    fusion = String(
+      (await evaluate(cdp.send, `document.querySelector("[data-testid=contacts-doublons-message]")?.textContent ?? ""`)) ?? "",
+    );
+    if (fusion.includes("Fusion enregistrée") || fusion.includes("échoué")) break;
+    await sleep(300);
+  }
+  if (!fusion.includes("Fusion enregistrée")) fail(`fusion : ${fusion.slice(0, 160)}`);
+  const absorbee = (
+    await sqlServeur(
+      `SELECT archivee::text || '|' || COALESCE(fusionnee_dans::text, '') FROM contacts WHERE id = '${jumeauId}'`,
+    )
+  ).trim();
+  if (absorbee !== `true|${personneId}`) fail(`fiche absorbée : ${absorbee}`);
+  const tel = (
+    await sqlServeur(
+      `SELECT COUNT(*) FROM contact_coordonnees WHERE contact_id = '${personneId}' AND valeur = '${telJumeau}'`,
+    )
+  ).trim();
+  if (tel !== "1") fail(`téléphone non reporté : ${tel}`);
+  const deuxieme = await ui.apiJson(jeton, "POST", `/contacts/${personneId}/fusion`, {
+    idempotence_cle: randomUUID(),
+    absorbee_id: jumeauId,
+    champs_absorbes: [],
+  });
+  if (deuxieme.status !== 200) fail(`deuxième fusion ${deuxieme.status} ${deuxieme.texte.slice(0, 120)}`);
+  const telApres = (
+    await sqlServeur(
+      `SELECT COUNT(*) FROM contact_coordonnees WHERE valeur = '${telJumeau}'`,
+    )
+  ).trim();
+  if (telApres !== "1") fail(`téléphone dupliqué : ${telApres}`);
+  ok("doublon fusionné");
 
   await cliquer(cdp.send, `[data-testid=contacts-ligne][data-contact-id="${societeId}"]`);
   await sleep(400);
