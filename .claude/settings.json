@@ -108,9 +108,23 @@
       "Bash(git -c core.hooksPath*)",
       "PowerShell(git -c core.hooksPath*)",
       "Bash(git * -c core.hooksPath*)",
-      "PowerShell(git * -c core.hooksPath*)"
+      "PowerShell(git * -c core.hooksPath*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.config/gh/**)",
+      "Read(~/.git-credentials)",
+      "Read(~/.claude/.credentials.json)",
+      "Read(~/AppData/Roaming/Microsoft/Credentials/**)",
+      "Read(~/AppData/Local/Google/Chrome/**)",
+      "Read(~/AppData/Local/Microsoft/Edge/**)",
+      "Read(~/AppData/Roaming/Mozilla/**)",
+      "Read(~/Documents/**)",
+      "Read(~/OneDrive/**)",
+      "Read(~/Google Drive/**)",
+      "Read(~/Desktop/**)"
     ],
-    "blockReadsOutsideWorkingDirectories": true
+    "blockReadsOutsideWorkingDirectories": false,
+    "disableBypassPermissionsMode": "disable"
   },
   "hooks": {
     "PreToolUse": [

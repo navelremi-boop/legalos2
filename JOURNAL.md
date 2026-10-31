@@ -358,3 +358,11 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
   8. Preuve visuelle contrôleur : non lancée (captures posées pour revue).
 
 **État de session.** Fait : consigne 31/10 (design, plan, Contacts recomposé, captures, droits factures restreintes). En cours : Annuaire. Prochaine action : aligner le jeu galerie sur Ferrand Métal pour les captures côte à côte, corriger les écarts 4–7 retenus par le commandement, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+
+- **Consigne de l'architecte du 31/10/2026, soir (version révisée).** (1) CI verte d'abord : `cargo fmt --all`, rétablissement de `disableBypassPermissionsMode` et `blockReadsOutsideWorkingDirectories: false` avec dénis de lecture hors dépôt listés, `garde-hooks.mjs` vert, push du jeu protégé relu par le commandement. (2) Fin de la recomposition Contacts : jeu Ferrand en galerie, captures côte à côte, écarts 4 à 7 et libellés Me/Avocate/compteur/hors ligne ; écarts 2 et 3 acceptés (jalons suivants) ; preuve visuelle du contrôleur. (3) Recopier au PLAN l'ajout Conventions (synchronisation, alerte Préparer une facture) depuis `docs/consignes/`, commit `plan:`. (4) Ne pas anticiper le classeur Documents ni l'aperçu des fichiers. Chaque étape se termine par « À pousser : » et les commits concernés.
+
+**État de session.** Fait : consigne du soir consignée. En cours : point 1 (fmt, settings, CI). Prochaine action : `cargo fmt` commit dédié, puis settings + garde-hooks, push et CI verte, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+
+- **Point 1 CI, fmt et settings (31/10 soir).** `cargo fmt --all` : `ffcaa31`. `.claude/settings.json` : `disableBypassPermissionsMode: disable`, `blockReadsOutsideWorkingDirectories: false`, dénis Read hors dépôt ; `garde-hooks.mjs` OK : `26b81ec`.
+
+À pousser : `ffcaa31` (style: cargo fmt), `26b81ec` (chore: garde Claude).

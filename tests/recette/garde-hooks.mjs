@@ -492,8 +492,28 @@ repondre(c.includes("--force") ? { permission: "deny", user_message: "refus" } :
         if (!interdites.includes(`${outil}(${forme})`)) ecarts.push(`permissions.deny sans ${outil}(${forme})`);
       }
     }
-    if (r.permissions?.blockReadsOutsideWorkingDirectories !== true) ecarts.push("blockReadsOutsideWorkingDirectories absent");
+    if (r.permissions?.blockReadsOutsideWorkingDirectories !== false) {
+      ecarts.push("blockReadsOutsideWorkingDirectories doit valoir false");
+    }
     if (r.permissions?.disableBypassPermissionsMode !== "disable") ecarts.push("disableBypassPermissionsMode absent");
+    const lecturesRefusees = [
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.config/gh/**)",
+      "Read(~/.git-credentials)",
+      "Read(~/.claude/.credentials.json)",
+      "Read(~/AppData/Roaming/Microsoft/Credentials/**)",
+      "Read(~/AppData/Local/Google/Chrome/**)",
+      "Read(~/AppData/Local/Microsoft/Edge/**)",
+      "Read(~/AppData/Roaming/Mozilla/**)",
+      "Read(~/Documents/**)",
+      "Read(~/OneDrive/**)",
+      "Read(~/Google Drive/**)",
+      "Read(~/Desktop/**)",
+    ];
+    for (const lecture of lecturesRefusees) {
+      if (!interdites.includes(lecture)) ecarts.push(`permissions.deny sans ${lecture}`);
+    }
     const attendus = [
       ["PreToolUse", "Bash|PowerShell", "garde-commandes.mjs"],
       ["PreToolUse", "Read", "garde-secrets.mjs"],
@@ -515,6 +535,10 @@ repondre(c.includes("--force") ? { permission: "deny", user_message: "refus" } :
   // Essais négatifs : un réglage affaibli est vu.
   const sansBloc = structuredClone(reglages);
   delete sansBloc.permissions.blockReadsOutsideWorkingDirectories;
+  const blocVrai = structuredClone(reglages);
+  blocVrai.permissions.blockReadsOutsideWorkingDirectories = true;
+  const sansLectureSsh = structuredClone(reglages);
+  sansLectureSsh.permissions.deny = sansLectureSsh.permissions.deny.filter((r) => r !== "Read(~/.ssh/**)");
   const avecStop = structuredClone(reglages);
   avecStop.hooks.Stop = [{ hooks: [{ type: "command", command: "node .cursor/hooks/continuer.mjs" }] }];
   const sansSecrets = structuredClone(reglages);
@@ -538,6 +562,8 @@ repondre(c.includes("--force") ? { permission: "deny", user_message: "refus" } :
     ["--no-verify retiré de permissions.deny", denyAmputee],
     ["git -c core.hooksPath retiré de permissions.deny", denyHooksPath],
     ["blockReads retiré", sansBloc],
+    ["blockReads à true", blocVrai],
+    ["Read(~/.ssh/**) retiré de deny", sansLectureSsh],
     ["hook Stop ajouté", avecStop],
     ["garde-secrets retiré", sansSecrets],
     ["autorisation cargo retirée", sansAutorisation],
