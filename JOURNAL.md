@@ -366,3 +366,7 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 - **Point 1 CI, fmt et settings (31/10 soir).** `cargo fmt --all` : `ffcaa31`. `.claude/settings.json` : `disableBypassPermissionsMode: disable`, `blockReadsOutsideWorkingDirectories: false`, dénis Read hors dépôt ; `garde-hooks.mjs` OK : `26b81ec`.
 
 À pousser : `ffcaa31` (style: cargo fmt), `26b81ec` (chore: garde Claude).
+
+- **CI f9ac05b, regles-synchronisees (31/10 soir).** Push commandement de `ffcaa31` et `f9ac05b` effectué. CI [41231415558](https://github.com/navelremi-boop/legalos2/actions/runs/41231415558) : frontend échoue sur `regles-synchronisees.mjs` (`21-design` : apostrophe typographique du corps Claude absente du miroir Cursor). Miroir `.cursor/rules/21-design.mdc` réaligné ; `node tests/recette/regles-synchronisees.mjs` OK.
+
+À pousser : commit de réalignement `21-design.mdc` (après commit).
