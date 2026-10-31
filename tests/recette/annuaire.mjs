@@ -543,6 +543,58 @@ try {
   if (!coupeEcran.message.includes("indisponible")) fail(`registre coupé : ${coupeEcran.message.slice(0, 160)}`);
   ok("registre coupé");
 
+  await cliquer(cdp.send, "[data-testid=contacts-retirer]");
+  const debutSeul = Date.now();
+  let seulPresent = true;
+  while (Date.now() - debutSeul < 12_000) {
+    seulPresent = Boolean(
+      await evaluate(
+        cdp.send,
+        `Boolean(document.querySelector("[data-testid=contacts-ligne][data-contact-id='${coupeId}']"))`,
+      ),
+    );
+    if (!seulPresent) break;
+    await sleep(300);
+  }
+  if (seulPresent) fail("le contact jamais lié est encore dans la liste");
+  const seulReste = (await sqlServeur(`SELECT COUNT(*) FROM contacts WHERE id = '${coupeId}'`)).trim();
+  if (seulReste !== "0") fail(`contact jamais lié encore en base : ${seulReste}`);
+  const journalSuppression = (
+    await sqlServeur(
+      `SELECT COUNT(*) FROM journal_modifications WHERE enregistrement_id = '${coupeId}' AND champ = 'suppression'`,
+    )
+  ).trim();
+  if (journalSuppression === "0") fail("la suppression n'est pas journalisée");
+  ok("contact jamais lié supprimé");
+
+  await cliquer(cdp.send, `[data-testid=contacts-ligne][data-contact-id="${societeId}"]`);
+  await attendre(cdp.send, "[data-testid=contacts-retirer]");
+  await cliquer(cdp.send, "[data-testid=contacts-retirer]");
+  const debutArchive = Date.now();
+  let archive = "";
+  while (Date.now() - debutArchive < 12_000) {
+    archive = String(
+      (await evaluate(
+        cdp.send,
+        `document.querySelector("[data-testid=contacts-ligne][data-contact-id='${societeId}']")?.textContent ?? ""`,
+      )) ?? "",
+    );
+    if (archive.includes("Archivé")) break;
+    await sleep(300);
+  }
+  if (!archive.includes("Archivé")) fail(`contact lié : ${archive.slice(0, 160)}`);
+  const societeReste = (
+    await sqlServeur(`SELECT archivee::text FROM contacts WHERE id = '${societeId}'`)
+  ).trim();
+  if (societeReste !== "true") fail(`fiche liée : ${societeReste}`);
+  const journalArchive = (
+    await sqlServeur(
+      `SELECT COUNT(*) FROM journal_modifications WHERE enregistrement_id = '${societeId}' AND champ = 'archive'`,
+    )
+  ).trim();
+  if (journalArchive === "0") fail("l'archivage n'est pas journalisé");
+  ok("contact lié archivé");
+
   await cliquer(cdp.send, "[data-testid=nav-dossiers]");
   await sleep(300);
   await cliquer(cdp.send, "[aria-label='Palette de commandes']");

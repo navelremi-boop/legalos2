@@ -327,4 +327,8 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Annuaire, doublons (31/10).** `node tests/recette/annuaire.mjs` exit 0 en 140 s. La fiche trouve le jumeau (mêmes nom, prénoms et date de naissance) et le fusionne. La fiche absorbée est archivée, « fusionnée dans » la fiche gardée. Son téléphone est reporté, une seule fois. Un deuxième appel ne le duplique pas. Le jalon n'est pas coché.
 
-**État de session.** Fait : doublon détecté et fusionné depuis la fiche. En cours : Annuaire. Prochaine action : archiver un contact lié et supprimer un contact jamais lié, dans la recette, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+**État de session.** Fait : doublon détecté et fusionné depuis la fiche. En cours : Annuaire. Prochaine action : archiver un contact lié et supprimer un contact jamais lié, recette lancée, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+
+- **Annuaire, retrait (31/10).** `node tests/recette/annuaire.mjs` exit 0 en 140 s. Un contact jamais lié disparaît de la liste et de la base, suppression journalisée. Un contact lié à un mandat reste en base, marqué archivé dans la liste, archivage journalisé. Le jalon n'est pas coché.
+
+**État de session.** Fait : contact lié archivé, contact jamais lié supprimé. En cours : Annuaire. Prochaine action : un dossier restreint absent de la fiche pour qui n'y a pas accès, dans la recette, sans anticiper le classeur Documents ni l'aperçu des fichiers.
