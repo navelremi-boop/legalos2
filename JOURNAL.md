@@ -315,4 +315,8 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Annuaire, proposition et registre coupé (31/10).** L'instance interroge l'adresse `LEGALOS_RECHERCHE_ENTREPRISES_URL`, l'adresse officielle sinon. `node tests/recette/annuaire.mjs` exit 0 en 144 s, contre un registre local. La fiche montre la proposition « DUCLOS REGISTRE » et rappelle que le capital et le greffe restent à saisir. Un autre SIREN, service en 503, affiche l'indisponibilité, saisie manuelle toujours là. 123456789 est toujours refusé avant l'appel. Le jalon n'est pas coché.
 
-**État de session.** Fait : proposition du registre et registre coupé, sur la fiche. En cours : Annuaire. Prochaine action : retenir un champ de la proposition et consigner la source, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+**État de session.** Fait : proposition du registre et registre coupé, sur la fiche. En cours : Annuaire. Prochaine action : retenir un champ de la proposition, recette lancée, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+
+- **Annuaire, champ retenu (31/10).** `node tests/recette/annuaire.mjs` exit 0 en 142 s. La dénomination cochée devient « DUCLOS REGISTRE ». La source est « Recherche d'entreprises », datée du 31 octobre 2026. Le greffe et le capital restent « RCS de Lyon » et 1 000 000 centimes. Le jalon n'est pas coché.
+
+**État de session.** Fait : un champ de la proposition est retenu et la source est consignée. En cours : Annuaire. Prochaine action : les dirigeants proposés par le registre, dans la recette, sans anticiper le classeur Documents ni l'aperçu des fichiers.

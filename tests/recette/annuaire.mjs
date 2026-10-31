@@ -369,6 +369,42 @@ try {
   }
   ok("proposition du registre");
 
+  await cliquer(cdp.send, "[data-testid=contacts-import-retenir-denomination]");
+  const debutRetenu = Date.now();
+  let retenu = "";
+  while (Date.now() - debutRetenu < 5_000) {
+    retenu = String(
+      (await evaluate(cdp.send, `document.querySelector("[data-testid=contacts-import-retenu]")?.textContent ?? ""`)) ?? "",
+    );
+    if (retenu.includes("Dénomination")) break;
+    await sleep(200);
+  }
+  if (!retenu.includes("Dénomination")) fail(`champ non retenu : ${retenu.slice(0, 120)}`);
+  await cliquer(cdp.send, "[data-testid=contacts-import-enregistrer]");
+  const debutSource = Date.now();
+  let source = "";
+  while (Date.now() - debutSource < 15_000) {
+    source = String(
+      (await evaluate(
+        cdp.send,
+        `document.querySelector("[data-testid=contacts-import-source]")?.textContent ?? ""`,
+      )) ?? "",
+    ).replace(/[\u00a0\u202f]/g, " ").replace(/\u2019/g, "'");
+    if (source.includes("Recherche d'entreprises")) break;
+    await sleep(300);
+  }
+  if (!source.includes("Recherche d'entreprises")) fail(`source : ${source.slice(0, 160)}`);
+  const conserve = (
+    await sqlServeur(
+      `SELECT nom || '|' || COALESCE(source_import, '') || '|' || COALESCE(greffe_rcs, '') || '|' || capital_centimes::text
+       FROM contacts WHERE id = '${societeId}'`,
+    )
+  ).trim();
+  if (conserve !== "DUCLOS REGISTRE|recherche-entreprises|RCS de Lyon|1000000") {
+    fail(`fiche après import : ${conserve}`);
+  }
+  ok("champ retenu");
+
   await cliquer(cdp.send, `[data-testid=contacts-ligne][data-contact-id="${coupeId}"]`);
   await attendre(cdp.send, "[data-testid=contacts-import-siren]");
   await cliquer(cdp.send, "[data-testid=contacts-import-siren]");
