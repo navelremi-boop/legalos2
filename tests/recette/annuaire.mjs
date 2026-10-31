@@ -63,6 +63,7 @@ const posteId = "annuaire";
 const portRegistre = 18099;
 let app = null;
 let registre = null;
+let nomDirigeant = "Martin";
 
 function relancerApi(urlRegistre) {
   const env = { ...process.env };
@@ -98,6 +99,22 @@ try {
               nature_juridique: "5499",
               activite_principale: "25.11Z",
               siege: { adresse: "8 QUAI SAINT-VINCENT 69001 LYON" },
+              dirigeants: [
+                {
+                  nom: nomDirigeant,
+                  prenoms: "Camille",
+                  date_de_naissance: "1980-03-14",
+                  qualite: "Gérant",
+                  type_dirigeant: "personne physique",
+                },
+                {
+                  nom: "Renard",
+                  prenoms: "Paul",
+                  date_de_naissance: "1975-01-02",
+                  qualite: "Président",
+                  type_dirigeant: "personne physique",
+                },
+              ],
             },
           ],
         }),
@@ -110,6 +127,7 @@ try {
   await new Promise((resolve) => registre.listen(portRegistre, "0.0.0.0", resolve));
   relancerApi(`http://host.docker.internal:${portRegistre}/search`);
   const marque = ui.marque;
+  nomDirigeant = `Martin ${marque}`;
   const jeton = await demoAccessToken(api, `annuaire-${marque}`);
   const personneId = randomUUID();
   const societeId = randomUUID();
@@ -404,6 +422,52 @@ try {
     fail(`fiche après import : ${conserve}`);
   }
   ok("champ retenu");
+
+  const dirigeants = String(
+    (await evaluate(cdp.send, `document.querySelector("[data-testid=contacts-dirigeants]")?.textContent ?? ""`)) ?? "",
+  );
+  if (!dirigeants.includes("Camille") || !dirigeants.includes("Paul Renard")) {
+    fail(`dirigeants : ${dirigeants.slice(0, 200)}`);
+  }
+  if (!dirigeants.includes("Créer une fiche") || !dirigeants.includes("Ignorer")) fail("les choix créer et ignorer manquent");
+  await cliquer(cdp.send, "[data-testid=contacts-dirigeant-relier]");
+  const debutLien = Date.now();
+  let etatDirigeant = "";
+  while (Date.now() - debutLien < 12_000) {
+    etatDirigeant = String(
+      (await evaluate(cdp.send, `document.querySelector("[data-testid=contacts-dirigeants]")?.textContent ?? ""`)) ?? "",
+    );
+    if (etatDirigeant.includes("Relié") || etatDirigeant.includes("pas été enregistré")) break;
+    await sleep(300);
+  }
+  if (!etatDirigeant.includes("Relié")) fail(`lien dirigeant : ${etatDirigeant.slice(0, 200)}`);
+  const ignore = await evaluate(
+    cdp.send,
+    `(() => { const boutons = document.querySelectorAll("[data-testid=contacts-dirigeant-ignorer]"); boutons[1]?.click(); return boutons.length; })()`,
+  );
+  if (ignore !== 2) fail(`boutons ignorer : ${String(ignore)}`);
+  const debutIgnore = Date.now();
+  while (Date.now() - debutIgnore < 5_000) {
+    etatDirigeant = String(
+      (await evaluate(cdp.send, `document.querySelector("[data-testid=contacts-dirigeants]")?.textContent ?? ""`)) ?? "",
+    );
+    if (etatDirigeant.includes("Ignoré")) break;
+    await sleep(200);
+  }
+  if (!etatDirigeant.includes("Ignoré")) fail(`dirigeant ignoré : ${etatDirigeant.slice(0, 200)}`);
+  const lien = (
+    await sqlServeur(
+      `SELECT COUNT(*) FROM contact_liens
+       WHERE contact_source_id = '${personneId}' AND contact_cible_id = '${societeId}'
+         AND type_lien = 'mandat_social' AND fonction = 'gerant'`,
+    )
+  ).trim();
+  if (lien !== "1") fail(`lien en base : ${lien}`);
+  const paul = (
+    await sqlServeur(`SELECT COUNT(*) FROM contacts WHERE nom = 'Renard' AND prenoms = 'Paul'`)
+  ).trim();
+  if (paul !== "0") fail("Paul Renard a été créé d'office");
+  ok("dirigeants");
 
   await cliquer(cdp.send, `[data-testid=contacts-ligne][data-contact-id="${coupeId}"]`);
   await attendre(cdp.send, "[data-testid=contacts-import-siren]");

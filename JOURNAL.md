@@ -319,4 +319,8 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Annuaire, champ retenu (31/10).** `node tests/recette/annuaire.mjs` exit 0 en 142 s. La dénomination cochée devient « DUCLOS REGISTRE ». La source est « Recherche d'entreprises », datée du 31 octobre 2026. Le greffe et le capital restent « RCS de Lyon » et 1 000 000 centimes. Le jalon n'est pas coché.
 
-**État de session.** Fait : un champ de la proposition est retenu et la source est consignée. En cours : Annuaire. Prochaine action : les dirigeants proposés par le registre, dans la recette, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+**État de session.** Fait : un champ de la proposition est retenu et la source est consignée. En cours : Annuaire. Prochaine action : les dirigeants proposés par le registre, recette lancée, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+
+- **Annuaire, dirigeants du registre (31/10).** `node tests/recette/annuaire.mjs` exit 0 en 140 s. Camille, déjà dans l'annuaire, est proposée au lien et reliée comme gérante. Paul Renard est ignoré et aucune fiche n'est créée pour lui. Les boutons Créer et Ignorer sont présents. Le jalon n'est pas coché.
+
+**État de session.** Fait : dirigeants proposés par le registre, relier ou ignorer. En cours : Annuaire. Prochaine action : les doublons sur la fiche, dans la recette, sans anticiper le classeur Documents ni l'aperçu des fichiers.
