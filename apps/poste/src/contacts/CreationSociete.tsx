@@ -15,6 +15,8 @@ type CreationSocieteProps = {
   onCreee: (contact: ContactListe) => void;
   onFermer: () => void;
   contacts?: readonly ContactListe[];
+  /** Sans titre ni bouton Fermer : le panneau latéral porte déjà l'en-tête. */
+  sansEntete?: boolean;
 };
 
 const FICHE_VIDE = { nom: "", forme: null, adresseSiege: null, activite: null };
@@ -41,6 +43,7 @@ export function CreationSociete({
   onCreee,
   onFermer,
   contacts = [],
+  sansEntete = false,
 }: CreationSocieteProps) {
   const [siren, setSiren] = useState("");
   const [denomination, setDenomination] = useState("");
@@ -209,13 +212,15 @@ export function CreationSociete({
   const retenus = proposition === null ? {} : champsRetenus(proposition, coches);
 
   return (
-    <div className="flex flex-col gap-3 px-6 py-5" data-testid="contacts-creation">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-[length:var(--font-size-section)] font-extrabold">{fr("Nouvelle société")}</h2>
-        <button type="button" className="filtre" onClick={onFermer}>
-          {fr("Fermer")}
-        </button>
-      </div>
+    <div className={`flex flex-col gap-3${sansEntete ? "" : " px-6 py-5"}`} data-testid="contacts-creation">
+      {sansEntete ? null : (
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-[length:var(--font-size-section)] font-extrabold">{fr("Nouvelle société")}</h2>
+          <button type="button" className="filtre" onClick={onFermer}>
+            {fr("Fermer")}
+          </button>
+        </div>
+      )}
       <label className="block">
         <span className="mb-1 block text-[length:var(--font-size-dense)]">{fr("SIREN")}</span>
         <input

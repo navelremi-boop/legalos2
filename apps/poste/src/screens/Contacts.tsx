@@ -11,6 +11,7 @@ import {
   IconUser,
 } from "@tabler/icons-react";
 import {
+  champsFicheVides,
   compteursFiltres,
   FILTRES_CONTACTS,
   filtrerContacts,
@@ -64,6 +65,7 @@ import {
   optionsCivilite,
   type IdentiteSaisie,
 } from "@/contacts/identiteFiche";
+import { BarreActions } from "@/coque/BarreActions";
 import { poserProfession } from "@/contacts/poserProfession";
 import {
   champsDeProfession,
@@ -130,7 +132,7 @@ export function Contacts({
   const [recherche, setRecherche] = useState("");
   const [selection, setSelection] = useState<string | null>(null);
   const [onglet, setOnglet] = useState<OngletFicheContact>("general");
-  const [creation, setCreation] = useState(false);
+  const [creation, setCreation] = useState<"choix" | "personne" | "societe" | "siren" | null>(null);
   const [creees, setCreees] = useState<ContactListe[]>([]);
   const [liensAjoutes, setLiensAjoutes] = useState<LienAffiche[]>([]);
   const [archives, setArchives] = useState<ReadonlySet<string>>(new Set());
@@ -382,16 +384,6 @@ export function Contacts({
             {fr(`${String(comptes.tous)} contacts dans l'annuaire du cabinet`)}
           </p>
         </div>
-        <button
-          type="button"
-          className="filtre"
-          data-testid="contacts-nouvelle-societe"
-          onClick={() => {
-            setCreation(true);
-          }}
-        >
-          {fr("Nouvelle société")}
-        </button>
       </header>
       <Feuille uneColonne className="min-h-0 flex-1">
         <div className="grid h-full min-h-0 grid-cols-[23rem_minmax(0,1fr)]">
@@ -498,21 +490,7 @@ export function Contacts({
             </div>
           </div>
           <div className="flex min-h-0 flex-col overflow-hidden" data-testid="contacts-fiche">
-            {creation ? (
-              <CreationSociete
-                horsLigne={horsLigne}
-                instanceUrl={instanceUrl}
-                propositionFixe={propositionFixe}
-                onFermer={() => {
-                  setCreation(false);
-                }}
-                onCreee={(contact) => {
-                  setCreees((etat) => [...etat, contact]);
-                  setSelection(contact.id);
-                }}
-                contacts={lignes ?? []}
-              />
-            ) : choisi === null ? (
+            {choisi === null ? (
               <p className="etat-vide px-6 pt-6">{fr("Choisissez un contact pour voir sa fiche.")}</p>
             ) : (
               <>
@@ -699,6 +677,194 @@ export function Contacts({
           </div>
         </div>
       </Feuille>
+      <BarreActions
+        actions={[
+          {
+            id: "nouveau-contact",
+            primaire: true,
+            label: "Nouveau contact",
+            testId: "contacts-nouveau",
+            onClick: () => {
+              setCreation("choix");
+            },
+          },
+          {
+            id: "importer-siren",
+            label: "Importer par SIREN",
+            testId: "contacts-importer-siren",
+            onClick: () => {
+              setCreation("siren");
+            },
+          },
+        ]}
+      />
+      <PanneauLateral
+        ouvert={creation !== null}
+        titre={
+          creation === "personne"
+            ? "Nouvelle personne"
+            : creation === "choix"
+              ? "Nouveau contact"
+              : "Nouvelle société"
+        }
+        sousTitre={
+          creation === "personne"
+            ? "Saisie personne : civilité et nom. La fiche rejoint l'annuaire du cabinet."
+            : creation === "choix"
+              ? "Choisissez une personne ou une société."
+              : "La fiche rejoint l'annuaire commun du cabinet."
+        }
+        onFermer={() => {
+          setCreation(null);
+        }}
+        testId="contacts-panneau-creation"
+      >
+        {creation === "choix" ? (
+          <div className="flex flex-col gap-2" data-testid="contacts-creation-choix">
+            <button
+              type="button"
+              className="bouton"
+              data-testid="contacts-nouvelle-personne"
+              onClick={() => {
+                setCreation("personne");
+              }}
+            >
+              <IconUser size={15} stroke={1.8} aria-hidden />
+              {fr("Personne")}
+            </button>
+            <button
+              type="button"
+              className="bouton"
+              data-testid="contacts-nouvelle-societe"
+              onClick={() => {
+                setCreation("societe");
+              }}
+            >
+              <IconBuilding size={15} stroke={1.8} aria-hidden />
+              {fr("Société")}
+            </button>
+          </div>
+        ) : null}
+        {creation === "personne" ? (
+          <CreationPersonne
+            onCreee={(contact) => {
+              setCreees((etat) => [...etat, contact]);
+              setSelection(contact.id);
+              setCreation(null);
+            }}
+          />
+        ) : null}
+        {creation === "societe" || creation === "siren" ? (
+          <CreationSociete
+            sansEntete
+            horsLigne={horsLigne}
+            instanceUrl={instanceUrl}
+            propositionFixe={propositionFixe}
+            onFermer={() => {
+              setCreation(null);
+            }}
+            onCreee={(contact) => {
+              setCreees((etat) => [...etat, contact]);
+              setSelection(contact.id);
+            }}
+            contacts={lignes ?? []}
+          />
+        ) : null}
+      </PanneauLateral>
+    </div>
+  );
+}
+
+function CreationPersonne({ onCreee }: { onCreee: (contact: ContactListe) => void }) {
+  const [civilite, setCivilite] = useState<string | null>(null);
+  const [prenoms, setPrenoms] = useState("");
+  const [nom, setNom] = useState("");
+  const [message, setMessage] = useState("");
+
+  const creer = () => {
+    setMessage("");
+    const nette = normaliserIdentite({
+      civilite,
+      accord: null,
+      prenoms,
+      nom,
+      nomNaissance: null,
+      dateNaissance: null,
+      lieuNaissance: null,
+      nationalite: null,
+      profession: null,
+    });
+    if (nette === null) {
+      setMessage("Le nom est requis.");
+      return;
+    }
+    onCreee({
+      id: crypto.randomUUID(),
+      nature: "physique",
+      nom: nette.nom,
+      siren: null,
+      numeroTva: null,
+      typeClient: "particulier",
+      professionReglementee: false,
+      ...champsFicheVides(),
+      civilite: nette.civilite,
+      prenoms: nette.prenoms,
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-3" data-testid="contacts-creation-personne">
+      <p data-testid="contacts-creation-personne-message">
+        {fr("Saisie personne : civilité et nom. La fiche est créée localement comme pour un dirigeant proposé.")}
+      </p>
+      <label className="flex flex-col gap-1">
+        <span className="etiquette-champ">{fr("Civilité")}</span>
+        <select
+          className="champ"
+          data-testid="contacts-creation-civilite"
+          value={civilite ?? ""}
+          onChange={(event) => {
+            setCivilite(event.target.value === "" ? null : event.target.value);
+          }}
+        >
+          <option value="">{fr("Non renseignée")}</option>
+          {optionsCivilite(civilite).map((libelle) => (
+            <option key={libelle} value={libelle}>
+              {fr(libelle)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="etiquette-champ">{fr("Prénoms")}</span>
+        <input
+          className="champ"
+          data-testid="contacts-creation-prenoms"
+          value={prenoms}
+          onChange={(event) => {
+            setPrenoms(event.target.value);
+          }}
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="etiquette-champ">{fr("Nom")}</span>
+        <input
+          className="champ"
+          data-testid="contacts-creation-nom"
+          value={nom}
+          onChange={(event) => {
+            setNom(event.target.value);
+          }}
+        />
+      </label>
+      <button type="button" className="bouton bouton--prim self-start" data-testid="contacts-creation-personne-creer" onClick={creer}>
+        {fr("Créer la fiche")}
+      </button>
+      {message !== "" ? (
+        <p className="message-attention" data-testid="contacts-creation-personne-erreur">
+          {fr(message)}
+        </p>
+      ) : null}
     </div>
   );
 }

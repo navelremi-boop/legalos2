@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ariaRaccourci } from "@/coque/raccourcis";
 import {
+  IconBuilding,
   IconCalendarEvent,
   IconCalendarPlus,
   IconClock,
@@ -8,6 +9,7 @@ import {
   IconFileInvoice,
   IconFolderPlus,
   IconMail,
+  IconUserPlus,
 } from "@tabler/icons-react";
 import { fr } from "@/lib/fr";
 
@@ -41,6 +43,10 @@ function IconeAction({ id }: { id: string }): ReactNode {
       return <IconFolderPlus {...props} />;
     case "ouvrir-dossier":
       return <IconFolder {...props} />;
+    case "nouveau-contact":
+      return <IconUserPlus {...props} />;
+    case "importer-siren":
+      return <IconBuilding {...props} />;
     default:
       return null;
   }

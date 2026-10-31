@@ -306,6 +306,13 @@ try {
   if (ordre) fail(String(ordre));
 
   await cliquer(cdp.send, "[data-testid=nav-contacts]");
+  await attendre(cdp.send, "[data-testid=barre-actions]");
+  await attendre(cdp.send, "[data-testid=contacts-nouveau]");
+  await attendre(cdp.send, "[data-testid=contacts-importer-siren]");
+  await cliquer(cdp.send, "[data-testid=contacts-nouveau]");
+  await attendre(cdp.send, "[data-testid=contacts-nouvelle-societe]");
+  await attendre(cdp.send, "[data-testid=contacts-nouvelle-personne]");
+  await cliquer(cdp.send, "[data-testid=contacts-panneau-creation] [data-fermer]");
   await attendre(cdp.send, `[data-testid=contacts-ligne][data-contact-id="${personneId}"]`);
   await cliquer(cdp.send, `[data-testid=contacts-ligne][data-contact-id="${personneId}"]`);
   await sleep(400);
