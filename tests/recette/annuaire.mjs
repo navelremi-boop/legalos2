@@ -6,6 +6,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import http from "node:http";
 import { demoAccessToken, demoEmail, demoPassword, totpSecretB32 } from "./lib/demo-auth.mjs";
 import { creerSession, sleep, sqliteLocal, sqlServeur } from "./lib/poste-session.mjs";
 
@@ -41,11 +42,73 @@ async function attendreSqlite(id, sql, predicat) {
   fail(`SQLite : ${dernier}`);
 }
 
+async function attendreImport(send) {
+  const debut = Date.now();
+  while (Date.now() - debut < 20_000) {
+    const etat = await evaluate(
+      send,
+      `(() => ({
+        message: (document.querySelector("[data-testid=contacts-import-message]")?.textContent ?? "").replace(/[\\u00a0\\u202f]/g, " "),
+        proposition: document.querySelector("[data-testid=contacts-import-proposition]")?.textContent ?? "",
+        manuel: Boolean(document.querySelector("[data-testid=contacts-denomination-nom]")),
+      }))()`,
+    );
+    if (etat.proposition !== "" || etat.message.trim() !== "") return etat;
+    await sleep(400);
+  }
+  fail("l'import n'a pas répondu");
+}
+
 const posteId = "annuaire";
+const portRegistre = 18099;
 let app = null;
+let registre = null;
+
+function relancerApi(urlRegistre) {
+  const env = { ...process.env };
+  if (urlRegistre) env.LEGALOS_RECHERCHE_ENTREPRISES_URL = urlRegistre;
+  else delete env.LEGALOS_RECHERCHE_ENTREPRISES_URL;
+  const resultat = spawnSync(
+    "docker",
+    ["compose", "-f", "instance/docker-compose.yml", "--env-file", ".env", "up", "-d", "api"],
+    { cwd: ui.root, env, stdio: "inherit" },
+  );
+  if (resultat.status !== 0) fail(`api non relancée (${resultat.status ?? 1})`);
+}
 
 try {
   await ui.assurerInstance();
+  registre = http.createServer((req, res) => {
+    const url = new URL(req.url ?? "/", "http://127.0.0.1");
+    const q = url.searchParams.get("q") ?? "";
+    if (q.includes("130025265")) {
+      res.writeHead(503, { "content-type": "text/plain" });
+      res.end("coupe");
+      return;
+    }
+    if (q.includes("100000009")) {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          results: [
+            {
+              siren: "100000009",
+              nom_complet: "DUCLOS REGISTRE",
+              nom_raison_sociale: "DUCLOS REGISTRE",
+              nature_juridique: "5499",
+              activite_principale: "25.11Z",
+              siege: { adresse: "8 QUAI SAINT-VINCENT 69001 LYON" },
+            },
+          ],
+        }),
+      );
+      return;
+    }
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ results: [] }));
+  });
+  await new Promise((resolve) => registre.listen(portRegistre, "0.0.0.0", resolve));
+  relancerApi(`http://host.docker.internal:${portRegistre}/search`);
   const marque = ui.marque;
   const jeton = await demoAccessToken(api, `annuaire-${marque}`);
   const personneId = randomUUID();
@@ -81,6 +144,16 @@ try {
     activite: "Metallurgie",
   });
   if (societe.status !== 200) fail(`société ${societe.status} ${societe.texte.slice(0, 180)}`);
+  const coupeId = randomUUID();
+  const coupe = await ui.apiJson(jeton, "POST", "/contacts", {
+    id: coupeId,
+    idempotence_cle: `annuaire-coupe-${marque}`,
+    nature: "morale",
+    nom: `Coupe ${marque}`,
+    type_client: "professionnel",
+    siren: "130025265",
+  });
+  if (coupe.status !== 200) fail(`société coupée ${coupe.status} ${coupe.texte.slice(0, 180)}`);
   await sqlServeur(
     `UPDATE contacts SET prenoms = 'Camille', civilite = 'Madame', nom_naissance = 'Dupont',
        date_naissance = '1980-03-14', lieu_naissance = 'Lyon', nationalite = 'française',
@@ -174,6 +247,7 @@ try {
   const cdp = await connectCdp(app.port);
   await login(cdp.send, demoEmail, demoPassword, totpSecretB32, `Annuaire ${marque}`);
   await attendreSqlite(posteId, `SELECT COUNT(*) FROM contacts WHERE id = '${personneId}'`, (v) => v === "1");
+  await attendreSqlite(posteId, `SELECT COUNT(*) FROM contacts WHERE id = '${coupeId}'`, (v) => v === "1");
   await attendreSqlite(posteId, `SELECT COUNT(*) FROM dossier_intervenants WHERE id = '${intervenantId}'`, (v) => v === "1");
   await attendreSqlite(posteId, `SELECT COUNT(*) FROM factures WHERE id = '${factureId}'`, (v) => v === "1");
   await attendreSqlite(posteId, `SELECT COUNT(*) FROM facture_encaissements WHERE id = '${encaissementId}'`, (v) => v === "1");
@@ -288,36 +362,20 @@ try {
   );
   if (boutonInactif) fail("le bouton d'import est désactivé en ligne");
   await cliquer(cdp.send, "[data-testid=contacts-import-siren]");
-  const debutImport = Date.now();
-  let importEcran = null;
-  while (Date.now() - debutImport < 20_000) {
-    importEcran = await evaluate(
-      cdp.send,
-      `(() => ({
-        message: (document.querySelector("[data-testid=contacts-import-message]")?.textContent ?? "").replace(/[\\u00a0\\u202f]/g, " "),
-        proposition: document.querySelector("[data-testid=contacts-import-proposition]")?.textContent ?? "",
-        manuel: Boolean(document.querySelector("[data-testid=contacts-denomination-nom]")),
-      }))()`,
-    );
-    if (importEcran.proposition !== "" || importEcran.message.trim() !== "") break;
-    await sleep(400);
-  }
-  if (importEcran === null || (importEcran.proposition === "" && importEcran.message.trim() === "")) {
-    fail("l'import n'a pas répondu");
-  }
+  const importEcran = await attendreImport(cdp.send);
   if (!importEcran.manuel) fail("la saisie manuelle a disparu");
-  if (importEcran.proposition !== "") {
-    if (!importEcran.proposition.includes("capital") || !importEcran.proposition.includes("greffe")) {
-      fail(`proposition : ${importEcran.proposition.slice(0, 160)}`);
-    }
-    ok("proposition du registre");
-  } else {
-    const message = importEcran.message;
-    const inconnu = message.includes("SIREN inconnu");
-    const coupe = message.includes("indisponible");
-    if (!inconnu && !coupe) fail(`import : ${message.slice(0, 160)}`);
-    ok(inconnu ? "SIREN inconnu du registre" : "registre indisponible");
+  if (!importEcran.proposition.includes("DUCLOS REGISTRE") || !importEcran.proposition.includes("capital") || !importEcran.proposition.includes("greffe")) {
+    fail(`proposition : ${(importEcran.proposition || importEcran.message).slice(0, 180)}`);
   }
+  ok("proposition du registre");
+
+  await cliquer(cdp.send, `[data-testid=contacts-ligne][data-contact-id="${coupeId}"]`);
+  await attendre(cdp.send, "[data-testid=contacts-import-siren]");
+  await cliquer(cdp.send, "[data-testid=contacts-import-siren]");
+  const coupeEcran = await attendreImport(cdp.send);
+  if (!coupeEcran.manuel) fail("la saisie manuelle a disparu quand le registre est coupé");
+  if (!coupeEcran.message.includes("indisponible")) fail(`registre coupé : ${coupeEcran.message.slice(0, 160)}`);
+  ok("registre coupé");
 
   await cliquer(cdp.send, "[data-testid=nav-dossiers]");
   await sleep(300);
@@ -335,5 +393,7 @@ try {
   process.exitCode = 1;
 } finally {
   if (app) await stopApp(app);
+  if (registre) registre.close();
+  relancerApi();
   fermer();
 }

@@ -56,6 +56,7 @@ services:
       MESSAGERIE_SMTP_PORT: "3025"
       MESSAGERIE_FROM: demo@cabinet.example
       LEGALOS_MODE: ${LEGALOS_MODE:-}
+      LEGALOS_RECHERCHE_ENTREPRISES_URL: ${LEGALOS_RECHERCHE_ENTREPRISES_URL:-https://recherche-entreprises.api.gouv.fr/search}
       JWT_ISSUER: ${JWT_ISSUER:-legalos-api}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-legalos-powersync}
       JWT_RSA_PRIVATE_KEY_PEM: ${JWT_RSA_PRIVATE_KEY_PEM:-}

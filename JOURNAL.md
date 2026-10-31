@@ -311,4 +311,8 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Annuaire, import par SIREN (31/10).** `node tests/recette/annuaire.mjs` exit 0 en 142 s. L'instance refuse 123456789 avant d'appeler le registre. Sur la fiche, « Interroger le registre » répond « SIREN inconnu du registre. » pour 100000009. La saisie manuelle reste là. Le jalon n'est pas coché.
 
-**État de session.** Fait : import par SIREN sur la fiche, SIREN invalide et SIREN inconnu. En cours : Annuaire. Prochaine action : la proposition du registre et le registre coupé, dans la recette, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+**État de session.** Fait : import par SIREN sur la fiche, SIREN invalide et SIREN inconnu. En cours : Annuaire. Prochaine action : reconstruction de l'API, puis proposition du registre et registre coupé dans la recette, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+
+- **Annuaire, proposition et registre coupé (31/10).** L'instance interroge l'adresse `LEGALOS_RECHERCHE_ENTREPRISES_URL`, l'adresse officielle sinon. `node tests/recette/annuaire.mjs` exit 0 en 144 s, contre un registre local. La fiche montre la proposition « DUCLOS REGISTRE » et rappelle que le capital et le greffe restent à saisir. Un autre SIREN, service en 503, affiche l'indisponibilité, saisie manuelle toujours là. 123456789 est toujours refusé avant l'appel. Le jalon n'est pas coché.
+
+**État de session.** Fait : proposition du registre et registre coupé, sur la fiche. En cours : Annuaire. Prochaine action : retenir un champ de la proposition et consigner la source, sans anticiper le classeur Documents ni l'aperçu des fichiers.

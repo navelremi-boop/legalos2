@@ -372,8 +372,13 @@ where
 }
 
 pub async fn interroger_http(siren: &str) -> Result<serde_json::Value, ApiError> {
+    let base = std::env::var("LEGALOS_RECHERCHE_ENTREPRISES_URL")
+        .ok()
+        .map(|valeur| valeur.trim().to_string())
+        .filter(|valeur| !valeur.is_empty())
+        .unwrap_or_else(|| URL_RECHERCHE.to_string());
     let url = format!(
-        "{URL_RECHERCHE}?q=siren:{siren}&per_page=1&page=1&minimal=true&include=siege,dirigeants"
+        "{base}?q=siren:{siren}&per_page=1&page=1&minimal=true&include=siege,dirigeants"
     );
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(DELAI_SECONDES))
