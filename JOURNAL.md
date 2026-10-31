@@ -370,3 +370,7 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 - **CI f9ac05b, regles-synchronisees (31/10 soir).** Push commandement de `ffcaa31` et `f9ac05b` effectué. CI [41231415558](https://github.com/navelremi-boop/legalos2/actions/runs/41231415558) : frontend échoue sur `regles-synchronisees.mjs` (`21-design` : apostrophe typographique du corps Claude absente du miroir Cursor). Miroir `.cursor/rules/21-design.mdc` réaligné ; `node tests/recette/regles-synchronisees.mjs` OK.
 
 À pousser : commit de réalignement `21-design.mdc` (après commit).
+
+- **CI ec88e10, recettes-nettoient (31/10 soir).** Push `ec88e10` (`21-design.mdc`). CI [41233046786](https://github.com/navelremi-boop/legalos2/actions/runs/41233046786) : frontend échoue sur `recettes-nettoient-leurs-boites.mjs` (`annuaire.mjs` crée la boîte de classement partagée sans suppression, comme j10 / tenue-demo). Exemption ajoutée ; recette locale OK.
+
+À pousser : exemption `annuaire.mjs` dans `recettes-nettoient-leurs-boites.mjs`.

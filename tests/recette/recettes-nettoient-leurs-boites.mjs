@@ -20,6 +20,7 @@ const racine = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const EXEMPTEES = new Map([
   ["tests/recette/j10-ecrans-tauri.mjs", "crée seulement la boîte de classement du cabinet, partagée"],
   ["tests/recette/tenue-demo.mjs", "crée seulement la boîte de classement du cabinet sur l'instance de démonstration, partagée par le jeu"],
+  ["tests/recette/annuaire.mjs", "crée seulement la boîte de classement du cabinet, partagée"],
 ]);
 
 const CREATION = /INSERT INTO comptes_mail|["'`]\/messagerie\/comptes["'`]\s*,\s*[^)]*["']POST["']|POST["'`]?\s*,?\s*["'`]\/messagerie\/comptes["'`]/u;
