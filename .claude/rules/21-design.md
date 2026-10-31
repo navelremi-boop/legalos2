@@ -7,7 +7,7 @@ paths:
 
 # Design
 
-Référence : cahier des charges § 7, puis `docs/design.md` (grille, échelles, états, composants), qui l’emporte sur les maquettes là où il s’en écarte. En cas de doute, comparer à ce document et au prototype, jamais à l’apparence par défaut d’une bibliothèque.
+Référence : cahier des charges § 7, puis les maquettes et `docs/design.md`. Les maquettes validées par le commandement font foi pour la composition de chaque écran : éléments présents, disposition, hiérarchie, libellés, états. `docs/design.md` fait foi pour les mesures communes : grille, largeurs, espacements, échelle typographique, jetons, états génériques. Quand un écran validé introduit un motif que `docs/design.md` ne connaît pas, `docs/design.md` s'enrichit de ce motif ; il ne le remplace jamais par un composant existant. Tout écart restant entre une maquette validée et `docs/design.md` est listé dans `JOURNAL.md` et soumis au commandement. En cas de doute, comparer à ce document et au prototype, jamais à l’apparence par défaut d’une bibliothèque.
 
 - **Jetons uniquement** (`design/tokens.css`). Aucune couleur en dur : la CI échoue sur tout code couleur hors du fichier de jetons.
 - **Chemise ouverte** : l'espace de travail prend la couleur du dossier (valeur *fond*). Étiquette avec la référence (« Dossier 2026-042 ») et le nom (26 px) ; informations du dossier en texte simple ; jauge d'échéance ; feuille avec une carte derrière ; intercalaires à droite ; barre d'actions flottante. Hors dossier : fond `neutre`.

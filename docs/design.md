@@ -1,6 +1,6 @@
 # Design du poste — référence visuelle
 
-Ce document est la référence visuelle du poste LEGAL OS. Là où les maquettes de `design/maquettes/` s'en écartent, ce document l'emporte. Les maquettes restent utiles pour l'esprit de chaque écran (chemise, feuille, intercalaires, barre d'actions), pas pour les mesures.
+Les maquettes validées par le commandement font foi pour la composition de chaque écran : éléments présents, disposition, hiérarchie, libellés, états. docs/design.md fait foi pour les mesures communes : grille, largeurs, espacements, échelle typographique, jetons, états génériques. Quand un écran validé introduit un motif que docs/design.md ne connaît pas, docs/design.md s'enrichit de ce motif ; il ne le remplace jamais par un composant existant. Tout écart restant entre une maquette validée et docs/design.md est listé dans JOURNAL.md et soumis au commandement.
 
 Sources : jetons dans `design/tokens.css` (seul fichier autorisé à contenir des couleurs), composants communs à la fin de `apps/poste/src/index.css`, recette `tests/recette/coque-app.mjs --captures` (captures et contrôle de la grille).
 
