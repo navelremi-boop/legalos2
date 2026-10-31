@@ -307,4 +307,8 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Annuaire, notes de la fiche (31/10).** Table `contact_notes`, commune au cabinet. Le flux ne joint aucune table. `node tests/recette/annuaire.mjs` exit 0 en 143 s. L'onglet Notes affiche la note du contact. Le jalon n'est pas coché.
 
-**État de session.** Fait : onglet Notes de la fiche. En cours : Annuaire. Prochaine action : l'import par SIREN sur la fiche, dans la recette, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+**État de session.** Fait : onglet Notes de la fiche. En cours : Annuaire. Prochaine action : l'import par SIREN sur la fiche, recette lancée, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+
+- **Annuaire, import par SIREN (31/10).** `node tests/recette/annuaire.mjs` exit 0 en 142 s. L'instance refuse 123456789 avant d'appeler le registre. Sur la fiche, « Interroger le registre » répond « SIREN inconnu du registre. » pour 100000009. La saisie manuelle reste là. Le jalon n'est pas coché.
+
+**État de session.** Fait : import par SIREN sur la fiche, SIREN invalide et SIREN inconnu. En cours : Annuaire. Prochaine action : la proposition du registre et le registre coupé, dans la recette, sans anticiper le classeur Documents ni l'aperçu des fichiers.

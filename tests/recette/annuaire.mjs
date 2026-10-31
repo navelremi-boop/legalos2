@@ -278,6 +278,47 @@ try {
   if (!societeEcran.designation.includes("100000009")) fail("la désignation ne reprend pas le SIREN");
   ok("fiche société");
 
+  const sirenInvalide = await ui.apiJson(jeton, "GET", "/contacts/recherche-siren/123456789");
+  if (sirenInvalide.status !== 400 || !sirenInvalide.texte.includes("SIREN invalide")) {
+    fail(`SIREN invalide → ${sirenInvalide.status} ${sirenInvalide.texte.slice(0, 120)}`);
+  }
+  const boutonInactif = await evaluate(
+    cdp.send,
+    `document.querySelector("[data-testid=contacts-import-siren]")?.disabled ?? true`,
+  );
+  if (boutonInactif) fail("le bouton d'import est désactivé en ligne");
+  await cliquer(cdp.send, "[data-testid=contacts-import-siren]");
+  const debutImport = Date.now();
+  let importEcran = null;
+  while (Date.now() - debutImport < 20_000) {
+    importEcran = await evaluate(
+      cdp.send,
+      `(() => ({
+        message: (document.querySelector("[data-testid=contacts-import-message]")?.textContent ?? "").replace(/[\\u00a0\\u202f]/g, " "),
+        proposition: document.querySelector("[data-testid=contacts-import-proposition]")?.textContent ?? "",
+        manuel: Boolean(document.querySelector("[data-testid=contacts-denomination-nom]")),
+      }))()`,
+    );
+    if (importEcran.proposition !== "" || importEcran.message.trim() !== "") break;
+    await sleep(400);
+  }
+  if (importEcran === null || (importEcran.proposition === "" && importEcran.message.trim() === "")) {
+    fail("l'import n'a pas répondu");
+  }
+  if (!importEcran.manuel) fail("la saisie manuelle a disparu");
+  if (importEcran.proposition !== "") {
+    if (!importEcran.proposition.includes("capital") || !importEcran.proposition.includes("greffe")) {
+      fail(`proposition : ${importEcran.proposition.slice(0, 160)}`);
+    }
+    ok("proposition du registre");
+  } else {
+    const message = importEcran.message;
+    const inconnu = message.includes("SIREN inconnu");
+    const coupe = message.includes("indisponible");
+    if (!inconnu && !coupe) fail(`import : ${message.slice(0, 160)}`);
+    ok(inconnu ? "SIREN inconnu du registre" : "registre indisponible");
+  }
+
   await cliquer(cdp.send, "[data-testid=nav-dossiers]");
   await sleep(300);
   await cliquer(cdp.send, "[aria-label='Palette de commandes']");
