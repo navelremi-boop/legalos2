@@ -344,3 +344,17 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 - **Annuaire, barre d'actions Contacts (31/10).** « Nouveau contact » (personne ou société) et « Importer par SIREN » dans la barre d'actions ; création via `PanneauLateral`. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/contacts/listeContacts.test.ts apps/poste/src/contacts/sectionEditionFiche.test.ts` : 10/10. typecheck et eslint OK. Le jalon n'est pas coché.
 
 **État de session.** Fait : barre d'actions Contacts. En cours : Annuaire. Prochaine action : captures côte à côte maquette / app (1 366, 1 920, 2 560, jour et nuit) et liste des écarts dans JOURNAL.md, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+
+- **Annuaire, captures Contacts et écarts (31/10).** Captures maquette : `node tests/recette/contacts-captures-maquette.mjs` → 18 PNG dans `design/captures/contacts-maquette/` (Ferrand Métal Général, Antoine Ferrand Liens, Importer SIREN ; 1 366 / 1 920 / 2 560 ; jour et nuit). Captures galerie : `node tests/recette/contacts-captures-galerie.mjs` → 6 PNG dans `design/captures/contacts-galerie/` (jeu démo Camille / Luc / Duclos). `cargo test -p legalos-api --test annuaire_droits` : 1/1 ; `node tests/recette/s5-sync-streams.mjs` : OK (flux `factures_restreints` / `encaissements_restreints`).
+
+  Écarts maquette ↔ app (soumis au commandement) :
+  1. Jeu galerie ≠ jeu maquette (Duclos / Camille vs Ferrand Métal / Antoine) : comparaison stricte impossible tant que la galerie n'embarque pas Ferrand.
+  2. Filtre et fiches « Juridictions et administrations » : maquette oui ; app non (jalon suivant).
+  3. Onglet Structure : maquette oui ; app non (jalon Structures et capital).
+  4. Doublon : maquette alerte passive « Doublon possible » + Comparer et fusionner ; app bouton « Chercher les doublons ».
+  5. Sous-titre d'écran et pastille « Annuaire commun au cabinet » : absents ou différents.
+  6. Placeholder de recherche maquette plus riche (« Nom, dénomination, SIREN… ») ; app « Rechercher un contact ».
+  7. Barre d'actions maquette : « Nouveau mail » en plus ; app : Nouveau contact + Importer par SIREN seulement.
+  8. Preuve visuelle contrôleur : non lancée (captures posées pour revue).
+
+**État de session.** Fait : consigne 31/10 (design, plan, Contacts recomposé, captures, droits factures restreintes). En cours : Annuaire. Prochaine action : aligner le jeu galerie sur Ferrand Métal pour les captures côte à côte, corriger les écarts 4–7 retenus par le commandement, sans anticiper le classeur Documents ni l'aperçu des fichiers.

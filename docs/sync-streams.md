@@ -94,7 +94,11 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 | `intercalaires_publics` | visibilité publique copiée et cabinet du jeton |
 | `intercalaire_elements_publics` | `intercalaire_elements` où `visibilite = 'public'` et `cabinet_id` de la fille — sans jointure |
 | `intercalaires_restreints` / `intercalaire_elements_restreints` | JOIN `groupe_acces_membres` (`auth.user_id()`) — **sans** filtre sur la `visibilite` fille |
-| `contacts_cabinet` | annuaire du cabinet, y compris un contact né d'un dossier restreint (nom et SIREN visibles de tous, sans lien vers le dossier). L'historique (parties → dossiers) passe par `parties_restreints` |
+| `contacts_cabinet` | annuaire du cabinet, y compris un contact né d'un dossier restreint (nom et SIREN visibles de tous, sans lien vers le dossier). L'historique (intervenants → dossiers) passe par `intervenants_publics` / `intervenants_restreints` |
+| `factures_publics` / `encaissements_publics` | factures et encaissements où `visibilite = 'public'` et cabinet du jeton — sans jointure |
+| `factures_restreints` / `encaissements_restreints` | JOIN `groupe_acces_membres` (`auth.user_id()`) — un bucket par groupe ; absents du poste d'un collaborateur hors accès (fiche contact : ni dossier, ni facture, ni mail du dossier restreint) |
+| `contact_notes_cabinet` | notes de fiche, un seau par cabinet |
+| `intervenants_publics` / `intervenants_restreints` | intervenants d'un dossier : public sans jointure ; restreint JOIN `groupe_acces_membres` |
 | `dossier_liens_publics` | `dossier_liens` où `visibilite = 'public'` (les deux dossiers) et cabinet du jeton |
 | `dossier_liens_restreints` | `dossier_liens` JOIN `groupe_acces_membres`, cible publique (`lie_restreint = false`) |
 | `dossier_liens_restreints_croises` | les deux dossiers restreints : `groupe_acces` est l'intersection des deux ensembles, une jointure `groupe_acces_membres` |
@@ -112,7 +116,7 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 
 **Invariant S5 (brouillons) :** un collaborateur ne reçoit jamais le brouillon d'un autre ; le flux `brouillons_titulaire` filtre sur `auteur_id = auth.user_id()`, `tests/recette/s5-sync-streams.mjs` le vérifie avec un essai négatif par dérive (filtre d'auteur retiré ou remplacé, jointure, colonne interne ou binaire exposée, brouillon retiré encore synchronisé, cabinet absent) et `tests/recette/j11-redaction-api.mjs` vérifie côté API qu'un autre collaborateur obtient 404.
 
-**Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants (`parties`, `repertoires`, `documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, `taux_horaires`, `intercalaires_personnalises`, `intercalaire_elements`, `dossier_liens` ancrés sur ce dossier) dans la SQLite locale. L'annuaire `contacts` est celui du cabinet : il n'est pas un enfant de dossier. Preuve SQLite (fichier `legalos-powersync-*.db` du poste Tauri) : `tests/recette/j5-poste-tauri.mjs` ; couverture par flux : `tests/recette/s5-sqlite-par-flux.mjs` ; contrôle statique des flux : `tests/recette/s5-sync-streams.mjs`. Filtre JOIN Postgres (sans SQLite) : `tests/recette/s9-s5-temps.mjs`.
+**Invariant S5 :** pour un collaborateur non listé dans `dossier_acces`, aucune ligne du dossier restreint ni de ses enfants (`parties`, `repertoires`, `documents`, `document_versions`, `temps_saisis`, `brouillons_facture`, `taux_horaires`, `intercalaires_personnalises`, `intercalaire_elements`, `dossier_liens`, `dossier_intervenants`, `factures`, `facture_encaissements`, `messages` classés ancrés sur ce dossier) dans la SQLite locale. L'annuaire `contacts` est celui du cabinet : il n'est pas un enfant de dossier. Preuve SQLite (fichier `legalos-powersync-*.db` du poste Tauri) : `tests/recette/j5-poste-tauri.mjs` ; couverture par flux : `tests/recette/s5-sqlite-par-flux.mjs` ; contrôle statique des flux : `tests/recette/s5-sync-streams.mjs` ; filtre Postgres fiche contact : `cargo test -p legalos-api --test annuaire_droits`. Filtre JOIN Postgres (sans SQLite) : `tests/recette/s9-s5-temps.mjs`.
 
 ---
 

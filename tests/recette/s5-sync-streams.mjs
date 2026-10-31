@@ -57,6 +57,11 @@ const fluxAttendus = [
   "contact_coordonnees_cabinet",
   "contact_liens_cabinet",
   "qualites_cabinet",
+  "factures_publics",
+  "factures_restreints",
+  "encaissements_publics",
+  "encaissements_restreints",
+  "contact_notes_cabinet",
   "intervenants_publics",
   "intervenants_restreints",
   "dossier_liens_publics",
@@ -175,6 +180,8 @@ for (const nom of [
   "agenda_publics",
   "messages_publics",
   "intervenants_publics",
+  "factures_publics",
+  "encaissements_publics",
 ]) {
   const bloc = blocFlux(nom);
   if (/JOIN\s+dossiers/i.test(bloc)) fail(`${nom} : JOIN dossiers interdit (un bucket par dossier)`);
@@ -208,6 +215,8 @@ for (const nom of [
   "agenda_restreints",
   "messages_restreints",
   "intervenants_restreints",
+  "factures_restreints",
+  "encaissements_restreints",
 ]) {
   const bloc = blocFlux(nom);
   if (!/INNER JOIN groupe_acces_membres/i.test(bloc)) {
@@ -218,7 +227,7 @@ for (const nom of [
   }
   if (!/auth\.user_id\(\)/.test(bloc)) fail(`${nom} : auth.user_id() requis`);
   if (
-    /WHERE[\s\S]*\b(documents|document_versions|repertoires|parties|temps_saisis|brouillons_facture|taux_horaires|intercalaires_personnalises|intercalaire_elements|dossier_liens|agenda_elements)\.visibilite\s*=/.test(
+    /WHERE[\s\S]*\b(documents|document_versions|repertoires|parties|temps_saisis|brouillons_facture|taux_horaires|intercalaires_personnalises|intercalaire_elements|dossier_liens|agenda_elements|factures|facture_encaissements|dossier_intervenants|messages)\.visibilite\s*=/.test(
       bloc,
     )
   ) {
@@ -341,6 +350,9 @@ for (const table of [
   "contact_coordonnees",
   "contact_liens",
   "qualites",
+  "factures",
+  "facture_encaissements",
+  "contact_notes",
   "dossier_intervenants",
   "dossier_liens",
   "agenda_elements",

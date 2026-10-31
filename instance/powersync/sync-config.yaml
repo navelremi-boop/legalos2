@@ -205,9 +205,25 @@ streams:
     auto_subscribe: true
     query: SELECT id, cabinet_id, dossier_id, contact_id, numero::text AS numero, montant_ttc_centimes, statut FROM factures WHERE visibilite = 'public' AND cabinet_id::text = auth.parameter('cabinet_id')
 
+  factures_restreints:
+    auto_subscribe: true
+    query: |
+      SELECT factures.id, factures.cabinet_id, factures.dossier_id, factures.contact_id, factures.numero::text AS numero, factures.montant_ttc_centimes, factures.statut
+      FROM factures
+      INNER JOIN groupe_acces_membres ON factures.groupe_acces = groupe_acces_membres.groupe_id
+      WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
+
   encaissements_publics:
     auto_subscribe: true
     query: SELECT id, facture_id, montant_centimes FROM facture_encaissements WHERE visibilite = 'public' AND cabinet_id::text = auth.parameter('cabinet_id')
+
+  encaissements_restreints:
+    auto_subscribe: true
+    query: |
+      SELECT facture_encaissements.id, facture_encaissements.facture_id, facture_encaissements.montant_centimes
+      FROM facture_encaissements
+      INNER JOIN groupe_acces_membres ON facture_encaissements.groupe_acces = groupe_acces_membres.groupe_id
+      WHERE groupe_acces_membres.utilisateur_texte = auth.user_id()
 
   contact_notes_cabinet:
     auto_subscribe: true
