@@ -295,4 +295,8 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Annuaire, onglets de la fiche (30/10).** `node tests/recette/annuaire.mjs` exit 0. L'onglet Dossiers montre le dossier et la qualité client. L'onglet Mails montre le courrier classé dont l'expéditeur est l'adresse de la fiche. La lecture des factures du client est branchée sur la table locale. Le flux qui les aurait synchronisées a été retiré : PowerSync refusait alors le point de contrôle (PSYNC_S2305, trop de paramètres). Le jalon n'est pas coché.
 
-**État de session.** Fait : onglets Dossiers et Mails de la fiche, dans la recette. En cours : Annuaire. Prochaine action : synchroniser les factures du client sans dépasser la limite de paramètres PowerSync, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+**État de session.** Fait : onglets Dossiers et Mails de la fiche, dans la recette. En cours : Annuaire. Prochaine action : reconstruction de l'API pour la visibilité des factures, puis la recette, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+
+- **Annuaire, factures du client (31/10).** Une facture copie la visibilité de son dossier. Le flux `factures_publics` ne joint aucune table : seules les factures publiques du cabinet descendent. `node tests/recette/annuaire.mjs` exit 0 en 160 s. L'onglet Factures montre 120,00 €, l'encaissé et l'encours. Les dossiers et les mails restent verts. L'encaissé est encore à zéro : les règlements ne sont pas synchronisés. Le jalon n'est pas coché.
+
+**État de session.** Fait : factures publiques du client sur la fiche. En cours : Annuaire. Prochaine action : synchroniser les encaissements, sans anticiper le classeur Documents ni l'aperçu des fichiers.

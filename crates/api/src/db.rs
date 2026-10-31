@@ -21,6 +21,7 @@ pub async fn connect_pool(database_url: &str) -> anyhow::Result<PgPool> {
 pub async fn appliquer_migrations(pool: &PgPool) -> anyhow::Result<()> {
     sauvegarde_avant_migration().await?;
     sqlx::migrate!("./migrations").run(pool).await?;
+    // 062 embarque la visibilité des factures.
     tracing::info!("migrations sqlx appliquées");
     Ok(())
 }

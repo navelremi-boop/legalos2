@@ -105,6 +105,7 @@ try {
   const email = `camille-${marque}@example.test`;
   const intervenantId = randomUUID();
   const coordId = randomUUID();
+  const factureId = randomUUID();
   const messageId = randomUUID();
   await sqlServeur(
     `INSERT INTO dossier_intervenants (id, cabinet_id, dossier_id, contact_id, qualite_id, visibilite, revision)
@@ -116,6 +117,15 @@ try {
   await sqlServeur(
     `INSERT INTO contact_coordonnees (id, cabinet_id, contact_id, genre, usage, valeur, principale)
      SELECT '${coordId}', cabinet_id, id, 'email', 'domicile', '${email}', TRUE
+     FROM contacts WHERE id = '${personneId}'`,
+  );
+  await sqlServeur(
+    `INSERT INTO factures (
+       id, cabinet_id, dossier_id, contact_id, type, statut,
+       montant_ht_centimes, montant_tva_centimes, montant_ttc_centimes, taux_tva_bp
+     )
+     SELECT '${factureId}', cabinet_id, '${dossierId}', id, 'facture', 'brouillon',
+            10000, 2000, 12000, 2000
      FROM contacts WHERE id = '${personneId}'`,
   );
   let compte = (
@@ -154,6 +164,7 @@ try {
   await login(cdp.send, demoEmail, demoPassword, totpSecretB32, `Annuaire ${marque}`);
   await attendreSqlite(posteId, `SELECT COUNT(*) FROM contacts WHERE id = '${personneId}'`, (v) => v === "1");
   await attendreSqlite(posteId, `SELECT COUNT(*) FROM dossier_intervenants WHERE id = '${intervenantId}'`, (v) => v === "1");
+  await attendreSqlite(posteId, `SELECT COUNT(*) FROM factures WHERE id = '${factureId}'`, (v) => v === "1");
   await attendreSqlite(posteId, `SELECT COUNT(*) FROM messages WHERE id = '${messageId}'`, (v) => v === "1");
   ok("synchronisé");
 
@@ -216,6 +227,10 @@ try {
   await cliquer(cdp.send, "[data-testid=contacts-onglet-dossiers]");
   await attendreTexte("[data-testid=contacts-dossiers]", `Dossier ${marque}`);
   await attendreTexte("[data-testid=contacts-dossiers]", "client");
+  await cliquer(cdp.send, "[data-testid=contacts-onglet-factures]");
+  await attendreTexte("[data-testid=contacts-factures]", "120,00");
+  await attendreTexte("[data-testid=contacts-facture-encaisse]", "Encaissé");
+  await attendreTexte("[data-testid=contacts-facture-encours]", "Encours");
   await cliquer(cdp.send, "[data-testid=contacts-onglet-mails]");
   await attendreTexte("[data-testid=contacts-mails]", `Courrier ${marque}`);
   ok("historique");
