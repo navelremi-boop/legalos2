@@ -205,6 +205,10 @@ streams:
     auto_subscribe: true
     query: SELECT id, cabinet_id, dossier_id, contact_id, numero::text AS numero, montant_ttc_centimes, statut FROM factures WHERE visibilite = 'public' AND cabinet_id::text = auth.parameter('cabinet_id')
 
+  encaissements_publics:
+    auto_subscribe: true
+    query: SELECT id, facture_id, montant_centimes FROM facture_encaissements WHERE visibilite = 'public' AND cabinet_id::text = auth.parameter('cabinet_id')
+
   intervenants_publics:
     auto_subscribe: true
     query: |

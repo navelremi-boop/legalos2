@@ -18,23 +18,27 @@ type FactureLue = {
   id: string;
   numero: string | null;
   montant_ttc_centimes: number | null;
+  encaisse_centimes: number | null;
 };
 
-/** Factures du client déjà synchronisées. L'encaissé viendra avec les règlements. */
+/** Factures du client et somme des encaissements déjà synchronisés. */
 export async function lireFacturesContact(contactId: string): Promise<FactureFiche[]> {
   const database = await getPowerSyncDatabase();
   const lignes = await database.getAll<FactureLue>(
-    `SELECT id, numero, montant_ttc_centimes
-     FROM factures
-     WHERE contact_id = ?
-     ORDER BY numero COLLATE NOCASE`,
+    `SELECT f.id AS id, f.numero AS numero, f.montant_ttc_centimes AS montant_ttc_centimes,
+            COALESCE(SUM(e.montant_centimes), 0) AS encaisse_centimes
+     FROM factures f
+     LEFT JOIN facture_encaissements e ON e.facture_id = f.id
+     WHERE f.contact_id = ?
+     GROUP BY f.id, f.numero, f.montant_ttc_centimes
+     ORDER BY f.numero COLLATE NOCASE`,
     [contactId],
   );
   return lignes.map((ligne) => ({
     id: ligne.id,
     libelle: ligne.numero ? `Facture ${ligne.numero}` : "Facture",
     ttcCentimes: ligne.montant_ttc_centimes ?? 0,
-    encaisseCentimes: 0,
+    encaisseCentimes: ligne.encaisse_centimes ?? 0,
   }));
 }
 

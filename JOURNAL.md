@@ -299,4 +299,8 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 - **Annuaire, factures du client (31/10).** Une facture copie la visibilité de son dossier. Le flux `factures_publics` ne joint aucune table : seules les factures publiques du cabinet descendent. `node tests/recette/annuaire.mjs` exit 0 en 160 s. L'onglet Factures montre 120,00 €, l'encaissé et l'encours. Les dossiers et les mails restent verts. L'encaissé est encore à zéro : les règlements ne sont pas synchronisés. Le jalon n'est pas coché.
 
-**État de session.** Fait : factures publiques du client sur la fiche. En cours : Annuaire. Prochaine action : synchroniser les encaissements, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+**État de session.** Fait : factures publiques du client sur la fiche. En cours : Annuaire. Prochaine action : reconstruction de l'API pour les encaissements, puis la recette, sans anticiper le classeur Documents ni l'aperçu des fichiers.
+
+- **Annuaire, encaissements (31/10).** Un encaissement copie la visibilité de sa facture. Le flux `encaissements_publics` ne joint aucune table. `node tests/recette/annuaire.mjs` exit 0 en 137 s. Facture 120,00 €, encaissé 40,00 €, encours 80,00 €. Le jalon n'est pas coché.
+
+**État de session.** Fait : encaissements publics sur la fiche. En cours : Annuaire. Prochaine action : l'onglet Notes de la fiche, sans anticiper le classeur Documents ni l'aperçu des fichiers.

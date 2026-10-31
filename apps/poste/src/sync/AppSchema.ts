@@ -329,6 +329,14 @@ const factures = new Table(
   { indexes: { contact: ["contact_id"], dossier: ["dossier_id"] } },
 );
 
+const factureEncaissements = new Table(
+  {
+    facture_id: column.text,
+    montant_centimes: column.integer,
+  },
+  { indexes: { facture: ["facture_id"] } },
+);
+
 /** Intervenants d'un dossier. Un dossier restreint ne descend que pour qui y a accès. */
 const dossierIntervenants = new Table(
   {
@@ -509,6 +517,7 @@ export const AppSchema = new Schema({
   contact_liens: contactLiens,
   qualites,
   factures,
+  facture_encaissements: factureEncaissements,
   dossier_intervenants: dossierIntervenants,
   dossier_liens: dossierLiens,
   agenda_elements: agendaElements,
