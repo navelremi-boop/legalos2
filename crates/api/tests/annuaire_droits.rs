@@ -87,11 +87,12 @@ async fn le_poste_b_voit_la_fiche_et_pas_le_dossier_restreint() {
     .execute(&mut *tx)
     .await
     .expect("contact");
-    let qualite = sqlx::query_scalar::<_, Uuid>("SELECT id FROM qualites WHERE cabinet_id = $1 LIMIT 1")
-        .bind(cabinet)
-        .fetch_one(&mut *tx)
-        .await
-        .expect("qualité");
+    let qualite =
+        sqlx::query_scalar::<_, Uuid>("SELECT id FROM qualites WHERE cabinet_id = $1 LIMIT 1")
+            .bind(cabinet)
+            .fetch_one(&mut *tx)
+            .await
+            .expect("qualité");
     let intervenant = Uuid::now_v7();
     sqlx::query(
         "INSERT INTO dossier_intervenants (id, cabinet_id, dossier_id, contact_id, qualite_id, visibilite) VALUES ($1, $2, $3, $4, $5, 'public')",
@@ -212,7 +213,10 @@ async fn le_poste_b_voit_la_fiche_et_pas_le_dossier_restreint() {
     .fetch_one(&mut *tx)
     .await
     .expect("poste B intervenant");
-    assert_eq!(chez_b_intervenant, 0, "le poste B n'a pas l'intervenant du dossier restreint");
+    assert_eq!(
+        chez_b_intervenant, 0,
+        "le poste B n'a pas l'intervenant du dossier restreint"
+    );
 
     let chez_a_intervenant = sqlx::query_scalar::<_, i64>(
         r#"
@@ -226,7 +230,10 @@ async fn le_poste_b_voit_la_fiche_et_pas_le_dossier_restreint() {
     .fetch_one(&mut *tx)
     .await
     .expect("poste A intervenant");
-    assert_eq!(chez_a_intervenant, 1, "le poste A, membre du groupe, a l'intervenant");
+    assert_eq!(
+        chez_a_intervenant, 1,
+        "le poste A, membre du groupe, a l'intervenant"
+    );
 
     let chez_b_facture = sqlx::query_scalar::<_, i64>(
         r#"
@@ -240,7 +247,10 @@ async fn le_poste_b_voit_la_fiche_et_pas_le_dossier_restreint() {
     .fetch_one(&mut *tx)
     .await
     .expect("poste B facture");
-    assert_eq!(chez_b_facture, 0, "le poste B n'a pas la facture du dossier restreint");
+    assert_eq!(
+        chez_b_facture, 0,
+        "le poste B n'a pas la facture du dossier restreint"
+    );
 
     let chez_a_facture = sqlx::query_scalar::<_, i64>(
         r#"
@@ -254,7 +264,10 @@ async fn le_poste_b_voit_la_fiche_et_pas_le_dossier_restreint() {
     .fetch_one(&mut *tx)
     .await
     .expect("poste A facture");
-    assert_eq!(chez_a_facture, 1, "le poste A a la facture du dossier restreint");
+    assert_eq!(
+        chez_a_facture, 1,
+        "le poste A a la facture du dossier restreint"
+    );
 
     let chez_b_enc = sqlx::query_scalar::<_, i64>(
         r#"
@@ -268,7 +281,10 @@ async fn le_poste_b_voit_la_fiche_et_pas_le_dossier_restreint() {
     .fetch_one(&mut *tx)
     .await
     .expect("poste B encaissement");
-    assert_eq!(chez_b_enc, 0, "le poste B n'a pas l'encaissement du dossier restreint");
+    assert_eq!(
+        chez_b_enc, 0,
+        "le poste B n'a pas l'encaissement du dossier restreint"
+    );
 
     let chez_a_enc = sqlx::query_scalar::<_, i64>(
         r#"
@@ -282,7 +298,10 @@ async fn le_poste_b_voit_la_fiche_et_pas_le_dossier_restreint() {
     .fetch_one(&mut *tx)
     .await
     .expect("poste A encaissement");
-    assert_eq!(chez_a_enc, 1, "le poste A a l'encaissement du dossier restreint");
+    assert_eq!(
+        chez_a_enc, 1,
+        "le poste A a l'encaissement du dossier restreint"
+    );
 
     let chez_b_mail = sqlx::query_scalar::<_, i64>(
         r#"
@@ -296,7 +315,10 @@ async fn le_poste_b_voit_la_fiche_et_pas_le_dossier_restreint() {
     .fetch_one(&mut *tx)
     .await
     .expect("poste B mail");
-    assert_eq!(chez_b_mail, 0, "le poste B n'a pas le mail classé du dossier restreint");
+    assert_eq!(
+        chez_b_mail, 0,
+        "le poste B n'a pas le mail classé du dossier restreint"
+    );
 
     let chez_a_mail = sqlx::query_scalar::<_, i64>(
         r#"
@@ -310,7 +332,10 @@ async fn le_poste_b_voit_la_fiche_et_pas_le_dossier_restreint() {
     .fetch_one(&mut *tx)
     .await
     .expect("poste A mail");
-    assert_eq!(chez_a_mail, 1, "le poste A a le mail classé du dossier restreint");
+    assert_eq!(
+        chez_a_mail, 1,
+        "le poste A a le mail classé du dossier restreint"
+    );
 
     tx.rollback().await.expect("annulation");
 }
