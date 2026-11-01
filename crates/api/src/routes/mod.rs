@@ -89,6 +89,10 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/dossiers/{dossier_id}/intervenants",
             post(contacts::creer_intervenant),
         )
+        .route(
+            "/dossiers/{dossier_id}/liens",
+            post(contacts::lier_dossiers),
+        )
         .route("/qualites", post(qualites::creer_qualite))
         .route(
             "/qualites/{qualite_id}/retrait",

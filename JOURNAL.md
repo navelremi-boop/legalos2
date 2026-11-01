@@ -374,3 +374,7 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 - **CI ec88e10, recettes-nettoient (31/10 soir).** Push `ec88e10` (`21-design.mdc`). CI [41233046786](https://github.com/navelremi-boop/legalos2/actions/runs/41233046786) : frontend échoue sur `recettes-nettoient-leurs-boites.mjs` (`annuaire.mjs` crée la boîte de classement partagée sans suppression, comme j10 / tenue-demo). Exemption ajoutée ; recette locale OK.
 
 À pousser : exemption `annuaire.mjs` dans `recettes-nettoient-leurs-boites.mjs`.
+
+- **CI 4de8051, contrat_routes (31/10 soir).** Push `4de8051` (exemption `annuaire.mjs`). CI [41254488712](https://github.com/navelremi-boop/legalos2/actions/runs/41254488712) : frontend vert ; rust échoue sur `contrat_routes` — `POST /dossiers/{dossier_id}/liens` dans le contrat OpenAPI (`lier_dossiers`) mais absent du routeur. Route rétablie dans `routes/mod.rs`.
+
+À pousser : rétablissement de `POST /dossiers/{dossier_id}/liens` (après commit).
