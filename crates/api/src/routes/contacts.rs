@@ -1291,7 +1291,7 @@ pub async fn creer_lien(
         .await
         .map_err(|_| ApiError::internal("lecture contact"))?;
         if !ok {
-            return Err(ApiError::bad_request("Le mandant est introuvable"));
+            return Err(ApiError::not_found("Le mandant est introuvable"));
         }
     }
     let cle = cle_idempotence(claims.poste_id, &body.idempotence_cle);

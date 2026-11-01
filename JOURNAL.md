@@ -378,3 +378,7 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 - **CI 4de8051, contrat_routes (31/10 soir).** Push `4de8051` (exemption `annuaire.mjs`). CI [41254488712](https://github.com/navelremi-boop/legalos2/actions/runs/41254488712) : frontend vert ; rust échoue sur `contrat_routes` — `POST /dossiers/{dossier_id}/liens` dans le contrat OpenAPI (`lier_dossiers`) mais absent du routeur. Route rétablie dans `routes/mod.rs`.
 
 À pousser : rétablissement de `POST /dossiers/{dossier_id}/liens` (après commit).
+
+- **CI 2a51374, regle_404_403 (31/10 soir).** Push `2a51374` (route `POST /dossiers/{id}/liens`). CI [41337537128](https://github.com/navelremi-boop/legalos2/actions/runs/41337537128) : frontend vert ; rust échoue sur `regle_404_403` — `bad_request("Le mandant est introuvable")` dans `creer_lien` (un 404). Passé en `not_found` ; `contrat_routes` et `regle_404_403` OK en local.
+
+À pousser : 404 du mandant dans `creer_lien` (après commit).
