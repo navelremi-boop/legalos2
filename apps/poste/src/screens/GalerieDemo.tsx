@@ -17,7 +17,13 @@ import type { DemonstrationMessagerie } from "@/messagerie/ReglagesMessagerie";
 import { Dossiers } from "@/screens/Dossiers";
 import type { IntervenantAffiche } from "@/contacts/intervenants";
 import { Contacts } from "@/screens/Contacts";
-import { champsFicheVides, type ContactListe } from "@/contacts/listeContacts";
+import {
+  champsFicheVides,
+  libelleListeContact,
+  type ContactListe,
+  type CoordonneeLue,
+} from "@/contacts/listeContacts";
+import type { LienAffiche } from "@/contacts/liensContacts";
 import { Journee } from "@/screens/Journee";
 import { EcranConnexion } from "@/onboarding/EcranConnexion";
 import {
@@ -51,58 +57,267 @@ const INTERVENANTS_DEMO: IntervenantAffiche[] = [
   },
 ];
 
-const CONTACTS_DEMO: ContactListe[] = [
-  {
-    id: "anne",
+type FichePersonneDemo = Partial<ContactListe> & Pick<ContactListe, "id" | "nom">;
+
+function personneDemo(fiche: FichePersonneDemo): ContactListe {
+  return {
     nature: "physique",
-    nom: "Martin",
     siren: null,
     numeroTva: null,
     typeClient: "particulier",
-    professionReglementee: true,
+    professionReglementee: fiche.professionCode !== undefined && fiche.professionCode !== null,
     ...champsFicheVides(),
-    civilite: "Madame",
-    prenoms: "Camille",
-    nomNaissance: "Dupont",
-    dateNaissance: "1980-03-14",
-    lieuNaissance: "Lyon",
     nationalite: "française",
-    profession: "avocate",
-    professionCode: "avocat",
-    barreau: "Lyon",
-    toque: "142",
-    situationFamiliale: "marie",
-    adresseDomicile: "12 rue des Lilas, 69001 Lyon",
-  },
-  {
-    id: "martin",
-    nature: "physique",
-    nom: "Martin",
-    siren: null,
-    numeroTva: null,
-    typeClient: "particulier",
-    professionReglementee: false,
-    ...champsFicheVides(),
-    prenoms: "Luc",
-  },
-  {
-    id: "duclos",
+    ...fiche,
+  };
+}
+
+function societeDemo(fiche: FichePersonneDemo & { capitalEuros: number | null }): ContactListe {
+  const { capitalEuros, ...reste } = fiche;
+  return {
     nature: "morale",
-    nom: "SARL Duclos Industrie",
-    siren: "123456789",
+    siren: null,
     numeroTva: null,
     typeClient: "professionnel",
-    professionReglementee: false,
+    professionReglementee: fiche.professionCode !== undefined && fiche.professionCode !== null,
     ...champsFicheVides(),
-    forme: "5499",
-    capitalCentimes: 1_000_000,
-    monnaie: "EUR",
-    capitalLibelle: "au capital de 10 000 €",
+    capitalCentimes: capitalEuros === null ? null : capitalEuros * 100,
+    monnaie: capitalEuros === null ? null : "EUR",
+    capitalLibelle:
+      capitalEuros === null ? null : `au capital de ${new Intl.NumberFormat("fr-FR").format(capitalEuros)} €`,
+    ...reste,
+  };
+}
+
+/** Jeu fictif de la maquette `prototype-contacts.html` (famille Ferrand et dossier 2026-031). */
+const CONTACTS_DEMO: ContactListe[] = [
+  societeDemo({
+    id: "ferrand",
+    nom: "Ferrand Métal",
+    forme: "5710",
+    capitalEuros: 50_000,
+    siren: "812345676",
+    numeroTva: "FR19812345676",
     greffe: "RCS de Lyon",
-    activite: "Fabrication de structures métalliques",
-    adresseSiege: "8 quai Saint-Vincent, 69001 Lyon",
-  },
+    activite: "Métallurgie, fabrication de structures métalliques",
+    adresseSiege: "14 rue de la Forge, 69007 Lyon",
+  }),
+  societeDemo({
+    id: "ferrand-doublon",
+    nom: "Ferrand Metal SAS",
+    capitalEuros: null,
+    siren: "812345676",
+    adresseSiege: "14 rue de la Forge, 69007 Lyon",
+  }),
+  personneDemo({
+    id: "antoine",
+    nom: "Ferrand",
+    civilite: "Monsieur",
+    prenoms: "Antoine Louis",
+    dateNaissance: "1972-02-03",
+    lieuNaissance: "Saint-Étienne (Loire)",
+    profession: "chef d'entreprise",
+    situationFamiliale: "marie",
+    adresseDomicile: "8 chemin des Vignes, 69290 Craponne",
+  }),
+  personneDemo({
+    id: "claire",
+    nom: "Ferrand",
+    civilite: "Madame",
+    prenoms: "Claire",
+    nomNaissance: "Martin",
+    dateNaissance: "1974-08-21",
+    lieuNaissance: "Lyon (Rhône)",
+    profession: "consultante",
+    situationFamiliale: "marie",
+    adresseDomicile: "8 chemin des Vignes, 69290 Craponne",
+  }),
+  personneDemo({
+    id: "hugo",
+    nom: "Ferrand",
+    civilite: "Monsieur",
+    prenoms: "Hugo",
+    dateNaissance: "2001-05-12",
+    lieuNaissance: "Lyon (Rhône)",
+    situationFamiliale: "celibataire",
+    adresseDomicile: "22 rue Chevreul, 69007 Lyon",
+  }),
+  societeDemo({
+    id: "afp",
+    nom: "AF Participations",
+    forme: "5499",
+    capitalEuros: 10_000,
+    siren: "851902346",
+    numeroTva: "FR35851902346",
+    greffe: "RCS de Lyon",
+    activite: "Activités des sociétés holding",
+    adresseSiege: "8 chemin des Vignes, 69290 Craponne",
+  }),
+  societeDemo({
+    id: "ferrandlog",
+    nom: "Ferrand Logistique",
+    forme: "5499",
+    capitalEuros: 8_000,
+    siren: "903417566",
+    numeroTva: "FR57903417566",
+    greffe: "RCS de Lyon",
+    activite: "Transports routiers de fret",
+    adresseSiege: "5 avenue de l'Industrie, 69800 Saint-Priest",
+  }),
+  societeDemo({
+    id: "duclos",
+    nom: "Duclos Industrie",
+    forme: "5499",
+    capitalEuros: 30_000,
+    siren: "494012305",
+    numeroTva: "FR20494012305",
+    greffe: "RCS de Villefranche-Tarare",
+    activite: "Commerce de gros de fournitures industrielles",
+    adresseSiege: "120 rue de la République, 69400 Villefranche-sur-Saône",
+  }),
+  personneDemo({
+    id: "perrin",
+    nom: "Perrin",
+    civilite: "Maître",
+    accordSaisi: "feminin",
+    prenoms: "Anne",
+    professionCode: "avocat",
+    barreau: "Lyon",
+    toque: "1187",
+    adresseDomicile: "18 quai de Bondy, 69005 Lyon",
+  }),
+  personneDemo({
+    id: "vasseur",
+    nom: "Vasseur",
+    civilite: "Maître",
+    accordSaisi: "masculin",
+    prenoms: "Clément",
+    professionCode: "avocat",
+    barreau: "Lyon",
+    toque: "874",
+    adresseDomicile: "6 rue de la Bourse, 69002 Lyon",
+  }),
+  societeDemo({
+    id: "banque",
+    nom: "Banque Rhodanienne",
+    forme: "5599",
+    capitalEuros: 84_000_000,
+    siren: "552100554",
+    numeroTva: "FR96552100554",
+    greffe: "RCS de Lyon",
+    activite: "Autres intermédiations monétaires",
+    adresseSiege: "2 place de la Bourse, 69002 Lyon",
+  }),
+  societeDemo({
+    id: "rivegauche",
+    nom: "Rive Gauche Expertise",
+    forme: "5499",
+    capitalEuros: 20_000,
+    siren: "837650118",
+    numeroTva: "FR78837650118",
+    greffe: "RCS de Lyon",
+    activite: "Activités comptables",
+    professionCode: "expert_comptable",
+    adresseSiege: "31 cours Gambetta, 69003 Lyon",
+  }),
+  personneDemo({
+    id: "rambert",
+    nom: "Rambert",
+    civilite: "Maître",
+    accordSaisi: "feminin",
+    prenoms: "Julie",
+    professionCode: "commissaire_justice",
+    courAppel: "Lyon",
+    adresseDomicile: "9 rue Servient, 69003 Lyon",
+  }),
+  personneDemo({
+    id: "moreau",
+    nom: "Moreau",
+    civilite: "Madame",
+    prenoms: "Hélène",
+    nomNaissance: "Bouvier",
+    dateNaissance: "1951-11-04",
+    lieuNaissance: "Mâcon (Saône-et-Loire)",
+    profession: "retraitée",
+    situationFamiliale: "veuf",
+    adresseDomicile: "3 allée des Cèdres, 69130 Écully",
+  }),
+  societeDemo({
+    id: "perrache",
+    nom: "Holding Perrache",
+    forme: "5710",
+    capitalEuros: 250_000,
+    siren: "920118841",
+    numeroTva: "FR84920118841",
+    greffe: "RCS de Lyon",
+    activite: "Activités des sociétés holding",
+    adresseSiege: "11 cours de Verdun, 69002 Lyon",
+  }),
+  personneDemo({
+    id: "operrache",
+    nom: "Perrache",
+    civilite: "Monsieur",
+    prenoms: "Olivier",
+    dateNaissance: "1968-06-17",
+    lieuNaissance: "Grenoble (Isère)",
+    profession: "dirigeant de société",
+    situationFamiliale: "marie",
+    adresseDomicile: "27 quai Saint-Antoine, 69002 Lyon",
+  }),
 ];
+
+type LienDemo = Omit<LienAffiche, "id" | "sourceCivilite" | "sourcePrenoms" | "sourceNom" | "cibleNom">;
+
+function lienDemo(lien: LienDemo): LienAffiche {
+  const source = CONTACTS_DEMO.find((contact) => contact.id === lien.sourceId);
+  const cible = CONTACTS_DEMO.find((contact) => contact.id === lien.cibleId);
+  return {
+    id: `lien-${lien.sourceId}-${lien.cibleId}-${lien.fonction ?? lien.typeLien}`,
+    sourceCivilite: source?.civilite ?? null,
+    sourcePrenoms: source?.prenoms ?? null,
+    sourceNom: source === undefined ? "" : libelleListeContact({ ...source, prenoms: null, civilite: null }),
+    cibleNom: cible === undefined ? "" : libelleListeContact(cible),
+    ...lien,
+  };
+}
+
+const mandat = (sourceId: string, cibleId: string, fonction: string, debut: string, fin: string | null = null) =>
+  lienDemo({ sourceId, cibleId, typeLien: "mandat_social", fonction, libelle: null, representeSociete: fin === null, debut, fin });
+const lienSimple = (sourceId: string, cibleId: string, typeLien: string) =>
+  lienDemo({ sourceId, cibleId, typeLien, fonction: null, libelle: null, representeSociete: false, debut: null, fin: null });
+
+const LIENS_CONTACTS_DEMO: LienAffiche[] = [
+  { ...mandat("antoine", "ferrand", "president", "2019-04-04"), source: "Kbis du 2 octobre 2026" },
+  { ...mandat("claire", "ferrand", "directeur_general", "2019-04-04", "2025-03-12"), source: "Procès-verbal du 12 mars 2025" },
+  { ...mandat("antoine", "afp", "gerant", "2025-01-18"), source: "Statuts constitutifs" },
+  { ...mandat("antoine", "ferrandlog", "gerant", "2021-09-02"), source: "Kbis du 2 octobre 2026" },
+  mandat("operrache", "perrache", "president", "2022-07-01"),
+  { ...lienSimple("rivegauche", "ferrand", "expert_comptable"), source: "Lettre de mission" },
+  lienSimple("antoine", "claire", "conjoint_pacs"),
+  lienSimple("antoine", "hugo", "parent"),
+  lienSimple("claire", "hugo", "parent"),
+];
+
+const COORDONNEES_CONTACTS_DEMO: CoordonneeLue[] = [
+  ["ferrand", "adresse", "siege", "14 rue de la Forge, 69007 Lyon", true],
+  ["ferrand", "adresse", "facturation", "BP 3021, 69341 Lyon Cedex 07", true],
+  ["ferrand", "telephone", "autre", "04 72 00 41 18", true],
+  ["ferrand", "email", "autre", "direction@ferrand-metal.example", true],
+  ["ferrand", "email", "autre", "compta@ferrand-metal.example", false],
+  ["antoine", "adresse", "domicile", "8 chemin des Vignes, 69290 Craponne", true],
+  ["antoine", "telephone", "autre", "06 71 22 40 93", true],
+  ["antoine", "email", "autre", "a.ferrand@ferrand-metal.example", true],
+  ["perrin", "adresse", "cabinet", "18 quai de Bondy, 69005 Lyon", true],
+  ["perrin", "telephone", "autre", "04 78 37 52 10", true],
+  ["perrin", "email", "autre", "a.perrin@perrin-avocats.example", true],
+].map(([contactId, genre, usage, valeur, principale]) => ({
+  contactId: String(contactId),
+  genre: String(genre),
+  usage: String(usage),
+  valeur: String(valeur),
+  principale: principale === true,
+  creeLe: "2026-10-02T09:00:00Z",
+}));
 
 function jourDans(jours: number): string {
   return decalerJour(jourCivil(new Date()), jours);
@@ -874,62 +1089,38 @@ export function GalerieDemo() {
           {vue === "contacts" ? (
             <Contacts
               lignesFixes={CONTACTS_DEMO}
-              liensFixes={[
-                {
-                  id: "lien-anne-duclos",
-                  sourceId: "anne",
-                  cibleId: "duclos",
-                  sourceCivilite: "Madame",
-                  sourcePrenoms: "Camille",
-                  sourceNom: "Martin",
-                  cibleNom: "SARL Duclos Industrie",
-                  typeLien: "mandat_social",
-                  fonction: "gerant",
-                  libelle: null,
-                  representeSociete: true,
-                  debut: "2018-06-01",
-                  fin: null,
-                },
-              ]}
+              liensFixes={LIENS_CONTACTS_DEMO}
+              coordonneesFixes={COORDONNEES_CONTACTS_DEMO}
+              selectionInitiale="ferrand"
+              comptesDossiersFixes={{ ferrand: 1, antoine: 1, duclos: 1, perrin: 1, vasseur: 1, banque: 1, rambert: 1, moreau: 1, perrache: 1, operrache: 1 }}
+              doublonsFixes={{ ferrand: [{ id: "ferrand-doublon", nom: "Ferrand Metal SAS", motif: "siren" }] }}
               propositionFixe={{
-                siren: "123456789",
-                denomination: "DUCLOS INDUSTRIE",
+                siren: "903417566",
+                denomination: "FERRAND LOGISTIQUE",
                 forme: "5499",
-                adresseSiege: "8 QUAI SAINT-VINCENT 69001 LYON",
-                activite: "25.11Z",
+                adresseSiege: "5 AVENUE DE L'INDUSTRIE 69800 SAINT-PRIEST",
+                activite: "49.41A",
                 dirigeants: [
-                  {
-                    nature: "physique",
-                    nom: "Martin",
-                    prenoms: "Camille",
-                    naissance: "1980-03",
-                    siren: null,
-                    qualite: "Gérante",
-                  },
-                  {
-                    nature: "physique",
-                    nom: "Perrin",
-                    prenoms: "Luc",
-                    naissance: "1970-01",
-                    siren: null,
-                    qualite: "Directeur général",
-                  },
+                  { nature: "physique", nom: "Ferrand", prenoms: "Antoine Louis", naissance: "1972-02", siren: null, qualite: "Gérant" },
+                  { nature: "physique", nom: "Ferrand", prenoms: "Hugo", naissance: "2001-05", siren: null, qualite: "Cogérant" },
                 ],
               }}
               historiqueFixe={{
-                contactId: "duclos",
-                dossiers: [{ id: "dos-duclos", nom: "Dupond c/ Duclos", qualite: "cliente" }],
-                factures: [{ id: "fac-duclos", libelle: "Honoraires", ttcCentimes: 120_000, encaisseCentimes: 50_000 }],
-                mails: [
-                  {
-                    id: "mail-duclos",
-                    objet: "Pièces du dossier",
-                    expediteur: "secretariat@duclos.example",
-                    destinataires: "cabinet@example.test",
-                    etat: "classe",
-                  },
+                contactId: "ferrand",
+                dossiers: [{ id: "dos-2026-031", nom: "SAS Ferrand Métal c/ SARL Duclos Industrie", qualite: "client, demandeur" }],
+                factures: [
+                  { id: "fac-2026-0131", libelle: "Provision sur honoraires", ttcCentimes: 240_000, encaisseCentimes: 240_000 },
+                  { id: "fac-2026-0158", libelle: "Honoraires, mise en état", ttcCentimes: 360_000, encaisseCentimes: 0 },
                 ],
-                notes: [{ id: "note-duclos", texte: "Rappeler le greffe." }],
+                mails: [
+                  { id: "mail-ferrand-1", objet: "Re: Assignation Duclos, pièces complémentaires", expediteur: "a.ferrand@ferrand-metal.example", destinataires: "cabinet@example.test", etat: "classe" },
+                  { id: "mail-ferrand-2", objet: "Factures fournisseurs Duclos 2025", expediteur: "compta@ferrand-metal.example", destinataires: "cabinet@example.test", etat: "classe" },
+                  { id: "mail-ferrand-3", objet: "Convocation à l'audience du 6 novembre", expediteur: "cabinet@example.test", destinataires: "direction@ferrand-metal.example", etat: "classe" },
+                ],
+                notes: [
+                  { id: "note-ferrand-1", texte: "Interlocuteur habituel : M. Antoine Ferrand, joignable de préférence le matin." },
+                  { id: "note-ferrand-2", texte: "Comptabilité tenue par Rive Gauche Expertise ; les relances de factures partent en copie à compta@ferrand-metal.example." },
+                ],
               }}
             />
           ) : null}

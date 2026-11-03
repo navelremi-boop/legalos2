@@ -445,7 +445,15 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect, onVerrouill
       />
     );
   } else if (nav === "contacts") {
-    contenu = <Contacts instanceUrl={instanceUrl} horsLigne={horsLigne} />;
+    contenu = (
+      <Contacts
+        instanceUrl={instanceUrl}
+        horsLigne={horsLigne}
+        onNouveauMail={() => {
+          setNav("mails");
+        }}
+      />
+    );
   } else if (nav === "temps") {
     contenu = (
       <EcranTemps

@@ -55,6 +55,7 @@ type LienSql = {
   represente_societe: number | null;
   debut: string | null;
   fin: string | null;
+  source: string | null;
 };
 
 type CoordSql = {
@@ -137,7 +138,7 @@ export async function lireAnnuaireLocal(): Promise<AnnuaireLocal> {
   const liens = await database.getAll<LienSql>(
     `SELECT l.id, l.contact_source_id, l.contact_cible_id, l.type_lien, l.fonction, l.libelle,
       l.represente_societe, l.debut, l.fin, s.civilite AS source_civilite, s.prenoms AS source_prenoms,
-      s.nom AS source_nom, c.nom AS cible_nom
+      l.source, s.nom AS source_nom, c.nom AS cible_nom
      FROM contact_liens l
      JOIN contacts s ON s.id = l.contact_source_id
      JOIN contacts c ON c.id = l.contact_cible_id`,
@@ -173,6 +174,7 @@ export async function lireAnnuaireLocal(): Promise<AnnuaireLocal> {
       representeSociete: ligne.represente_societe === 1,
       debut: ligne.debut,
       fin: ligne.fin,
+      source: ligne.source,
     })),
   };
 }

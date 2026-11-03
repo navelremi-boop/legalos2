@@ -370,14 +370,16 @@ try {
   ok("historique");
 
   await cliquer(cdp.send, "[data-testid=contacts-onglet-general]");
-  await attendre(cdp.send, "[data-testid=contacts-doublons-chercher]");
-  const doublonInactif = await evaluate(
-    cdp.send,
-    `document.querySelector("[data-testid=contacts-doublons-chercher]")?.disabled ?? true`,
-  );
-  if (doublonInactif) fail("la recherche de doublons est désactivée en ligne");
-  await cliquer(cdp.send, "[data-testid=contacts-doublons-chercher]");
+  // Alerte passive (maquette) : la détection part seule à l'ouverture de la fiche, sans clic.
+  await attendreTexte("[data-testid=contacts-doublon]", "Doublon possible");
   await attendreTexte("[data-testid=contacts-doublon]", "mêmes nom");
+  await cliquer(cdp.send, "[data-testid=contacts-doublon-comparer]");
+  await attendre(cdp.send, "[data-testid=contacts-doublon-fusionner]");
+  const fusionInactive = await evaluate(
+    cdp.send,
+    `document.querySelector("[data-testid=contacts-doublon-fusionner]")?.disabled ?? true`,
+  );
+  if (fusionInactive) fail("la fusion est désactivée en ligne");
   await cliquer(cdp.send, "[data-testid=contacts-doublon-fusionner]");
   const debutFusion = Date.now();
   let fusion = "";

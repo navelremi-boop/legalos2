@@ -1,12 +1,25 @@
 # Captures galerie Contacts
 
-Jeu de démonstration de la galerie (Camille Martin, Luc Martin, SARL Duclos Industrie) — distinct du jeu Ferrand de la maquette.
+Générées par `node tests/recette/contacts-captures-galerie.mjs`.
+Jeu de la galerie aligné sur la maquette (Ferrand Métal, Antoine Ferrand, import SIREN) ; à comparer à `design/captures/contacts-maquette/`.
 
-| Thème | Taille | Fichier |
-| --- | --- | --- |
-| jour | 1366×768 | `contacts-jour-1366.png` |
-| jour | 1920×1080 | `contacts-jour-1920.png` |
-| jour | 2560×1440 | `contacts-jour-2560.png` |
-| nuit | 1366×768 | `contacts-nuit-1366.png` |
-| nuit | 1920×1080 | `contacts-nuit-1920.png` |
-| nuit | 2560×1440 | `contacts-nuit-2560.png` |
+| Scène | Thème | Taille | Fichier |
+| --- | --- | --- | --- |
+| ferrand-general | jour | 1366×768 | `ferrand-general-jour-1366.png` |
+| antoine-liens | jour | 1366×768 | `antoine-liens-jour-1366.png` |
+| importer-siren | jour | 1366×768 | `importer-siren-jour-1366.png` |
+| ferrand-general | jour | 1920×1080 | `ferrand-general-jour-1920.png` |
+| antoine-liens | jour | 1920×1080 | `antoine-liens-jour-1920.png` |
+| importer-siren | jour | 1920×1080 | `importer-siren-jour-1920.png` |
+| ferrand-general | jour | 2560×1440 | `ferrand-general-jour-2560.png` |
+| antoine-liens | jour | 2560×1440 | `antoine-liens-jour-2560.png` |
+| importer-siren | jour | 2560×1440 | `importer-siren-jour-2560.png` |
+| ferrand-general | nuit | 1366×768 | `ferrand-general-nuit-1366.png` |
+| antoine-liens | nuit | 1366×768 | `antoine-liens-nuit-1366.png` |
+| importer-siren | nuit | 1366×768 | `importer-siren-nuit-1366.png` |
+| ferrand-general | nuit | 1920×1080 | `ferrand-general-nuit-1920.png` |
+| antoine-liens | nuit | 1920×1080 | `antoine-liens-nuit-1920.png` |
+| importer-siren | nuit | 1920×1080 | `importer-siren-nuit-1920.png` |
+| ferrand-general | nuit | 2560×1440 | `ferrand-general-nuit-2560.png` |
+| antoine-liens | nuit | 2560×1440 | `antoine-liens-nuit-2560.png` |
+| importer-siren | nuit | 2560×1440 | `importer-siren-nuit-2560.png` |

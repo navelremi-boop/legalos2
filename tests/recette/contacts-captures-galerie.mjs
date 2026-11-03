@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 /**
- * Captures galerie Contacts (Vite) aux mêmes tailles / thèmes que la maquette.
+ * Captures galerie Contacts (Vite) aux mêmes scènes, tailles et thèmes que la maquette
+ * (`contacts-captures-maquette.mjs`) : SAS Ferrand Métal (Général), Antoine Ferrand (Liens),
+ * Importer par SIREN ; 1 366 × 768, 1 920 × 1 080, 2 560 × 1 440 ; jour et nuit.
+ * Jeu de la galerie : celui de la maquette (famille Ferrand, dossier 2026-031).
  * Prérequis : `pnpm --filter @legal-os/poste dev` sur le port 1420.
  * Usage : node tests/recette/contacts-captures-galerie.mjs
  */
@@ -13,7 +16,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const out = join(root, "design", "captures", "contacts-galerie");
 mkdirSync(out, { recursive: true });
 
-const base = process.env.LEGALOS_GALERIE_URL ?? "http://127.0.0.1:1420/?galerie=1";
+const base = process.env.LEGALOS_GALERIE_URL ?? "http://127.0.0.1:1420/?galerie=1&plein=1";
 const TAILLES = [
   { largeur: 1366, hauteur: 768 },
   { largeur: 1920, hauteur: 1080 },
@@ -23,46 +26,95 @@ const THEMES = [
   { valeur: "light", nom: "jour" },
   { valeur: "dark", nom: "nuit" },
 ];
+const SCENES = [
+  { id: "ferrand-general", contact: "ferrand", onglet: "general" },
+  { id: "antoine-liens", contact: "antoine", onglet: "liens" },
+  { id: "importer-siren", mode: "siren" },
+];
+
+function fail(message) {
+  console.error(`contacts-captures-galerie: FAIL — ${message}`);
+  process.exit(1);
+}
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
 try {
   await page.goto(base, { waitUntil: "networkidle", timeout: 15_000 });
 } catch (err) {
-  console.error(`contacts-captures-galerie: FAIL — Vite inaccessible (${String(err.message ?? err)})`);
-  process.exit(1);
+  fail(`Vite inaccessible (${String(err.message ?? err)})`);
 }
-await page.locator("[data-testid=galerie-vue-contacts]").click();
-await page.waitForSelector("[data-testid=ecran-contacts]");
+
+async function ouvrirContacts() {
+  await page.locator("[data-testid=galerie-vue-contacts]").click();
+  await page.waitForSelector("[data-testid=ecran-contacts]");
+}
+
+async function scene(s) {
+  // Repart d'un écran neuf : le panneau de création ne garde rien d'une scène à l'autre.
+  await page.keyboard.press("Escape");
+  await page.locator("[data-testid=galerie-vue-dossiers]").click({ force: true });
+  await ouvrirContacts();
+  if (s.mode === "siren") {
+    await page.locator("[data-testid=contacts-importer-siren]").click();
+    const champ = page.locator("[data-testid=contacts-creation-siren]");
+    await champ.waitFor({ timeout: 5_000 });
+    await champ.fill("903417566");
+    return;
+  }
+  await page.locator(`[data-testid=contacts-ligne][data-contact-id="${s.contact}"]`).click();
+  await page.locator(`[data-testid=contacts-onglet-${s.onglet}]`).click();
+}
+
+await ouvrirContacts();
+for (const attendu of ["SAS Ferrand Métal", "Me Anne Perrin", "Annuaire commun au cabinet", "Doublon possible"]) {
+  // fr() pose des espaces insécables (« Me Anne ») : comparaison sur des espaces ordinaires.
+  const texte = (await page.locator("[data-testid=ecran-contacts]").innerText()).replace(/[  ]/gu, " ");
+  if (!texte.includes(attendu)) fail(`« ${attendu} » absent de l'écran Contacts de la galerie`);
+}
 
 const lignes = [
   "# Captures galerie Contacts",
   "",
-  "Jeu de démonstration de la galerie (Camille Martin, Luc Martin, SARL Duclos Industrie) — distinct du jeu Ferrand de la maquette.",
+  "Générées par `node tests/recette/contacts-captures-galerie.mjs`.",
+  "Jeu de la galerie aligné sur la maquette (Ferrand Métal, Antoine Ferrand, import SIREN) ; à comparer à `design/captures/contacts-maquette/`.",
   "",
-  "| Thème | Taille | Fichier |",
-  "| --- | --- | --- |",
+  "| Scène | Thème | Taille | Fichier |",
+  "| --- | --- | --- | --- |",
 ];
 
 for (const th of THEMES) {
   await page.evaluate((valeur) => {
     document.documentElement.dataset.theme = valeur;
   }, th.valeur);
-  await page.waitForTimeout(80);
   for (const taille of TAILLES) {
     await page.setViewportSize({ width: taille.largeur, height: taille.hauteur });
-    await page.waitForTimeout(80);
-    const nom = `contacts-${th.nom}-${taille.largeur}.png`;
-    const cible = page.locator("[data-testid=galerie-scene]");
-    if ((await cible.count()) > 0) {
-      await cible.screenshot({ path: join(out, nom) });
-    } else {
-      await page.locator("[data-testid=ecran-contacts]").screenshot({ path: join(out, nom) });
+    for (const s of SCENES) {
+      await scene(s);
+      await page.evaluate((valeur) => {
+        document.documentElement.dataset.theme = valeur;
+        // Les clics de Playwright font défiler les conteneurs « overflow: hidden » de la scène
+        // (barre haute poussée hors champ) : on les ramène en haut avant la capture.
+        window.scrollTo(0, 0);
+        for (const element of document.querySelectorAll("[data-testid=galerie-scene], [data-testid=galerie-scene] *")) {
+          if (element.scrollTop > 0 && getComputedStyle(element).overflowY === "hidden") element.scrollTop = 0;
+        }
+      }, th.valeur);
+      await page.waitForTimeout(120);
+      const nom = `${s.id}-${th.nom}-${taille.largeur}.png`;
+      const cible = page.locator("[data-testid=galerie-scene]");
+      if ((await cible.count()) > 0) {
+        await cible.screenshot({ path: join(out, nom) });
+      } else {
+        await page.locator("[data-testid=ecran-contacts]").screenshot({ path: join(out, nom) });
+      }
+      lignes.push(`| ${s.id} | ${th.nom} | ${taille.largeur}×${taille.hauteur} | \`${nom}\` |`);
     }
-    lignes.push(`| ${th.nom} | ${taille.largeur}×${taille.hauteur} | \`${nom}\` |`);
   }
 }
 
 writeFileSync(join(out, "README.md"), `${lignes.join("\n")}\n`, "utf8");
 await browser.close();
-console.log(`contacts-captures-galerie: OK (${THEMES.length * TAILLES.length} fichiers)`);
+console.log(
+  `contacts-captures-galerie: OK (${SCENES.length * THEMES.length * TAILLES.length} fichiers dans ${out})`,
+);

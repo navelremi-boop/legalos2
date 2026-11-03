@@ -9,6 +9,7 @@ import {
   IconMail,
   IconPlus,
   IconUser,
+  IconUsers,
 } from "@tabler/icons-react";
 import {
   champsFicheVides,
@@ -23,6 +24,9 @@ import {
   natureEtiquetteFiche,
   ONGLETS_FICHE,
   sirenListeContact,
+  formeEnLettres,
+  nomCourtContact,
+  sousTitreFiche,
   type ContactListe,
   type CoordonneeLue,
   type FiltreContacts,
@@ -32,7 +36,7 @@ import { lireAnnuaireLocal } from "@/contacts/lireAnnuaire";
 import { designationActe, accordDe } from "@/contacts/designation";
 import { ecrireCoordonnee, type GenreCoordonnee, type UsageCoordonnee } from "@/contacts/ecrireCoordonnee";
 import { avecCommune, communesDuCode, estAdresseFrance } from "@/contacts/codesPostaux";
-import { libelleLien, type LienAffiche } from "@/contacts/liensContacts";
+import { groupesLiens, type LienAffiche } from "@/contacts/liensContacts";
 import { envoyerLien, envoyerRetrait } from "@/contacts/envoyerLien";
 import { HistoriqueFiche } from "@/contacts/OngletsHistorique";
 import { ligneIndex, villeListeContact } from "@/contacts/indexAnnuaire";
@@ -46,7 +50,7 @@ import {
   lireMailsClasses,
   lireNotesContact,
 } from "@/contacts/lireHistorique";
-import { DoublonsFiche } from "@/contacts/DoublonsFiche";
+import { DoublonsFiche, type DoublonDetecte } from "@/contacts/DoublonsFiche";
 import { CreationSociete } from "@/contacts/CreationSociete";
 import { centimesDepuisSaisie, estMonnaie, MONNAIES, saisieDepuisCentimes } from "@/contacts/capitalFiche";
 import { poserCapital } from "@/contacts/poserCapital";
@@ -115,6 +119,15 @@ type ContactsProps = {
     mails: readonly MailFiche[];
     notes: readonly NoteFiche[];
   } | null;
+  /** Doublons figés de la galerie, par fiche. Sans cela, l'instance les détecte à l'ouverture de la fiche. */
+  doublonsFixes?: Readonly<Record<string, readonly DoublonDetecte[]>>;
+  /** Coordonnées figées de la galerie. Sans cela, elles sont lues dans la base locale. */
+  coordonneesFixes?: readonly CoordonneeLue[];
+  /** Nombre de dossiers par fiche, figé pour la galerie. */
+  comptesDossiersFixes?: Readonly<Record<string, number>>;
+  /** Fiche ouverte au premier affichage (galerie) ; sinon la première de la liste. */
+  selectionInitiale?: string;
+  onNouveauMail?: () => void;
 };
 
 export function Contacts({
@@ -124,13 +137,18 @@ export function Contacts({
   instanceUrl,
   propositionFixe = null,
   historiqueFixe = null,
+  doublonsFixes,
+  coordonneesFixes,
+  comptesDossiersFixes,
+  selectionInitiale,
+  onNouveauMail,
 }: ContactsProps = {}) {
   const [lignesSync, setLignesSync] = useState<ContactListe[] | null>(null);
-  const [coordsSync, setCoordsSync] = useState<CoordonneeLue[]>([]);
+  const [coordsSync, setCoordsSync] = useState<CoordonneeLue[]>(() => [...(coordonneesFixes ?? [])]);
   const [liensSync, setLiensSync] = useState<LienAffiche[]>([]);
   const [filtre, setFiltre] = useState<FiltreContacts>("tous");
   const [recherche, setRecherche] = useState("");
-  const [selection, setSelection] = useState<string | null>(null);
+  const [selection, setSelection] = useState<string | null>(selectionInitiale ?? null);
   const [onglet, setOnglet] = useState<OngletFicheContact>("general");
   const [creation, setCreation] = useState<"choix" | "personne" | "societe" | "siren" | null>(null);
   const [creees, setCreees] = useState<ContactListe[]>([]);
@@ -154,7 +172,7 @@ export function Contacts({
   const [mailsSync, setMailsSync] = useState<MailFiche[]>([]);
   const [notesSync, setNotesSync] = useState<NoteFiche[]>([]);
   const [dossiersParContactSync, setDossiersParContactSync] = useState<Map<string, number>>(
-    () => new Map(),
+    () => new Map(Object.entries(comptesDossiersFixes ?? {})),
   );
   const indexRef = useRef<IndexAnnuaire | null>(null);
   const importRef = useRef<PropositionImportHandle | null>(null);
@@ -246,11 +264,15 @@ export function Contacts({
     if (historiqueFixe !== null) {
       map.set(historiqueFixe.contactId, historiqueFixe.dossiers.length);
     }
-    if (choisi !== null && (historiqueFixe === null || historiqueFixe.contactId !== choisi.id)) {
+    if (
+      lignesFixes === undefined &&
+      choisi !== null &&
+      (historiqueFixe === null || historiqueFixe.contactId !== choisi.id)
+    ) {
       map.set(choisi.id, dossiersSync.length);
     }
     return map;
-  }, [dossiersParContactSync, historiqueFixe, choisi, dossiersSync]);
+  }, [dossiersParContactSync, historiqueFixe, choisi, dossiersSync, lignesFixes]);
   const capitalPose = choisi === null ? undefined : capitaux[choisi.id];
   const professionPosee = choisi === null ? undefined : professions[choisi.id];
   const choisiVu =
@@ -368,7 +390,6 @@ export function Contacts({
           dossiers: historique.dossiers.length,
           factures: historique.factures.length,
           mails: historique.mails.length,
-          notes: historique.notes.length,
         };
   const declencherImport = () => {
     if (onglet !== "general") setOnglet("general");
@@ -380,10 +401,20 @@ export function Contacts({
       <header className="ecran-tete">
         <div>
           <h1 className="ecran-tete__titre">{fr("Contacts")}</h1>
-          <p className="ecran-tete__sous-titre">
-            {fr(`${String(comptes.tous)} contacts dans l'annuaire du cabinet`)}
+          <p className="ecran-tete__sous-titre" data-testid="contacts-sous-titre">
+            {fr(`${String(comptes.tous)} contact${comptes.tous > 1 ? "s" : ""}`)}
           </p>
         </div>
+        <span
+          className="contacts-releve"
+          data-testid="contacts-annuaire-commun"
+          title={fr(
+            "Tous les membres du cabinet voient l'annuaire ; un dossier restreint n'apparaît qu'aux personnes autorisées",
+          )}
+        >
+          <IconUsers size={14} stroke={1.7} aria-hidden />
+          {fr("Annuaire commun au cabinet")}
+        </span>
       </header>
       <Feuille uneColonne className="min-h-0 flex-1">
         <div className="grid h-full min-h-0 grid-cols-[23rem_minmax(0,1fr)]">
@@ -393,7 +424,7 @@ export function Contacts({
               <input
                 type="search"
                 className="champ w-full"
-                placeholder={fr("Rechercher un contact")}
+                placeholder={fr("Nom, dénomination, SIREN, e-mail, ville")}
                 aria-label={fr("Rechercher un contact")}
                 data-testid="contacts-recherche"
                 value={recherche}
@@ -431,7 +462,7 @@ export function Contacts({
                 groupes.map((groupe) => (
                   <section key={groupe.lettre}>
                     <h2 className="dossiers-groupe">
-                      {fr(groupe.lettre)} <span className="text-graphite">{groupe.contacts.length}</span>
+                      {fr(groupe.lettre)}
                     </h2>
                     <ul>
                       {groupe.contacts.map((contact) => {
@@ -476,8 +507,12 @@ export function Contacts({
                                 className="contacts-ligne__nb"
                                 title={fr(`${String(nbDossiers)} dossier${nbDossiers > 1 ? "s" : ""}`)}
                               >
-                                <IconFolder size={13} stroke={1.8} aria-hidden />
-                                {fr(String(nbDossiers))}
+                                {nbDossiers > 0 ? (
+                                  <>
+                                    <IconFolder size={13} stroke={1.8} aria-hidden />
+                                    {fr(String(nbDossiers))}
+                                  </>
+                                ) : null}
                               </span>
                             </button>
                           </li>
@@ -506,7 +541,7 @@ export function Contacts({
                     </div>
                     <h2 className="contacts-etq__nom">{fr(libelleListeContact(choisiVu ?? choisi))}</h2>
                     {(() => {
-                      const sous = metaListeContact(
+                      const sous = sousTitreFiche(
                         choisiVu ?? choisi,
                         villeListeContact(choisiVu ?? choisi, coordsSync),
                       );
@@ -595,6 +630,7 @@ export function Contacts({
                       horsLigne={horsLigne}
                       instanceUrl={instanceUrl}
                       propositionFixe={propositionFixe}
+                      doublonsFixes={doublonsFixes?.[choisi.id]}
                       importRef={importRef}
                       contactLie={contactLie}
                       onRetirer={retirerChoisi}
@@ -661,7 +697,15 @@ export function Contacts({
                     />
                   </div>
                   {onglet === "liens" ? (
-                    <LiensFiche contactId={choisi.id} liens={liens} />
+                    <LiensFiche
+                      contactId={choisi.id}
+                      liens={liens}
+                      contacts={lignes ?? []}
+                      onOuvrir={(id) => {
+                        setSelection(id);
+                        setOnglet("general");
+                      }}
+                    />
                   ) : onglet !== "general" ? (
                     <HistoriqueFiche
                       onglet={onglet}
@@ -694,6 +738,14 @@ export function Contacts({
             testId: "contacts-importer-siren",
             onClick: () => {
               setCreation("siren");
+            },
+          },
+          {
+            id: "nouveau-mail",
+            label: "Nouveau mail",
+            testId: "contacts-nouveau-mail",
+            onClick: () => {
+              onNouveauMail?.();
             },
           },
         ]}
@@ -886,25 +938,56 @@ const USAGES_COORDONNEE: { id: UsageCoordonnee; label: string }[] = [
   { id: "autre", label: "Autre" },
 ];
 
-function LiensFiche({ contactId, liens }: { contactId: string; liens: readonly LienAffiche[] }) {
-  const vus = liens.filter((lien) => lien.sourceId === contactId || lien.cibleId === contactId);
-  if (vus.length === 0) {
-    return <p className="etat-vide">{fr(VIDE_ONGLET.liens)}</p>;
-  }
+function LiensFiche({
+  contactId,
+  liens,
+  contacts,
+  onOuvrir,
+}: {
+  contactId: string;
+  liens: readonly LienAffiche[];
+  contacts: readonly ContactListe[];
+  onOuvrir: (id: string) => void;
+}) {
+  const groupes = groupesLiens(liens, contactId, (id) => {
+    const fiche = contacts.find((contact) => contact.id === id);
+    return fiche === undefined ? null : nomCourtContact(fiche);
+  });
   return (
-    <ul className="flex flex-col gap-3" data-testid="contacts-liens">
-      {vus.map((lien) => {
-        const libelle = libelleLien(lien, contactId);
-        return (
-          <li key={lien.id} data-testid="contacts-lien">
-            <p>{fr(libelle.texte)}</p>
-            {libelle.periode !== null ? (
-              <p className="text-[length:var(--font-size-dense)] text-graphite">{fr(libelle.periode)}</p>
-            ) : null}
-          </li>
-        );
-      })}
-    </ul>
+    <div data-testid="contacts-liens">
+      <div className="sec-t">{fr("Liens avec d'autres contacts")}</div>
+      {groupes.length === 0 ? <p className="etat-vide">{fr(VIDE_ONGLET.liens)}</p> : null}
+      {groupes.map((entree) => (
+        <section key={entree.groupe}>
+          <div className="sec-t">{fr(entree.groupe)}</div>
+          <ul className="contacts-liens">
+            {entree.lignes.map((ligne) => (
+              <li
+                key={ligne.id}
+                className={`contacts-lien${ligne.termine ? " contacts-lien--fin" : ""}`}
+                data-testid="contacts-lien"
+              >
+                <div className="contacts-lien__q">
+                  <b>{fr(ligne.titre)}</b>
+                  {fr(ligne.liaison === "de" ? " de " : " : ")}
+                  <button
+                    type="button"
+                    className="contacts-lk"
+                    onClick={() => {
+                      onOuvrir(ligne.autreId);
+                    }}
+                  >
+                    {fr(ligne.autreNom)}
+                  </button>
+                  {ligne.source !== null ? <small>{fr(`Source : ${ligne.source}`)}</small> : null}
+                </div>
+                <div className="contacts-lien__date">{fr(ligne.periode)}</div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
   );
 }
 
@@ -1481,6 +1564,7 @@ function FicheGenerale({
   horsLigne,
   instanceUrl,
   propositionFixe,
+  doublonsFixes,
   importRef,
   contactLie,
   onRetirer,
@@ -1504,6 +1588,7 @@ function FicheGenerale({
   horsLigne: boolean;
   instanceUrl?: string;
   propositionFixe: PropositionSiren | null;
+  doublonsFixes: readonly DoublonDetecte[] | undefined;
   importRef: RefObject<PropositionImportHandle | null>;
   contactLie: boolean;
   onRetirer: () => void;
@@ -1556,7 +1641,13 @@ function FicheGenerale({
 
   return (
     <div className="flex flex-col gap-4">
-      <DoublonsFiche contactId={contact.id} horsLigne={horsLigne} instanceUrl={instanceUrl} />
+      <DoublonsFiche
+        key={contact.id}
+        contactId={contact.id}
+        horsLigne={horsLigne}
+        instanceUrl={instanceUrl}
+        doublonsFixes={doublonsFixes}
+      />
       {acte.mentions.length > 0 ? (
         <div className="alerte" data-testid="contacts-mentions">
           <IconAlertTriangle size={16} stroke={1.8} aria-hidden />
@@ -1635,7 +1726,7 @@ function FicheGenerale({
             <FaitLecture libelle="Dénomination" valeur={contact.nom} onOuvrir={() => { ouvrir("denomination"); }} />
             <FaitLecture
               libelle="Forme"
-              valeur={contact.forme ? libelleForme(contact.forme) : null}
+              valeur={contact.forme ? formeEnLettres(contact.forme) : null}
               onOuvrir={() => { ouvrir("forme"); }}
             />
             <FaitLecture

@@ -203,7 +203,7 @@ function phraseRepresentant(representant: RepresentantFiche): string {
   return `prise en la personne de son ${representant.fonction} en exercice, ${representant.civilite} ${representant.prenoms} ${representant.nom}, ${domicile} en cette qualité audit siège`;
 }
 
-function titreProfession(code: ProfessionReglementee, accord: AccordGrammatical): string {
+export function titreProfession(code: ProfessionReglementee, accord: AccordGrammatical): string {
   switch (code) {
     case "avocat":
       return participe(accord, "avocate", "avocat");

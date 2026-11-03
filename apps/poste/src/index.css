@@ -993,7 +993,8 @@
     opacity: 0.78;
   }
 
-  .mails-releve {
+  .mails-releve,
+  .contacts-releve {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -1005,6 +1006,15 @@
     box-shadow: inset 0 0 0 1px var(--verre-bord);
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
+  }
+
+  .contacts-releve {
+    color: var(--texte-sur-neutre);
+  }
+
+  .contacts-releve svg {
+    width: 14px;
+    height: 14px;
   }
 
   .mails-releve i {
@@ -3699,6 +3709,62 @@
 
   .sec-t:first-child {
     margin-top: 0;
+  }
+
+  .contacts-liens {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .contacts-lien {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+    padding: var(--espace-2) 0;
+    border-top: 1px solid var(--filet);
+  }
+
+  .contacts-lien:first-child {
+    border-top: 0;
+  }
+
+  .contacts-lien__q {
+    font-size: var(--font-size-dense);
+  }
+
+  .contacts-lien__q b {
+    font-weight: 700;
+  }
+
+  .contacts-lien__q small {
+    display: block;
+    margin-top: 1px;
+    font-size: var(--font-size-meta);
+    color: var(--graphite);
+  }
+
+  .contacts-lien--fin .contacts-lien__q {
+    color: var(--graphite);
+  }
+
+  .contacts-lien__date {
+    font-size: var(--font-size-meta);
+    color: var(--graphite);
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .contacts-lk {
+    font-weight: 700;
+    color: var(--encre);
+    text-decoration: underline;
+    text-decoration-color: var(--filet);
+    text-underline-offset: 3px;
+  }
+
+  .contacts-lk:hover {
+    text-decoration-color: currentColor;
   }
 
   .sec-t .act {

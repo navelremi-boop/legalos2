@@ -11,8 +11,10 @@ import {
   metaListeContact,
   natureEtiquetteFiche,
   sirenListeContact,
+  sousTitreFiche,
   type ContactListe,
 } from "./listeContacts.ts";
+import { formatMontant } from "../lib/format.ts";
 
 function contact(partiel: Partial<ContactListe> & Pick<ContactListe, "id" | "nom" | "nature">): ContactListe {
   return {
@@ -137,7 +139,7 @@ describe("liste des contacts", () => {
   });
 
   it("compose l'étiquette de nature pour la fiche", () => {
-    assert.equal(natureEtiquetteFiche(contact({ id: "1", nom: "Martin", nature: "physique" })), "Personne");
+    assert.equal(natureEtiquetteFiche(contact({ id: "1", nom: "Martin", nature: "physique" })), "Personne physique");
     assert.equal(
       natureEtiquetteFiche(
         contact({
@@ -148,21 +150,73 @@ describe("liste des contacts", () => {
           professionReglementee: true,
         }),
       ),
-      "Personne, avocat",
+      "Personne physique, avocat",
+    );
+    assert.equal(
+      natureEtiquetteFiche(
+        contact({
+          id: "2",
+          nom: "Perrin",
+          nature: "physique",
+          civilite: "Maître",
+          accordSaisi: "feminin",
+          professionCode: "avocat",
+          professionReglementee: true,
+        }),
+      ),
+      "Personne physique, avocate",
     );
     assert.equal(
       natureEtiquetteFiche(contact({ id: "3", nom: "SARL Duclos Industrie", nature: "morale" })),
-      "Société",
+      "Personne morale",
     );
   });
 
   it("compose le libellé, les initiales et la meta de la liste", () => {
     assert.equal(
       libelleListeContact(contact({ id: "1", nom: "Martin", nature: "physique", civilite: "Madame", prenoms: "Camille" })),
-      "Madame Camille Martin",
+      "Camille Martin",
+    );
+    assert.equal(
+      libelleListeContact(
+        contact({ id: "2", nom: "Ferrand", nature: "physique", civilite: "Monsieur", prenoms: "Antoine Louis" }),
+      ),
+      "Antoine Ferrand",
+    );
+    assert.equal(
+      libelleListeContact(contact({ id: "4", nom: "Perrin", nature: "physique", civilite: "Maître", prenoms: "Anne" })),
+      "Me Anne Perrin",
+    );
+    assert.equal(
+      metaListeContact(
+        contact({
+          id: "4",
+          nom: "Perrin",
+          nature: "physique",
+          civilite: "Maître",
+          accordSaisi: "feminin",
+          professionCode: "avocat",
+          professionReglementee: true,
+          barreau: "Lyon",
+        }),
+        "Lyon",
+      ),
+      "Avocate, barreau de Lyon",
+    );
+    assert.equal(
+      metaListeContact(contact({ id: "5", nom: "Ferrand", nature: "physique", prenoms: "Hugo" }), "Lyon"),
+      "Profession à compléter, Lyon",
     );
     assert.equal(
       libelleListeContact(contact({ id: "3", nom: "SARL Duclos Industrie", nature: "morale" })),
+      "SARL Duclos Industrie",
+    );
+    assert.equal(
+      libelleListeContact(contact({ id: "6", nom: "Ferrand Métal", nature: "morale", forme: "5710" })),
+      "SAS Ferrand Métal",
+    );
+    assert.equal(
+      libelleListeContact(contact({ id: "7", nom: "SARL Duclos Industrie", nature: "morale", forme: "5499" })),
       "SARL Duclos Industrie",
     );
     assert.equal(
@@ -194,7 +248,47 @@ describe("liste des contacts", () => {
         }),
         "Lyon",
       ),
-      "Société à responsabilité limitée (sans autre indication), Lyon, SIREN 123 456 789",
+      "Lyon, SIREN 123 456 789",
+    );
+  });
+
+  it("compose le sous-titre de la tête de fiche", () => {
+    assert.equal(
+      sousTitreFiche(
+        contact({
+          id: "6",
+          nom: "SAS Ferrand Métal",
+          nature: "morale",
+          forme: "5710",
+          capitalCentimes: 5_000_000,
+          monnaie: "EUR",
+        }),
+        "Lyon",
+      ),
+      `Société par actions simplifiée au capital de ${formatMontant(5_000_000)}, Lyon`,
+    );
+    assert.equal(
+      sousTitreFiche(
+        contact({
+          id: "4",
+          nom: "Perrin",
+          nature: "physique",
+          civilite: "Maître",
+          accordSaisi: "feminin",
+          professionCode: "avocat",
+          professionReglementee: true,
+          barreau: "Lyon",
+        }),
+        "Lyon",
+      ),
+      "Avocate au barreau de Lyon",
+    );
+    assert.equal(
+      sousTitreFiche(
+        contact({ id: "2", nom: "Ferrand", nature: "physique", profession: "chef d'entreprise" }),
+        "Craponne",
+      ),
+      "Chef d'entreprise, Craponne",
     );
   });
 });

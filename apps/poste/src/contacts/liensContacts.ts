@@ -14,6 +14,8 @@ export type LienAffiche = {
   representeSociete: boolean;
   debut: string | null;
   fin: string | null;
+  /** Pièce qui établit le lien (« Kbis du 2 octobre 2026 »). */
+  source?: string | null;
 };
 
 const FONCTIONS: Record<string, string> = {
@@ -43,7 +45,7 @@ export function titreLien(lien: Pick<LienAffiche, "typeLien" | "fonction" | "lib
   return TYPES[lien.typeLien] ?? lien.typeLien;
 }
 
-function civiliteCourte(civilite: string | null): string {
+export function civiliteCourte(civilite: string | null): string {
   if (civilite === "Monsieur") return "M.";
   if (civilite === "Madame") return "Mme";
   if (civilite === "Maître") return "Me";
@@ -68,4 +70,80 @@ export function libelleLien(lien: LienAffiche, vuDepuis: string): { texte: strin
       ? `du ${formatDateActe(lien.debut)} au ${formatDateActe(lien.fin)}`
       : null;
   return { texte, periode };
+}
+
+/** Ligne de l'onglet Liens, d'après la maquette : « Président de SAS Ferrand Métal », source, période. */
+export type LigneLien = {
+  id: string;
+  groupe: string;
+  titre: string;
+  /** « de » vu depuis la source du lien, « : » vu depuis sa cible. */
+  liaison: "de" | ":";
+  autreId: string;
+  autreNom: string;
+  source: string | null;
+  periode: string;
+  termine: boolean;
+};
+
+const ORDRE_GROUPES = [
+  "Mandats sociaux",
+  "Dirigeants",
+  "Famille",
+  "Professionnels de la société",
+  "Clients de la société",
+  "Autres liens",
+] as const;
+
+function groupeLien(lien: LienAffiche, depuisSource: boolean): string {
+  if (lien.typeLien === "mandat_social" || lien.typeLien === "representant_permanent") {
+    return depuisSource ? "Mandats sociaux" : "Dirigeants";
+  }
+  if (lien.typeLien === "conjoint_pacs" || lien.typeLien === "parent") return "Famille";
+  if (lien.typeLien === "expert_comptable" || lien.typeLien === "commissaire_comptes") {
+    return depuisSource ? "Clients de la société" : "Professionnels de la société";
+  }
+  return "Autres liens";
+}
+
+function periodeLien(debut: string | null, fin: string | null): string {
+  if (debut !== null && fin !== null) return `du ${formatDateActe(debut)} au ${formatDateActe(fin)}`;
+  if (debut !== null) return `depuis le ${formatDateActe(debut)}`;
+  if (fin !== null) return `jusqu'au ${formatDateActe(fin)}`;
+  return "";
+}
+
+/**
+ * Liens d'une fiche, groupés et ordonnés comme la maquette. `nomDe` donne le nom affiché d'une fiche
+ * (sigle de forme, civilité courte) ; à défaut, les noms portés par le lien.
+ */
+export function groupesLiens(
+  liens: readonly LienAffiche[],
+  vuDepuis: string,
+  nomDe: (id: string) => string | null = () => null,
+): { groupe: string; lignes: LigneLien[] }[] {
+  const lignes: LigneLien[] = [];
+  for (const lien of liens) {
+    const depuisSource = lien.sourceId === vuDepuis;
+    if (!depuisSource && lien.cibleId !== vuDepuis) continue;
+    const autreId = depuisSource ? lien.cibleId : lien.sourceId;
+    const nomLien = depuisSource
+      ? lien.cibleNom
+      : nomPersonne(lien.sourceCivilite, lien.sourcePrenoms, lien.sourceNom);
+    const titre = lien.typeLien === "parent" && !depuisSource ? "Enfant" : titreLien(lien);
+    lignes.push({
+      id: lien.id,
+      groupe: groupeLien(lien, depuisSource),
+      titre,
+      liaison: depuisSource || lien.typeLien === "parent" || lien.typeLien === "conjoint_pacs" ? "de" : ":",
+      autreId,
+      autreNom: nomDe(autreId) ?? nomLien,
+      source: (lien.source?.trim() ?? "") === "" ? null : (lien.source?.trim() ?? null),
+      periode: periodeLien(lien.debut, lien.fin),
+      termine: lien.fin !== null,
+    });
+  }
+  return ORDRE_GROUPES.map((groupe) => ({ groupe, lignes: lignes.filter((ligne) => ligne.groupe === groupe) })).filter(
+    (entree) => entree.lignes.length > 0,
+  );
 }

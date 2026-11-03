@@ -1,4 +1,6 @@
-import { libelleForme } from "@/contacts/formesJuridiques";
+import { accordDe, civiliteRefusee, titreProfession } from "@/contacts/designation";
+import { libelleForme, sigleForme } from "@/contacts/formesJuridiques";
+import { civiliteCourte } from "@/contacts/liensContacts";
 import { formatMontant } from "@/lib/format";
 
 export type NatureContactListe = "physique" | "morale";
@@ -251,35 +253,27 @@ export function libelleTypeClient(typeClient: TypeClientListe): string {
   return "Étranger";
 }
 
-const LIBELLES_PROFESSION: Readonly<Record<ProfessionReglementee, string>> = {
-  avocat: "Avocat",
-  commissaire_justice: "Commissaire de justice",
-  notaire: "Notaire",
-  expert_judiciaire: "Expert judiciaire",
-  administrateur_judiciaire: "Administrateur judiciaire",
-  mandataire_judiciaire: "Mandataire judiciaire",
-  expert_comptable: "Expert-comptable",
-  commissaire_comptes: "Commissaire aux comptes",
-};
-
-/** Nature courte pour l'étiquette de fiche : Personne / Société, avec profession éventuelle. */
+/** Nature pour l'étiquette de fiche, d'après la maquette : « Personne physique, avocate ». */
 export function natureEtiquetteFiche(contact: ContactListe): string {
-  const base = contact.nature === "physique" ? "Personne" : "Société";
-  if (contact.nature !== "physique") return base;
-  const code = contact.professionCode;
-  if (code !== null) return `${base}, ${LIBELLES_PROFESSION[code].toLocaleLowerCase("fr")}`;
-  const libre = contact.profession?.trim() ?? "";
-  if (libre !== "") return `${base}, ${libre.toLocaleLowerCase("fr")}`;
-  return base;
+  const base = libelleNature(contact.nature);
+  const profession = professionAccordee(contact);
+  return profession === null ? base : `${base}, ${profession.toLocaleLowerCase("fr")}`;
 }
 
-/** Nom affiché dans la liste : civilité, prénoms et nom, ou dénomination. */
+/**
+ * Nom affiché dans la liste et la tête de fiche, d'après la maquette : premier prénom et nom,
+ * précédés de « Me » pour la civilité Maître ; dénomination pour une société.
+ */
 export function libelleListeContact(contact: ContactListe): string {
-  if (contact.nature === "morale") return contact.nom.trim();
-  return [contact.civilite, contact.prenoms, contact.nom]
-    .map((partie) => partie?.trim() ?? "")
-    .filter((partie) => partie !== "")
-    .join(" ");
+  if (contact.nature === "morale") {
+    const nom = contact.nom.trim();
+    const sigle = sigleForme(contact.forme);
+    if (sigle === "" || nom.toLocaleUpperCase("fr").startsWith(`${sigle} `)) return nom;
+    return `${sigle} ${nom}`;
+  }
+  const prenom = contact.prenoms?.trim().split(/\s+/u)[0] ?? "";
+  const me = contact.civilite?.trim() === "Maître" ? "Me" : "";
+  return [me, prenom, contact.nom.trim()].filter((partie) => partie !== "").join(" ");
 }
 
 /** Deux lettres pour la pastille d'une personne physique. */
@@ -303,28 +297,91 @@ export function sirenListeContact(siren: string | null | undefined): string {
   return chiffres.replace(/(\d{3})(?=\d)/g, "$1 ").trim();
 }
 
+function majusculeInitiale(texte: string): string {
+  const premiere = Array.from(texte)[0];
+  return premiere === undefined ? texte : premiere.toLocaleUpperCase("fr") + texte.slice(premiere.length);
+}
+
+/** Profession réglementée accordée à la civilité (« Avocate »), ou null sans profession réglementée. */
+export function professionAccordee(contact: ContactListe): string | null {
+  const code = contact.professionCode;
+  if (code === null) return null;
+  const civilite = contact.civilite?.trim() ?? "";
+  const accord =
+    civilite === "" || civiliteRefusee(civilite) ? contact.accordSaisi : accordDe(civilite, contact.accordSaisi);
+  return majusculeInitiale(titreProfession(code, accord ?? "masculin"));
+}
+
+const PROFESSION_A_COMPLETER = "Profession à compléter";
+
 /**
- * Ligne meta sous le nom : profession ou forme, puis ville, puis SIREN (sociétés).
- * Séparateur : virgule + espace (pas de point médian).
+ * Ligne meta sous le nom, d'après la maquette : profession (et barreau) puis ville pour une personne,
+ * ville puis SIREN pour une société. Séparateur : virgule + espace (pas de point médian).
  */
 export function metaListeContact(contact: ContactListe, ville = ""): string {
   const parties: string[] = [];
-  if (contact.nature === "morale") {
-    const forme = contact.forme?.trim() ?? "";
-    if (forme !== "") parties.push(libelleForme(forme));
-  } else {
-    const code = contact.professionCode;
-    if (code !== null) parties.push(LIBELLES_PROFESSION[code]);
-    else {
-      const libre = contact.profession?.trim() ?? "";
-      if (libre !== "") parties.push(libre);
-    }
-  }
   const villeNette = ville.trim();
-  if (villeNette !== "") parties.push(villeNette);
+  const profession = professionAccordee(contact);
   if (contact.nature === "morale") {
+    if (profession !== null) parties.push(profession);
+    if (villeNette !== "") parties.push(villeNette);
     const siren = sirenListeContact(contact.siren);
     if (siren !== "") parties.push(`SIREN ${siren}`);
+    return parties.join(", ");
   }
+  if (profession !== null) {
+    const barreau = contact.barreau?.trim() ?? "";
+    if (contact.professionCode === "avocat" && barreau !== "") {
+      parties.push(`${profession}, barreau de ${barreau}`);
+    } else {
+      parties.push(profession);
+      if (villeNette !== "") parties.push(villeNette);
+    }
+    return parties.join(", ");
+  }
+  const libre = contact.profession?.trim() ?? "";
+  parties.push(libre !== "" ? majusculeInitiale(libre) : PROFESSION_A_COMPLETER);
+  if (villeNette !== "") parties.push(villeNette);
   return parties.join(", ");
+}
+
+/** Forme en toutes lettres pour la tête de fiche (« Société par actions simplifiée »). */
+export function formeEnLettres(valeur: string): string {
+  const libelle = libelleForme(valeur)
+    .replace(/\s*\((?:sans autre indication|s\.a\.i\.|SARL)\)$/u, "")
+    .replace(/^[A-Z]+, /u, "");
+  return majusculeInitiale(libelle);
+}
+
+/** Sous-titre de la tête de fiche, d'après la maquette. */
+export function sousTitreFiche(contact: ContactListe, ville = ""): string {
+  const villeNette = ville.trim();
+  if (contact.nature === "morale") {
+    const forme = contact.forme?.trim() ?? "";
+    const capital =
+      contact.capitalCentimes !== null
+        ? libelleCapital(contact.capitalCentimes, contact.monnaie)
+        : (contact.capitalLibelle?.trim() ?? "");
+    const tete = [forme !== "" ? formeEnLettres(forme) : "", capital].filter((part) => part !== "").join(" ");
+    return [tete, villeNette].filter((part) => part !== "").join(", ");
+  }
+  const profession = professionAccordee(contact);
+  if (profession !== null) {
+    const barreau = contact.barreau?.trim() ?? "";
+    const cour = contact.courAppel?.trim() ?? "";
+    if (contact.professionCode === "avocat" && barreau !== "") return `${profession} au barreau de ${barreau}`;
+    if (cour !== "") return `${profession}, ressort de la cour d'appel de ${cour}`;
+    return [profession, villeNette].filter((part) => part !== "").join(", ");
+  }
+  const libre = contact.profession?.trim() ?? "";
+  return [libre !== "" ? majusculeInitiale(libre) : PROFESSION_A_COMPLETER, villeNette]
+    .filter((part) => part !== "")
+    .join(", ");
+}
+
+/** Nom court d'une fiche dans un lien, d'après la maquette : « Mme Claire Ferrand », « SAS Ferrand Métal ». */
+export function nomCourtContact(contact: ContactListe): string {
+  if (contact.nature === "morale") return libelleListeContact(contact);
+  const prenom = contact.prenoms?.trim().split(/\s+/u)[0] ?? "";
+  return [civiliteCourte(contact.civilite), prenom, contact.nom.trim()].filter((partie) => partie !== "").join(" ");
 }

@@ -34,6 +34,26 @@ export function libelleForme(valeur: string): string {
   return TABLE[net]?.libelle ?? net;
 }
 
+/** Sigle usuel des formes courantes, pour le nom affiché (« SAS Ferrand Métal ») ; vide sinon. */
+export function sigleForme(valeur: string | null | undefined): string {
+  const code = valeur?.trim() ?? "";
+  if (!/^\d{4}$/u.test(code)) return "";
+  if (code === "5710") return "SAS";
+  if (code === "5785") return "SELAS";
+  if (code === "5485") return "SELARL";
+  if (code === "5385") return "SELCA";
+  if (code === "5585" || code === "5685") return "SELAFA";
+  if (code.startsWith("54")) return "SARL";
+  if (code.startsWith("55") || code.startsWith("56")) return "SA";
+  if (code === "5202") return "SNC";
+  if (code === "5306") return "SCS";
+  if (code === "5308") return "SCA";
+  if (code === "6540") return "SCI";
+  if (code === "6589") return "SCM";
+  if (code >= "6561" && code <= "6585") return "SCP";
+  return "";
+}
+
 /** Code et libellé, pour l'affichage côte à côte. Un texte libre reste tel quel. */
 export function texteForme(valeur: string | null | undefined): string {
   const net = valeur?.trim() ?? "";
