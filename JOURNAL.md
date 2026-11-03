@@ -382,3 +382,22 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 - **CI 2a51374, regle_404_403 (31/10 soir).** Push `2a51374` (route `POST /dossiers/{id}/liens`). CI [41337537128](https://github.com/navelremi-boop/legalos2/actions/runs/41337537128) : frontend vert ; rust échoue sur `regle_404_403` — `bad_request("Le mandant est introuvable")` dans `creer_lien` (un 404). Passé en `not_found` ; `contrat_routes` et `regle_404_403` OK en local.
 
 À pousser : 404 du mandant dans `creer_lien` (après commit).
+
+- **Point 1 soldé (03/11).** CI [41343999521](https://github.com/navelremi-boop/legalos2/actions/runs/41343999521) sur `b16c1ed` : `gh run view` → `completed` / `success`, sept jobs verts (frontend, gouvernance, perimetre, webdriver-macos, facturx, rust, s1-instance).
+
+- **Point 2, Contacts d'après la maquette (03/11).** `43473e9` : jeu Ferrand de la maquette dans la galerie ; écart 4 (doublon en alerte passive, détectée à l'ouverture de la fiche, « Comparer et fusionner ») ; écarts 5 à 7 (sous-titre, pastille « Annuaire commun au cabinet », placeholder, « Nouveau mail ») ; libellés « Me », profession accordée (« Avocate, barreau de Lyon »), « Personne physique / morale », sigle de forme, compteur vide masqué ; onglet Liens groupé avec source et période. `node --import ./tests/recette/lib/enregistrer-alias.mjs --test apps/poste/src/contacts/*.test.ts apps/poste/src/modeles/*.test.ts apps/poste/src/dossiers/*.test.ts` : 76/76 ; `pnpm --filter @legal-os/poste lint:ci` et `typecheck` OK ; `node tests/recette/contacts-captures-galerie.mjs` : 18 captures aux scènes de la maquette. Recette Tauri `annuaire.mjs` lancée ensuite (parcours doublon modifié).
+
+- **Recette `annuaire.mjs` non lancée (03/11).** Docker Desktop refuse de démarrer (socket `engine.sock` du moteur de secrets verrouillé). Action hors dépôt attendue du commandement : B24. Point 3 : `docs/consignes/criteres-diligences.md` inchangé (sha256 `d56697c6…`), aucun paragraphe d'ajout Conventions ; reste sous B23.
+
+  Écarts restants maquette ↔ app après `43473e9` (captures `design/captures/contacts-maquette/` et `design/captures/contacts-galerie/`), soumis au commandement :
+  - 2 et 3 : Juridictions et administrations, onglet Structure — acceptés (jalons suivants).
+  - 9 (structure) : « Importer par SIREN » — maquette : formulaire dans la fiche (étiquette « Nouveau contact », bascule morale / physique, « Chercher dans le registre », forme, capital, greffe, TVA calculée, adresse du siège, code postal et commune, Enregistrer) ; app : panneau latéral réduit (SIREN, Interroger le registre, dénomination, capital, greffe).
+  - 10 (texte) : désignation d'une personne morale — maquette : « La société Ferrand Métal, société par actions simplifiée au capital de 50 000 €, immatriculée au registre du commerce et des sociétés de Lyon sous le numéro 812 345 676, dont le siège social est situé … M. Antoine Ferrand … » ; app : « Ferrand Métal, SAS, société par actions simplifiée, au capital de 50 000 €, RCS de Lyon, numéro 812345676, … Monsieur Antoine Louis Ferrand … ». Formulation d'acte : décision attendue avant modification (champs de fusion et `modeles-fusion.mjs` concernés).
+  - 11 (détail) : capital « 50 000,00 € » au lieu de « 50 000 € ».
+  - 12 (structure) : bouton « Ajouter un lien » de l'onglet Liens absent (aucun formulaire de lien dans l'app ; liens créés par l'import des dirigeants).
+  - 13 (libellé) : « Conjoint ou partenaire de PACS » (type de lien du jalon) au lieu de « Conjoint » ; conservé, le type couvre le PACS.
+  - 14 (détail) : filtre actif clair au lieu de la pilule sombre de la maquette.
+
+**État de session.** Fait : point 1 soldé ; point 2 `43473e9` (jeu Ferrand, écarts 4–7, libellés, Liens). En cours : point 2. Prochaine action : après levée de B24, relancer `node tests/recette/annuaire.mjs` ; selon la réponse du commandement, écarts 9 à 14 ; puis preuve visuelle du contrôleur ; sans anticiper le classeur Documents ni l'aperçu des fichiers.
+
+À pousser : `43473e9` et le commit de journal qui suit.
