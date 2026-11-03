@@ -1,3 +1,4 @@
+import { dirigeantsDepuisJson } from "@/contacts/dirigeants";
 import { texteForme } from "@/contacts/formesJuridiques";
 
 export type PropositionSiren = {
@@ -76,4 +77,20 @@ export function champsRetenus(
     if (coches[champ] && net !== "") retenus[champ] = net;
   }
   return retenus;
+}
+
+/** Proposition lue dans la réponse de l'instance ; null si le JSON n'a pas la forme attendue. */
+export function propositionDepuisJson(json: unknown): PropositionSiren | null {
+  if (json === null || typeof json !== "object") return null;
+  const ligne = json as Record<string, unknown>;
+  const texte = (cle: string): string | null => (typeof ligne[cle] === "string" ? ligne[cle] : null);
+  if (typeof ligne.siren !== "string") return null;
+  return {
+    siren: ligne.siren,
+    denomination: texte("denomination"),
+    forme: texte("forme"),
+    adresseSiege: texte("adresse_siege"),
+    activite: texte("activite"),
+    dirigeants: dirigeantsDepuisJson(ligne.dirigeants),
+  };
 }

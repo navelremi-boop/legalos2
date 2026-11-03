@@ -27,6 +27,22 @@ async function attendre(send, selecteur) {
   fail(`absent : ${selecteur}`);
 }
 
+/** Saisie dans un champ React : valeur native puis événement input. */
+async function saisir(send, selecteur, valeur) {
+  const pose = await evaluate(
+    send,
+    `(() => {
+      const el = document.querySelector(${JSON.stringify(selecteur)});
+      if (!el) return false;
+      const proto = el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+      Object.getOwnPropertyDescriptor(proto, "value").set.call(el, ${JSON.stringify(valeur)});
+      el.dispatchEvent(new Event(el instanceof HTMLSelectElement ? "change" : "input", { bubbles: true }));
+      return true;
+    })()`,
+  );
+  if (!pose) fail(`champ absent : ${selecteur}`);
+}
+
 async function attendreSqlite(id, sql, predicat) {
   const debut = Date.now();
   let dernier = "";
@@ -309,10 +325,70 @@ try {
   await attendre(cdp.send, "[data-testid=barre-actions]");
   await attendre(cdp.send, "[data-testid=contacts-nouveau]");
   await attendre(cdp.send, "[data-testid=contacts-importer-siren]");
+  // Création dans la fiche (maquette) : étiquette, bascule morale / physique, formulaire de chaque nature.
   await cliquer(cdp.send, "[data-testid=contacts-nouveau]");
-  await attendre(cdp.send, "[data-testid=contacts-nouvelle-societe]");
-  await attendre(cdp.send, "[data-testid=contacts-nouvelle-personne]");
-  await cliquer(cdp.send, "[data-testid=contacts-panneau-creation] [data-fermer]");
+  await attendre(cdp.send, "[data-testid=contacts-nouveau-contact]");
+  await attendre(cdp.send, "[data-testid=contacts-creation-nature-morale]");
+  await attendre(cdp.send, "[data-testid=contacts-creation-nature-physique]");
+  await attendre(cdp.send, "[data-testid=contacts-creation-personne]");
+  await cliquer(cdp.send, "[data-testid=contacts-creation-nature-morale]");
+  await attendre(cdp.send, "[data-testid=contacts-creation-siren]");
+  await attendre(cdp.send, "[data-testid=contacts-creation-interroger]");
+  await attendre(cdp.send, "[data-testid=contacts-creation-creer]");
+  const creationTexte = String(
+    (await evaluate(cdp.send, `document.querySelector("[data-testid=contacts-nouveau-contact]")?.textContent ?? ""`)) ?? "",
+  ).replace(/\s/g, " ");
+  for (const attendu of ["Nouveau contact", "La fiche rejoint l'annuaire commun du cabinet.", "Chercher dans le registre", "Calculé à partir du SIREN", "Code postal", "Commune", "Enregistrer la fiche"]) {
+    if (!creationTexte.replace(/’/g, "'").includes(attendu)) fail(`création : « ${attendu} » absent`);
+  }
+  await cliquer(cdp.send, "[data-testid=contacts-creation-annuler]");
+  await sleep(300);
+  if ((await evaluate(cdp.send, `document.querySelector("[data-testid=contacts-nouveau-contact]") !== null`)) === true) {
+    fail("la création reste ouverte après Annuler");
+  }
+  // Enregistrement d'une société depuis le formulaire : SIREN contrôlé, TVA calculée, adresse assemblée.
+  const nomCreation = `Atelier ${marque}`;
+  await cliquer(cdp.send, "[data-testid=contacts-importer-siren]");
+  await attendre(cdp.send, "[data-testid=contacts-creation-siren]");
+  await saisir(cdp.send, "[data-testid=contacts-creation-siren]", "123456789");
+  await cliquer(cdp.send, "[data-testid=contacts-creation-interroger]");
+  await attendre(cdp.send, "[data-testid=contacts-creation-siren-erreur]");
+  await saisir(cdp.send, "[data-testid=contacts-creation-siren]", "100000108");
+  const tvaCalculee = String(
+    (await evaluate(cdp.send, `document.querySelector("[data-testid=contacts-creation-tva]")?.value ?? ""`)) ?? "",
+  );
+  if (!/^FR\d{2}100000108$/.test(tvaCalculee)) fail(`TVA calculée : ${tvaCalculee}`);
+  await saisir(cdp.send, "[data-testid=contacts-creation-denomination]", nomCreation);
+  await saisir(cdp.send, "[data-testid=contacts-creation-forme]", "5710");
+  await saisir(cdp.send, "[data-testid=contacts-creation-capital]", "50 000");
+  await saisir(cdp.send, "[data-testid=contacts-creation-greffe]", "Lyon");
+  await saisir(cdp.send, "[data-testid=contacts-creation-adresse]", "14 rue de la Forge");
+  await saisir(cdp.send, "[data-testid=contacts-creation-code-postal]", "69007");
+  await attendre(cdp.send, "select[data-testid=contacts-creation-commune]");
+  await cliquer(cdp.send, "[data-testid=contacts-creation-creer]");
+  let creee = "";
+  const debutCreation = Date.now();
+  while (Date.now() - debutCreation < 20_000) {
+    creee = (
+      await sqlServeur(
+        `SELECT COALESCE(siren,'') || '|' || COALESCE(numero_tva,'') || '|' || COALESCE(forme,'') || '|' || COALESCE(capital_centimes::text,'') FROM contacts WHERE nom = '${nomCreation}'`,
+      )
+    ).trim();
+    if (creee !== "") break;
+    await sleep(500);
+  }
+  if (creee !== `100000108|${tvaCalculee}|5710|5000000`) fail(`société créée depuis le formulaire : ${creee}`);
+  const siegeCree = (
+    await sqlServeur(
+      `SELECT valeur FROM contact_coordonnees WHERE contact_id = (SELECT id FROM contacts WHERE nom = '${nomCreation}') AND usage = 'siege'`,
+    )
+  ).trim();
+  if (!siegeCree.startsWith("14 rue de la Forge, 69007")) fail(`siège créé : ${siegeCree}`);
+  await attendre(cdp.send, "[data-testid=contacts-fiche] [data-testid=contacts-onglet-general]");
+  if ((await evaluate(cdp.send, `document.querySelector("[data-testid=contacts-nouveau-contact]") !== null`)) === true) {
+    fail("la création reste ouverte après Enregistrer");
+  }
+  ok("société créée depuis le formulaire");
   await attendre(cdp.send, `[data-testid=contacts-ligne][data-contact-id="${personneId}"]`);
   await cliquer(cdp.send, `[data-testid=contacts-ligne][data-contact-id="${personneId}"]`);
   await sleep(400);

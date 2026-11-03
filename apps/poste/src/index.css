@@ -3711,6 +3711,93 @@
     margin-top: 0;
   }
 
+  /* --- Contacts (création d'un contact dans la fiche, d'après la maquette) --- */
+  .contacts-nc {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .contacts-nc__corps {
+    min-height: 0;
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--espace-4) var(--espace-5) 96px;
+  }
+
+  .contacts-nc__form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espace-3);
+  }
+
+  .contacts-nc__champ {
+    min-width: 0;
+  }
+
+  .contacts-nc__g2,
+  .contacts-nc__g3,
+  .contacts-nc__cp,
+  .contacts-nc__siren {
+    display: grid;
+    gap: var(--espace-3);
+  }
+
+  .contacts-nc__g2 {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .contacts-nc__g3 {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .contacts-nc__cp {
+    grid-template-columns: 120px 1fr;
+  }
+
+  .contacts-nc__siren {
+    grid-template-columns: 1fr auto;
+    align-items: end;
+  }
+
+  .contacts-nc__aide {
+    display: block;
+    margin: var(--espace-1) 0 0;
+    font-size: var(--font-size-meta);
+    font-weight: 400;
+    color: var(--graphite);
+  }
+
+  .contacts-nc__aide--erreur {
+    color: var(--attente);
+  }
+
+  .contacts-nc__prop {
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px dashed var(--champ-bord);
+    font-size: var(--font-size-dense);
+  }
+
+  .contacts-nc__prop svg {
+    width: 16px;
+    height: 16px;
+    color: var(--neutre-accent);
+  }
+
+  .contacts-nc__pied {
+    display: flex;
+    gap: var(--espace-3);
+    align-items: center;
+    margin-top: var(--espace-1);
+  }
+
   .contacts-liens {
     display: flex;
     flex-direction: column;

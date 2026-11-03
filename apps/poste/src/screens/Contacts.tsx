@@ -12,7 +12,6 @@ import {
   IconUsers,
 } from "@tabler/icons-react";
 import {
-  champsFicheVides,
   compteursFiltres,
   FILTRES_CONTACTS,
   filtrerContacts,
@@ -51,7 +50,8 @@ import {
   lireNotesContact,
 } from "@/contacts/lireHistorique";
 import { DoublonsFiche, type DoublonDetecte } from "@/contacts/DoublonsFiche";
-import { CreationSociete } from "@/contacts/CreationSociete";
+import { NouveauContact } from "@/contacts/NouveauContact";
+import type { NatureCreation } from "@/contacts/creationContact";
 import { centimesDepuisSaisie, estMonnaie, MONNAIES, saisieDepuisCentimes } from "@/contacts/capitalFiche";
 import { poserCapital } from "@/contacts/poserCapital";
 import { poserDenomination } from "@/contacts/poserDenomination";
@@ -150,7 +150,7 @@ export function Contacts({
   const [recherche, setRecherche] = useState("");
   const [selection, setSelection] = useState<string | null>(selectionInitiale ?? null);
   const [onglet, setOnglet] = useState<OngletFicheContact>("general");
-  const [creation, setCreation] = useState<"choix" | "personne" | "societe" | "siren" | null>(null);
+  const [creation, setCreation] = useState<{ nature: NatureCreation; focusSiren: boolean } | null>(null);
   const [creees, setCreees] = useState<ContactListe[]>([]);
   const [liensAjoutes, setLiensAjoutes] = useState<LienAffiche[]>([]);
   const [archives, setArchives] = useState<ReadonlySet<string>>(new Set());
@@ -480,6 +480,7 @@ export function Contacts({
                               data-contact-id={contact.id}
                               data-selected={selectionne ? "true" : "false"}
                               onClick={() => {
+                                setCreation(null);
                                 setSelection(contact.id);
                                 setOnglet("general");
                               }}
@@ -525,7 +526,36 @@ export function Contacts({
             </div>
           </div>
           <div className="flex min-h-0 flex-col overflow-hidden" data-testid="contacts-fiche">
-            {choisi === null ? (
+            {creation !== null ? (
+              <NouveauContact
+                nature={creation.nature}
+                focusSiren={creation.focusSiren}
+                horsLigne={horsLigne}
+                instanceUrl={instanceUrl}
+                propositionFixe={propositionFixe}
+                contacts={lignes ?? []}
+                onNature={(nature) => {
+                  setCreation({ nature, focusSiren: nature === "morale" });
+                }}
+                onCreee={(contact) => {
+                  setCreees((etat) => [...etat, contact]);
+                  setSelection(contact.id);
+                  setOnglet("general");
+                  setCreation(null);
+                }}
+                onDirigeantCree={(contact) => {
+                  setCreees((etat) => [...etat, contact]);
+                }}
+                onOuvrir={(id) => {
+                  setSelection(id);
+                  setOnglet("general");
+                  setCreation(null);
+                }}
+                onAnnuler={() => {
+                  setCreation(null);
+                }}
+              />
+            ) : choisi === null ? (
               <p className="etat-vide px-6 pt-6">{fr("Choisissez un contact pour voir sa fiche.")}</p>
             ) : (
               <>
@@ -729,7 +759,7 @@ export function Contacts({
             label: "Nouveau contact",
             testId: "contacts-nouveau",
             onClick: () => {
-              setCreation("choix");
+              setCreation({ nature: "physique", focusSiren: false });
             },
           },
           {
@@ -737,7 +767,7 @@ export function Contacts({
             label: "Importer par SIREN",
             testId: "contacts-importer-siren",
             onClick: () => {
-              setCreation("siren");
+              setCreation({ nature: "morale", focusSiren: true });
             },
           },
           {
@@ -750,173 +780,6 @@ export function Contacts({
           },
         ]}
       />
-      <PanneauLateral
-        ouvert={creation !== null}
-        titre={
-          creation === "personne"
-            ? "Nouvelle personne"
-            : creation === "choix"
-              ? "Nouveau contact"
-              : "Nouvelle société"
-        }
-        sousTitre={
-          creation === "personne"
-            ? "Saisie personne : civilité et nom. La fiche rejoint l'annuaire du cabinet."
-            : creation === "choix"
-              ? "Choisissez une personne ou une société."
-              : "La fiche rejoint l'annuaire commun du cabinet."
-        }
-        onFermer={() => {
-          setCreation(null);
-        }}
-        testId="contacts-panneau-creation"
-      >
-        {creation === "choix" ? (
-          <div className="flex flex-col gap-2" data-testid="contacts-creation-choix">
-            <button
-              type="button"
-              className="bouton"
-              data-testid="contacts-nouvelle-personne"
-              onClick={() => {
-                setCreation("personne");
-              }}
-            >
-              <IconUser size={15} stroke={1.8} aria-hidden />
-              {fr("Personne")}
-            </button>
-            <button
-              type="button"
-              className="bouton"
-              data-testid="contacts-nouvelle-societe"
-              onClick={() => {
-                setCreation("societe");
-              }}
-            >
-              <IconBuilding size={15} stroke={1.8} aria-hidden />
-              {fr("Société")}
-            </button>
-          </div>
-        ) : null}
-        {creation === "personne" ? (
-          <CreationPersonne
-            onCreee={(contact) => {
-              setCreees((etat) => [...etat, contact]);
-              setSelection(contact.id);
-              setCreation(null);
-            }}
-          />
-        ) : null}
-        {creation === "societe" || creation === "siren" ? (
-          <CreationSociete
-            sansEntete
-            horsLigne={horsLigne}
-            instanceUrl={instanceUrl}
-            propositionFixe={propositionFixe}
-            onFermer={() => {
-              setCreation(null);
-            }}
-            onCreee={(contact) => {
-              setCreees((etat) => [...etat, contact]);
-              setSelection(contact.id);
-            }}
-            contacts={lignes ?? []}
-          />
-        ) : null}
-      </PanneauLateral>
-    </div>
-  );
-}
-
-function CreationPersonne({ onCreee }: { onCreee: (contact: ContactListe) => void }) {
-  const [civilite, setCivilite] = useState<string | null>(null);
-  const [prenoms, setPrenoms] = useState("");
-  const [nom, setNom] = useState("");
-  const [message, setMessage] = useState("");
-
-  const creer = () => {
-    setMessage("");
-    const nette = normaliserIdentite({
-      civilite,
-      accord: null,
-      prenoms,
-      nom,
-      nomNaissance: null,
-      dateNaissance: null,
-      lieuNaissance: null,
-      nationalite: null,
-      profession: null,
-    });
-    if (nette === null) {
-      setMessage("Le nom est requis.");
-      return;
-    }
-    onCreee({
-      id: crypto.randomUUID(),
-      nature: "physique",
-      nom: nette.nom,
-      siren: null,
-      numeroTva: null,
-      typeClient: "particulier",
-      professionReglementee: false,
-      ...champsFicheVides(),
-      civilite: nette.civilite,
-      prenoms: nette.prenoms,
-    });
-  };
-
-  return (
-    <div className="flex flex-col gap-3" data-testid="contacts-creation-personne">
-      <p data-testid="contacts-creation-personne-message">
-        {fr("Saisie personne : civilité et nom. La fiche est créée localement comme pour un dirigeant proposé.")}
-      </p>
-      <label className="flex flex-col gap-1">
-        <span className="etiquette-champ">{fr("Civilité")}</span>
-        <select
-          className="champ"
-          data-testid="contacts-creation-civilite"
-          value={civilite ?? ""}
-          onChange={(event) => {
-            setCivilite(event.target.value === "" ? null : event.target.value);
-          }}
-        >
-          <option value="">{fr("Non renseignée")}</option>
-          {optionsCivilite(civilite).map((libelle) => (
-            <option key={libelle} value={libelle}>
-              {fr(libelle)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="flex flex-col gap-1">
-        <span className="etiquette-champ">{fr("Prénoms")}</span>
-        <input
-          className="champ"
-          data-testid="contacts-creation-prenoms"
-          value={prenoms}
-          onChange={(event) => {
-            setPrenoms(event.target.value);
-          }}
-        />
-      </label>
-      <label className="flex flex-col gap-1">
-        <span className="etiquette-champ">{fr("Nom")}</span>
-        <input
-          className="champ"
-          data-testid="contacts-creation-nom"
-          value={nom}
-          onChange={(event) => {
-            setNom(event.target.value);
-          }}
-        />
-      </label>
-      <button type="button" className="bouton bouton--prim self-start" data-testid="contacts-creation-personne-creer" onClick={creer}>
-        {fr("Créer la fiche")}
-      </button>
-      {message !== "" ? (
-        <p className="message-attention" data-testid="contacts-creation-personne-erreur">
-          {fr(message)}
-        </p>
-      ) : null}
     </div>
   );
 }

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Captures côte à côte maquette Contacts (prototype-contacts.html) :
- * Ferrand Métal (Général), Antoine Ferrand (Liens), mode Importer SIREN ;
+ * Ferrand Métal (Général), Antoine Ferrand (Liens), création d'un contact (personne physique),
+ * Importer par SIREN (société déjà dans l'annuaire, puis société trouvée au registre) ;
  * 1 366 × 768, 1 920 × 1 080, 2 560 × 1 440 ; jour et nuit.
  * Écrit dans design/captures/contacts-maquette/ et un index Markdown.
  *
@@ -27,6 +28,8 @@ const SCENES = [
   { id: "ferrand-general", contact: "ferrand", onglet: "general" },
   { id: "antoine-liens", contact: "antoine", onglet: "liens" },
   { id: "importer-siren", mode: "siren" },
+  { id: "nouveau-personne", mode: "personne" },
+  { id: "importer-siren-resultat", mode: "siren-resultat" },
 ];
 
 const browser = await chromium.launch();
@@ -40,6 +43,29 @@ async function theme(nom) {
 }
 
 async function scene(s) {
+  if (s.mode === "personne") {
+    await page.evaluate(() => {
+      etat.mode = "nouveau";
+      etat.nat = "pp";
+      etat.reg = null;
+      etat.siren = "";
+      etat.cp = "";
+      render();
+    });
+    return;
+  }
+  if (s.mode === "siren-resultat") {
+    await page.evaluate(() => {
+      etat.mode = "nouveau";
+      etat.nat = "pm";
+      etat.reg = null;
+      etat.siren = "879201341";
+      etat.cp = "";
+      render();
+    });
+    await page.click("#chercher");
+    return;
+  }
   if (s.mode === "siren") {
     await page.evaluate(() => {
       etat.mode = "nouveau";

@@ -1,66 +1,101 @@
-import { useState } from "react";
-import { apiUrl } from "@/lib/auth/client";
-import { dirigeantsDepuisJson } from "@/contacts/dirigeants";
+import { useEffect, useRef, useState } from "react";
+import { IconBuildingBank, IconGitMerge } from "@tabler/icons-react";
+import {
+  champsDepuisProposition,
+  communeRetenue,
+  controleSiren,
+  doublonSiren,
+  optionsCommune,
+  optionsForme,
+  tvaCalculee,
+} from "@/contacts/creationContact";
+import { contactDepuisSociete, corpsCreationSociete, preparerCreation } from "@/contacts/creerSociete";
 import { DirigeantsProposes } from "@/contacts/DirigeantsProposes";
-import { preparerCreation } from "@/contacts/creerSociete";
-import { champsFicheVides, libelleCapital, type ContactListe } from "@/contacts/listeContacts";
-import { champsRetenus, lignesProposition, type PropositionSiren } from "@/contacts/propositionSiren";
+import { chercherSirenRegistre, enregistrerContact } from "@/contacts/enregistrerContact";
+import { libelleListeContact, type ContactListe } from "@/contacts/listeContacts";
+import { propositionDepuisJson, type PropositionSiren } from "@/contacts/propositionSiren";
 import { fr } from "@/lib/fr";
-import { assurerJetonAcces } from "@/lib/session/rafraichir";
 
 type CreationSocieteProps = {
   horsLigne?: boolean;
   instanceUrl?: string;
   propositionFixe?: PropositionSiren | null;
-  onCreee: (contact: ContactListe) => void;
-  onFermer: () => void;
   contacts?: readonly ContactListe[];
-  /** Sans titre ni bouton Fermer : le panneau latéral porte déjà l'en-tête. */
-  sansEntete?: boolean;
+  /** Place le curseur dans le champ SIREN (« Importer par SIREN »). */
+  focusSiren?: boolean;
+  /** La fiche est enregistrée : l'écran l'ouvre. */
+  onCreee: (contact: ContactListe) => void;
+  /** Fiche créée pour un dirigeant proposé : elle rejoint la liste sans quitter le formulaire. */
+  onDirigeantCree: (contact: ContactListe) => void;
+  /** Ouvre la fiche déjà présente dans l'annuaire. */
+  onOuvrir: (id: string) => void;
+  onAnnuler: () => void;
 };
 
-const FICHE_VIDE = { nom: "", forme: null, adresseSiege: null, activite: null };
-
-function lireProposition(json: unknown): PropositionSiren | null {
-  if (json === null || typeof json !== "object") return null;
-  const ligne = json as Record<string, unknown>;
-  const texte = (cle: string): string | null => (typeof ligne[cle] === "string" ? ligne[cle] : null);
-  if (typeof ligne.siren !== "string") return null;
-  return {
-    siren: ligne.siren,
-    denomination: texte("denomination"),
-    forme: texte("forme"),
-    adresseSiege: texte("adresse_siege"),
-    activite: texte("activite"),
-    dirigeants: dirigeantsDepuisJson(ligne.dirigeants),
-  };
-}
-
+/** Formulaire de création d'une personne morale, d'après le rendu de création de la maquette. */
 export function CreationSociete({
   horsLigne = false,
   instanceUrl,
   propositionFixe = null,
-  onCreee,
-  onFermer,
   contacts = [],
-  sansEntete = false,
+  focusSiren = false,
+  onCreee,
+  onDirigeantCree,
+  onOuvrir,
+  onAnnuler,
 }: CreationSocieteProps) {
   const [siren, setSiren] = useState("");
   const [denomination, setDenomination] = useState("");
   const [forme, setForme] = useState("");
-  const [activite, setActivite] = useState("");
-  const [adresse, setAdresse] = useState("");
-  const [greffe, setGreffe] = useState("");
   const [capital, setCapital] = useState("");
+  const [greffe, setGreffe] = useState("");
+  const [tvaManuelle, setTvaManuelle] = useState<string | null>(null);
+  const [voie, setVoie] = useState("");
+  const [codePostal, setCodePostal] = useState("");
+  const [commune, setCommune] = useState("");
+  const [activite, setActivite] = useState("");
   const [proposition, setProposition] = useState<PropositionSiren | null>(null);
-  const [coches, setCoches] = useState({ denomination: false, forme: false, adresseSiege: false, activite: false });
+  const [aideSiren, setAideSiren] = useState("");
+  const [doublon, setDoublon] = useState<ContactListe | null>(null);
   const [message, setMessage] = useState("");
-  const [source, setSource] = useState("");
+  const [enCours, setEnCours] = useState(false);
+  const champSiren = useRef<HTMLInputElement | null>(null);
 
-  const interroger = () => {
+  useEffect(() => {
+    if (focusSiren) champSiren.current?.focus();
+  }, [focusSiren]);
+
+  const tva = tvaManuelle ?? tvaCalculee(siren) ?? "";
+  const communes = optionsCommune(codePostal, commune);
+
+  const appliquer = (recue: PropositionSiren) => {
+    setProposition(recue);
+    const champs = champsDepuisProposition(recue);
+    if (champs.denomination !== "") setDenomination(champs.denomination);
+    if (champs.forme !== "") setForme(champs.forme);
+    if (champs.voie !== "") setVoie(champs.voie);
+    if (champs.codePostal !== "") setCodePostal(champs.codePostal);
+    if (champs.commune !== "") setCommune(champs.commune);
+    if (champs.activite !== "") setActivite(champs.activite);
+  };
+
+  const chercher = () => {
     setMessage("");
+    setDoublon(null);
+    const erreur = controleSiren(siren);
+    setAideSiren(erreur ?? "");
+    if (erreur !== null) {
+      setProposition(null);
+      return;
+    }
+    const present = doublonSiren(siren, contacts);
+    if (present !== null) {
+      setProposition(null);
+      setDoublon(present);
+      return;
+    }
     if (propositionFixe !== null) {
-      setProposition(propositionFixe);
+      appliquer(propositionFixe);
       return;
     }
     if (instanceUrl === undefined) {
@@ -68,56 +103,28 @@ export function CreationSociete({
       return;
     }
     void (async () => {
-      const jeton = await assurerJetonAcces();
-      if (jeton === null) {
-        setMessage("La session a expiré. Reconnectez-vous.");
-        return;
-      }
       try {
-        const reponse = await fetch(apiUrl(instanceUrl, `/contacts/recherche-siren/${encodeURIComponent(siren.trim())}`), {
-          headers: { authorization: `Bearer ${jeton}` },
-          signal: AbortSignal.timeout(12_000),
-        });
-        const json: unknown = await reponse.json().catch(() => null);
-        if (!reponse.ok) {
-          const corps = json as { message?: string } | null;
-          setProposition(null);
-          setMessage(corps?.message ?? "Le registre des entreprises est indisponible. La saisie manuelle reste possible.");
-          return;
-        }
-        const lue = lireProposition(json);
+        const json = await chercherSirenRegistre(instanceUrl, siren.replace(/\D/g, ""));
+        const lue = propositionDepuisJson(json);
         if (lue === null) {
           setMessage("Le registre des entreprises est indisponible. La saisie manuelle reste possible.");
           return;
         }
-        setProposition(lue);
-      } catch {
+        appliquer(lue);
+      } catch (err) {
         setProposition(null);
-        setMessage("Le registre des entreprises est indisponible. La saisie manuelle reste possible.");
+        setMessage(err instanceof Error ? err.message : "Le registre des entreprises est indisponible.");
       }
     })();
   };
 
-  const retenir = (champ: "denomination" | "forme" | "adresseSiege" | "activite", coche: boolean) => {
-    setCoches((etat) => ({ ...etat, [champ]: coche }));
-    if (proposition === null) return;
-    const valeur =
-      champ === "denomination"
-        ? proposition.denomination
-        : champ === "forme"
-          ? proposition.forme
-          : champ === "adresseSiege"
-            ? proposition.adresseSiege
-            : proposition.activite;
-    const texte = coche ? (valeur ?? "") : "";
-    if (champ === "denomination") setDenomination(texte);
-    if (champ === "forme") setForme(texte);
-    if (champ === "adresseSiege") setAdresse(texte);
-    if (champ === "activite") setActivite(texte);
-  };
-
-  const creer = () => {
+  const enregistrer = () => {
     setMessage("");
+    const present = doublonSiren(siren, contacts);
+    if (present !== null) {
+      setDoublon(present);
+      return;
+    }
     let fiche;
     try {
       fiche = preparerCreation({
@@ -125,7 +132,10 @@ export function CreationSociete({
         denomination,
         forme,
         activite,
-        adresse,
+        adresse: voie,
+        codePostal,
+        commune,
+        tva,
         greffe,
         capitalEuros: capital,
         depuisRegistre: proposition !== null,
@@ -134,191 +144,245 @@ export function CreationSociete({
       setMessage(err instanceof Error ? err.message : "Création impossible.");
       return;
     }
-    const contact: ContactListe = {
-      id: crypto.randomUUID(),
-      nature: "morale",
-      nom: fiche.nom,
-      siren: fiche.siren,
-      numeroTva: null,
-      typeClient: "professionnel",
-      professionReglementee: false,
-      ...champsFicheVides(),
-      forme: fiche.forme,
-      activite: fiche.activite,
-      adresseSiege: fiche.adresseSiege,
-      greffe: fiche.greffe,
-      capitalLibelle: fiche.capitalCentimes === null ? null : libelleCapital(fiche.capitalCentimes, "EUR"),
-    };
+    const id = crypto.randomUUID();
+    const contact = contactDepuisSociete(fiche, id);
     if (instanceUrl === undefined || propositionFixe !== null) {
       onCreee(contact);
-      setSource(fiche.depuisRegistre ? "Source : Recherche d'entreprises." : "Fiche créée.");
       return;
     }
+    setEnCours(true);
     void (async () => {
-      const jeton = await assurerJetonAcces();
-      if (jeton === null) {
-        setMessage("La session a expiré. Reconnectez-vous.");
-        return;
-      }
       try {
-        const reponse = await fetch(apiUrl(instanceUrl, "/contacts"), {
-          method: "POST",
-          headers: { authorization: `Bearer ${jeton}`, "content-type": "application/json" },
-          body: JSON.stringify({
-            id: contact.id,
-            idempotence_cle: crypto.randomUUID(),
-            nature: "morale",
-            nom: fiche.nom,
-            siren: fiche.siren,
-            type_client: "professionnel",
-            forme: fiche.forme,
-            activite: fiche.activite,
-            greffe_rcs: fiche.greffe,
-            capital_centimes: fiche.capitalCentimes,
-            monnaie: fiche.capitalCentimes === null ? null : "EUR",
-            depuis_registre: fiche.depuisRegistre,
-          }),
-          signal: AbortSignal.timeout(12_000),
-        });
-        const json: unknown = await reponse.json().catch(() => null);
-        if (!reponse.ok) {
-          const corps = json as { message?: string } | null;
-          setMessage(corps?.message ?? "La fiche n'a pas été créée.");
-          return;
-        }
-        if (fiche.adresseSiege !== null) {
-          await fetch(apiUrl(instanceUrl, `/contacts/${contact.id}/coordonnees`), {
-            method: "POST",
-            headers: { authorization: `Bearer ${jeton}`, "content-type": "application/json" },
-            body: JSON.stringify({
-              id: crypto.randomUUID(),
-              idempotence_cle: crypto.randomUUID(),
-              genre: "adresse",
-              usage: "siege",
-              valeur: fiche.adresseSiege,
-              principale: true,
-            }),
-          });
-        }
+        await enregistrerContact(
+          instanceUrl,
+          id,
+          corpsCreationSociete(fiche, id, crypto.randomUUID()),
+          fiche.adresseSiege === null ? null : { usage: "siege", valeur: fiche.adresseSiege },
+        );
         onCreee(contact);
-        setSource(fiche.depuisRegistre ? "Source : Recherche d'entreprises." : "Fiche créée.");
-      } catch {
-        setMessage("La fiche n'a pas été créée. La saisie manuelle reste possible.");
+      } catch (err) {
+        setMessage(err instanceof Error ? err.message : "La fiche n'a pas été créée.");
+        setEnCours(false);
       }
     })();
   };
 
-  const lignes = proposition === null ? [] : lignesProposition(FICHE_VIDE, proposition);
-  const retenus = proposition === null ? {} : champsRetenus(proposition, coches);
-
   return (
-    <div className={`flex flex-col gap-3${sansEntete ? "" : " px-6 py-5"}`} data-testid="contacts-creation">
-      {sansEntete ? null : (
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-[length:var(--font-size-section)] font-extrabold">{fr("Nouvelle société")}</h2>
-          <button type="button" className="filtre" onClick={onFermer}>
-            {fr("Fermer")}
+    <div className="contacts-nc__form" data-testid="contacts-creation">
+      <div>
+        <div className="contacts-nc__siren">
+          <label className="contacts-nc__champ">
+            <span className="etiquette-champ">{fr("SIREN")}</span>
+            <input
+              ref={champSiren}
+              className="champ"
+              inputMode="numeric"
+              placeholder={fr("9 chiffres")}
+              data-testid="contacts-creation-siren"
+              aria-invalid={aideSiren !== "" ? "true" : undefined}
+              value={siren}
+              onChange={(event) => {
+                setSiren(event.target.value);
+              }}
+            />
+          </label>
+          <button
+            type="button"
+            className="contacts-act"
+            data-testid="contacts-creation-interroger"
+            disabled={horsLigne || siren.trim() === ""}
+            onClick={chercher}
+          >
+            <IconBuildingBank size={14} stroke={1.8} aria-hidden />
+            {fr("Chercher dans le registre")}
           </button>
         </div>
-      )}
-      <label className="block">
-        <span className="mb-1 block text-[length:var(--font-size-dense)]">{fr("SIREN")}</span>
-        <input
-          className="champ w-full"
-          data-testid="contacts-creation-siren"
-          value={siren}
-          onChange={(event) => {
-            setSiren(event.target.value);
-          }}
-        />
-      </label>
-      <button
-        type="button"
-        className="filtre self-start"
-        data-testid="contacts-creation-interroger"
-        disabled={horsLigne || siren.trim() === ""}
-        onClick={interroger}
-      >
-        {fr("Interroger le registre")}
-      </button>
+        {aideSiren !== "" ? (
+          <p className="contacts-nc__aide contacts-nc__aide--erreur" data-testid="contacts-creation-siren-erreur">
+            {fr(aideSiren)}
+          </p>
+        ) : (
+          <p className="contacts-nc__aide">
+            {fr("Le registre propose la dénomination, la forme et l'adresse du siège.")}
+          </p>
+        )}
+      </div>
       {horsLigne ? (
         <p className="message-attention">{fr("Hors ligne : la saisie manuelle reste possible.")}</p>
       ) : null}
-      {proposition !== null ? (
-        <div data-testid="contacts-creation-proposition">
-          <p className="text-[length:var(--font-size-dense)] text-graphite">
-            {fr("Le capital et le greffe ne figurent pas au registre : ils restent à saisir.")}
-          </p>
-          <ul className="mt-2 flex flex-col gap-2">
-            {lignes.map((ligne) => (
-              <li key={ligne.champ} className="grid grid-cols-[auto_1fr_1fr] gap-2">
-                <input
-                  type="checkbox"
-                  data-testid={`contacts-creation-retenir-${ligne.champ}`}
-                  checked={coches[ligne.champ]}
-                  onChange={(event) => {
-                    retenir(ligne.champ, event.target.checked);
-                  }}
-                />
-                <p data-testid={`contacts-creation-ancien-${ligne.champ}`}>{fr(`${ligne.libelle} : ${ligne.ancien}`)}</p>
-                <p data-testid={`contacts-creation-registre-${ligne.champ}`}>{fr(ligne.registre)}</p>
-              </li>
-            ))}
-          </ul>
-          <p className="sr-only">{Object.keys(retenus).length}</p>
+      {doublon !== null ? (
+        <div className="alerte" data-testid="contacts-creation-doublon">
+          <IconGitMerge size={16} stroke={1.7} aria-hidden />
+          <div>
+            <b>{fr("Cette société est déjà dans l'annuaire :")}</b> {fr(libelleListeContact(doublon))}.
+          </div>
+          <button
+            type="button"
+            className="contacts-act"
+            data-testid="contacts-creation-doublon-ouvrir"
+            onClick={() => {
+              onOuvrir(doublon.id);
+            }}
+          >
+            {fr("Ouvrir la fiche")}
+          </button>
         </div>
       ) : null}
-      <label className="block">
-        <span className="mb-1 block text-[length:var(--font-size-dense)]">{fr("Dénomination")}</span>
+      {proposition !== null ? (
+        <div className="contacts-nc__prop" data-testid="contacts-creation-proposition">
+          <IconBuildingBank size={16} stroke={1.8} aria-hidden />
+          <div>
+            {fr(
+              "Proposé par le registre national des entreprises. Vérifiez chaque champ avant d'enregistrer ; le capital et le greffe ne sont pas publiés par ce registre.",
+            )}
+          </div>
+        </div>
+      ) : null}
+      <div className="contacts-nc__g2">
+        <label className="contacts-nc__champ">
+          <span className="etiquette-champ">{fr("Dénomination")}</span>
+          <input
+            className="champ"
+            data-testid="contacts-creation-denomination"
+            value={denomination}
+            onChange={(event) => {
+              setDenomination(event.target.value);
+            }}
+          />
+        </label>
+        <label className="contacts-nc__champ">
+          <span className="etiquette-champ">{fr("Forme")}</span>
+          <select
+            className="champ"
+            data-testid="contacts-creation-forme"
+            value={forme}
+            onChange={(event) => {
+              setForme(event.target.value);
+            }}
+          >
+            <option value="">{fr("Non renseignée")}</option>
+            {optionsForme(forme).map((option) => (
+              <option key={option.code} value={option.code}>
+                {fr(option.libelle)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="contacts-nc__g3">
+        <label className="contacts-nc__champ">
+          <span className="etiquette-champ">{fr("Capital")}</span>
+          <input
+            className="champ"
+            inputMode="numeric"
+            placeholder={fr("En euros")}
+            data-testid="contacts-creation-capital"
+            value={capital}
+            onChange={(event) => {
+              setCapital(event.target.value);
+            }}
+          />
+        </label>
+        <label className="contacts-nc__champ">
+          <span className="etiquette-champ">{fr("Greffe du RCS")}</span>
+          <input
+            className="champ"
+            data-testid="contacts-creation-greffe"
+            value={greffe}
+            onChange={(event) => {
+              setGreffe(event.target.value);
+            }}
+          />
+        </label>
+        <label className="contacts-nc__champ">
+          <span className="etiquette-champ">{fr("N° TVA intracommunautaire")}</span>
+          <input
+            className="champ"
+            data-testid="contacts-creation-tva"
+            value={tva}
+            onChange={(event) => {
+              setTvaManuelle(event.target.value);
+            }}
+          />
+          <span className="contacts-nc__aide">{fr("Calculé à partir du SIREN")}</span>
+        </label>
+      </div>
+      <label className="contacts-nc__champ">
+        <span className="etiquette-champ">{fr("Adresse du siège")}</span>
         <input
-          className="champ w-full"
-          data-testid="contacts-creation-denomination"
-          value={denomination}
+          className="champ"
+          data-testid="contacts-creation-adresse"
+          value={voie}
           onChange={(event) => {
-            setDenomination(event.target.value);
+            setVoie(event.target.value);
           }}
         />
       </label>
-      <label className="block">
-        <span className="mb-1 block text-[length:var(--font-size-dense)]">{fr("Capital (euros)")}</span>
-        <input
-          className="champ w-full"
-          data-testid="contacts-creation-capital"
-          value={capital}
-          onChange={(event) => {
-            setCapital(event.target.value);
-          }}
-        />
-      </label>
-      <label className="block">
-        <span className="mb-1 block text-[length:var(--font-size-dense)]">{fr("Greffe du RCS")}</span>
-        <input
-          className="champ w-full"
-          data-testid="contacts-creation-greffe"
-          value={greffe}
-          onChange={(event) => {
-            setGreffe(event.target.value);
-          }}
-        />
-      </label>
-      <button type="button" className="filtre self-start" data-testid="contacts-creation-creer" onClick={creer}>
-        {fr("Créer la fiche")}
-      </button>
+      <div className="contacts-nc__cp">
+        <label className="contacts-nc__champ">
+          <span className="etiquette-champ">{fr("Code postal")}</span>
+          <input
+            className="champ"
+            inputMode="numeric"
+            data-testid="contacts-creation-code-postal"
+            value={codePostal}
+            onChange={(event) => {
+              setCodePostal(event.target.value);
+            }}
+          />
+        </label>
+        <label className="contacts-nc__champ">
+          <span className="etiquette-champ">{fr("Commune")}</span>
+          {communes.length > 0 ? (
+            <select
+              className="champ"
+              data-testid="contacts-creation-commune"
+              value={communeRetenue(codePostal, commune)}
+              onChange={(event) => {
+                setCommune(event.target.value);
+              }}
+            >
+              {communes.map((nom) => (
+                <option key={nom} value={nom}>
+                  {fr(nom)}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              className="champ"
+              data-testid="contacts-creation-commune"
+              placeholder={fr(codePostal.trim().length === 5 ? "Commune à saisir" : "Proposée à partir du code postal")}
+              value={commune}
+              onChange={(event) => {
+                setCommune(event.target.value);
+              }}
+            />
+          )}
+        </label>
+      </div>
+      {proposition !== null ? (
+        <DirigeantsProposes dirigeants={proposition.dirigeants ?? []} contacts={contacts} onCreer={onDirigeantCree} />
+      ) : null}
       {message !== "" ? (
-        <p className="message-attention" data-testid="contacts-creation-message">
+        <p className="message-attention" role="alert" data-testid="contacts-creation-message">
           {fr(message)}
         </p>
       ) : null}
-      {source !== "" ? (
-        <p data-testid="contacts-creation-source">{fr(source)}</p>
-      ) : null}
-      {proposition !== null ? (
-        <DirigeantsProposes
-          dirigeants={proposition.dirigeants ?? []}
-          contacts={contacts}
-          onCreer={onCreee}
-        />
-      ) : null}
+      <div className="contacts-nc__pied">
+        <button
+          type="button"
+          className="bouton bouton--prim"
+          data-testid="contacts-creation-creer"
+          disabled={enCours}
+          onClick={enregistrer}
+        >
+          {fr("Enregistrer la fiche")}
+        </button>
+        <button type="button" className="bouton bouton--discret" data-testid="contacts-creation-annuler" onClick={onAnnuler}>
+          {fr("Annuler")}
+        </button>
+      </div>
     </div>
   );
 }

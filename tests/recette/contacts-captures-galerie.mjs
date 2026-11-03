@@ -2,7 +2,8 @@
 /**
  * Captures galerie Contacts (Vite) aux mêmes scènes, tailles et thèmes que la maquette
  * (`contacts-captures-maquette.mjs`) : SAS Ferrand Métal (Général), Antoine Ferrand (Liens),
- * Importer par SIREN ; 1 366 × 768, 1 920 × 1 080, 2 560 × 1 440 ; jour et nuit.
+ * création d'un contact (personne physique), Importer par SIREN (société déjà dans l'annuaire,
+ * puis société trouvée au registre) ; 1 366 × 768, 1 920 × 1 080, 2 560 × 1 440 ; jour et nuit.
  * Jeu de la galerie : celui de la maquette (famille Ferrand, dossier 2026-031).
  * Prérequis : `pnpm --filter @legal-os/poste dev` sur le port 1420.
  * Usage : node tests/recette/contacts-captures-galerie.mjs
@@ -30,6 +31,8 @@ const SCENES = [
   { id: "ferrand-general", contact: "ferrand", onglet: "general" },
   { id: "antoine-liens", contact: "antoine", onglet: "liens" },
   { id: "importer-siren", mode: "siren" },
+  { id: "nouveau-personne", mode: "personne" },
+  { id: "importer-siren-resultat", mode: "siren-resultat" },
 ];
 
 function fail(message) {
@@ -55,11 +58,21 @@ async function scene(s) {
   await page.keyboard.press("Escape");
   await page.locator("[data-testid=galerie-vue-dossiers]").click({ force: true });
   await ouvrirContacts();
-  if (s.mode === "siren") {
+  if (s.mode === "personne") {
+    await page.locator("[data-testid=contacts-nouveau]").click();
+    await page.locator("[data-testid=contacts-creation-personne]").waitFor({ timeout: 5_000 });
+    return;
+  }
+  if (s.mode === "siren" || s.mode === "siren-resultat") {
     await page.locator("[data-testid=contacts-importer-siren]").click();
     const champ = page.locator("[data-testid=contacts-creation-siren]");
     await champ.waitFor({ timeout: 5_000 });
-    await champ.fill("903417566");
+    // Comme la maquette : le SIREN de Ferrand Métal est déjà dans l'annuaire ; l'autre vient du registre.
+    await champ.fill(s.mode === "siren" ? "812345676" : "879201341");
+    await page.locator("[data-testid=contacts-creation-interroger]").click();
+    await page
+      .locator(s.mode === "siren" ? "[data-testid=contacts-creation-doublon]" : "[data-testid=contacts-creation-proposition]")
+      .waitFor({ timeout: 5_000 });
     return;
   }
   await page.locator(`[data-testid=contacts-ligne][data-contact-id="${s.contact}"]`).click();

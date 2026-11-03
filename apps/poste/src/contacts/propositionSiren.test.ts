@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { champsRetenus, lignesProposition, type PropositionSiren } from "./propositionSiren.ts";
+import { champsRetenus, lignesProposition, propositionDepuisJson, type PropositionSiren } from "./propositionSiren.ts";
 
 const PROPOSITION: PropositionSiren = {
   siren: "100000009",
@@ -46,5 +46,23 @@ describe("proposition d'import par SIREN", () => {
       activite: true,
     });
     assert.deepEqual(retenus, { denomination: "DUCLOS INDUSTRIE", activite: "25.11Z" });
+  });
+});
+
+describe("réponse de l'instance", () => {
+  it("lit la proposition du registre et refuse une réponse sans SIREN", () => {
+    const lue = propositionDepuisJson({
+      siren: "100000009",
+      denomination: "DUCLOS INDUSTRIE",
+      forme: "5499",
+      adresse_siege: "8 QUAI SAINT-VINCENT 69001 LYON",
+      activite: null,
+      dirigeants: [],
+    });
+    assert.equal(lue?.denomination, "DUCLOS INDUSTRIE");
+    assert.equal(lue?.adresseSiege, "8 QUAI SAINT-VINCENT 69001 LYON");
+    assert.equal(lue?.activite, null);
+    assert.equal(propositionDepuisJson({ denomination: "X" }), null);
+    assert.equal(propositionDepuisJson(null), null);
   });
 });
