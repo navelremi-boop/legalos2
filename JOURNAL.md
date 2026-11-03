@@ -408,3 +408,19 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 2026-11-03 — Reprise (verrou agent pris) : Docker de nouveau actif (B24 levé de fait, instance healthy) ; lancement de node tests/recette/annuaire.mjs (parcours doublon modifié par 43473e9), puis écart 9 (création dans la fiche).
 2026-11-03 — annuaire.mjs : échec « onglets absents » (compteur ajouté aux onglets par 43473e9 : libellé « Liens3 ») ; assertion adaptée (libellé + compteur numérique facultatif) ; relance.
 2026-11-03 — annuaire.mjs OK (exit 0) après adaptation de l'assertion d'onglets au compteur (libellé + chiffres) ; un premier essai avait échoué en 502 (API en redémarrage), l'instance attendue saine avant relance.
+
+- **Annuaire, écart 9 soldé (03/11).** Création de contact dans la fiche d'après la maquette, commit `annuaire: création de contact dans la fiche`. Preuves relues par l'état-major : 93 tests unitaires verts ; `lint:ci`, `typecheck`, `coque-app`, `encodage-texte`, `regles-synchronisees` OK ; `annuaire.mjs` exit 0.
+
+  Écarts restants de la création (soumis au commandement) :
+  - 15 (dirigeants) : la maquette propose des cases « Dirigeants indiqués par le registre », créés et reliés à l'enregistrement ; l'app garde Relier / Créer une fiche / Ignorer, et « Créer une fiche » d'un dirigeant reste local, sans lien automatique.
+  - 16 (greffe) : maquette préremplie « Lyon » ; l'API ne renvoie pas le greffe, saisie manuelle ; le bandeau dit capital et greffe non publiés.
+  - 17 (bascule de nature) : pilule sombre en maquette, `.segment` en app (`docs/design.md` § 6), même question que le filtre actif (écart 14).
+  - 18 (valeurs par défaut) : civilité « Non renseignée » (maquette « Madame »), forme vide (maquette SAS) ; libellés de forme de la table INSEE.
+  - 19 (aide sous le SIREN) : texte d'app au lieu du texte de démonstration de la maquette.
+  - 20 (liste) : icône de loupe, filtre « Juridictions et administrations » et sous-titre « 4 juridictions… » absents (liés aux écarts 2 et 3) ; la ligne de la fiche précédente reste surlignée pendant la création.
+  - 21 (galerie) : commune en majuscules (base des codes postaux) ; « importer-siren-resultat » montre Ferrand Logistique, la maquette Atelier Bérard.
+  Restent ouverts d'avant : 2 et 3 (acceptés), 10, 11, 12, 13, 14.
+
+  Constat hors périmètre : 20 captures `design/captures/j11-mails/` modifiées dans l'arbre depuis une session précédente, non commitées, cause non établie (consigne de l'architecte du 13/10, point 4).
+
+**État de session.** Fait : écart 9 commité. En cours : Annuaire. Prochaine action : push et CI par `gh run view` ; preuve visuelle du contrôleur sur Contacts (captures galerie contre maquette à 1 366, 1 920 et 2 560) ; écarts 10 à 21 selon la réponse du commandement ; sans anticiper le classeur Documents ni l'aperçu des fichiers.
