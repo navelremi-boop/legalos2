@@ -405,3 +405,4 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 - **CI 82a5be9 (03/11).** CI [41684768100](https://github.com/navelremi-boop/legalos2/actions/runs/41684768100) : `gh run view` → `completed` / `success`, sept jobs verts. `43473e9` et `82a5be9` poussés.
 
 **État de session.** Fait : point 2 en partie (`43473e9`), CI verte. En cours : point 2. Prochaine action : écart 9 (création dans la fiche d'après la maquette, testids `contacts-creation-*` conservés), puis, après levée de B24, `node tests/recette/annuaire.mjs` et la preuve visuelle du contrôleur ; écarts 10 à 14 selon la réponse du commandement ; sans anticiper le classeur Documents ni l'aperçu des fichiers.
+2026-11-03 — Reprise (verrou agent pris) : Docker de nouveau actif (B24 levé de fait, instance healthy) ; lancement de node tests/recette/annuaire.mjs (parcours doublon modifié par 43473e9), puis écart 9 (création dans la fiche).
