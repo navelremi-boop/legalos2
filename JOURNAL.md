@@ -406,3 +406,5 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 
 **État de session.** Fait : point 2 en partie (`43473e9`), CI verte. En cours : point 2. Prochaine action : écart 9 (création dans la fiche d'après la maquette, testids `contacts-creation-*` conservés), puis, après levée de B24, `node tests/recette/annuaire.mjs` et la preuve visuelle du contrôleur ; écarts 10 à 14 selon la réponse du commandement ; sans anticiper le classeur Documents ni l'aperçu des fichiers.
 2026-11-03 — Reprise (verrou agent pris) : Docker de nouveau actif (B24 levé de fait, instance healthy) ; lancement de node tests/recette/annuaire.mjs (parcours doublon modifié par 43473e9), puis écart 9 (création dans la fiche).
+2026-11-03 — annuaire.mjs : échec « onglets absents » (compteur ajouté aux onglets par 43473e9 : libellé « Liens3 ») ; assertion adaptée (libellé + compteur numérique facultatif) ; relance.
+2026-11-03 — annuaire.mjs OK (exit 0) après adaptation de l'assertion d'onglets au compteur (libellé + chiffres) ; un premier essai avait échoué en 502 (API en redémarrage), l'instance attendue saine avant relance.

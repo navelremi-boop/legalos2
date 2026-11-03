@@ -326,7 +326,7 @@ try {
       const sexe = [...document.querySelectorAll("label, span")].some((el) => el.textContent.trim() === "Sexe");
       return {
         filtres: ["Tous", "Personnes", "Sociétés", "Professions"].every((mot) => boutons.some((b) => b.startsWith(mot))),
-        onglets: ["Général", "Liens", "Dossiers", "Factures", "Mails", "Notes"].every((mot) => boutons.includes(mot)),
+        onglets: ["Général", "Liens", "Dossiers", "Factures", "Mails", "Notes"].every((mot) => boutons.some((b) => b === mot || (b.startsWith(mot) && /^[0-9]+$/.test(b.slice(mot.length))))),
         options,
         fax,
         sexe,
