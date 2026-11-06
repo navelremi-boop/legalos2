@@ -426,3 +426,21 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
 **État de session.** Fait : écart 9 commité. En cours : Annuaire. Prochaine action : push et CI par `gh run view` ; preuve visuelle du contrôleur sur Contacts (captures galerie contre maquette à 1 366, 1 920 et 2 560) ; écarts 10 à 21 selon la réponse du commandement ; sans anticiper le classeur Documents ni l'aperçu des fichiers.
 
 - **CI 1437a05 (06/11).** CI [41727732188](https://github.com/navelremi-boop/legalos2/actions/runs/41727732188) : `gh run view` → `completed` / `success`, sept jobs verts (écart 9 poussé). Le run 41724406342 (`1c61c72`) a été annulé par le push suivant. Contrôleur lancé pour la preuve visuelle de Contacts.
+
+- **Contrôleur, preuve visuelle de Contacts : REFUSÉ (06/11).** Captures reproductibles (écart au plus 4/255 sur 0,34 % des pixels, bruit de rendu) ; `coque-app`, `lint:ci`, `typecheck`, 69 tests unitaires des contacts : exit 0 ; aucun débordement horizontal aux trois largeurs, feuille centrée à 1 120 px ; critères du jalon Annuaire non affaiblis (`git diff 074cc8d HEAD -- PLAN.md`). Limite de la preuve : les captures « maquette » à 1 366, 1 920 et 2 560 px sont toutes la fenêtre fixe `#win` de 1 240 × 801 : la maquette ne fournit aucune référence propre aux grands écrans ; la comparaison n'y est qu'indicative. Écarts NOUVEAUX (numérotés à la suite) :
+  - 22 (majeur, troncature) : la ligne de liste mesure 277 px (maquette environ 340) ; « Villefranche-sur-Saône, SIREN … » et « Expert-comptable, Lyon, SIREN 837… » coupés, contre `docs/design.md` § 3. Cause probable : `Contacts.tsx` utilise `ecran` sans `ecran--large`.
+  - 23 (majeur, composition) : l'Identité d'une société omet « Immatriculée le 4 avril 2019 » et la ligne de source (« Registre national des entreprises, importé le 2 octobre 2026. Capital saisi d'après le procès-verbal du 12 mars 2025. »), pourtant exigées par PLAN.md (import par SIREN).
+  - 24 (majeur, à trancher) : « Modifier » (en-tête Identité) et « Archiver » (bas de l'onglet Général) existent dans l'app et pas dans la maquette.
+  - 25 (mineur) : libellés de coordonnées « Adresse (Siège) », « Téléphone (Autre) »… contre « Siège », « Adresse de facturation », « Téléphone », « E-mail ».
+  - 26 (mineur) : greffe « RCS de Lyon » contre « Lyon ».
+  - 27 (majeur, état) : fiche d'une personne : seul le compteur de Liens est affiché, ceux de Dossiers et de Mails sont absents alors que la liste donne 1 dossier ; l'app ajoute « Factures » pour une personne, absent de la maquette (la maquette ajoute « Participations », écart 3).
+  - 28 (mineur) : espacement de l'onglet Liens (titre « Famille » collé aux mandats, environ 25 px contre 40).
+  - 29 (mineur, maquette contre `docs/design.md`) : étiquettes de champ en 700 et champs de 34 px dans l'app, 400 et 36 à 38 px dans la maquette.
+  - 30 (mineur) : données du registre en capitales (« FERRAND LOGISTIQUE », « SAINT-PRIEST ») ; TVA préremplie dans `importer-siren` alors que la maquette laisse le champ vide.
+  - 31 (mineur) : « Dirigeants du registre » contre « Dirigeants indiqués par le registre ».
+  - 32 (mineur) : jeu de la galerie sans « SAS Rhône Croissance Capital » ; la maquette est incohérente (« Tous 20 » pour 16 contacts), écart 1 à reformuler.
+  - 33 (mineur) : liste défilée jusqu'à la ligne sélectionnée au chargement (défendable) ; focus visible sur le code postal dans `nouveau-personne`.
+  Observation : à 2 560 px la fiche occupe environ 55 % de la hauteur de la feuille sur Liens et sur la création ; composition sous-utilisée mais sans défaut de débordement (laissé à l'appréciation du commandement, veto B9).
+  Non vérifié par le contrôleur : `annuaire.mjs` et Docker (hors consigne), poste construit, contrôle B9 sur l'écran du commandement. Sur ce poste, Vite n'écoute que sur `[::1]` : `contacts-captures-galerie.mjs` exige `LEGALOS_GALERIE_URL` (viser `localhost`).
+
+**État de session.** Fait : verdict du contrôleur consigné. En cours : Annuaire. Prochaine action : écarts 22, 23, 25, 26, 27, 28, 31 (alignement sans arbitrage) confiés à `poste-interface` ; 24, 29 et 30, 32, 33 à trancher par le commandement ; puis nouveau contrôle visuel.
