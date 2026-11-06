@@ -424,3 +424,5 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
   Constat hors périmètre : 20 captures `design/captures/j11-mails/` modifiées dans l'arbre depuis une session précédente, non commitées, cause non établie (consigne de l'architecte du 13/10, point 4).
 
 **État de session.** Fait : écart 9 commité. En cours : Annuaire. Prochaine action : push et CI par `gh run view` ; preuve visuelle du contrôleur sur Contacts (captures galerie contre maquette à 1 366, 1 920 et 2 560) ; écarts 10 à 21 selon la réponse du commandement ; sans anticiper le classeur Documents ni l'aperçu des fichiers.
+
+- **CI 1437a05 (06/11).** CI [41727732188](https://github.com/navelremi-boop/legalos2/actions/runs/41727732188) : `gh run view` → `completed` / `success`, sept jobs verts (écart 9 poussé). Le run 41724406342 (`1c61c72`) a été annulé par le push suivant. Contrôleur lancé pour la preuve visuelle de Contacts.
