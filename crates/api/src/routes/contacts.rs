@@ -140,6 +140,38 @@ pub struct CreerLienContactRequest {
     pub note: Option<String>,
 }
 
+/// Modification d'un lien. Un champ absent reste tel quel ; `null` ou une chaîne vide efface un champ
+/// facultatif (la file d'envoi du poste envoie `null` pour une colonne vidée). `contact_cible_id`
+/// ne change pas : un autre lien se crée.
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct PatchLienContactRequest {
+    pub base_revision: i64,
+    pub idempotence_cle: String,
+    pub type_lien: Option<String>,
+    #[serde(default, deserialize_with = "crate::routes::brouillons::double_option")]
+    #[schema(value_type = Option<String>)]
+    pub fonction: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::routes::brouillons::double_option")]
+    #[schema(value_type = Option<String>)]
+    pub libelle: Option<Option<String>>,
+    pub represente_societe: Option<bool>,
+    #[serde(default, deserialize_with = "crate::routes::brouillons::double_option")]
+    #[schema(value_type = Option<Uuid>)]
+    pub pour_le_compte_de: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "crate::routes::brouillons::double_option")]
+    #[schema(value_type = Option<String>)]
+    pub debut: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::routes::brouillons::double_option")]
+    #[schema(value_type = Option<String>)]
+    pub fin: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::routes::brouillons::double_option")]
+    #[schema(value_type = Option<String>)]
+    pub source: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::routes::brouillons::double_option")]
+    #[schema(value_type = Option<String>)]
+    pub note: Option<Option<String>>,
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 pub struct LienContactResponse {
     pub id: Uuid,
@@ -212,6 +244,7 @@ pub struct HistoriqueLigne {
         (status = 200, description = "Contact créé ou déjà présent", body = ContactResponse),
         (status = 400, description = "Requête invalide (nom, nature, type de client, SIREN ou TVA)", body = crate::error::ApiErrorBody),
         (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 409, description = "Adresse e-mail déjà portée par un autre contact du cabinet, ou identifiant déjà utilisé", body = crate::error::ApiErrorBody),
     )
 )]
 pub async fn creer_contact(
@@ -246,6 +279,29 @@ pub async fn creer_contact(
         .begin()
         .await
         .map_err(|_| ApiError::internal("Transaction"))?;
+    // Idempotence par identifiant : le poste choisit l'id ; un rejeu sous une autre clé ne duplique rien.
+    let proprietaire =
+        sqlx::query_scalar::<_, Uuid>("SELECT cabinet_id FROM contacts WHERE id = $1")
+            .bind(body.id)
+            .fetch_optional(
+                tx.acquire()
+                    .await
+                    .map_err(|_| ApiError::internal("Transaction"))?,
+            )
+            .await
+            .map_err(|_| ApiError::internal("lecture contact"))?;
+    match proprietaire {
+        Some(cabinet) if cabinet == claims.cabinet_id => {
+            tx.commit()
+                .await
+                .map_err(|_| ApiError::internal("Transaction"))?;
+            return lire_contact(&state, claims.cabinet_id, body.id)
+                .await
+                .map(Json);
+        }
+        Some(_) => return Err(ApiError::conflict("Identifiant déjà utilisé")),
+        None => {}
+    }
     let cle = cle_idempotence(claims.poste_id, &body.idempotence_cle);
     if !reserver_idempotence(&mut tx, &cle).await? {
         tx.commit()
@@ -320,7 +376,7 @@ pub async fn creer_contact(
             .map_err(|_| ApiError::internal("Transaction"))?,
     )
     .await
-    .map_err(|_| ApiError::internal("création contact"))?;
+    .map_err(erreur_creation_contact)?;
     if body.depuis_registre {
         crate::recherche_entreprises::poser_marque(&mut tx, body.id).await?;
     }
@@ -1211,6 +1267,7 @@ async fn lire_coordonnee(
         (status = 400, description = "Lien refusé", body = crate::error::ApiErrorBody),
         (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
         (status = 404, description = "Contact introuvable", body = crate::error::ApiErrorBody),
+        (status = 409, description = "Identifiant déjà utilisé par un autre lien", body = crate::error::ApiErrorBody),
     )
 )]
 pub async fn creer_lien(
@@ -1242,6 +1299,39 @@ pub async fn creer_lien(
         .begin()
         .await
         .map_err(|_| ApiError::internal("Transaction"))?;
+    // Rejeu : même identifiant (le poste le choisit) ou même clé ; aucun effet, état courant renvoyé.
+    let existant = sqlx::query_as::<_, (Uuid, Uuid)>(
+        "SELECT cabinet_id, contact_source_id FROM contact_liens WHERE id = $1",
+    )
+    .bind(body.id)
+    .fetch_optional(
+        tx.acquire()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?,
+    )
+    .await
+    .map_err(|_| ApiError::internal("lecture lien"))?;
+    match existant {
+        Some((cabinet, source)) if cabinet == claims.cabinet_id && source == contact_id => {
+            tx.commit()
+                .await
+                .map_err(|_| ApiError::internal("Transaction"))?;
+            return lire_lien(&state, claims.cabinet_id, body.id)
+                .await
+                .map(Json);
+        }
+        Some(_) => return Err(ApiError::conflict("Identifiant déjà utilisé")),
+        None => {}
+    }
+    let cle = cle_idempotence(claims.poste_id, &body.idempotence_cle);
+    if !reserver_idempotence(&mut tx, &cle).await? {
+        tx.commit()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?;
+        return lire_lien(&state, claims.cabinet_id, body.id)
+            .await
+            .map(Json);
+    }
     let source_ok = sqlx::query_scalar::<_, bool>(
         "SELECT EXISTS(SELECT 1 FROM contacts WHERE id = $1 AND cabinet_id = $2)",
     )
@@ -1293,15 +1383,6 @@ pub async fn creer_lien(
         if !ok {
             return Err(ApiError::not_found("Le mandant est introuvable"));
         }
-    }
-    let cle = cle_idempotence(claims.poste_id, &body.idempotence_cle);
-    if !reserver_idempotence(&mut tx, &cle).await? {
-        tx.commit()
-            .await
-            .map_err(|_| ApiError::internal("Transaction"))?;
-        return lire_lien(&state, claims.cabinet_id, body.id)
-            .await
-            .map(Json);
     }
     if body.represente_societe {
         let deja = sqlx::query_scalar::<_, bool>(
@@ -1356,7 +1437,7 @@ pub async fn creer_lien(
             .map_err(|_| ApiError::internal("Transaction"))?,
     )
     .await
-    .map_err(|_| ApiError::internal("création lien"))?;
+    .map_err(erreur_ecriture_lien)?;
     noter_historique(
         &mut tx,
         &ContexteChamp {
@@ -1376,6 +1457,306 @@ pub async fn creer_lien(
         .await
         .map_err(|_| ApiError::internal("Transaction"))?;
     lire_lien(&state, claims.cabinet_id, body.id)
+        .await
+        .map(Json)
+}
+
+/// Un e-mail déjà porté par un autre contact du cabinet est un refus lisible, sans l'adresse dans le message.
+fn erreur_creation_contact(erreur: sqlx::Error) -> ApiError {
+    let email_deja_pris = erreur
+        .as_database_error()
+        .is_some_and(|e| e.constraint() == Some("contacts_cabinet_email_unique"));
+    if email_deja_pris {
+        ApiError::conflict("Un autre contact du cabinet porte déjà cette adresse e-mail")
+    } else {
+        ApiError::internal("création contact")
+    }
+}
+
+/// Violation d'une contrainte de la table des liens : un refus lisible, jamais un 500.
+fn erreur_ecriture_lien(erreur: sqlx::Error) -> ApiError {
+    match erreur.as_database_error().and_then(|e| e.code()).as_deref() {
+        Some("23505") => ApiError::bad_request(
+            "Un mandat en cours représente déjà la société pour cette fonction",
+        ),
+        Some("23514") => ApiError::bad_request("Lien incohérent (dates)"),
+        _ => ApiError::internal("écriture lien"),
+    }
+}
+
+#[utoipa::path(
+    patch,
+    path = "/contact-liens/{lien_id}",
+    tag = "contacts",
+    security(("bearer_auth" = [])),
+    params(("lien_id" = Uuid, Path, description = "Identifiant du lien")),
+    request_body = PatchLienContactRequest,
+    responses(
+        (status = 200, description = "Lien modifié, ou déjà dans cet état (rejeu)", body = LienContactResponse),
+        (status = 400, description = "Modification refusée (fin avant début, mandat vers une personne physique, deuxième représentant en cours, version de base, clé d'idempotence)", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Non authentifié", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Lien ou mandant introuvable", body = crate::error::ApiErrorBody),
+    )
+)]
+pub async fn patch_lien(
+    State(state): State<Arc<AppState>>,
+    AuthAccess(claims): AuthAccess,
+    axum::extract::Path(lien_id): axum::extract::Path<Uuid>,
+    Json(body): Json<PatchLienContactRequest>,
+) -> Result<Json<LienContactResponse>, ApiError> {
+    if body.idempotence_cle.trim().is_empty() {
+        return Err(ApiError::bad_request("Clé d'idempotence requise"));
+    }
+    if body.type_lien.is_none()
+        && body.fonction.is_none()
+        && body.libelle.is_none()
+        && body.represente_societe.is_none()
+        && body.pour_le_compte_de.is_none()
+        && body.debut.is_none()
+        && body.fin.is_none()
+        && body.source.is_none()
+        && body.note.is_none()
+    {
+        return Err(ApiError::bad_request("Aucune modification demandée"));
+    }
+    let mut tx = state
+        .pool
+        .begin()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+    let (
+        cible_id,
+        type_actuel,
+        fonction_actuelle,
+        libelle_actuel,
+        represente_actuel,
+        mandant_actuel,
+        debut_actuel,
+        fin_actuelle,
+        source_actuelle,
+        note_actuelle,
+        revision_actuelle,
+    ) = sqlx::query_as::<
+        _,
+        (
+            Uuid,
+            String,
+            Option<String>,
+            Option<String>,
+            bool,
+            Option<Uuid>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            i64,
+        ),
+    >(
+        r#"
+        SELECT contact_cible_id, type_lien, fonction, libelle, represente_societe,
+               pour_le_compte_de, debut, fin, source, note, revision
+        FROM contact_liens WHERE id = $1 AND cabinet_id = $2 FOR UPDATE
+        "#,
+    )
+    .bind(lien_id)
+    .bind(claims.cabinet_id)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(|_| ApiError::internal("lecture lien"))?
+    .ok_or_else(|| ApiError::not_found("Lien introuvable"))?;
+    let cle = cle_idempotence(claims.poste_id, &body.idempotence_cle);
+    if !reserver_idempotence(&mut tx, &cle).await? {
+        tx.commit()
+            .await
+            .map_err(|_| ApiError::internal("Transaction"))?;
+        return lire_lien(&state, claims.cabinet_id, lien_id)
+            .await
+            .map(Json);
+    }
+    valider_base_revision(body.base_revision, revision_actuelle)?;
+
+    // Valeurs finales : mêmes contrôles que la création, refaits sur le lien tel qu'il sera.
+    let type_final = body
+        .type_lien
+        .as_deref()
+        .map_or_else(|| type_actuel.clone(), |t| t.trim().to_string());
+    let champ_final = |nouveau: &Option<Option<String>>, actuel: &Option<String>| match nouveau {
+        Some(valeur) => texte_option(valeur),
+        None => actuel.clone(),
+    };
+    let fonction_finale = champ_final(&body.fonction, &fonction_actuelle);
+    let libelle_final = champ_final(&body.libelle, &libelle_actuel);
+    let debut_final = champ_final(&body.debut, &debut_actuel);
+    let fin_finale = champ_final(&body.fin, &fin_actuelle);
+    let source_finale = champ_final(&body.source, &source_actuelle);
+    let note_finale = champ_final(&body.note, &note_actuelle);
+    let represente_final = body.represente_societe.unwrap_or(represente_actuel);
+    let mandant_final = body.pour_le_compte_de.unwrap_or(mandant_actuel);
+    crate::fiche_contact::valider_lien(
+        &type_final,
+        fonction_finale.as_deref(),
+        libelle_final.as_deref(),
+        debut_final.as_deref(),
+        fin_finale.as_deref(),
+        represente_final,
+    )?;
+    if type_final == "mandat_social" {
+        let nature_cible = sqlx::query_scalar::<_, String>(
+            "SELECT nature FROM contacts WHERE id = $1 AND cabinet_id = $2",
+        )
+        .bind(cible_id)
+        .bind(claims.cabinet_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|_| ApiError::internal("lecture contact"))?
+        .ok_or_else(|| ApiError::not_found("Contact introuvable"))?;
+        if nature_cible != "morale" {
+            return Err(ApiError::bad_request(
+                "Un mandat social vise une personne morale",
+            ));
+        }
+    }
+    if let Some(mandant) = mandant_final.filter(|m| Some(*m) != mandant_actuel) {
+        let ok = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM contacts WHERE id = $1 AND cabinet_id = $2)",
+        )
+        .bind(mandant)
+        .bind(claims.cabinet_id)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|_| ApiError::internal("lecture contact"))?;
+        if !ok {
+            return Err(ApiError::not_found("Le mandant est introuvable"));
+        }
+    }
+    if type_final == "mandat_social" && represente_final && fin_finale.is_none() {
+        let deja = sqlx::query_scalar::<_, bool>(
+            r#"
+            SELECT EXISTS(
+                SELECT 1 FROM contact_liens
+                WHERE id <> $3 AND cabinet_id = $4 AND contact_cible_id = $1 AND fonction = $2
+                  AND represente_societe AND fin IS NULL AND type_lien = 'mandat_social'
+            )
+            "#,
+        )
+        .bind(cible_id)
+        .bind(fonction_finale.as_deref())
+        .bind(lien_id)
+        .bind(claims.cabinet_id)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|_| ApiError::internal("lecture lien"))?;
+        if deja {
+            return Err(ApiError::bad_request(
+                "Un mandat en cours représente déjà la société pour cette fonction",
+            ));
+        }
+    }
+
+    // Dernière écriture gagnante par champ, journalisée (conflit : autre poste depuis base_revision).
+    let contexte = ContexteChamp {
+        cabinet_id: claims.cabinet_id,
+        poste_id: claims.poste_id,
+        auteur_id: claims.sub,
+        base_revision: body.base_revision,
+        enregistrement_id: lien_id,
+        table_cible: "contact_liens",
+        dossier_id: None,
+    };
+    let texte_champ = |nouveau: &Option<Option<String>>| {
+        nouveau
+            .as_ref()
+            .map(|valeur| texte_option(valeur).unwrap_or_default())
+    };
+    let changements: Vec<(&str, Option<String>, String)> = vec![
+        (
+            "type_lien",
+            body.type_lien.as_ref().map(|t| t.trim().to_string()),
+            type_actuel.clone(),
+        ),
+        (
+            "fonction",
+            texte_champ(&body.fonction),
+            fonction_actuelle.clone().unwrap_or_default(),
+        ),
+        (
+            "libelle",
+            texte_champ(&body.libelle),
+            libelle_actuel.clone().unwrap_or_default(),
+        ),
+        (
+            "represente_societe",
+            body.represente_societe.map(|b| b.to_string()),
+            represente_actuel.to_string(),
+        ),
+        (
+            "pour_le_compte_de",
+            body.pour_le_compte_de
+                .map(|m| m.map(|u| u.to_string()).unwrap_or_default()),
+            mandant_actuel.map(|u| u.to_string()).unwrap_or_default(),
+        ),
+        (
+            "debut",
+            texte_champ(&body.debut),
+            debut_actuel.clone().unwrap_or_default(),
+        ),
+        (
+            "fin",
+            texte_champ(&body.fin),
+            fin_actuelle.clone().unwrap_or_default(),
+        ),
+        (
+            "source",
+            texte_champ(&body.source),
+            source_actuelle.clone().unwrap_or_default(),
+        ),
+        (
+            "note",
+            texte_champ(&body.note),
+            note_actuelle.clone().unwrap_or_default(),
+        ),
+    ];
+    let mut revision = revision_actuelle;
+    for (champ, nouveau, actuel) in &changements {
+        appliquer_champ_texte(
+            &mut tx,
+            &contexte,
+            champ,
+            nouveau.as_deref(),
+            actuel,
+            &mut revision,
+        )
+        .await?;
+    }
+    if revision != revision_actuelle {
+        sqlx::query(
+            r#"
+            UPDATE contact_liens SET
+                type_lien = $1, fonction = $2, libelle = $3, represente_societe = $4,
+                pour_le_compte_de = $5, debut = $6, fin = $7, source = $8, note = $9,
+                revision = $10
+            WHERE id = $11
+            "#,
+        )
+        .bind(&type_final)
+        .bind(fonction_finale.as_deref())
+        .bind(libelle_final.as_deref())
+        .bind(represente_final)
+        .bind(mandant_final)
+        .bind(debut_final.as_deref())
+        .bind(fin_finale.as_deref())
+        .bind(source_finale.as_deref())
+        .bind(note_finale.as_deref())
+        .bind(revision)
+        .bind(lien_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(erreur_ecriture_lien)?;
+    }
+    tx.commit()
+        .await
+        .map_err(|_| ApiError::internal("Transaction"))?;
+    lire_lien(&state, claims.cabinet_id, lien_id)
         .await
         .map(Json)
 }

@@ -184,5 +184,40 @@ async fn un_contact_lie_s_archive_et_un_contact_seul_disparait() {
     .expect("journal suppression");
     assert_eq!(journal_suppr, 1);
 
+    // Une fiche qui n'a que des notes s'archive : supprimer la fiche perdrait ses notes.
+    let avec_notes = Uuid::now_v7();
+    sqlx::query(
+        "INSERT INTO contacts (id, cabinet_id, nature, nom, type_client, revision) VALUES ($1, $2, 'physique', 'Notes seules', 'particulier', 1)",
+    )
+    .bind(avec_notes)
+    .bind(cabinet)
+    .execute(&mut *tx)
+    .await
+    .expect("fiche aux notes");
+    sqlx::query(
+        "INSERT INTO contact_notes (id, cabinet_id, contact_id, texte) VALUES ($1, $2, $3, 'note fictive')",
+    )
+    .bind(Uuid::now_v7())
+    .bind(cabinet)
+    .bind(avec_notes)
+    .execute(&mut *tx)
+    .await
+    .expect("note");
+    let contexte_notes = ContexteChamp {
+        enregistrement_id: avec_notes,
+        ..contexte_seul
+    };
+    let effet_notes = retirer_contact(&mut tx, cabinet, avec_notes, &contexte_notes)
+        .await
+        .expect("archive avec notes");
+    assert!(matches!(effet_notes, EffetRetrait::Archive));
+    let notes_restantes =
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM contact_notes WHERE contact_id = $1")
+            .bind(avec_notes)
+            .fetch_one(&mut *tx)
+            .await
+            .expect("notes restantes");
+    assert_eq!(notes_restantes, 1);
+
     tx.rollback().await.expect("annulation");
 }

@@ -97,7 +97,7 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 | `contacts_cabinet` | annuaire du cabinet, y compris un contact né d'un dossier restreint (nom et SIREN visibles de tous, sans lien vers le dossier). L'historique (intervenants → dossiers) passe par `intervenants_publics` / `intervenants_restreints` |
 | `factures_publics` / `encaissements_publics` | factures et encaissements où `visibilite = 'public'` et cabinet du jeton — sans jointure |
 | `factures_restreints` / `encaissements_restreints` | JOIN `groupe_acces_membres` (`auth.user_id()`) — un bucket par groupe ; absents du poste d'un collaborateur hors accès (fiche contact : ni dossier, ni facture, ni mail du dossier restreint) |
-| `contact_notes_cabinet` | notes de fiche, un seau par cabinet |
+| `contact_notes_cabinet` | notes de fiche, un seau par cabinet, sans jointure ; colonnes `auteur_id`, `auteur_libelle` (posés par le serveur depuis le jeton, jamais par le poste) et `modifie_le`. Écrites par le poste (`POST /contacts/{id}/notes`, `PATCH /contact-notes/{id}`) |
 | `intervenants_publics` / `intervenants_restreints` | intervenants d'un dossier : public sans jointure ; restreint JOIN `groupe_acces_membres` |
 | `dossier_liens_publics` | `dossier_liens` où `visibilite = 'public'` (les deux dossiers) et cabinet du jeton |
 | `dossier_liens_restreints` | `dossier_liens` JOIN `groupe_acces_membres`, cible publique (`lie_restreint = false`) |

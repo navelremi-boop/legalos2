@@ -928,6 +928,160 @@
         ]
       }
     },
+    "/contact-liens/{lien_id}": {
+      "patch": {
+        "tags": [
+          "contacts"
+        ],
+        "operationId": "patch_lien",
+        "parameters": [
+          {
+            "name": "lien_id",
+            "in": "path",
+            "description": "Identifiant du lien",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchLienContactRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Lien modifié, ou déjà dans cet état (rejeu)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LienContactResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Modification refusée (fin avant début, mandat vers une personne physique, deuxième représentant en cours, version de base, clé d'idempotence)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Lien ou mandant introuvable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/contact-notes/{note_id}": {
+      "patch": {
+        "tags": [
+          "contacts"
+        ],
+        "operationId": "patch_note",
+        "parameters": [
+          {
+            "name": "note_id",
+            "in": "path",
+            "description": "Identifiant de la note",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchNoteContactRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Note modifiée, ou déjà dans cet état (rejeu)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteContactResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Texte vide ou absent, version de base, clé d'idempotence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Note introuvable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/contacts": {
       "post": {
         "tags": [
@@ -967,6 +1121,16 @@
           },
           "401": {
             "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Adresse e-mail déjà portée par un autre contact du cabinet, ou identifiant déjà utilisé",
             "content": {
               "application/json": {
                 "schema": {
@@ -1623,6 +1787,103 @@
           },
           "404": {
             "description": "Contact introuvable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Identifiant déjà utilisé par un autre lien",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/contacts/{contact_id}/notes": {
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "operationId": "creer_note",
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "description": "Contact auquel la note se rattache",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreerNoteContactRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Note créée ou déjà présente (rejeu par clé ou par identifiant)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteContactResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Texte vide ou clé d'idempotence absente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contact introuvable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Identifiant déjà utilisé par une autre note",
             "content": {
               "application/json": {
                 "schema": {
@@ -8471,6 +8732,26 @@
           }
         }
       },
+      "CreerNoteContactRequest": {
+        "type": "object",
+        "required": [
+          "id",
+          "idempotence_cle",
+          "texte"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "idempotence_cle": {
+            "type": "string"
+          },
+          "texte": {
+            "type": "string"
+          }
+        }
+      },
       "CreerPartieRequest": {
         "type": "object",
         "required": [
@@ -10024,6 +10305,55 @@
           }
         ]
       },
+      "NoteContactResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "contact_id",
+          "texte",
+          "revision",
+          "cree_le",
+          "modifie_le"
+        ],
+        "properties": {
+          "auteur_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Utilisateur du jeton qui a écrit la note en dernier ; nul pour une note antérieure à la migration 065."
+          },
+          "auteur_libelle": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Libellé de l'auteur figé à l'écriture."
+          },
+          "contact_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cree_le": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modifie_le": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "texte": {
+            "type": "string"
+          }
+        }
+      },
       "PartieDetailResponse": {
         "type": "object",
         "required": [
@@ -10431,6 +10761,78 @@
           }
         }
       },
+      "PatchLienContactRequest": {
+        "type": "object",
+        "description": "Modification d'un lien. Un champ absent reste tel quel ; `null` ou une chaîne vide efface un champ\nfacultatif (la file d'envoi du poste envoie `null` pour une colonne vidée). `contact_cible_id`\nne change pas : un autre lien se crée.",
+        "required": [
+          "base_revision",
+          "idempotence_cle"
+        ],
+        "properties": {
+          "base_revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "debut": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fin": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fonction": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "idempotence_cle": {
+            "type": "string"
+          },
+          "libelle": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pour_le_compte_de": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "represente_societe": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type_lien": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "PatchModeleRequest": {
         "type": "object",
         "properties": {
@@ -10464,6 +10866,28 @@
               "null"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "PatchNoteContactRequest": {
+        "type": "object",
+        "required": [
+          "base_revision",
+          "idempotence_cle"
+        ],
+        "properties": {
+          "base_revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "idempotence_cle": {
+            "type": "string"
+          },
+          "texte": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },

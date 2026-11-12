@@ -134,6 +134,23 @@ const FONCTIONS_MANDAT: &[&str] = &[
     "liquidateur_amiable",
 ];
 
+/// Date civile AAAA-MM-JJ (mois 01 à 12, jour 01 à 31) : les dates d'un lien se comparent en texte.
+fn date_lien_valide(date: &str) -> bool {
+    let octets = date.as_bytes();
+    if octets.len() != 10 || octets[4] != b'-' || octets[7] != b'-' {
+        return false;
+    }
+    let chiffres = |plage: std::ops::Range<usize>| -> Option<u32> {
+        date.get(plage)?
+            .chars()
+            .try_fold(0_u32, |acc, c| Some(acc * 10 + c.to_digit(10)?))
+    };
+    match (chiffres(0..4), chiffres(5..7), chiffres(8..10)) {
+        (Some(_), Some(mois), Some(jour)) => (1..=12).contains(&mois) && (1..=31).contains(&jour),
+        _ => false,
+    }
+}
+
 pub fn valider_lien(
     type_lien: &str,
     fonction: Option<&str>,
@@ -158,6 +175,15 @@ pub fn valider_lien(
         return Err(ApiError::bad_request(
             "Seul un mandat social représente la société",
         ));
+    }
+    for date in [debut, fin] {
+        if let Some(date) = date.map(str::trim).filter(|s| !s.is_empty()) {
+            if !date_lien_valide(date) {
+                return Err(ApiError::bad_request(
+                    "Date du lien invalide (format AAAA-MM-JJ)",
+                ));
+            }
+        }
     }
     if let Some(fin) = fin.map(str::trim).filter(|s| !s.is_empty()) {
         let debut = debut.unwrap_or("").trim();
@@ -225,6 +251,17 @@ mod tests {
         )
         .is_err());
         assert!(valider_lien("autre", None, None, None, None, false).is_err());
+        assert!(valider_lien("salarie", None, None, Some("2020-13-01"), None, false).is_err());
+        assert!(valider_lien("salarie", None, None, Some("1er mars"), None, false).is_err());
+        assert!(valider_lien(
+            "salarie",
+            None,
+            None,
+            Some("2020-02-29"),
+            Some("2021-01-01"),
+            false
+        )
+        .is_ok());
         assert!(valider_lien("salarie", None, None, None, None, true).is_err());
     }
 }

@@ -316,6 +316,15 @@ async fn reporter_references(
     .await
     .map_err(|_| ApiError::internal("mails"))?;
     sqlx::query(
+        "UPDATE contact_notes SET contact_id = $1 WHERE contact_id = $2 AND cabinet_id = $3",
+    )
+    .bind(conservee)
+    .bind(absorbee)
+    .bind(cabinet_id)
+    .execute(&mut **tx)
+    .await
+    .map_err(|_| ApiError::internal("notes"))?;
+    sqlx::query(
         r#"
         UPDATE contact_liens
         SET contact_source_id = $1
@@ -405,6 +414,8 @@ pub async fn retirer_contact(
             SELECT 1 FROM factures WHERE contact_id = $1 AND cabinet_id = $2
             UNION ALL
             SELECT 1 FROM message_contacts WHERE contact_id = $1 AND cabinet_id = $2
+            UNION ALL
+            SELECT 1 FROM contact_notes WHERE contact_id = $1 AND cabinet_id = $2
             UNION ALL
             SELECT 1 FROM contact_liens
             WHERE cabinet_id = $2 AND (

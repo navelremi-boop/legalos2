@@ -175,6 +175,22 @@ async fn la_fusion_deplace_les_references_et_se_rejoue_sans_effet() {
     .execute(&mut *tx)
     .await
     .expect("rattachement");
+    for (fiche, texte) in [
+        (absorbee, "note 1 de l'absorbée"),
+        (absorbee, "note 2 de l'absorbée"),
+        (conservee, "note de la conservée"),
+    ] {
+        sqlx::query(
+            "INSERT INTO contact_notes (id, cabinet_id, contact_id, texte) VALUES ($1, $2, $3, $4)",
+        )
+        .bind(Uuid::now_v7())
+        .bind(cabinet)
+        .bind(fiche)
+        .bind(texte)
+        .execute(&mut *tx)
+        .await
+        .expect("note");
+    }
     for (source, cible, libelle) in [
         (absorbee, tiers, "suivi"),
         (conservee, tiers, "suivi"),
@@ -242,6 +258,7 @@ async fn la_fusion_deplace_les_references_et_se_rejoue_sans_effet() {
           + (SELECT count(*) FROM contact_coordonnees WHERE contact_id = $1)
           + (SELECT count(*) FROM factures WHERE contact_id = $1)
           + (SELECT count(*) FROM message_contacts WHERE contact_id = $1)
+          + (SELECT count(*) FROM contact_notes WHERE contact_id = $1)
           + (SELECT count(*) FROM contact_liens WHERE contact_source_id = $1 OR contact_cible_id = $1 OR pour_le_compte_de = $1)
         "#,
     )
@@ -258,13 +275,18 @@ async fn la_fusion_deplace_les_references_et_se_rejoue_sans_effet() {
           + (SELECT count(*) FROM contact_coordonnees WHERE contact_id = $1)
           + (SELECT count(*) FROM factures WHERE contact_id = $1)
           + (SELECT count(*) FROM message_contacts WHERE contact_id = $1)
+          + (SELECT count(*) FROM contact_notes WHERE contact_id = $1)
         "#,
     )
     .bind(conservee)
     .fetch_one(&mut *tx)
     .await
     .expect("report");
-    assert_eq!(chez_conservee, 5);
+    assert_eq!(
+        chez_conservee,
+        5 + 3,
+        "les trois notes sont sur la fiche conservée"
+    );
     let liens =
         sqlx::query_scalar::<_, i64>("SELECT count(*) FROM contact_liens WHERE cabinet_id = $1")
             .bind(cabinet)
@@ -291,6 +313,20 @@ async fn la_fusion_deplace_les_references_et_se_rejoue_sans_effet() {
     )
     .await
     .expect("second appel");
+    let notes_apres = sqlx::query_as::<_, (i64, i64)>(
+        "SELECT count(*) FILTER (WHERE contact_id = $1), count(*) FILTER (WHERE contact_id = $2) FROM contact_notes WHERE cabinet_id = $3",
+    )
+    .bind(conservee)
+    .bind(absorbee)
+    .bind(cabinet)
+    .fetch_one(&mut *tx)
+    .await
+    .expect("notes après");
+    assert_eq!(
+        notes_apres,
+        (3, 0),
+        "deuxième appel sans effet sur les notes"
+    );
     let fiche_apres =
         sqlx::query_as::<_, (String, String)>("SELECT nom, prenoms FROM contacts WHERE id = $1")
             .bind(conservee)

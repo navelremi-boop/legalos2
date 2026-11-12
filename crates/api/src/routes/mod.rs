@@ -6,6 +6,7 @@ pub mod brouillons;
 pub mod cabinets;
 pub mod collaborateurs;
 pub mod connexion_boites;
+pub mod contact_notes;
 pub mod contacts;
 pub mod destinataires;
 pub mod documents;
@@ -69,6 +70,12 @@ pub fn router(state: Arc<AppState>) -> Router {
             post(contacts::creer_coordonnee),
         )
         .route("/contacts/{contact_id}/liens", post(contacts::creer_lien))
+        .route("/contact-liens/{lien_id}", patch(contacts::patch_lien))
+        .route(
+            "/contacts/{contact_id}/notes",
+            post(contact_notes::creer_note),
+        )
+        .route("/contact-notes/{note_id}", patch(contact_notes::patch_note))
         .route(
             "/contacts/{contact_id}/import-siren",
             post(contacts::appliquer_import_siren),

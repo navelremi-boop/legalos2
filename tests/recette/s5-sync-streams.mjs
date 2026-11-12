@@ -481,6 +481,49 @@ if (/FROM brouillons_message_pieces/.test(yaml)) {
   fail("brouillons_message_pieces ne se synchronise jamais (contenu binaire)");
 }
 
+/**
+ * Notes de la fiche d'annuaire (lot « Annuaire », écriture depuis le poste) : communes au cabinet, un seau
+ * par cabinet, sans jointure ; elles portent l'auteur et la date de modification posés par le serveur.
+ * Un poste d'un autre cabinet n'en reçoit aucune ligne. Renvoie les manquements du bloc.
+ */
+function manquementsNotes(bloc) {
+  const manques = [];
+  if (!/\bFROM contact_notes\b/.test(bloc)) manques.push("table contact_notes requise");
+  if (!/WHERE\s+cabinet_id::text\s*=\s*auth\.parameter\('cabinet_id'\)/.test(bloc)) {
+    manques.push("cabinet du jeton requis (un seau par cabinet)");
+  }
+  if (/\bJOIN\b/i.test(bloc)) manques.push("jointure interdite (un seau par cabinet)");
+  if (/\bdossier_id\b/.test(bloc)) manques.push("une note de fiche ne porte pas le dossier");
+  const colonnes = (bloc.match(/SELECT([\s\S]*?)\bFROM\b/i) ?? ["", ""])[1];
+  for (const colonne of ["texte", "auteur_id", "auteur_libelle", "modifie_le", "revision"]) {
+    if (!new RegExp(`\\b${colonne}\\b`).test(colonnes)) manques.push(`colonne ${colonne} requise`);
+  }
+  return manques;
+}
+
+const notes = blocFlux("contact_notes_cabinet");
+{
+  const reel = manquementsNotes(notes);
+  if (reel.length > 0) fail(`contact_notes_cabinet : ${reel.join(" ; ")}`);
+  const filtreCabinet = /WHERE cabinet_id::text = auth\.parameter\('cabinet_id'\)/;
+  const derives = {
+    "sans cabinet": notes.replace(filtreCabinet, "WHERE TRUE"),
+    "avec jointure": notes.replace(
+      "FROM contact_notes",
+      "FROM contact_notes INNER JOIN contacts ON contacts.id = contact_notes.contact_id",
+    ),
+    "auteur retiré": notes.replace("auteur_id, ", ""),
+    "libellé d'auteur retiré": notes.replace("auteur_libelle, ", ""),
+    "date de modification retirée": notes.replace(/, modifie_le::text AS modifie_le/, ""),
+  };
+  for (const [nom, bloc] of Object.entries(derives)) {
+    if (bloc === notes) fail(`essai négatif contact_notes_cabinet (${nom}) : dérive non appliquée`);
+    if (manquementsNotes(bloc).length === 0) {
+      fail(`essai négatif contact_notes_cabinet (${nom}) : le contrôle n'a pas refusé la dérive`);
+    }
+  }
+}
+
 const requetes = [...yaml.matchAll(/(?:^|\n)\s{4,}-\s*(SELECT[\s\S]*?)(?=\n\s{4}-\s*SELECT|\n\s{2}[a-z_]+:|\n*$)/gi)]
   .map((m) => m[1])
   .concat(

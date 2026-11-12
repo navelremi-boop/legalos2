@@ -228,6 +228,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/contact-liens/{lien_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["patch_lien"];
+        trace?: never;
+    };
+    "/contact-notes/{note_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["patch_note"];
+        trace?: never;
+    };
     "/contacts": {
         parameters: {
             query?: never;
@@ -366,6 +398,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["creer_lien"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/contacts/{contact_id}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["creer_note"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2097,6 +2145,12 @@ export interface components {
             /** Format: int32 */
             ordre?: number;
         };
+        CreerNoteContactRequest: {
+            /** Format: uuid */
+            id: string;
+            idempotence_cle: string;
+            texte: string;
+        };
         CreerPartieRequest: {
             /** Format: uuid */
             contact_id?: string | null;
@@ -2575,6 +2629,24 @@ export interface components {
             tls?: boolean | null;
             utilisateur: string;
         };
+        NoteContactResponse: {
+            /**
+             * Format: uuid
+             * @description Utilisateur du jeton qui a écrit la note en dernier ; nul pour une note antérieure à la migration 065.
+             */
+            auteur_id?: string | null;
+            /** @description Libellé de l'auteur figé à l'écriture. */
+            auteur_libelle?: string | null;
+            /** Format: uuid */
+            contact_id: string;
+            cree_le: string;
+            /** Format: uuid */
+            id: string;
+            modifie_le: string;
+            /** Format: int64 */
+            revision: number;
+            texte: string;
+        };
         PartieDetailResponse: {
             /** Format: uuid */
             dossier_id: string;
@@ -2673,6 +2745,26 @@ export interface components {
             idempotence_cle: string;
             nom?: string | null;
         };
+        /**
+         * @description Modification d'un lien. Un champ absent reste tel quel ; `null` ou une chaîne vide efface un champ
+         *     facultatif (la file d'envoi du poste envoie `null` pour une colonne vidée). `contact_cible_id`
+         *     ne change pas : un autre lien se crée.
+         */
+        PatchLienContactRequest: {
+            /** Format: int64 */
+            base_revision: number;
+            debut?: string | null;
+            fin?: string | null;
+            fonction?: string | null;
+            idempotence_cle: string;
+            libelle?: string | null;
+            note?: string | null;
+            /** Format: uuid */
+            pour_le_compte_de?: string | null;
+            represente_societe?: boolean | null;
+            source?: string | null;
+            type_lien?: string | null;
+        };
         PatchModeleRequest: {
             actif?: boolean | null;
             corps_html?: string | null;
@@ -2680,6 +2772,12 @@ export interface components {
             objet?: string | null;
             /** Format: int32 */
             ordre?: number | null;
+        };
+        PatchNoteContactRequest: {
+            /** Format: int64 */
+            base_revision: number;
+            idempotence_cle: string;
+            texte?: string | null;
         };
         PatchPartieRequest: {
             /** Format: int64 */
@@ -3688,6 +3786,114 @@ export interface operations {
             };
         };
     };
+    patch_lien: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifiant du lien */
+                lien_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchLienContactRequest"];
+            };
+        };
+        responses: {
+            /** @description Lien modifié, ou déjà dans cet état (rejeu) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LienContactResponse"];
+                };
+            };
+            /** @description Modification refusée (fin avant début, mandat vers une personne physique, deuxième représentant en cours, version de base, clé d'idempotence) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Lien ou mandant introuvable */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    patch_note: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifiant de la note */
+                note_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchNoteContactRequest"];
+            };
+        };
+        responses: {
+            /** @description Note modifiée, ou déjà dans cet état (rejeu) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteContactResponse"];
+                };
+            };
+            /** @description Texte vide ou absent, version de base, clé d'idempotence */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Note introuvable */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
     creer_contact: {
         parameters: {
             query?: never;
@@ -3721,6 +3927,15 @@ export interface operations {
             };
             /** @description Non authentifié */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Adresse e-mail déjà portée par un autre contact du cabinet, ou identifiant déjà utilisé */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4186,6 +4401,78 @@ export interface operations {
             };
             /** @description Contact introuvable */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Identifiant déjà utilisé par un autre lien */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    creer_note: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Contact auquel la note se rattache */
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreerNoteContactRequest"];
+            };
+        };
+        responses: {
+            /** @description Note créée ou déjà présente (rejeu par clé ou par identifiant) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteContactResponse"];
+                };
+            };
+            /** @description Texte vide ou clé d'idempotence absente */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Contact introuvable */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Identifiant déjà utilisé par une autre note */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

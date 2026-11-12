@@ -227,7 +227,7 @@ streams:
 
   contact_notes_cabinet:
     auto_subscribe: true
-    query: SELECT id, cabinet_id, contact_id, texte, revision, cree_le::text AS cree_le FROM contact_notes WHERE cabinet_id::text = auth.parameter('cabinet_id')
+    query: SELECT id, cabinet_id, contact_id, texte, auteur_id, auteur_libelle, revision, cree_le::text AS cree_le, modifie_le::text AS modifie_le FROM contact_notes WHERE cabinet_id::text = auth.parameter('cabinet_id')
 
   intervenants_publics:
     auto_subscribe: true

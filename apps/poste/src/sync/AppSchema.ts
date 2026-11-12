@@ -342,8 +342,11 @@ const contactNotes = new Table(
     cabinet_id: column.text,
     contact_id: column.text,
     texte: column.text,
+    auteur_id: column.text,
+    auteur_libelle: column.text,
     revision: column.integer,
     cree_le: column.text,
+    modifie_le: column.text,
   },
   { indexes: { contact: ["contact_id"] } },
 );
