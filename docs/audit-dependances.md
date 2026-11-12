@@ -124,3 +124,17 @@ La CI (run 40082268071 sur `39bab73`) a échoué de nouveau à `cargo deny check
 Correctif : `cargo update -p ctutils` et `cargo update -p tokio` (racine), `cargo update -p tokio` (poste). Aucune exception ajoutée. Après : `cargo deny check` exit 0 (advisories, bans, licenses, sources ok) sur les deux workspaces. `tokio` passe d'une version mineure (1.53 → 1.54) : `cargo test --workspace` repassé en entier.
 
 Constat sur le processus : la base d'avis évolue entre deux passages ; un `cargo deny check` local vert ne vaut que pour l'heure de sa lecture. La CI le relit à chaque poussée, ce qui est le contrôle voulu.
+
+## Constat du 12 novembre 2026 : avis RUSTSEC-2026-0459 (SQLite embarqué), exception nominative B25
+
+La CI (run 43207265628 sur `19e05bc`) a échoué à `cargo deny check` sur le poste : l'avis RUSTSEC-2026-0459 (CVE-2026-119375) vise `libsqlite3-sys` 0.37.0, qui embarque SQLite avant 3.54.0 (mémoire de cache de pages non initialisée renvoyée à l'ouverture d'une base accompagnée d'un fichier `-wal` de taille de page différente). Corrigé à partir de `libsqlite3-sys` 0.39.0, donc de `rusqlite` 0.41.
+
+| Avis | Crate | Chemin | Décision |
+|---|---|---|---|
+| RUSTSEC-2026-0459 | `libsqlite3-sys` 0.37.0 (poste) | `rusqlite` 0.39.0 ← `powersync` 0.1.1, `tauri-plugin-powersync` 0.1.1, `legal-os-poste` | **exception nominative datée du 2026-11-12** dans `apps/poste/src-tauri/deny.toml` (consigne de l'architecte). `cargo update -p libsqlite3-sys` ne change rien : `rusqlite` 0.39.0 impose 0.37. L'option « monter `powersync` à 0.2.0 » ne corrige pas : cette version exige toujours `rusqlite` ^0.39 ; `tauri-plugin-powersync` 0.2.0 (publié le 2026-11-09) est de plus trop récent |
+
+**Condition qui justifie l'exception** : l'avis ne vise que l'ouverture d'une base et de son `-wal` écrits par un tiers. Tant que l'exception existe, le poste n'ouvre aucune base SQLite qu'il n'a pas créée lui-même dans son dossier de données : ni import, ni restauration, ni ouverture d'un fichier `.db`, `.sqlite` ou `-wal` fourni par l'utilisateur ou reçu par mail. Une fonctionnalité qui en aurait besoin (par exemple une restauration à J13) attend la levée de l'exception et se consigne alors dans `BLOCAGES.md`. Contrôle outillé : `apps/poste/src/sync/cheminBaseLocale.ts` n'accepte qu'un nom de fichier simple (`legalos-powersync[-poste].db`, sans chemin) et `database.ts` l'ouvre dans `appDataDir` ; `cheminBaseLocale.test.ts` (exécuté par la CI) refuse tout nom hors de ce motif et échoue si une autre ouverture de base SQLite apparaît dans le code TypeScript ou Rust du poste.
+
+**Levée** : dès qu'une version de `powersync` et de `tauri-plugin-powersync` accepte `rusqlite` 0.41 ou plus et date d'au moins quatorze jours. `unused-ignored-advisory = "deny"` fait alors échouer le contrôle. Point ajouté à la revue mensuelle de PowerSync (PLAN.md).
+
+**Workspace racine** : le `Cargo.lock` racine contient `libsqlite3-sys` 0.30.1 via `sqlx-sqlite` 0.8.6, non signalé par l'avis. Si l'étape « cargo-deny, workspace racine » le signale un jour, la traiter de la même façon après avoir vérifié que `sqlx-sqlite` est réellement compilé.

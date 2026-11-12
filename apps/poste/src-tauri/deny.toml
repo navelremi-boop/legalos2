@@ -10,7 +10,15 @@ targets = ["x86_64-pc-windows-msvc", "aarch64-apple-darwin", "x86_64-apple-darwi
 yanked = "deny"
 unmaintained = "all"
 unused-ignored-advisory = "deny"
-ignore = []
+# Exception nominative du 2026-11-12 (consigne de l'architecte, B25). `libsqlite3-sys` 0.37 (SQLite embarqué avant
+# 3.54.0) est imposé par `rusqlite` 0.39, que `powersync` 0.1.1 et 0.2.0 exigent ; seul `libsqlite3-sys` 0.39
+# (`rusqlite` 0.41) est corrigé. Le poste n'ouvre que sa propre base locale, créée par lui dans son dossier de
+# données (`apps/poste/src/sync/cheminBaseLocale.ts`, test `cheminBaseLocale.test.ts`). À lever dès qu'une version de
+# `powersync` et de `tauri-plugin-powersync` accepte `rusqlite` 0.41 ou plus et date d'au moins quatorze jours ;
+# `unused-ignored-advisory = "deny"` fait alors échouer le contrôle. Voir docs/audit-dependances.md.
+ignore = [
+    { id = "RUSTSEC-2026-0459", reason = "libsqlite3-sys 0.37 imposé par rusqlite 0.39 via powersync 0.1.1 ; le poste n'ouvre que sa propre base, créée par lui dans son dossier de données ; l'avis ne vise que l'ouverture d'une base et de son -wal écrits par un tiers" },
+]
 
 [licenses]
 confidence-threshold = 0.93
