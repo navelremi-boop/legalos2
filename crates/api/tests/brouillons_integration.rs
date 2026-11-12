@@ -397,7 +397,19 @@ async fn scenario(url_base_jetable: String) {
         assert_eq!(statut, StatusCode::BAD_REQUEST, "injection : {nom}");
     }
     let (_, apres) = appel(&app, "GET", &uri, &a, Value::Null).await;
-    assert_eq!(avant, apres, "un refus n'écrit rien");
+    // `imap_etat` est posé par la tâche de fond du dépôt IMAP (ici sans serveur : `a_deposer` puis `erreur`),
+    // indépendamment de la requête refusée : tout le reste de la ligne, révision et date comprises, doit rester identique.
+    let sans_etat_imap = |mut ligne: Value| {
+        if let Some(objet) = ligne.as_object_mut() {
+            objet.remove("imap_etat");
+        }
+        ligne
+    };
+    assert_eq!(
+        sans_etat_imap(avant),
+        sans_etat_imap(apres),
+        "un refus n'écrit rien"
+    );
     // Dossier introuvable : refusé ; détacher (null) accepté.
     let (statut, _) = appel(&app, "PUT", &uri, &a, json!({"dossier_id": Uuid::now_v7()})).await;
     assert_eq!(statut, StatusCode::NOT_FOUND);
