@@ -454,3 +454,7 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
   Toujours à trancher : 24, 29, 30, 32, 33 et 10 à 21.
 
 **État de session.** Fait : écarts 22, 23 (en partie), 25 à 28, 31 commités. En cours : Annuaire. Prochaine action : push, CI par `gh run view`, nouveau contrôle visuel de Contacts par le contrôleur ; écarts 24, 29 et 30, 32, 33, 10 à 21 et la donnée d'immatriculation selon la réponse du commandement.
+
+- **CI 19e05bc rouge (12/11), B25.** Run [43207265628](https://github.com/navelremi-boop/legalos2/actions/runs/43207265628) : `gh run view` → `completed` / `failure` ; `perimetre`, `frontend`, `gouvernance`, `facturx`, `webdriver-macos` verts, `rust` en échec, `s1-instance` sauté. Cause : nouvel avis RustSec RUSTSEC-2026-0459 sur `libsqlite3-sys` 0.37.0 (SQLite embarqué avant 3.54.0), vu par `cargo-deny` du poste ; indépendant des commits du jour (poste seul). `cargo update -p libsqlite3-sys --dry-run` : rien à mettre à jour (`rusqlite` 0.39.0 impose 0.37, correctif demandé >= 0.39.0). Une exception ou la montée de `powersync` (0.2.0 existe) est une décision du commandement ou de l'architecte (précédent B12) : aucune exception ajoutée, `deny.toml` inchangé. Consigné en B25 avec les deux options.
+
+**État de session.** Fait : écarts 22 à 28 et 31 commités et poussés ; CI rouge pour B25 (avis externe). En cours : Annuaire. Prochaine action : décision sur B25 ; nouveau contrôle visuel de Contacts ; écarts 24, 29 et 30, 32, 33, 10 à 21 et la donnée d'immatriculation selon la réponse du commandement.
