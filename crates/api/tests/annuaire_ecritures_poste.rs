@@ -811,7 +811,10 @@ async fn notes_auteur_pose_par_le_serveur_modification_et_rejeu() {
     assert_eq!(st, StatusCode::OK, "{creee:?}");
     assert_eq!(creee["texte"], "Première note fictive");
     assert_eq!(creee["auteur_id"], DEMO_USER_ID);
-    assert_eq!(creee["auteur_libelle"], DEMO_EMAIL);
+    assert!(
+        creee.get("auteur_libelle").is_none(),
+        "le serveur ne calcule plus de libellé : le poste le compose depuis l'identité"
+    );
     assert_eq!(creee["revision"], 1);
     let (auteur, libelle, cree, modifie): (Option<Uuid>, Option<String>, String, String) =
         sqlx::query_as(
@@ -822,7 +825,7 @@ async fn notes_auteur_pose_par_le_serveur_modification_et_rejeu() {
         .await
         .unwrap();
     assert_eq!(auteur, Some(uuid_fixe(DEMO_USER_ID)));
-    assert_eq!(libelle.as_deref(), Some(DEMO_EMAIL));
+    assert_eq!(libelle, None, "auteur_libelle n'est plus écrit");
     assert_eq!(cree, modifie, "modifie_le = cree_le à la création");
 
     // Rejeu par clé, puis par identifiant sous une autre clé et un autre utilisateur : rien ne change.
@@ -888,7 +891,7 @@ async fn notes_auteur_pose_par_le_serveur_modification_et_rejeu() {
     assert_eq!(modifiee["texte"], "Note corrigée");
     assert_eq!(modifiee["revision"], 2);
     assert_eq!(modifiee["auteur_id"], USER_B_ID);
-    assert_eq!(modifiee["auteur_libelle"], EMAIL_B);
+    assert!(modifiee.get("auteur_libelle").is_none());
     assert_eq!(
         modifiee["cree_le"], creee["cree_le"],
         "cree_le ne bouge pas"

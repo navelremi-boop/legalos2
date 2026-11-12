@@ -337,13 +337,33 @@ const factureEncaissements = new Table(
   { indexes: { facture: ["facture_id"] } },
 );
 
+/**
+ * Identité des membres du cabinet (flux `utilisateurs_cabinet`) : lecture seule côté poste, écrite en ligne par
+ * l'API. Jamais un secret ; le rôle n'est pas synchronisé. Libellés composés par le module unique de libellé.
+ */
+const utilisateurs = new Table(
+  {
+    cabinet_id: column.text,
+    email: column.text,
+    civilite: column.text,
+    prenom: column.text,
+    nom: column.text,
+    qualite: column.text,
+    barreau: column.text,
+    toque: column.text,
+    initiales: column.text,
+    actif: column.integer,
+    revision: column.integer,
+  },
+  { indexes: { cabinet: ["cabinet_id"] } },
+);
+
 const contactNotes = new Table(
   {
     cabinet_id: column.text,
     contact_id: column.text,
     texte: column.text,
     auteur_id: column.text,
-    auteur_libelle: column.text,
     revision: column.integer,
     cree_le: column.text,
     modifie_le: column.text,
@@ -533,6 +553,7 @@ export const AppSchema = new Schema({
   factures,
   facture_encaissements: factureEncaissements,
   contact_notes: contactNotes,
+  utilisateurs,
   dossier_intervenants: dossierIntervenants,
   dossier_liens: dossierLiens,
   agenda_elements: agendaElements,

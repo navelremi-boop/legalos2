@@ -15,6 +15,7 @@ pub mod dossiers_imap;
 pub mod factures;
 pub mod file_envoi;
 pub mod health;
+pub mod identite;
 pub mod intercalaires;
 pub mod invitations;
 pub mod messagerie;
@@ -76,6 +77,15 @@ pub fn router(state: Arc<AppState>) -> Router {
             post(contact_notes::creer_note),
         )
         .route("/contact-notes/{note_id}", patch(contact_notes::patch_note))
+        .route(
+            "/moi/profil",
+            get(identite::lire_mon_profil).patch(identite::modifier_mon_profil),
+        )
+        .route("/utilisateurs", get(identite::lister_utilisateurs))
+        .route(
+            "/utilisateurs/{utilisateur_id}/profil",
+            patch(identite::modifier_profil_membre),
+        )
         .route(
             "/contacts/{contact_id}/import-siren",
             post(contacts::appliquer_import_siren),

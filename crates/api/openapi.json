@@ -6214,6 +6214,114 @@
         ]
       }
     },
+    "/moi/profil": {
+      "get": {
+        "tags": [
+          "identite"
+        ],
+        "operationId": "lire_mon_profil",
+        "responses": {
+          "200": {
+            "description": "Identité de l'utilisateur du jeton",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfilMembreResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Utilisateur introuvable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "identite"
+        ],
+        "operationId": "modifier_mon_profil",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModifierProfilRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Identité modifiée, ou déjà dans cet état (rejeu)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfilMembreResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Valeur refusée (civilité, qualité, longueur, barreau ou toque pour une qualité qui n'est pas avocat), version de base, clé d'idempotence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Utilisateur introuvable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/parties/{partie_id}": {
       "patch": {
         "tags": [
@@ -6845,6 +6953,141 @@
           },
           "500": {
             "description": "Erreur interne",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/utilisateurs": {
+      "get": {
+        "tags": [
+          "identite"
+        ],
+        "operationId": "lister_utilisateurs",
+        "responses": {
+          "200": {
+            "description": "Membres du cabinet (actifs ou non) avec leur identité",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProfilMembreResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Réservé aux administrateurs du cabinet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/utilisateurs/{utilisateur_id}/profil": {
+      "patch": {
+        "tags": [
+          "identite"
+        ],
+        "operationId": "modifier_profil_membre",
+        "parameters": [
+          {
+            "name": "utilisateur_id",
+            "in": "path",
+            "description": "Membre du cabinet dont l'identité change",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModifierProfilRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Identité modifiée, ou déjà dans cet état (rejeu)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfilMembreResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Valeur refusée, version de base, clé d'idempotence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Réservé aux administrateurs du cabinet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Utilisateur introuvable ou d'un autre cabinet",
             "content": {
               "application/json": {
                 "schema": {
@@ -10305,6 +10548,59 @@
           }
         ]
       },
+      "ModifierProfilRequest": {
+        "type": "object",
+        "description": "Modification d'identité. Un champ absent reste tel quel ; `null` ou une chaîne vide l'efface (NULL).\nLe rôle, l'adresse e-mail, l'état actif et les initiales ne se modifient pas ici : tout champ\ninconnu du corps est ignoré.",
+        "required": [
+          "base_revision",
+          "idempotence_cle"
+        ],
+        "properties": {
+          "barreau": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "base_revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "civilite": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "idempotence_cle": {
+            "type": "string"
+          },
+          "nom": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "prenom": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "qualite": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "toque": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "NoteContactResponse": {
         "type": "object",
         "required": [
@@ -10322,14 +10618,7 @@
               "null"
             ],
             "format": "uuid",
-            "description": "Utilisateur du jeton qui a écrit la note en dernier ; nul pour une note antérieure à la migration 065."
-          },
-          "auteur_libelle": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Libellé de l'auteur figé à l'écriture."
+            "description": "Utilisateur du jeton qui a écrit la note en dernier, posé par le serveur ; nul pour une note antérieure à la migration 065. Le libellé (« Me Prénom Nom ») se compose côté poste depuis l'identité du membre."
           },
           "contact_id": {
             "type": "string",
@@ -11068,6 +11357,81 @@
               "null"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "ProfilMembreResponse": {
+        "type": "object",
+        "description": "Identité d'un membre, telle que l'API la lit et la renvoie.",
+        "required": [
+          "id",
+          "email",
+          "role",
+          "actif",
+          "revision"
+        ],
+        "properties": {
+          "actif": {
+            "type": "boolean"
+          },
+          "barreau": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "civilite": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`madame` ou `monsieur`, nul tant que non saisi."
+          },
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "initiales": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nom": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "prenom": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "qualite": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`avocat`, `avocat_collaborateur`, `juriste`, `assistant` ou `autre`, nul tant que non saisi."
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "role": {
+            "type": "string",
+            "description": "`administrateur` ou `collaborateur` ; ne se modifie pas par ces routes."
+          },
+          "toque": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },

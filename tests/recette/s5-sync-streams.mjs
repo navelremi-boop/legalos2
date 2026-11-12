@@ -62,6 +62,7 @@ const fluxAttendus = [
   "encaissements_publics",
   "encaissements_restreints",
   "contact_notes_cabinet",
+  "utilisateurs_cabinet",
   "intervenants_publics",
   "intervenants_restreints",
   "dossier_liens_publics",
@@ -483,7 +484,8 @@ if (/FROM brouillons_message_pieces/.test(yaml)) {
 
 /**
  * Notes de la fiche d'annuaire (lot « Annuaire », écriture depuis le poste) : communes au cabinet, un seau
- * par cabinet, sans jointure ; elles portent l'auteur et la date de modification posés par le serveur.
+ * par cabinet, sans jointure ; elles portent l'auteur (id posé par le serveur) et la date de modification.
+ * Le libellé de l'auteur se compose côté poste depuis l'identité du membre : pas de libellé calculé ici.
  * Un poste d'un autre cabinet n'en reçoit aucune ligne. Renvoie les manquements du bloc.
  */
 function manquementsNotes(bloc) {
@@ -495,7 +497,7 @@ function manquementsNotes(bloc) {
   if (/\bJOIN\b/i.test(bloc)) manques.push("jointure interdite (un seau par cabinet)");
   if (/\bdossier_id\b/.test(bloc)) manques.push("une note de fiche ne porte pas le dossier");
   const colonnes = (bloc.match(/SELECT([\s\S]*?)\bFROM\b/i) ?? ["", ""])[1];
-  for (const colonne of ["texte", "auteur_id", "auteur_libelle", "modifie_le", "revision"]) {
+  for (const colonne of ["texte", "auteur_id", "modifie_le", "revision"]) {
     if (!new RegExp(`\\b${colonne}\\b`).test(colonnes)) manques.push(`colonne ${colonne} requise`);
   }
   return manques;
@@ -513,7 +515,6 @@ const notes = blocFlux("contact_notes_cabinet");
       "FROM contact_notes INNER JOIN contacts ON contacts.id = contact_notes.contact_id",
     ),
     "auteur retiré": notes.replace("auteur_id, ", ""),
-    "libellé d'auteur retiré": notes.replace("auteur_libelle, ", ""),
     "date de modification retirée": notes.replace(/, modifie_le::text AS modifie_le/, ""),
   };
   for (const [nom, bloc] of Object.entries(derives)) {
@@ -555,6 +556,57 @@ if (existsSync(join(root, "instance/powersync/sync-rules.yaml"))) {
 }
 if (existsSync(join(root, "docs/sync-rules.md"))) {
   fail("docs/sync-rules.md encore présent (remplacé par sync-streams.md)");
+}
+
+/**
+ * Identité des membres du cabinet : un seau par cabinet, sans jointure, colonnes d'identité seulement. Aucun
+ * secret (mot de passe haché, secret TOTP, codes de secours, jeton) ne descend jamais vers un poste.
+ * Renvoie les manquements du bloc ; vide s'il est conforme.
+ */
+function manquementsUtilisateurs(bloc) {
+  const manques = [];
+  if (!/\bFROM utilisateurs\b/.test(bloc)) manques.push("table utilisateurs requise");
+  if (!/WHERE\s+cabinet_id::text\s*=\s*auth\.parameter\('cabinet_id'\)/.test(bloc)) {
+    manques.push("cabinet du jeton requis (un seau par cabinet)");
+  }
+  if (/\bJOIN\b/i.test(bloc)) manques.push("jointure interdite (un seau par cabinet)");
+  const colonnes = (bloc.match(/SELECT([\s\S]*?)\bFROM\b/i) ?? ["", ""])[1];
+  if (colonnes.includes("*")) manques.push("SELECT * interdit : colonnes d'identité explicites");
+  if (/password|hash|totp|secret|secours|token|jeton|\brole\b/i.test(colonnes)) {
+    manques.push("colonne secrète (ou de droits) exposée au poste");
+  }
+  for (const colonne of ["id", "cabinet_id", "email", "civilite", "prenom", "nom", "qualite", "barreau", "toque", "initiales", "actif"]) {
+    if (!new RegExp(`\\b${colonne}\\b`).test(colonnes)) manques.push(`colonne ${colonne} requise`);
+  }
+  return manques;
+}
+
+const utilisateurs = blocFlux("utilisateurs_cabinet");
+{
+  const reel = manquementsUtilisateurs(utilisateurs);
+  if (reel.length > 0) fail(`utilisateurs_cabinet : ${reel.join(" ; ")}`);
+  const filtreCabinet = /WHERE cabinet_id::text = auth\.parameter\('cabinet_id'\)/;
+  const derives = {
+    "sans cabinet": utilisateurs.replace(filtreCabinet, "WHERE TRUE"),
+    "avec jointure": utilisateurs.replace(
+      "FROM utilisateurs",
+      "FROM utilisateurs INNER JOIN cabinets ON cabinets.id = utilisateurs.cabinet_id",
+    ),
+    "mot de passe haché exposé": utilisateurs.replace("email,", "email, password_hash,"),
+    "secret TOTP exposé": utilisateurs.replace("email,", "email, totp_secret_chiffre,"),
+    "tous les champs": utilisateurs.replace(/SELECT id, [^F]*FROM/, "SELECT * FROM"),
+    "rôle exposé": utilisateurs.replace("email,", "email, role,"),
+    "identité retirée": utilisateurs.replace("prenom, nom, ", ""),
+  };
+  for (const [nom, bloc] of Object.entries(derives)) {
+    if (bloc === utilisateurs) fail(`essai négatif utilisateurs_cabinet (${nom}) : dérive non appliquée`);
+    if (manquementsUtilisateurs(bloc).length === 0) {
+      fail(`essai négatif utilisateurs_cabinet (${nom}) : le contrôle n'a pas refusé la dérive`);
+    }
+  }
+}
+if (/password_hash|totp_secret|codes_secours/.test(yaml)) {
+  fail("sync-config : un secret d'authentification ne se synchronise jamais");
 }
 
 console.log(

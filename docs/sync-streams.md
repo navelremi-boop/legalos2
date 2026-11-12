@@ -64,7 +64,8 @@ Fichier déployé : `instance/powersync/sync-config.yaml`, monté via `sync_conf
 | `invitations_agenda` | Invitation reçue par mail — un flux titulaire, sans dossier |
 | `brouillons_message` | Brouillon de message (J11) — propre à son auteur : un flux, un seau par auteur, sans dossier ; écrit par le poste (file d'upload), recopié dans le dossier Brouillons du serveur IMAP par l'API ; les pièces (`brouillons_message_pieces`, binaire) ne sont jamais synchronisées, seul leur résumé `pieces_texte` l'est |
 | `dossier_liens` | Dossiers liés, une ligne par sens — flux public (les deux dossiers publics) ou restreint |
-| `users` / `postes` | (schéma client ; flux à ajouter si réplication) |
+| `utilisateurs` | Identité des membres (flux `utilisateurs_cabinet`), lecture seule ; remplace la table cliente `users`, jamais alimentée |
+| `postes` | (schéma client ; flux à ajouter si réplication) |
 
 ---
 
@@ -97,7 +98,8 @@ Tous : `auto_subscribe: true`. Colonnes explicites (pas de `SELECT *` sur les ta
 | `contacts_cabinet` | annuaire du cabinet, y compris un contact né d'un dossier restreint (nom et SIREN visibles de tous, sans lien vers le dossier). L'historique (intervenants → dossiers) passe par `intervenants_publics` / `intervenants_restreints` |
 | `factures_publics` / `encaissements_publics` | factures et encaissements où `visibilite = 'public'` et cabinet du jeton — sans jointure |
 | `factures_restreints` / `encaissements_restreints` | JOIN `groupe_acces_membres` (`auth.user_id()`) — un bucket par groupe ; absents du poste d'un collaborateur hors accès (fiche contact : ni dossier, ni facture, ni mail du dossier restreint) |
-| `contact_notes_cabinet` | notes de fiche, un seau par cabinet, sans jointure ; colonnes `auteur_id`, `auteur_libelle` (posés par le serveur depuis le jeton, jamais par le poste) et `modifie_le`. Écrites par le poste (`POST /contacts/{id}/notes`, `PATCH /contact-notes/{id}`) |
+| `contact_notes_cabinet` | notes de fiche, un seau par cabinet, sans jointure ; colonnes `auteur_id` (posé par le serveur depuis le jeton, jamais par le poste) et `modifie_le`. Pas de libellé d'auteur : le poste le compose depuis l'identité du membre (`utilisateurs_cabinet`). Écrites par le poste (`POST /contacts/{id}/notes`, `PATCH /contact-notes/{id}`) |
+| `utilisateurs_cabinet` | identité des membres du cabinet, un seau par cabinet, sans jointure : `id`, `cabinet_id`, `email`, `civilite`, `prenom`, `nom`, `qualite`, `barreau`, `toque`, `initiales`, `actif` (entier 0/1), `revision`. Jamais de secret (mot de passe haché, secret TOTP, codes de secours, jeton) ni le rôle ; `tests/recette/s5-sync-streams.mjs` le vérifie avec des essais négatifs. Lecture seule côté poste : l'identité s'écrit en ligne par l'API (`PATCH /moi/profil`, `PATCH /utilisateurs/{id}/profil`), pas par la file d'envoi |
 | `intervenants_publics` / `intervenants_restreints` | intervenants d'un dossier : public sans jointure ; restreint JOIN `groupe_acces_membres` |
 | `dossier_liens_publics` | `dossier_liens` où `visibilite = 'public'` (les deux dossiers) et cabinet du jeton |
 | `dossier_liens_restreints` | `dossier_liens` JOIN `groupe_acces_membres`, cible publique (`lie_restreint = false`) |

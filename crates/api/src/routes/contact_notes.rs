@@ -37,38 +37,11 @@ pub struct NoteContactResponse {
     pub id: Uuid,
     pub contact_id: Uuid,
     pub texte: String,
-    /// Utilisateur du jeton qui a écrit la note en dernier ; nul pour une note antérieure à la migration 065.
+    /// Utilisateur du jeton qui a écrit la note en dernier, posé par le serveur ; nul pour une note antérieure à la migration 065. Le libellé (« Me Prénom Nom ») se compose côté poste depuis l'identité du membre.
     pub auteur_id: Option<Uuid>,
-    /// Libellé de l'auteur figé à l'écriture.
-    pub auteur_libelle: Option<String>,
     pub revision: i64,
     pub cree_le: String,
     pub modifie_le: String,
-}
-
-/// Libellé d'auteur : l'adresse e-mail de l'utilisateur telle qu'enregistrée (donnée lue, rien de calculé).
-///
-/// La table des utilisateurs ne porte ni civilité, ni prénom, ni nom. Quand la décision sur les noms
-/// d'utilisateur sera prise, ce libellé deviendra « Me Prénom Nom », lu des mêmes colonnes.
-pub fn libelle_auteur_depuis_email(email: &str) -> String {
-    email.trim().to_string()
-}
-
-async fn libelle_auteur(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    cabinet_id: Uuid,
-    utilisateur_id: Uuid,
-) -> Result<String, ApiError> {
-    let email = sqlx::query_scalar::<_, String>(
-        "SELECT email FROM utilisateurs WHERE id = $1 AND cabinet_id = $2",
-    )
-    .bind(utilisateur_id)
-    .bind(cabinet_id)
-    .fetch_optional(&mut **tx)
-    .await
-    .map_err(|_| ApiError::internal("lecture utilisateur"))?
-    .ok_or_else(|| ApiError::not_found("Utilisateur introuvable"))?;
-    Ok(libelle_auteur_depuis_email(&email))
 }
 
 #[utoipa::path(
@@ -143,13 +116,12 @@ pub async fn creer_note(
     if !existe {
         return Err(ApiError::not_found("Contact introuvable"));
     }
-    let libelle = libelle_auteur(&mut tx, claims.cabinet_id, claims.sub).await?;
     sqlx::query(
         r#"
         INSERT INTO contact_notes (
-            id, cabinet_id, contact_id, texte, auteur_id, auteur_libelle, revision
+            id, cabinet_id, contact_id, texte, auteur_id, revision
         )
-        VALUES ($1, $2, $3, $4, $5, $6, 1)
+        VALUES ($1, $2, $3, $4, $5, 1)
         "#,
     )
     .bind(body.id)
@@ -157,7 +129,6 @@ pub async fn creer_note(
     .bind(contact_id)
     .bind(texte)
     .bind(claims.sub)
-    .bind(&libelle)
     .execute(&mut *tx)
     .await
     .map_err(|_| ApiError::internal("création note"))?;
@@ -242,18 +213,16 @@ pub async fn patch_note(
     )
     .await?;
     if revision != revision_actuelle {
-        let libelle = libelle_auteur(&mut tx, claims.cabinet_id, claims.sub).await?;
         sqlx::query(
             r#"
             UPDATE contact_notes
-            SET texte = $1, revision = $2, auteur_id = $3, auteur_libelle = $4, modifie_le = NOW()
-            WHERE id = $5
+            SET texte = $1, revision = $2, auteur_id = $3, modifie_le = NOW()
+            WHERE id = $4
             "#,
         )
         .bind(texte)
         .bind(revision)
         .bind(claims.sub)
-        .bind(&libelle)
         .bind(note_id)
         .execute(&mut *tx)
         .await
@@ -272,20 +241,9 @@ async fn lire_note(
     cabinet_id: Uuid,
     id: Uuid,
 ) -> Result<NoteContactResponse, ApiError> {
-    let ligne = sqlx::query_as::<
-        _,
-        (
-            Uuid,
-            String,
-            Option<Uuid>,
-            Option<String>,
-            i64,
-            String,
-            String,
-        ),
-    >(
+    let ligne = sqlx::query_as::<_, (Uuid, String, Option<Uuid>, i64, String, String)>(
         r#"
-        SELECT contact_id, texte, auteur_id, auteur_libelle, revision,
+        SELECT contact_id, texte, auteur_id, revision,
                cree_le::text, modifie_le::text
         FROM contact_notes WHERE id = $1 AND cabinet_id = $2
         "#,
@@ -301,26 +259,8 @@ async fn lire_note(
         contact_id: ligne.0,
         texte: ligne.1,
         auteur_id: ligne.2,
-        auteur_libelle: ligne.3,
-        revision: ligne.4,
-        cree_le: ligne.5,
-        modifie_le: ligne.6,
+        revision: ligne.3,
+        cree_le: ligne.4,
+        modifie_le: ligne.5,
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::libelle_auteur_depuis_email;
-
-    #[test]
-    fn le_libelle_d_auteur_est_l_adresse_enregistree() {
-        assert_eq!(
-            libelle_auteur_depuis_email("julien.marchal@cabinet.example"),
-            "julien.marchal@cabinet.example"
-        );
-        assert_eq!(
-            libelle_auteur_depuis_email(" demo@cabinet.example "),
-            "demo@cabinet.example"
-        );
-    }
 }

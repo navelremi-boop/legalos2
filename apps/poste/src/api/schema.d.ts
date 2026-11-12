@@ -1460,6 +1460,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/moi/profil": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["lire_mon_profil"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["modifier_mon_profil"];
+        trace?: never;
+    };
     "/parties/{partie_id}": {
         parameters: {
             query?: never;
@@ -1602,6 +1618,38 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["patch_temps"];
+        trace?: never;
+    };
+    "/utilisateurs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["lister_utilisateurs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/utilisateurs/{utilisateur_id}/profil": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["modifier_profil_membre"];
         trace?: never;
     };
 }
@@ -2629,14 +2677,28 @@ export interface components {
             tls?: boolean | null;
             utilisateur: string;
         };
+        /**
+         * @description Modification d'identité. Un champ absent reste tel quel ; `null` ou une chaîne vide l'efface (NULL).
+         *     Le rôle, l'adresse e-mail, l'état actif et les initiales ne se modifient pas ici : tout champ
+         *     inconnu du corps est ignoré.
+         */
+        ModifierProfilRequest: {
+            barreau?: string | null;
+            /** Format: int64 */
+            base_revision: number;
+            civilite?: string | null;
+            idempotence_cle: string;
+            nom?: string | null;
+            prenom?: string | null;
+            qualite?: string | null;
+            toque?: string | null;
+        };
         NoteContactResponse: {
             /**
              * Format: uuid
-             * @description Utilisateur du jeton qui a écrit la note en dernier ; nul pour une note antérieure à la migration 065.
+             * @description Utilisateur du jeton qui a écrit la note en dernier, posé par le serveur ; nul pour une note antérieure à la migration 065. Le libellé (« Me Prénom Nom ») se compose côté poste depuis l'identité du membre.
              */
             auteur_id?: string | null;
-            /** @description Libellé de l'auteur figé à l'écriture. */
-            auteur_libelle?: string | null;
             /** Format: uuid */
             contact_id: string;
             cree_le: string;
@@ -2836,6 +2898,26 @@ export interface components {
         PreparerVersionRequest: {
             /** Format: int32 */
             base_numero?: number | null;
+        };
+        /** @description Identité d'un membre, telle que l'API la lit et la renvoie. */
+        ProfilMembreResponse: {
+            actif: boolean;
+            barreau?: string | null;
+            /** @description `madame` ou `monsieur`, nul tant que non saisi. */
+            civilite?: string | null;
+            email: string;
+            /** Format: uuid */
+            id: string;
+            initiales?: string | null;
+            nom?: string | null;
+            prenom?: string | null;
+            /** @description `avocat`, `avocat_collaborateur`, `juriste`, `assistant` ou `autre`, nul tant que non saisi. */
+            qualite?: string | null;
+            /** Format: int64 */
+            revision: number;
+            /** @description `administrateur` ou `collaborateur` ; ne se modifie pas par ces routes. */
+            role: string;
+            toque?: string | null;
         };
         PropositionSiren: {
             activite?: string | null;
@@ -7529,6 +7611,95 @@ export interface operations {
             };
         };
     };
+    lire_mon_profil: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Identité de l'utilisateur du jeton */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfilMembreResponse"];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Utilisateur introuvable */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    modifier_mon_profil: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModifierProfilRequest"];
+            };
+        };
+        responses: {
+            /** @description Identité modifiée, ou déjà dans cet état (rejeu) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfilMembreResponse"];
+                };
+            };
+            /** @description Valeur refusée (civilité, qualité, longueur, barreau ou toque pour une qualité qui n'est pas avocat), version de base, clé d'idempotence */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Utilisateur introuvable */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
     patch_partie: {
         parameters: {
             query?: never;
@@ -8000,6 +8171,107 @@ export interface operations {
             };
             /** @description Erreur interne */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    lister_utilisateurs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Membres du cabinet (actifs ou non) avec leur identité */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfilMembreResponse"][];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Réservé aux administrateurs du cabinet */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    modifier_profil_membre: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Membre du cabinet dont l'identité change */
+                utilisateur_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModifierProfilRequest"];
+            };
+        };
+        responses: {
+            /** @description Identité modifiée, ou déjà dans cet état (rejeu) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfilMembreResponse"];
+                };
+            };
+            /** @description Valeur refusée, version de base, clé d'idempotence */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Non authentifié */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Réservé aux administrateurs du cabinet */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Utilisateur introuvable ou d'un autre cabinet */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
