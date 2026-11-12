@@ -444,3 +444,13 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
   Non vérifié par le contrôleur : `annuaire.mjs` et Docker (hors consigne), poste construit, contrôle B9 sur l'écran du commandement. Sur ce poste, Vite n'écoute que sur `[::1]` : `contacts-captures-galerie.mjs` exige `LEGALOS_GALERIE_URL` (viser `localhost`).
 
 **État de session.** Fait : verdict du contrôleur consigné. En cours : Annuaire. Prochaine action : écarts 22, 23, 25, 26, 27, 28, 31 (alignement sans arbitrage) confiés à `poste-interface` ; 24, 29 et 30, 32, 33 à trancher par le commandement ; puis nouveau contrôle visuel.
+
+- **Écarts 22, 23, 25 à 28 et 31 traités (12/11).** Commit `annuaire: Contacts, écarts 22 à 28 et 31`. Preuves : 105 tests unitaires verts ; `lint:ci`, `typecheck`, `coque-app`, `encodage-texte` OK (rejoués le 12/11) ; `annuaire.mjs` exit 0 (lancé le 06/11 sur le même arbre, avant l'interruption de session). Colonne large : liste de 368 px, ligne de 352 px, plus de troncature (cause double : `23rem` = 322 px à racine de 14 px, marges de 22 px).
+
+  Reste à décider (commandement ou architecte) :
+  - 23 : le schéma ne contient ni date d'immatriculation ni pièce d'après laquelle le capital a été saisi ; « Immatriculée le … » et la fin de la ligne de source ne s'affichent qu'en galerie. Les afficher exige deux colonnes (migration additive), leur écriture à l'import par SIREN et à la saisie du capital, et leur ajout à la synchronisation. `contacts.source_import` stocke `recherche-entreprises`, associé à « Registre national des entreprises » à l'affichage.
+  - 25 : la maquette écrit « Mobile » pour le téléphone d'Antoine ; le modèle n'a pas d'usage « mobile », l'app affiche « Téléphone ».
+  - Observation : la désignation dans les actes diffère de la phrase de la maquette (écart 10, déjà consigné).
+  Toujours à trancher : 24, 29, 30, 32, 33 et 10 à 21.
+
+**État de session.** Fait : écarts 22, 23 (en partie), 25 à 28, 31 commités. En cours : Annuaire. Prochaine action : push, CI par `gh run view`, nouveau contrôle visuel de Contacts par le contrôleur ; écarts 24, 29 et 30, 32, 33, 10 à 21 et la donnée d'immatriculation selon la réponse du commandement.
