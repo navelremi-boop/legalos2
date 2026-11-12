@@ -6,6 +6,8 @@ Données : jeu du prototype (Ferrand Métal, Antoine Ferrand, import SIREN).
 | Scène | Thème | Taille | Fichier |
 | --- | --- | --- | --- |
 | ferrand-general | jour | 1366×768 | `ferrand-general-jour-1366.png` |
+| antoine-general | jour | 1366×768 | `antoine-general-jour-1366.png` |
+| claire-general | jour | 1366×768 | `claire-general-jour-1366.png` |
 | antoine-liens | jour | 1366×768 | `antoine-liens-jour-1366.png` |
 | ferrand-dossiers | jour | 1366×768 | `ferrand-dossiers-jour-1366.png` |
 | ferrand-factures | jour | 1366×768 | `ferrand-factures-jour-1366.png` |
@@ -18,6 +20,8 @@ Données : jeu du prototype (Ferrand Métal, Antoine Ferrand, import SIREN).
 | nouveau-personne | jour | 1366×768 | `nouveau-personne-jour-1366.png` |
 | importer-siren-resultat | jour | 1366×768 | `importer-siren-resultat-jour-1366.png` |
 | ferrand-general | jour | 1920×1080 | `ferrand-general-jour-1920.png` |
+| antoine-general | jour | 1920×1080 | `antoine-general-jour-1920.png` |
+| claire-general | jour | 1920×1080 | `claire-general-jour-1920.png` |
 | antoine-liens | jour | 1920×1080 | `antoine-liens-jour-1920.png` |
 | ferrand-dossiers | jour | 1920×1080 | `ferrand-dossiers-jour-1920.png` |
 | ferrand-factures | jour | 1920×1080 | `ferrand-factures-jour-1920.png` |
@@ -30,6 +34,8 @@ Données : jeu du prototype (Ferrand Métal, Antoine Ferrand, import SIREN).
 | nouveau-personne | jour | 1920×1080 | `nouveau-personne-jour-1920.png` |
 | importer-siren-resultat | jour | 1920×1080 | `importer-siren-resultat-jour-1920.png` |
 | ferrand-general | jour | 2560×1440 | `ferrand-general-jour-2560.png` |
+| antoine-general | jour | 2560×1440 | `antoine-general-jour-2560.png` |
+| claire-general | jour | 2560×1440 | `claire-general-jour-2560.png` |
 | antoine-liens | jour | 2560×1440 | `antoine-liens-jour-2560.png` |
 | ferrand-dossiers | jour | 2560×1440 | `ferrand-dossiers-jour-2560.png` |
 | ferrand-factures | jour | 2560×1440 | `ferrand-factures-jour-2560.png` |
@@ -42,6 +48,8 @@ Données : jeu du prototype (Ferrand Métal, Antoine Ferrand, import SIREN).
 | nouveau-personne | jour | 2560×1440 | `nouveau-personne-jour-2560.png` |
 | importer-siren-resultat | jour | 2560×1440 | `importer-siren-resultat-jour-2560.png` |
 | ferrand-general | nuit | 1366×768 | `ferrand-general-nuit-1366.png` |
+| antoine-general | nuit | 1366×768 | `antoine-general-nuit-1366.png` |
+| claire-general | nuit | 1366×768 | `claire-general-nuit-1366.png` |
 | antoine-liens | nuit | 1366×768 | `antoine-liens-nuit-1366.png` |
 | ferrand-dossiers | nuit | 1366×768 | `ferrand-dossiers-nuit-1366.png` |
 | ferrand-factures | nuit | 1366×768 | `ferrand-factures-nuit-1366.png` |
@@ -54,6 +62,8 @@ Données : jeu du prototype (Ferrand Métal, Antoine Ferrand, import SIREN).
 | nouveau-personne | nuit | 1366×768 | `nouveau-personne-nuit-1366.png` |
 | importer-siren-resultat | nuit | 1366×768 | `importer-siren-resultat-nuit-1366.png` |
 | ferrand-general | nuit | 1920×1080 | `ferrand-general-nuit-1920.png` |
+| antoine-general | nuit | 1920×1080 | `antoine-general-nuit-1920.png` |
+| claire-general | nuit | 1920×1080 | `claire-general-nuit-1920.png` |
 | antoine-liens | nuit | 1920×1080 | `antoine-liens-nuit-1920.png` |
 | ferrand-dossiers | nuit | 1920×1080 | `ferrand-dossiers-nuit-1920.png` |
 | ferrand-factures | nuit | 1920×1080 | `ferrand-factures-nuit-1920.png` |
@@ -66,6 +76,8 @@ Données : jeu du prototype (Ferrand Métal, Antoine Ferrand, import SIREN).
 | nouveau-personne | nuit | 1920×1080 | `nouveau-personne-nuit-1920.png` |
 | importer-siren-resultat | nuit | 1920×1080 | `importer-siren-resultat-nuit-1920.png` |
 | ferrand-general | nuit | 2560×1440 | `ferrand-general-nuit-2560.png` |
+| antoine-general | nuit | 2560×1440 | `antoine-general-nuit-2560.png` |
+| claire-general | nuit | 2560×1440 | `claire-general-nuit-2560.png` |
 | antoine-liens | nuit | 2560×1440 | `antoine-liens-nuit-2560.png` |
 | ferrand-dossiers | nuit | 2560×1440 | `ferrand-dossiers-nuit-2560.png` |
 | ferrand-factures | nuit | 2560×1440 | `ferrand-factures-nuit-2560.png` |

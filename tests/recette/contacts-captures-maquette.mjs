@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Captures côte à côte maquette Contacts (prototype-contacts.html) :
- * Ferrand Métal (Général, Dossiers, Factures, Mails), Antoine Ferrand (Liens), Holding Perrache (Dossiers), états vides et notes (Claire Ferrand, Dossiers ; Ferrand Métal, Notes ; Me Anne Perrin, Liens), création d'un contact (personne physique),
+ * Ferrand Métal (Général, Dossiers, Factures, Mails), Antoine et Claire Ferrand (Général), Antoine Ferrand (Liens), Holding Perrache (Dossiers), états vides et notes (Claire Ferrand, Dossiers ; Ferrand Métal, Notes ; Me Anne Perrin, Liens), création d'un contact (personne physique),
  * Importer par SIREN (société déjà dans l'annuaire, puis société trouvée au registre) ;
  * 1 366 × 768, 1 920 × 1 080, 2 560 × 1 440 ; jour et nuit.
  * Écrit dans design/captures/contacts-maquette/ et un index Markdown.
@@ -26,6 +26,9 @@ const TAILLES = [
 const THEMES = ["jour", "nuit"];
 const SCENES = [
   { id: "ferrand-general", contact: "ferrand", onglet: "general" },
+  // Fiches de personnes physiques en lecture : état civil, lieu de naissance, coordonnées.
+  { id: "antoine-general", contact: "antoine", onglet: "general" },
+  { id: "claire-general", contact: "claire", onglet: "general" },
   { id: "antoine-liens", contact: "antoine", onglet: "liens" },
   { id: "ferrand-dossiers", contact: "ferrand", onglet: "dossiers" },
   { id: "ferrand-factures", contact: "ferrand", onglet: "factures" },

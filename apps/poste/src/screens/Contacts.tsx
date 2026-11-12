@@ -25,6 +25,7 @@ import {
   sirenListeContact,
   formeEnLettres,
   nomCourtContact,
+  professionAccordee,
   sousTitreFiche,
   type ContactListe,
   type CoordonneeLue,
@@ -101,7 +102,9 @@ import { PanneauLateral } from "@/coque/PanneauLateral";
 import { libelleCoordonnee } from "@/contacts/libelleCoordonnee";
 import { dateImmatriculation, libelleGreffe, ligneSourceFiche } from "@/contacts/registreFiche";
 import { fr } from "@/lib/fr";
-import { formatDateActe, formatMontant } from "@/lib/format";
+import { formatMontant } from "@/lib/format";
+import { naissanceLecture, ressortLecture, valeurEtatCivil } from "@/contacts/etatCivilLecture";
+import { phraseMentions } from "@/contacts/mentionsLecture";
 
 type ContactsProps = {
   /** Jeu figé de la galerie. Sans cela, la liste est lue dans la base locale. */
@@ -1507,12 +1510,12 @@ function FicheGenerale({
     contact.monnaie,
     contact.capitalLibelle,
   );
-  const libelleProfessionCode =
-    PROFESSIONS_FICHE.find((entree) => entree.code === contact.professionCode)?.libelle ?? null;
-  const mentionsLibelle = acte.mentions.map((mention) => mention.libelle).join(", ");
+  const libelleProfessionCode = professionAccordee(contact);
+  const naissance = naissanceLecture(contact.dateNaissance, contact.lieuNaissance);
+  const mentionsLibelle = phraseMentions(acte.mentions);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="fiche-generale">
       <DoublonsFiche
         key={contact.id}
         contactId={contact.id}
@@ -1538,7 +1541,7 @@ function FicheGenerale({
           </div>
           <button
             type="button"
-            className="bouton bouton--petit act"
+            className="contacts-act act"
             onClick={() => {
               const premiere = acte.mentions[0];
               ouvrir(premiere === undefined ? "identite" : sectionPourChamp(premiere.champ));
@@ -1556,7 +1559,7 @@ function FicheGenerale({
         </div>
         <button
           type="button"
-          className="bouton bouton--petit act"
+          className="contacts-act act"
           data-testid="contacts-copier-designation"
           disabled={acte.texte === ""}
           onClick={() => {
@@ -1590,7 +1593,7 @@ function FicheGenerale({
         <>
           <div className="sec-t">
             {fr("Identité")}
-            <button type="button" className="bouton bouton--petit act" onClick={() => { ouvrir("denomination"); }}>
+            <button type="button" className="contacts-act act" onClick={() => { ouvrir("denomination"); }}>
               {fr("Modifier")}
             </button>
           </div>
@@ -1642,7 +1645,7 @@ function FicheGenerale({
         <>
           <div className="sec-t">
             {fr("Profession")}
-            <button type="button" className="bouton bouton--petit act" onClick={() => { ouvrir("profession"); }}>
+            <button type="button" className="contacts-act act" onClick={() => { ouvrir("profession"); }}>
               {fr("Modifier")}
             </button>
           </div>
@@ -1667,8 +1670,8 @@ function FicheGenerale({
             ) : null}
             {contact.courAppel ? (
               <FaitLecture
-                libelle="Cour d'appel"
-                valeur={contact.courAppel}
+                libelle="Ressort"
+                valeur={ressortLecture(contact.courAppel)}
                 onOuvrir={() => { ouvrir("profession"); }}
               />
             ) : null}
@@ -1684,7 +1687,7 @@ function FicheGenerale({
         <>
           <div className="sec-t">
             {fr("État civil")}
-            <button type="button" className="bouton bouton--petit act" onClick={() => { ouvrir("identite"); }}>
+            <button type="button" className="contacts-act act" onClick={() => { ouvrir("identite"); }}>
               {fr("Modifier")}
             </button>
           </div>
@@ -1701,17 +1704,18 @@ function FicheGenerale({
               libelle={
                 accordDe(contact.civilite ?? "", contact.accordSaisi) === "feminin" ? "Née le" : "Né le"
               }
-              valeur={contact.dateNaissance ? formatDateActe(contact.dateNaissance) : null}
+              valeur={naissance?.texte ?? null}
+              manque={naissance?.manque}
               onOuvrir={() => { ouvrir("identite"); }}
             />
             <FaitLecture
               libelle="Nationalité"
-              valeur={contact.nationalite}
+              valeur={valeurEtatCivil(contact.nationalite)}
               onOuvrir={() => { ouvrir("identite"); }}
             />
             <FaitLecture
               libelle="Profession"
-              valeur={contact.profession}
+              valeur={valeurEtatCivil(contact.profession)}
               placeholder="À compléter"
               manque={!contact.profession?.trim()}
               onOuvrir={() => { ouvrir("identite"); }}
@@ -1733,7 +1737,7 @@ function FicheGenerale({
       )}
       <div className="sec-t">
         {fr("Coordonnées")}
-        <button type="button" className="bouton bouton--petit act" onClick={() => { ouvrir("coordonnee"); }}>
+        <button type="button" className="contacts-act act" onClick={() => { ouvrir("coordonnee"); }}>
           <IconPlus size={14} stroke={1.8} aria-hidden />
           {fr("Ajouter")}
         </button>

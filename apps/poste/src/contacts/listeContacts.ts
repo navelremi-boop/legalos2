@@ -315,7 +315,7 @@ export function sirenListeContact(siren: string | null | undefined): string {
   return chiffres.replace(/(\d{3})(?=\d)/g, "$1 ").trim();
 }
 
-function majusculeInitiale(texte: string): string {
+export function majusculeInitiale(texte: string): string {
   const premiere = Array.from(texte)[0];
   return premiere === undefined ? texte : premiere.toLocaleUpperCase("fr") + texte.slice(premiere.length);
 }

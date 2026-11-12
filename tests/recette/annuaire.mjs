@@ -438,6 +438,13 @@ try {
         sexe,
         designation: document.querySelector("[data-testid=contacts-designation]")?.textContent ?? "",
         mademoiselle: options.some((o) => /mademoiselle/i.test(o)),
+        // Lecture de l'état civil : « Née le 14 mars 1980 à Lyon », valeurs à la majuscule initiale.
+        etatCivil: Object.fromEntries(
+          [...document.querySelectorAll("[data-testid=contacts-fiche] .faits > div")].map((ligne) => [
+            (ligne.querySelector("dt")?.textContent ?? "").replace(/[\\u00a0\\u202f\\s]+/g, " ").trim(),
+            (ligne.querySelector("dd")?.textContent ?? "").replace(/[\\u00a0\\u202f\\s]+/g, " ").trim(),
+          ]),
+        ),
       };
     })()`,
   );
@@ -448,6 +455,17 @@ try {
   if (personneEcran.mademoiselle) fail("Mademoiselle est proposée");
   if (!personneEcran.options.includes("Madame") || !personneEcran.options.includes("Maître")) fail("civilités de départ absentes");
   if (!personneEcran.designation.includes("Camille")) fail(`désignation : ${personneEcran.designation.slice(0, 120)}`);
+  // Lieu de naissance : la fiche en lecture écrit la date puis le lieu saisi (14 mars 1980, Lyon).
+  if (personneEcran.etatCivil["Née le"] !== "14 mars 1980 à Lyon") {
+    fail(`naissance en lecture : ${JSON.stringify(personneEcran.etatCivil["Née le"] ?? personneEcran.etatCivil["Né le"])}`);
+  }
+  // Valeurs stockées en minuscules (« française », « avocate »), affichées à la majuscule initiale.
+  if (personneEcran.etatCivil["Nationalité"] !== "Française") {
+    fail(`nationalité en lecture : ${JSON.stringify(personneEcran.etatCivil["Nationalité"])}`);
+  }
+  if (personneEcran.etatCivil["Profession"] !== "Avocate") {
+    fail(`profession en lecture : ${JSON.stringify(personneEcran.etatCivil["Profession"])}`);
+  }
   ok("fiche personne");
 
   async function attendreTexte(selecteur, morceau) {

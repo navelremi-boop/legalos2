@@ -117,7 +117,7 @@ export function DoublonsFiche({ contactId, horsLigne = false, instanceUrl, doubl
             </div>
             <button
               type="button"
-              className="bouton bouton--petit act"
+              className="contacts-act act"
               data-testid="contacts-doublon-comparer"
               aria-expanded={ouvert === doublon.id}
               onClick={() => {
@@ -142,7 +142,7 @@ export function DoublonsFiche({ contactId, horsLigne = false, instanceUrl, doubl
               </label>
               <button
                 type="button"
-                className="bouton bouton--petit act"
+                className="contacts-act act"
                 data-testid="contacts-doublon-fusionner"
                 disabled={!enLigne}
                 title={enLigne ? undefined : fr("La fusion se fait en ligne.")}
