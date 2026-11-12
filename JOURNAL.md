@@ -493,3 +493,7 @@ Synthèse au 30/10/2026 (archives : `docs/journal/phase-0.md`, `phase-1.md`, `ph
   Écarts de rendu : montants « 2 400,00 € » (formateur commun) contre « 2 400 € » en maquette ; petits textes à 12 px (échelle du design) contre le `<small>` du navigateur ; grille `subgrid` (WKWebView depuis la 16, la CI macOS le confirmera).
 
 **État de session.** Fait : N3 commité, test instable corrigé. En cours : Annuaire. Prochaine action : push, CI par `gh run view`, quatrième contrôle visuel de Contacts ; écarts 24, 29, 30, N1, N2, 32, 33, 10 à 21, données de facture (date, objet, référence, statut) et donnée d'immatriculation selon la réponse du commandement.
+
+- **CI e25daf9 (12/11).** CI [43231949462](https://github.com/navelremi-boop/legalos2/actions/runs/43231949462) : `gh run view` → `completed` / `success`, sept jobs verts (`rust` compris : le test instable est corrigé). N3 et correctif du test poussés. Quatrième contrôle visuel de Contacts lancé.
+
+**État de session.** Fait : CI verte sur N3. En cours : Annuaire. Prochaine action : verdict du quatrième contrôle visuel ; écarts 24, 29, 30, N1, N2, 32, 33, 10 à 21, données de facture et d'immatriculation selon la réponse du commandement.
