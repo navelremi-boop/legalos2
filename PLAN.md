@@ -304,6 +304,12 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
         - société : « La société [dénomination], [forme en toutes lettres] au capital de [capital] €, immatriculée au registre du commerce et des sociétés de [greffe] sous le numéro [SIREN par groupes de trois], dont le siège social est situé [adresse], prise en la personne de son [fonction] en exercice, [M. ou Mme] [prénom usuel] [nom], domicilié(e) en cette qualité audit siège. » ;
         - personne : « [M. ou Mme] [prénoms] [nom], né(e) [le …] [à …], de nationalité [nationalité], [profession], demeurant [adresse]. » ;
         - une société exerçant une profession réglementée suit la formule des sociétés ; une mention manquante reste signalée et arrête la fusion.
+      - **Identité des membres du cabinet** (réponse de l'architecte du 12/11/2026, pour l'auteur des notes) :
+        - migration additive sur `utilisateurs` : civilité (Madame, Monsieur), prénom, nom, qualité (avocat, avocat collaborateur, juriste, assistant, autre), et pour un avocat : barreau et toque ; aucune valeur déduite de l'adresse e-mail, les champs restent vides tant qu'ils ne sont pas saisis ;
+        - saisie : « Mon profil » pour chaque utilisateur ; Réglages, Utilisateurs pour un administrateur ; synchronisé selon les règles existantes des utilisateurs ;
+        - un seul module de libellé, réutilisé partout : « Me Prénom Nom » pour un avocat, « Mme » ou « M. Prénom Nom » sinon ; à défaut d'identité, l'adresse e-mail et une invitation à compléter son profil ; tests écrits à la main, accords compris ;
+        - notes : « Modifié par [libellé] le [date en toutes lettres] » ; le module sera repris tel quel par les diligences et par les champs de fusion (avocat du dossier), sans dupliquer la logique ;
+        - pas de lien avec une fiche de l'annuaire à ce stade : l'identité d'un membre reste dans `utilisateurs`.
     - `cargo clippy --workspace --all-targets -- -D warnings` et `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
 - [ ] **J8, lot correctif Factur-X** — jalon J8 rouvert par la consigne de l'architecte du 12/11/2026, soir — après la coche de l'Annuaire, avant Juridictions et administrations. Le modèle Factur-X (`crates/api/src/facturation.rs`, `routes/factures.rs`) contient des identités en dur (« Cabinet fictif LEGAL OS », FR32123456789, « Client fictif », FR32876543210 pour tout professionnel, IBAN FR7630006000011234567890189, « Débours fictifs ») et une date d'émission recalculée à chaque génération, en UTC.
