@@ -348,16 +348,35 @@ try {
   }
   // Enregistrement d'une société depuis le formulaire : SIREN contrôlé, TVA calculée, adresse assemblée.
   const nomCreation = `Atelier ${marque}`;
+  // SIREN propre à chaque exécution (clé de Luhn valide) : l'annuaire d'un poste de développement
+  // garde les sociétés créées par les exécutions précédentes, et un SIREN déjà connu bloque la création.
+  const sirenCreation = (() => {
+    const base = `1${String(marque).replace(/\D/g, "").padStart(6, "0").slice(-6)}0`;
+    for (let cle = 0; cle < 10; cle += 1) {
+      const candidat = `${base}${String(cle)}`;
+      let somme = 0;
+      for (let i = 0; i < 9; i += 1) {
+        let chiffre = Number(candidat[8 - i]);
+        if (i % 2 === 1) {
+          chiffre *= 2;
+          if (chiffre > 9) chiffre -= 9;
+        }
+        somme += chiffre;
+      }
+      if (somme % 10 === 0) return candidat;
+    }
+    return "100000108";
+  })();
   await cliquer(cdp.send, "[data-testid=contacts-importer-siren]");
   await attendre(cdp.send, "[data-testid=contacts-creation-siren]");
   await saisir(cdp.send, "[data-testid=contacts-creation-siren]", "123456789");
   await cliquer(cdp.send, "[data-testid=contacts-creation-interroger]");
   await attendre(cdp.send, "[data-testid=contacts-creation-siren-erreur]");
-  await saisir(cdp.send, "[data-testid=contacts-creation-siren]", "100000108");
+  await saisir(cdp.send, "[data-testid=contacts-creation-siren]", sirenCreation);
   const tvaCalculee = String(
     (await evaluate(cdp.send, `document.querySelector("[data-testid=contacts-creation-tva]")?.value ?? ""`)) ?? "",
   );
-  if (!/^FR\d{2}100000108$/.test(tvaCalculee)) fail(`TVA calculée : ${tvaCalculee}`);
+  if (!new RegExp(`^FR\\d{2}${sirenCreation}$`).test(tvaCalculee)) fail(`TVA calculée : ${tvaCalculee}`);
   await saisir(cdp.send, "[data-testid=contacts-creation-denomination]", nomCreation);
   await saisir(cdp.send, "[data-testid=contacts-creation-forme]", "5710");
   await saisir(cdp.send, "[data-testid=contacts-creation-capital]", "50 000");
@@ -377,7 +396,7 @@ try {
     if (creee !== "") break;
     await sleep(500);
   }
-  if (creee !== `100000108|${tvaCalculee}|5710|5000000`) fail(`société créée depuis le formulaire : ${creee}`);
+  if (creee !== `${sirenCreation}|${tvaCalculee}|5710|5000000`) fail(`société créée depuis le formulaire : ${creee}`);
   const siegeCree = (
     await sqlServeur(
       `SELECT valeur FROM contact_coordonnees WHERE contact_id = (SELECT id FROM contacts WHERE nom = '${nomCreation}') AND usage = 'siege'`,
@@ -392,6 +411,17 @@ try {
   await attendre(cdp.send, `[data-testid=contacts-ligne][data-contact-id="${personneId}"]`);
   await cliquer(cdp.send, `[data-testid=contacts-ligne][data-contact-id="${personneId}"]`);
   await sleep(400);
+  // Comme la maquette, « Factures » n'apparaît que pour un contact qui en a : la personne en a une,
+  // lue en base locale après l'ouverture de la fiche.
+  {
+    const debutOnglet = Date.now();
+    while (
+      (await evaluate(cdp.send, `document.querySelector("[data-testid=contacts-onglet-factures]") !== null`)) !== true
+    ) {
+      if (Date.now() - debutOnglet > 20_000) fail("onglet Factures absent pour une personne qui a une facture");
+      await sleep(300);
+    }
+  }
   const personneEcran = await evaluate(
     cdp.send,
     `(() => {
@@ -519,6 +549,14 @@ try {
   if (societeEcran.activite !== "Metallurgie") fail(`activité : ${societeEcran.activite}`);
   if (!societeEcran.forme || !societeEcran.capital) fail("forme ou capital absent");
   if (!societeEcran.designation.includes("100000009")) fail("la désignation ne reprend pas le SIREN");
+  {
+    // Le compteur de la fiche précédente disparaît dès que la lecture locale de la société aboutit.
+    const debutAbsent = Date.now();
+    while ((await evaluate(cdp.send, `document.querySelector("[data-testid=contacts-onglet-factures]") !== null`)) === true) {
+      if (Date.now() - debutAbsent > 8_000) fail("onglet Factures présent pour une société sans facture");
+      await sleep(300);
+    }
+  }
   ok("fiche société");
 
   const sirenInvalide = await ui.apiJson(jeton, "GET", "/contacts/recherche-siren/123456789");

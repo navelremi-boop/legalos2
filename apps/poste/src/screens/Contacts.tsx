@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   IconAlertTriangle,
   IconBuilding,
@@ -21,7 +21,7 @@ import {
   libelleCapital,
   metaListeContact,
   natureEtiquetteFiche,
-  ONGLETS_FICHE,
+  ongletsFiche,
   sirenListeContact,
   formeEnLettres,
   nomCourtContact,
@@ -92,6 +92,8 @@ import {
 import type { PropositionSiren } from "@/contacts/propositionSiren";
 import { Feuille } from "@/coque/Feuille";
 import { PanneauLateral } from "@/coque/PanneauLateral";
+import { libelleCoordonnee } from "@/contacts/libelleCoordonnee";
+import { dateImmatriculation, libelleGreffe, ligneSourceFiche } from "@/contacts/registreFiche";
 import { fr } from "@/lib/fr";
 import { formatDateActe, formatMontant } from "@/lib/format";
 
@@ -112,13 +114,14 @@ type ContactsProps = {
   instanceUrl?: string;
   /** Proposition figée, affichée par le bouton sans appeler le registre. */
   propositionFixe?: PropositionSiren | null;
-  historiqueFixe?: {
+  /** Historique figé de la galerie, par fiche. Les autres fiches n'ont pas d'historique. */
+  historiquesFixes?: readonly {
     contactId: string;
     dossiers: readonly DossierFiche[];
     factures: readonly FactureFiche[];
     mails: readonly MailFiche[];
     notes: readonly NoteFiche[];
-  } | null;
+  }[];
   /** Doublons figés de la galerie, par fiche. Sans cela, l'instance les détecte à l'ouverture de la fiche. */
   doublonsFixes?: Readonly<Record<string, readonly DoublonDetecte[]>>;
   /** Coordonnées figées de la galerie. Sans cela, elles sont lues dans la base locale. */
@@ -136,7 +139,7 @@ export function Contacts({
   horsLigne = false,
   instanceUrl,
   propositionFixe = null,
-  historiqueFixe = null,
+  historiquesFixes,
   doublonsFixes,
   coordonneesFixes,
   comptesDossiersFixes,
@@ -149,7 +152,7 @@ export function Contacts({
   const [filtre, setFiltre] = useState<FiltreContacts>("tous");
   const [recherche, setRecherche] = useState("");
   const [selection, setSelection] = useState<string | null>(selectionInitiale ?? null);
-  const [onglet, setOnglet] = useState<OngletFicheContact>("general");
+  const [ongletChoisi, setOnglet] = useState<OngletFicheContact>("general");
   const [creation, setCreation] = useState<{ nature: NatureCreation; focusSiren: boolean } | null>(null);
   const [creees, setCreees] = useState<ContactListe[]>([]);
   const [liensAjoutes, setLiensAjoutes] = useState<LienAffiche[]>([]);
@@ -261,18 +264,16 @@ export function Contacts({
   const choisi = visibles.find((contact) => contact.id === selection) ?? visibles[0] ?? null;
   const dossiersParContact = useMemo(() => {
     const map = new Map(dossiersParContactSync);
-    if (historiqueFixe !== null) {
-      map.set(historiqueFixe.contactId, historiqueFixe.dossiers.length);
-    }
+    for (const fixe of historiquesFixes ?? []) map.set(fixe.contactId, fixe.dossiers.length);
     if (
       lignesFixes === undefined &&
       choisi !== null &&
-      (historiqueFixe === null || historiqueFixe.contactId !== choisi.id)
+      !(historiquesFixes ?? []).some((fixe) => fixe.contactId === choisi.id)
     ) {
       map.set(choisi.id, dossiersSync.length);
     }
     return map;
-  }, [dossiersParContactSync, historiqueFixe, choisi, dossiersSync, lignesFixes]);
+  }, [dossiersParContactSync, historiquesFixes, choisi, dossiersSync, lignesFixes]);
   const capitalPose = choisi === null ? undefined : capitaux[choisi.id];
   const professionPosee = choisi === null ? undefined : professions[choisi.id];
   const choisiVu =
@@ -301,8 +302,9 @@ export function Contacts({
           specialite: professionPosee === undefined ? choisi.specialite : professionPosee.specialite,
           courAppel: professionPosee === undefined ? choisi.courAppel : professionPosee.courAppel,
         };
+  const historiqueFixe = (historiquesFixes ?? []).find((fixe) => fixe.contactId === choisi?.id) ?? null;
   const historique =
-    historiqueFixe !== null && choisi?.id === historiqueFixe.contactId
+    historiqueFixe !== null
       ? historiqueFixe
       : {
           contactId: choisi?.id ?? "",
@@ -391,13 +393,16 @@ export function Contacts({
           factures: historique.factures.length,
           mails: historique.mails.length,
         };
+  const onglets = ongletsFiche(compteursOnglets);
+  // Un onglet qui disparaît (plus aucune facture) ramène à Général.
+  const onglet = onglets.some((entree) => entree.id === ongletChoisi) ? ongletChoisi : "general";
   const declencherImport = () => {
     if (onglet !== "general") setOnglet("general");
     importRef.current?.interroger();
   };
 
   return (
-    <div className="fond-neutre relative flex h-full min-h-0 flex-col ecran" data-testid="ecran-contacts" data-fond="neutre">
+    <div className="fond-neutre relative flex h-full min-h-0 flex-col ecran ecran--large" data-testid="ecran-contacts" data-fond="neutre">
       <header className="ecran-tete">
         <div>
           <h1 className="ecran-tete__titre">{fr("Contacts")}</h1>
@@ -417,8 +422,9 @@ export function Contacts({
         </span>
       </header>
       <Feuille uneColonne className="min-h-0 flex-1">
-        <div className="grid h-full min-h-0 grid-cols-[23rem_minmax(0,1fr)]">
-          <div className="flex min-h-0 flex-col overflow-hidden border-r border-filet px-[22px] pt-[22px]">
+        <div className="grid h-full min-h-0 grid-cols-[368px_minmax(0,1fr)]">
+          <div className="flex min-h-0 flex-col overflow-hidden border-r border-filet">
+            <div className="px-4 pt-4">
             <label className="mb-3 block">
               <span className="sr-only">{fr("Rechercher un contact")}</span>
               <input
@@ -449,7 +455,8 @@ export function Contacts({
                 </button>
               ))}
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto pb-24" data-testid="contacts-liste">
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-24" data-testid="contacts-liste">
               {lignes === null ? (
                 <p className="etat-vide">{fr("Chargement des contacts.")}</p>
               ) : visibles.length === 0 ? (
@@ -627,7 +634,7 @@ export function Contacts({
                   </p>
                 ) : null}
                 <div className="contacts-onglets" role="tablist" aria-label={fr("Sections de la fiche")}>
-                  {ONGLETS_FICHE.map((entree) => {
+                  {onglets.map((entree) => {
                     const compte = compteursOnglets[entree.id];
                     return (
                       <button
@@ -821,7 +828,7 @@ function LiensFiche({
       <div className="sec-t">{fr("Liens avec d'autres contacts")}</div>
       {groupes.length === 0 ? <p className="etat-vide">{fr(VIDE_ONGLET.liens)}</p> : null}
       {groupes.map((entree) => (
-        <section key={entree.groupe}>
+        <Fragment key={entree.groupe}>
           <div className="sec-t">{fr(entree.groupe)}</div>
           <ul className="contacts-liens">
             {entree.lignes.map((ligne) => (
@@ -848,7 +855,7 @@ function LiensFiche({
               </li>
             ))}
           </ul>
-        </section>
+        </Fragment>
       ))}
     </div>
   );
@@ -1602,13 +1609,19 @@ function FicheGenerale({
               valeur={sirenListeContact(contact.siren) || null}
               onOuvrir={() => { ouvrir("siren"); }}
             />
-            <FaitLecture libelle="Greffe du RCS" valeur={contact.greffe} onOuvrir={() => { ouvrir("greffe"); }} />
+            <FaitLecture libelle="Greffe du RCS" valeur={libelleGreffe(contact.greffe)} onOuvrir={() => { ouvrir("greffe"); }} />
             <FaitLecture
               libelle="N° TVA intracommunautaire"
               valeur={contact.numeroTva}
               onOuvrir={() => { ouvrir("tva"); }}
             />
             <FaitLecture libelle="Activité" valeur={contact.activite} onOuvrir={() => { ouvrir("activite"); }} />
+            {dateImmatriculation(contact.immatriculeLe) !== null ? (
+              <div>
+                <dt>{fr("Immatriculée le")}</dt>
+                <dd>{dateImmatriculation(contact.immatriculeLe)}</dd>
+              </div>
+            ) : null}
             {contact.professionCode !== null ? (
               <FaitLecture
                 libelle="Profession réglementée"
@@ -1617,6 +1630,11 @@ function FicheGenerale({
               />
             ) : null}
           </dl>
+          {ligneSourceFiche(contact) !== null ? (
+            <p className="contacts-source" data-testid="contacts-source-import">
+              {fr(ligneSourceFiche(contact) ?? "")}
+            </p>
+          ) : null}
         </>
       ) : contact.professionCode !== null ? (
         <>
@@ -1723,7 +1741,7 @@ function FicheGenerale({
       ) : (
         <div className="coord" data-testid="contacts-coordonnees">
           {coordonnees.map((ligne) => {
-            const libelle = `${libelleGenre(ligne.genre)} (${libelleUsage(ligne.usage)})`;
+            const libelle = libelleCoordonnee(ligne.genre, ligne.usage);
             const detail =
               ligne.pays !== undefined && ligne.pays !== null && ligne.pays.trim() !== ""
                 ? `${ligne.valeur}, ${ligne.pays}`
@@ -2002,12 +2020,4 @@ function FicheGenerale({
       </PanneauLateral>
     </div>
   );
-}
-
-function libelleGenre(genre: string): string {
-  return GENRES_COORDONNEE.find((entree) => entree.id === genre)?.label ?? genre;
-}
-
-function libelleUsage(usage: string): string {
-  return USAGES_COORDONNEE.find((entree) => entree.id === usage)?.label ?? usage;
 }

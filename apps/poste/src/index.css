@@ -3887,6 +3887,12 @@
     color: var(--attente);
   }
 
+  .contacts-source {
+    margin: 10px 0 0;
+    font-size: var(--font-size-meta);
+    color: var(--graphite);
+  }
+
   .faits__valeur {
     display: block;
     width: 100%;

@@ -26,7 +26,7 @@ export function DirigeantsProposes({ dirigeants, contacts, societe, onCreer, onR
   if (dirigeants.length === 0) return null;
   return (
     <div data-testid="contacts-dirigeants">
-      <p className="font-bold">{fr("Dirigeants du registre")}</p>
+      <p className="font-bold">{fr("Dirigeants indiqués par le registre")}</p>
       <ul className="mt-2 flex flex-col gap-3">
         {dirigeants.map((dirigeant, index) => {
           const trouves = fichesDuDirigeant(dirigeant, contacts);

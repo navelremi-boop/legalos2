@@ -63,6 +63,14 @@ export type ContactListe = {
   courAppel: string | null;
   /** Vrai quand la fiche est archivée : lisible, plus proposée à la saisie. */
   archivee?: boolean;
+  /** Identifiant de la source d'un import de registre (colonne `source_import`). */
+  sourceImport?: string | null;
+  /** Instant de l'import (colonne `importe_le`). */
+  importeLe?: string | null;
+  /** Date d'immatriculation, en date civile. Pas encore dans le schéma : null hors galerie. */
+  immatriculeLe?: string | null;
+  /** Pièce d'après laquelle le capital a été saisi, ex. « le procès-verbal du 12 mars 2025 ». Pas encore dans le schéma : null hors galerie. */
+  sourceCapital?: string | null;
 };
 
 export function champsFicheVides(): Omit<
@@ -115,6 +123,16 @@ export const ONGLETS_FICHE: { id: OngletFicheContact; label: string }[] = [
   { id: "mails", label: "Mails" },
   { id: "notes", label: "Notes" },
 ];
+
+/**
+ * Onglets d'une fiche, comme la maquette : « Factures » n'apparaît que si le contact a des
+ * factures. Les autres onglets sont toujours présents ; leur compteur ne s'affiche que s'il dépasse zéro.
+ */
+export function ongletsFiche(
+  compteurs: Partial<Record<OngletFicheContact, number>>,
+): { id: OngletFicheContact; label: string }[] {
+  return ONGLETS_FICHE.filter((entree) => entree.id !== "factures" || (compteurs.factures ?? 0) > 0);
+}
 
 export function correspondFiltre(contact: ContactListe, filtre: FiltreContacts): boolean {
   if (filtre === "tous") return true;

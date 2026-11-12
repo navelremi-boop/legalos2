@@ -101,6 +101,10 @@ const CONTACTS_DEMO: ContactListe[] = [
     greffe: "RCS de Lyon",
     activite: "Métallurgie, fabrication de structures métalliques",
     adresseSiege: "14 rue de la Forge, 69007 Lyon",
+    immatriculeLe: "2019-04-04",
+    sourceImport: "recherche-entreprises",
+    importeLe: "2026-10-02T09:00:00Z",
+    sourceCapital: "le procès-verbal du 12 mars 2025",
   }),
   societeDemo({
     id: "ferrand-doublon",
@@ -1105,7 +1109,17 @@ export function GalerieDemo() {
                   { nature: "physique", nom: "Ferrand", prenoms: "Hugo", naissance: "2001-05", siren: null, qualite: "Cogérant" },
                 ],
               }}
-              historiqueFixe={{
+              historiquesFixes={[
+                {
+                  contactId: "antoine",
+                  dossiers: [{ id: "dos-2026-031", nom: "SAS Ferrand Métal c/ SARL Duclos Industrie", qualite: "représentant légal, rattaché à SAS Ferrand Métal" }],
+                  factures: [],
+                  mails: [
+                    { id: "mail-antoine-1", objet: "Re: Assignation Duclos, pièces complémentaires", expediteur: "cabinet@example.test", destinataires: "a.ferrand@ferrand-metal.example", etat: "classe" },
+                  ],
+                  notes: [],
+                },
+                {
                 contactId: "ferrand",
                 dossiers: [{ id: "dos-2026-031", nom: "SAS Ferrand Métal c/ SARL Duclos Industrie", qualite: "client, demandeur" }],
                 factures: [
@@ -1121,7 +1135,8 @@ export function GalerieDemo() {
                   { id: "note-ferrand-1", texte: "Interlocuteur habituel : M. Antoine Ferrand, joignable de préférence le matin." },
                   { id: "note-ferrand-2", texte: "Comptabilité tenue par Rive Gauche Expertise ; les relances de factures partent en copie à compta@ferrand-metal.example." },
                 ],
-              }}
+                },
+              ]}
             />
           ) : null}
           {vue === "mails" ? (

@@ -10,6 +10,7 @@ import {
   libelleListeContact,
   metaListeContact,
   natureEtiquetteFiche,
+  ongletsFiche,
   sirenListeContact,
   sousTitreFiche,
   type ContactListe,
@@ -290,5 +291,21 @@ describe("liste des contacts", () => {
       ),
       "Chef d'entreprise, Craponne",
     );
+  });
+});
+
+describe("ongletsFiche", () => {
+  it("retire Factures quand le contact n'a aucune facture, comme la maquette", () => {
+    const ids = ongletsFiche({ liens: 5, dossiers: 1, factures: 0, mails: 1 }).map((entree) => entree.id);
+    assert.deepEqual(ids, ["general", "liens", "dossiers", "mails", "notes"]);
+  });
+
+  it("garde Factures quand le contact a au moins une facture", () => {
+    const ids = ongletsFiche({ factures: 2 }).map((entree) => entree.id);
+    assert.deepEqual(ids, ["general", "liens", "dossiers", "factures", "mails", "notes"]);
+  });
+
+  it("retire Factures tant que les compteurs ne sont pas connus", () => {
+    assert.equal(ongletsFiche({}).some((entree) => entree.id === "factures"), false);
   });
 });
