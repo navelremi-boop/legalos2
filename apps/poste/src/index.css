@@ -3854,6 +3854,184 @@
     text-decoration-color: currentColor;
   }
 
+  /* --- Contacts (onglets Dossiers, Factures et Mails, d'après la maquette) --- */
+  .contacts-vide {
+    max-width: 60ch;
+    padding: 18px 0;
+    color: var(--graphite);
+    font-size: var(--font-size-dense);
+  }
+
+  .contacts-vide b {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--encre);
+  }
+
+  .contacts-dossiers {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: 14px;
+  }
+
+  .contacts-dos {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    align-items: center;
+    padding: 9px 0;
+    border-top: 1px solid var(--filet);
+  }
+
+  .contacts-dos:first-child {
+    border-top: 0;
+  }
+
+  .contacts-dos__ref {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    justify-self: start;
+    padding: 4px 10px 4px 8px;
+    border-radius: 9px;
+    font-size: var(--font-size-meta);
+    font-weight: 700;
+    background: var(--chemise-teinte, var(--feuille-2));
+    color: var(--chemise-texte, var(--graphite));
+  }
+
+  .contacts-dos__ref i {
+    flex: none;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--chemise-fond, var(--graphite));
+  }
+
+  .contacts-dos__nom {
+    display: block;
+    font-size: var(--font-size-dense);
+    font-weight: 700;
+    color: var(--encre);
+  }
+
+  .contacts-dos small {
+    font-size: var(--font-size-meta);
+    color: var(--graphite);
+  }
+
+  .contacts-chiffres {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 0 0 14px;
+  }
+
+  .contacts-chiffres > div {
+    padding: 8px 10px;
+    border-radius: 11px;
+    background: var(--feuille-2);
+  }
+
+  .contacts-chiffres span {
+    display: block;
+    font-size: 11.5px;
+    color: var(--graphite);
+  }
+
+  .contacts-chiffres b {
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    color: var(--encre);
+  }
+
+  .contacts-tab {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    color: var(--encre);
+  }
+
+  .contacts-tab th {
+    padding: 0 10px 6px 0;
+    font-size: var(--font-size-meta);
+    font-weight: 400;
+    text-align: left;
+    white-space: nowrap;
+    color: var(--graphite);
+  }
+
+  .contacts-tab td {
+    padding: 8px 10px 8px 0;
+    border-top: 1px solid var(--filet);
+    vertical-align: top;
+  }
+
+  .contacts-tab .contacts-tab__n {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .contacts-tab__ref {
+    font-weight: 700;
+  }
+
+  .contacts-statut {
+    font-weight: 700;
+  }
+
+  .contacts-statut--payee {
+    color: var(--ok);
+  }
+
+  .contacts-statut--attente {
+    color: var(--attente);
+  }
+
+  .contacts-statut--brouillon {
+    color: var(--graphite);
+  }
+
+  .contacts-mail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 8px 0;
+    border-top: 1px solid var(--filet);
+    font-size: 12.5px;
+  }
+
+  .contacts-mail:first-child {
+    border-top: 0;
+  }
+
+  .contacts-mail b {
+    display: block;
+    font-size: var(--font-size-dense);
+    color: var(--encre);
+  }
+
+  .contacts-mail small {
+    font-size: var(--font-size-meta);
+    color: var(--graphite);
+  }
+
+  .contacts-mention {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    max-width: 90ch;
+    margin: 14px 0 0;
+    font-size: var(--font-size-meta);
+    color: var(--graphite);
+  }
+
+  .contacts-mention svg {
+    flex: none;
+    margin-top: 1px;
+  }
+
   .sec-t .act {
     margin-left: auto;
     height: var(--hauteur-controle-petit);

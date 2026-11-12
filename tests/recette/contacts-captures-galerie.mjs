@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Captures galerie Contacts (Vite) aux mêmes scènes, tailles et thèmes que la maquette
- * (`contacts-captures-maquette.mjs`) : SAS Ferrand Métal (Général), Antoine Ferrand (Liens),
+ * (`contacts-captures-maquette.mjs`) : SAS Ferrand Métal (Général, Dossiers, Factures, Mails), Antoine Ferrand (Liens), Holding Perrache (Dossiers),
  * création d'un contact (personne physique), Importer par SIREN (société déjà dans l'annuaire,
  * puis société trouvée au registre) ; 1 366 × 768, 1 920 × 1 080, 2 560 × 1 440 ; jour et nuit.
  * Jeu de la galerie : celui de la maquette (famille Ferrand, dossier 2026-031).
@@ -30,6 +30,10 @@ const THEMES = [
 const SCENES = [
   { id: "ferrand-general", contact: "ferrand", onglet: "general" },
   { id: "antoine-liens", contact: "antoine", onglet: "liens" },
+  { id: "ferrand-dossiers", contact: "ferrand", onglet: "dossiers" },
+  { id: "ferrand-factures", contact: "ferrand", onglet: "factures" },
+  { id: "ferrand-mails", contact: "ferrand", onglet: "mails" },
+  { id: "perrache-dossiers", contact: "perrache", onglet: "dossiers" },
   { id: "importer-siren", mode: "siren" },
   { id: "nouveau-personne", mode: "personne" },
   { id: "importer-siren-resultat", mode: "siren-resultat" },

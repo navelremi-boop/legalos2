@@ -120,6 +120,19 @@ export function formatDateActe(iso: string): string {
 }
 
 /**
+ * Date d'un acte sans l'année quand c'est celle en cours : « 27 octobre », « 14 octobre 2025 ».
+ * L'année courante est passée par l'appelant (horloge injectable).
+ */
+export function formatDateJourMois(iso: string, anneeCourante: number): string {
+  const date = dateCivile(iso);
+  if (!date) return "";
+  if (date.annee !== anneeCourante) return formatDateActe(iso);
+  const mois = MOIS_LONG[date.mois - 1];
+  if (mois === undefined) return "";
+  return fr(`${quantieme(date.jour)} ${mois}`);
+}
+
+/**
  * Heure française à partir de chiffres déjà muraux : « 9 h 12 ».
  */
 export function formatHeureMur(heure: number, minute: number): string {

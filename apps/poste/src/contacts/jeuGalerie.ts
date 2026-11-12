@@ -222,15 +222,30 @@ export type HistoriqueGalerie = {
   notes: readonly NoteFiche[];
 };
 
-const DOSSIER_FERRAND = { id: "dos-2026-031", nom: "SAS Ferrand Métal c/ SARL Duclos Industrie" };
-const DOSSIER_TILLEULS = { id: "dos-2026-042", nom: "SCI Les Tilleuls c/ Banque Rhodanienne" };
-const DOSSIER_MOREAU = { id: "dos-2026-057", nom: "Succession Moreau" };
-const DOSSIER_PERRACHE = { id: "dos-2026-021", nom: "Holding Perrache, restructuration" };
+const DOSSIER_FERRAND = {
+  id: "dos-2026-031",
+  nom: "SAS Ferrand Métal c/ SARL Duclos Industrie",
+  reference: "2026-031",
+  chemise: "bleu-classeur",
+};
+const DOSSIER_TILLEULS = {
+  id: "dos-2026-042",
+  nom: "SCI Les Tilleuls c/ Banque Rhodanienne",
+  reference: "2026-042",
+  chemise: "kraft",
+};
+const DOSSIER_MOREAU = { id: "dos-2026-057", nom: "Succession Moreau", reference: "2026-057", chemise: "vert-amande" };
+const DOSSIER_PERRACHE = {
+  id: "dos-2026-021",
+  nom: "Holding Perrache, restructuration",
+  reference: "2026-021",
+  chemise: "bleu-classeur",
+};
 
 /** Fiche dont l'historique ne contient qu'un dossier (jeu de la maquette `prototype-contacts.html`). */
 function unDossier(
   contactId: string,
-  dossier: { id: string; nom: string },
+  dossier: Omit<DossierFiche, "qualite">,
   qualite: string,
 ): HistoriqueGalerie {
   return { contactId, dossiers: [{ ...dossier, qualite }], factures: [], mails: [], notes: [] };
@@ -243,7 +258,7 @@ export const HISTORIQUES_GALERIE: readonly HistoriqueGalerie[] = [
     dossiers: [{ ...DOSSIER_FERRAND, qualite: "représentant légal, rattaché à SAS Ferrand Métal" }],
     factures: [],
     mails: [
-      { id: "mail-antoine-1", objet: "Re: Assignation Duclos, pièces complémentaires", expediteur: "cabinet@example.test", destinataires: "a.ferrand@ferrand-metal.example", etat: "classe" },
+      { id: "mail-antoine-1", objet: "Re: Assignation Duclos, pièces complémentaires", auteur: "Vous", dateIso: "2026-10-27" },
     ],
     notes: [],
   },
@@ -251,13 +266,29 @@ export const HISTORIQUES_GALERIE: readonly HistoriqueGalerie[] = [
     contactId: "ferrand",
     dossiers: [{ ...DOSSIER_FERRAND, qualite: "client, demandeur" }],
     factures: [
-      { id: "fac-2026-0131", libelle: "Provision sur honoraires", ttcCentimes: 240_000, encaisseCentimes: 240_000 },
-      { id: "fac-2026-0158", libelle: "Honoraires, mise en état", ttcCentimes: 360_000, encaisseCentimes: 0 },
+      {
+        id: "fac-2026-0131",
+        reference: "2026-0131",
+        dateIso: "2026-09-03",
+        objet: "Provision sur honoraires",
+        ttcCentimes: 240_000,
+        encaisseCentimes: 240_000,
+        brouillon: false,
+      },
+      {
+        id: "fac-2026-0158",
+        reference: "2026-0158",
+        dateIso: "2026-10-02",
+        objet: "Honoraires, mise en état",
+        ttcCentimes: 360_000,
+        encaisseCentimes: 0,
+        brouillon: false,
+      },
     ],
     mails: [
-      { id: "mail-ferrand-1", objet: "Re: Assignation Duclos, pièces complémentaires", expediteur: "a.ferrand@ferrand-metal.example", destinataires: "cabinet@example.test", etat: "classe" },
-      { id: "mail-ferrand-2", objet: "Factures fournisseurs Duclos 2025", expediteur: "compta@ferrand-metal.example", destinataires: "cabinet@example.test", etat: "classe" },
-      { id: "mail-ferrand-3", objet: "Convocation à l'audience du 6 novembre", expediteur: "cabinet@example.test", destinataires: "direction@ferrand-metal.example", etat: "classe" },
+      { id: "mail-ferrand-1", objet: "Re: Assignation Duclos, pièces complémentaires", auteur: "M. Antoine Ferrand", dateIso: "2026-10-27" },
+      { id: "mail-ferrand-2", objet: "Factures fournisseurs Duclos 2025", auteur: "compta@ferrand-metal.example", dateIso: "2026-10-14" },
+      { id: "mail-ferrand-3", objet: "Convocation à l'audience du 6 novembre", auteur: "Vous", dateIso: "2026-10-09" },
     ],
     notes: [
       { id: "note-ferrand-1", texte: "Interlocuteur habituel : M. Antoine Ferrand, joignable de préférence le matin." },

@@ -6,6 +6,7 @@ import {
   HISTORIQUES_GALERIE,
   incoherencesGalerie,
 } from "./jeuGalerie.ts";
+import { tuilesFactures } from "./historiqueFiche.ts";
 
 describe("cohérence de la galerie de Contacts", () => {
   it("affiche le même nombre de dossiers dans la liste et dans l'onglet de chaque fiche", () => {
@@ -37,6 +38,30 @@ describe("cohérence de la galerie de Contacts", () => {
     const sansCompte = { ...COMPTES_DOSSIERS_GALERIE, moreau: 0 };
     assert.deepEqual(incoherencesGalerie(CONTACTS_DEMO, sansCompte, HISTORIQUES_GALERIE), [
       { contactId: "moreau", liste: 0, onglet: 1 },
+    ]);
+  });
+
+  it("porte la référence et la chemise de chaque dossier, comme la maquette", () => {
+    for (const fixe of HISTORIQUES_GALERIE) {
+      for (const dossier of fixe.dossiers) {
+        assert.match(dossier.reference ?? "", /^[0-9]{4}-[0-9]{3}$/u, fixe.contactId);
+        assert.ok(dossier.chemise !== null && dossier.chemise !== "", fixe.contactId);
+      }
+    }
+    const perrache = HISTORIQUES_GALERIE.find((fixe) => fixe.contactId === "perrache");
+    assert.equal(perrache?.dossiers[0]?.reference, "2026-021");
+  });
+
+  it("donne à Ferrand Métal les trois tuiles de la maquette", () => {
+    const ferrand = HISTORIQUES_GALERIE.find((fixe) => fixe.contactId === "ferrand");
+    const tuiles = tuilesFactures(ferrand?.factures ?? []).map((tuile) => [
+      tuile.libelle,
+      tuile.montant.replaceAll(" ", " ").replaceAll(" ", " "),
+    ]);
+    assert.deepEqual(tuiles, [
+      ["Facturé en 2026", "6 000,00 €"],
+      ["Encaissé", "2 400,00 €"],
+      ["Encours", "3 600,00 €"],
     ]);
   });
 });

@@ -128,6 +128,8 @@ type ContactsProps = {
   coordonneesFixes?: readonly CoordonneeLue[];
   /** Nombre de dossiers par fiche, figé pour la galerie. */
   comptesDossiersFixes?: Readonly<Record<string, number>>;
+  /** Année en cours figée pour la galerie (dates des mails) ; sinon l'horloge. */
+  anneeCouranteFixe?: number;
   /** Fiche ouverte au premier affichage (galerie) ; sinon la première de la liste. */
   selectionInitiale?: string;
   onNouveauMail?: () => void;
@@ -143,6 +145,7 @@ export function Contacts({
   doublonsFixes,
   coordonneesFixes,
   comptesDossiersFixes,
+  anneeCouranteFixe,
   selectionInitiale,
   onNouveauMail,
 }: ContactsProps = {}) {
@@ -750,6 +753,7 @@ export function Contacts({
                       factures={historique.factures}
                       mails={historique.mails}
                       notes={historique.notes}
+                      anneeCourante={anneeCouranteFixe}
                     />
                   ) : null}
                 </div>

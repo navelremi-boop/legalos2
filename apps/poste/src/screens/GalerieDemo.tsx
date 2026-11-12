@@ -883,6 +883,7 @@ export function GalerieDemo() {
               coordonneesFixes={COORDONNEES_CONTACTS_DEMO}
               selectionInitiale="ferrand"
               comptesDossiersFixes={COMPTES_DOSSIERS_GALERIE}
+              anneeCouranteFixe={2026}
               doublonsFixes={{ ferrand: [{ id: "ferrand-doublon", nom: "Ferrand Metal SAS", motif: "siren" }] }}
               propositionFixe={{
                 siren: "903417566",

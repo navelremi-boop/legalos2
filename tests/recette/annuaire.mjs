@@ -464,15 +464,26 @@ try {
 
   await cliquer(cdp.send, "[data-testid=contacts-onglet-dossiers]");
   await attendreTexte("[data-testid=contacts-dossiers]", `Dossier ${marque}`);
-  await attendreTexte("[data-testid=contacts-dossiers]", "client");
+  await attendreTexte("[data-testid=contacts-dossiers]", "Client");
+  await attendreTexte("[data-testid=contacts-dossier] .contacts-dos__ref", "20");
   await cliquer(cdp.send, "[data-testid=contacts-onglet-factures]");
   await attendreTexte("[data-testid=contacts-factures]", "120,00");
   await attendreTexte("[data-testid=contacts-facture-encaisse]", "40,00");
   await attendreTexte("[data-testid=contacts-facture-encours]", "80,00");
+  // La base locale n'a ni date ni objet de facture : la tuile ne cite pas d'année et les colonnes sont absentes.
+  await attendreTexte("[data-testid=contacts-facture-facture]", "Facturé");
+  await attendreTexte("[data-testid=contacts-facture-facture]", "120,00");
+  if ((await evaluate(cdp.send, `document.querySelector("[data-testid=contacts-factures] table")?.innerText ?? ""`)).includes("Objet")) {
+    fail("colonne Objet affichée sans donnée d'objet en base locale");
+  }
   await cliquer(cdp.send, "[data-testid=contacts-onglet-notes]");
   await attendreTexte("[data-testid=contacts-notes]", `Note ${marque}`);
   await cliquer(cdp.send, "[data-testid=contacts-onglet-mails]");
   await attendreTexte("[data-testid=contacts-mails]", `Courrier ${marque}`);
+  await attendreTexte(
+    "[data-testid=contacts-mails-mention]",
+    "Mails classés dont l’expéditeur ou un destinataire est une adresse de cette fiche.",
+  );
   ok("historique");
 
   await cliquer(cdp.send, "[data-testid=contacts-onglet-general]");
