@@ -3854,12 +3854,20 @@
     text-decoration-color: currentColor;
   }
 
+  /* Corps de la fiche : 18 px en haut, 24 px sur les côtés, 96 px en bas pour la barre d'actions. */
+  .contacts-corps {
+    flex: 1;
+    min-height: 0;
+    padding: 18px var(--espace-5) 96px;
+    overflow-y: auto;
+  }
+
   /* --- Contacts (onglets Dossiers, Factures et Mails, d'après la maquette) --- */
   .contacts-vide {
     max-width: 60ch;
     padding: 18px 0;
     color: var(--graphite);
-    font-size: var(--font-size-dense);
+    font-size: var(--font-size-base);
   }
 
   .contacts-vide b {
@@ -3905,7 +3913,7 @@
     width: 9px;
     height: 9px;
     border-radius: 50%;
-    background: var(--chemise-fond, var(--graphite));
+    background: var(--chemise-point, var(--graphite));
   }
 
   .contacts-dos__nom {
@@ -4015,6 +4023,24 @@
   .contacts-mail small {
     font-size: var(--font-size-meta);
     color: var(--graphite);
+  }
+
+  .contacts-notes {
+    max-width: 72ch;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--feuille-2);
+    font-size: var(--font-size-dense);
+    line-height: 1.55;
+    color: var(--encre);
+  }
+
+  .contacts-notes p {
+    margin: 0 0 8px;
+  }
+
+  .contacts-notes p:last-child {
+    margin: 0;
   }
 
   .contacts-mention {

@@ -1,3 +1,5 @@
+import { accordDe, fonctionMandatAccordee } from "@/contacts/designation";
+import type { AccordGrammatical } from "@/contacts/listeContacts";
 import { formatDateActe } from "@/lib/format";
 
 export type LienAffiche = {
@@ -18,17 +20,6 @@ export type LienAffiche = {
   source?: string | null;
 };
 
-const FONCTIONS: Record<string, string> = {
-  gerant: "Gérant",
-  president: "Président",
-  directeur_general: "Directeur général",
-  directeur_general_delegue: "Directeur général délégué",
-  administrateur: "Administrateur",
-  membre_directoire: "Membre du directoire",
-  membre_conseil_surveillance: "Membre du conseil de surveillance",
-  liquidateur_amiable: "Liquidateur amiable",
-};
-
 const TYPES: Record<string, string> = {
   representant_permanent: "Représentant permanent",
   associe: "Associé",
@@ -39,8 +30,25 @@ const TYPES: Record<string, string> = {
   commissaire_comptes: "Commissaire aux comptes",
 };
 
-export function titreLien(lien: Pick<LienAffiche, "typeLien" | "fonction" | "libelle">): string {
-  if (lien.typeLien === "mandat_social") return FONCTIONS[lien.fonction ?? ""] ?? lien.fonction ?? "Mandat";
+function premiereMajuscule(texte: string): string {
+  return texte === "" ? texte : `${texte.charAt(0).toLocaleUpperCase("fr")}${texte.slice(1)}`;
+}
+
+/** Accord de la personne qui exerce le mandat, déduit de sa civilité (« Madame » donne le féminin). */
+export function accordMandataire(civilite: string | null): AccordGrammatical | null {
+  const nette = (civilite ?? "").trim();
+  return accordDe(nette === "Mme" ? "Madame" : nette === "M." ? "Monsieur" : nette, null);
+}
+
+/** Titre d'un lien ; la fonction d'un mandat s'accorde au féminin quand `accord` est « feminin ». */
+export function titreLien(
+  lien: Pick<LienAffiche, "typeLien" | "fonction" | "libelle">,
+  accord: AccordGrammatical | null = null,
+): string {
+  if (lien.typeLien === "mandat_social") {
+    const accordee = fonctionMandatAccordee(lien.fonction, accord);
+    return accordee === null ? (lien.fonction ?? "Mandat") : premiereMajuscule(accordee);
+  }
   if (lien.typeLien === "autre") return lien.libelle?.trim() || "Autre";
   return TYPES[lien.typeLien] ?? lien.typeLien;
 }
@@ -60,7 +68,7 @@ function nomPersonne(civilite: string | null, prenoms: string | null, nom: strin
 
 /** Libellé vu depuis une des deux fiches, et la période si le lien est terminé. */
 export function libelleLien(lien: LienAffiche, vuDepuis: string): { texte: string; periode: string | null } {
-  const titre = titreLien(lien);
+  const titre = titreLien(lien, accordMandataire(lien.sourceCivilite));
   const texte =
     vuDepuis === lien.cibleId
       ? `${titre} : ${nomPersonne(lien.sourceCivilite, lien.sourcePrenoms, lien.sourceNom)}`
@@ -77,8 +85,8 @@ export type LigneLien = {
   id: string;
   groupe: string;
   titre: string;
-  /** « de » vu depuis la source du lien, « : » vu depuis sa cible. */
-  liaison: "de" | ":";
+  /** « de » vu depuis la source du lien, « : » vu depuis sa cible, « titre » quand le titre porte déjà « de » (« Expert-comptable de »). */
+  liaison: "de" | ":" | "titre";
   autreId: string;
   autreNom: string;
   source: string | null;
@@ -106,10 +114,19 @@ function groupeLien(lien: LienAffiche, depuisSource: boolean): string {
   return "Autres liens";
 }
 
+/** Date d'un lien : l'année seule (« 2019 ») est une date valide quand la pièce ne donne pas le jour. */
+function dateLien(iso: string): { texte: string; complete: boolean } {
+  const annee = /^(\d{4})$/.exec(iso.trim());
+  if (annee !== null) return { texte: annee[1] ?? "", complete: false };
+  return { texte: formatDateActe(iso), complete: true };
+}
+
 function periodeLien(debut: string | null, fin: string | null): string {
-  if (debut !== null && fin !== null) return `du ${formatDateActe(debut)} au ${formatDateActe(fin)}`;
-  if (debut !== null) return `depuis le ${formatDateActe(debut)}`;
-  if (fin !== null) return `jusqu'au ${formatDateActe(fin)}`;
+  const d = debut === null ? null : dateLien(debut);
+  const f = fin === null ? null : dateLien(fin);
+  if (d !== null && f !== null) return `du ${d.texte} au ${f.texte}`;
+  if (d !== null) return d.complete ? `depuis le ${d.texte}` : `depuis ${d.texte}`;
+  if (f !== null) return f.complete ? `jusqu'au ${f.texte}` : `jusqu'en ${f.texte}`;
   return "";
 }
 
@@ -130,12 +147,18 @@ export function groupesLiens(
     const nomLien = depuisSource
       ? lien.cibleNom
       : nomPersonne(lien.sourceCivilite, lien.sourcePrenoms, lien.sourceNom);
-    const titre = lien.typeLien === "parent" && !depuisSource ? "Enfant" : titreLien(lien);
+    const titre = lien.typeLien === "parent" && !depuisSource ? "Enfant" : titreLien(lien, accordMandataire(lien.sourceCivilite));
+    // « Expert-comptable de » : la maquette met « de » en gras avec le titre de la profession.
+    const professionDe = depuisSource && (lien.typeLien === "expert_comptable" || lien.typeLien === "commissaire_comptes");
     lignes.push({
       id: lien.id,
       groupe: groupeLien(lien, depuisSource),
-      titre,
-      liaison: depuisSource || lien.typeLien === "parent" || lien.typeLien === "conjoint_pacs" ? "de" : ":",
+      titre: professionDe ? `${titre} de` : titre,
+      liaison: professionDe
+        ? "titre"
+        : depuisSource || lien.typeLien === "parent" || lien.typeLien === "conjoint_pacs"
+          ? "de"
+          : ":",
       autreId,
       autreNom: nomDe(autreId) ?? nomLien,
       source: (lien.source?.trim() ?? "") === "" ? null : (lien.source?.trim() ?? null),

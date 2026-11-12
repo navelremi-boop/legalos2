@@ -2,6 +2,9 @@ import { IconInfoCircle } from "@tabler/icons-react";
 import {
   colonnesFactures,
   etatVideDossiers,
+  etatVideMails,
+  etatVideNotes,
+  type EtatVide,
   lignesDossiers,
   lignesFactures,
   lignesMails,
@@ -26,11 +29,17 @@ type HistoriqueFicheProps = {
   anneeCourante?: number;
 };
 
-const VIDE = {
-  factures: "Aucune facture.",
-  mails: "Aucun mail.",
-  notes: "Aucune note.",
-} as const;
+const VIDE_FACTURES = "Aucune facture.";
+
+/** État vide composé : titre en gras, puis la phrase d'aide (maquette `.vide-f`). */
+export function EtatVideFiche({ vide, testId }: { vide: EtatVide; testId: string }) {
+  return (
+    <div className="contacts-vide" data-testid={testId}>
+      <b>{fr(vide.titre)}</b>
+      {fr(vide.phrase)}
+    </div>
+  );
+}
 
 export function HistoriqueFiche({
   onglet,
@@ -42,15 +51,7 @@ export function HistoriqueFiche({
 }: HistoriqueFicheProps) {
   if (onglet === "dossiers") {
     const lignes = lignesDossiers(dossiers);
-    if (lignes.length === 0) {
-      const vide = etatVideDossiers();
-      return (
-        <div className="contacts-vide" data-testid="contacts-dossiers-vide">
-          <b>{fr(vide.titre)}</b>
-          {fr(vide.phrase)}
-        </div>
-      );
-    }
+    if (lignes.length === 0) return <EtatVideFiche vide={etatVideDossiers()} testId="contacts-dossiers-vide" />;
     return (
       <ul className="contacts-dossiers" data-testid="contacts-dossiers">
         {lignes.map((dossier) => (
@@ -74,7 +75,7 @@ export function HistoriqueFiche({
     );
   }
   if (onglet === "factures") {
-    if (factures.length === 0) return <p className="etat-vide">{fr(VIDE.factures)}</p>;
+    if (factures.length === 0) return <p className="etat-vide">{fr(VIDE_FACTURES)}</p>;
     const lignes = lignesFactures(factures);
     const colonnes = colonnesFactures(lignes);
     return (
@@ -117,7 +118,7 @@ export function HistoriqueFiche({
     );
   }
   if (onglet === "mails") {
-    if (mails.length === 0) return <p className="etat-vide">{fr(VIDE.mails)}</p>;
+    if (mails.length === 0) return <EtatVideFiche vide={etatVideMails()} testId="contacts-mails-vide" />;
     return (
       <div data-testid="contacts-mails">
         <ul className="contacts-mails">
@@ -138,14 +139,14 @@ export function HistoriqueFiche({
       </div>
     );
   }
-  if (notes.length === 0) return <p className="etat-vide">{fr(VIDE.notes)}</p>;
+  if (notes.length === 0) return <EtatVideFiche vide={etatVideNotes()} testId="contacts-notes-vide" />;
   return (
-    <ul className="flex flex-col gap-2" data-testid="contacts-notes">
+    <div className="contacts-notes" data-testid="contacts-notes">
       {notes.map((note) => (
-        <li key={note.id} data-testid="contacts-note">
+        <p key={note.id} data-testid="contacts-note">
           {fr(note.texte)}
-        </li>
+        </p>
       ))}
-    </ul>
+    </div>
   );
 }

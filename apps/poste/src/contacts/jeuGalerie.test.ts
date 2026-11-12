@@ -5,7 +5,9 @@ import {
   CONTACTS_DEMO,
   HISTORIQUES_GALERIE,
   incoherencesGalerie,
+  LIENS_CONTACTS_DEMO,
 } from "./jeuGalerie.ts";
+import { groupesLiens } from "./liensContacts.ts";
 import { tuilesFactures } from "./historiqueFiche.ts";
 
 describe("cohérence de la galerie de Contacts", () => {
@@ -63,5 +65,24 @@ describe("cohérence de la galerie de Contacts", () => {
       ["Encaissé", "2 400,00 €"],
       ["Encours", "3 600,00 €"],
     ]);
+  });
+
+  it("donne aux liens le début et la pièce source de la maquette", () => {
+    const lignes = (id: string) => groupesLiens(LIENS_CONTACTS_DEMO, id).flatMap((groupe) => groupe.lignes);
+    const perrache = lignes("perrache")[0];
+    assert.equal(perrache?.periode, "depuis le 1er juillet 2022");
+    assert.equal(perrache?.source, "Kbis du 6 septembre 2026");
+    const comptable = lignes("rivegauche")[0];
+    assert.equal(comptable?.periode, "depuis 2019");
+    assert.equal(comptable?.source, "Lettre de mission");
+    const ferrand = lignes("ferrand");
+    assert.deepEqual(
+      ferrand.map((ligne) => [ligne.titre, ligne.periode]),
+      [
+        ["Président", "depuis le 4 avril 2019"],
+        ["Directrice générale", "du 4 avril 2019 au 12 mars 2025"],
+        ["Expert-comptable", "depuis 2019"],
+      ],
+    );
   });
 });

@@ -466,6 +466,14 @@ try {
   await attendreTexte("[data-testid=contacts-dossiers]", `Dossier ${marque}`);
   await attendreTexte("[data-testid=contacts-dossiers]", "Client");
   await attendreTexte("[data-testid=contacts-dossier] .contacts-dos__ref", "20");
+  // Point de chemise de la pastille : une couleur résolue depuis le jeton, jamais transparente.
+  const pointChemise = String(
+    await evaluate(
+      cdp.send,
+      `getComputedStyle(document.querySelector("[data-testid=contacts-dossier] .contacts-dos__ref i")).backgroundColor`,
+    ),
+  );
+  if (pointChemise === "rgba(0, 0, 0, 0)" || pointChemise === "") fail("point de chemise de la pastille sans couleur");
   await cliquer(cdp.send, "[data-testid=contacts-onglet-factures]");
   await attendreTexte("[data-testid=contacts-factures]", "120,00");
   await attendreTexte("[data-testid=contacts-facture-encaisse]", "40,00");
@@ -478,6 +486,25 @@ try {
   }
   await cliquer(cdp.send, "[data-testid=contacts-onglet-notes]");
   await attendreTexte("[data-testid=contacts-notes]", `Note ${marque}`);
+  // Bloc de notes de la maquette : fond teinté, rayon 12 px, rembourrage 12 et 14 px, 13 px, interligne 1,55.
+  const blocNotes = String(
+    await evaluate(
+      cdp.send,
+      `(() => { const c = getComputedStyle(document.querySelector("[data-testid=contacts-notes]")); return [c.backgroundColor, c.borderTopLeftRadius, c.paddingTop, c.paddingLeft, c.fontSize, String(parseFloat(c.lineHeight) / parseFloat(c.fontSize))].join("|"); })()`,
+    ),
+  );
+  const [fondNotes, rayonNotes, hautNotes, gaucheNotes, tailleNotes, interligneNotes] = blocNotes.split("|");
+  if (
+    fondNotes === "rgba(0, 0, 0, 0)" ||
+    rayonNotes !== "12px" ||
+    hautNotes !== "12px" ||
+    gaucheNotes !== "14px" ||
+    tailleNotes !== "13px" ||
+    Number(interligneNotes) < 1.54 ||
+    Number(interligneNotes) > 1.56
+  ) {
+    fail(`bloc de notes différent de la maquette : ${blocNotes}`);
+  }
   await cliquer(cdp.send, "[data-testid=contacts-onglet-mails]");
   await attendreTexte("[data-testid=contacts-mails]", `Courrier ${marque}`);
   await attendreTexte(

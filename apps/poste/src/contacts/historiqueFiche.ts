@@ -105,6 +105,35 @@ export function etatVideDossiers(): EtatVide {
   return ETAT_VIDE_DOSSIERS;
 }
 
+const ETAT_VIDE_LIENS: EtatVide = {
+  titre: "Aucun lien",
+  phrase:
+    "Reliez ce contact à ses dirigeants, à sa société, à sa famille ou à ses conseils. Pour une société, « Mettre à jour depuis le registre » propose ses dirigeants.",
+};
+
+const ETAT_VIDE_NOTES: EtatVide = {
+  titre: "Aucune note",
+  phrase: "Ce que le cabinet doit savoir de ce contact et qui n'a pas sa place ailleurs.",
+};
+
+/** La maquette n'a pas d'état vide pour Mails : même composition, avec la phrase qui explique l'onglet. */
+const ETAT_VIDE_MAILS: EtatVide = { titre: "Aucun mail", phrase: MENTION_MAILS };
+
+/** État vide de l'onglet Liens (maquette `prototype-contacts.html`). */
+export function etatVideLiens(): EtatVide {
+  return ETAT_VIDE_LIENS;
+}
+
+/** État vide de l'onglet Notes (maquette `prototype-contacts.html`). */
+export function etatVideNotes(): EtatVide {
+  return ETAT_VIDE_NOTES;
+}
+
+/** État vide de l'onglet Mails. */
+export function etatVideMails(): EtatVide {
+  return ETAT_VIDE_MAILS;
+}
+
 function adresses(texte: string): string[] {
   return texte
     .split(/[\s,;]+/)

@@ -86,6 +86,7 @@ Toutes les couleurs sont des jetons de `design/tokens.css`, redéfinis pour la n
 | `--definitif` | `#43388a` | `#bdb4f5` | badge à cadenas, pièce non modifiable |
 | `--attente` | `#9a6a12` | `#e8b85c` | à faire : non facturé, alerte de convention, conflit |
 | `--ok` | `#2f7d4b` | `#7bd89a` | vérification réussie |
+| `--chemise-point` | fond de la chemise | accent de la chemise | point de chemise d'une pastille de référence sur teinte (jamais seul) |
 
 Couleurs réservées, inchangées : rouge `echeance` pour l'urgence et l'erreur, violet `definitif` pour l'immuable, couleur de chemise jamais seule ni pour un statut. Dans l'agenda, un bloc prend la teinte de la chemise de son dossier avec un liseré d'accent ; le nom du dossier figure dans le détail.
 
@@ -121,6 +122,19 @@ Toutes les classes sont dans `apps/poste/src/index.css`, section « Harmonisatio
 - **Liste de dossiers** `.dossiers-ligne` : bande de chemise, référence, nom suivi de l'échéance, compteur de non lus en pastille.
 - **Fiche** `.fiche-infos` : étiquettes et valeurs sur deux colonnes ; procédure en `.fiche-procedure` (étapes faites, en cours, à venir).
 - **Boutons sur la chemise** `.bouton-chemise` (verre, comme les intercalaires) et `.alerte-chemise` (pastille claire à point `--attente`) dans l'en-tête d'un dossier.
+
+### Fiche de contact : motifs de la maquette Contacts
+
+Motifs introduits par `design/maquettes/prototype-contacts.html` (écran validé) ; classes dans `apps/poste/src/index.css`, section « Contacts ». Mesures relevées dans le DOM de la galerie, identiques à celles de la maquette sauf mention contraire.
+
+- **Corps de fiche** `.contacts-corps` : zone défilante sous les onglets, rembourrage 18 px en haut, 24 px sur les côtés, 96 px en bas (la barre d'actions flottante ne masque jamais la dernière ligne). Titre de section `.sec-t` : 12 px, 700, `--graphite`, marge 20 px au-dessus et 8 px au-dessous (0 au-dessus du premier).
+- **Tuiles de chiffres** `.contacts-chiffres` (onglet Factures) : grille de trois colonnes égales, écart de 8 px, 14 px sous la rangée. Chaque tuile : fond `--feuille-2`, rayon 11 px, rembourrage 8 px et 10 px, sans bord ni ombre ; libellé 11,5 px `--graphite`, valeur 14 px en 700, chiffres tabulaires. Facturé, encaissé, encours ; jamais de couleur de statut sur une tuile. Écart assumé avec la maquette : les montants s'écrivent avec leurs centimes (« 6 000,00 € »), règle commune du § 4.
+- **Tableau de fiche** `.contacts-tab` : pleine largeur, 12,5 px. En-têtes 12 px, 400, `--graphite`, rembourrage 0 10 px 6 px 0, sans retour à la ligne. Cellules rembourrées de 8 px en haut et en bas et de 10 px à droite, filet haut de 1 px `--filet`, alignées en haut. Montants à droite en chiffres tabulaires. Référence de facture en 700 au zéro barré. Statut en 700 : `--ok` payée, `--attente` en attente, `--graphite` brouillon. Une colonne dont aucune ligne n'a de valeur (date, objet) disparaît.
+- **Ligne de dossier avec pastille** `.contacts-dos` (onglet Dossiers) : liste en grille à deux colonnes (pastille de largeur de son contenu, texte), écart de 14 px, lignes en sous-grille pour que les noms s'alignent ; rembourrage de 9 px en haut et en bas, filet haut de 1 px `--filet` sauf la première. Pastille `.contacts-dos__ref` : 12 px en 700, rayon 9 px, rembourrage 4 px (10 px à droite, 8 px à gauche), fond `--chemise-teinte`, texte `--chemise-texte`, référence au zéro barré ; point de chemise rond de 9 px à 7 px du texte, de couleur `--chemise-point` (le fond de la chemise en jour, l'accent clair en nuit : seule valeur lisible sur la teinte sombre ; contraste mesuré de 6,1 à 6,9 en nuit). Nom du dossier 13 px en 700 `--encre`, qualité en 12 px `--graphite` dessous. La couleur de chemise n'est jamais seule : le nom du dossier est toujours sur la ligne.
+- **Ligne de mail** `.contacts-mail` : deux colonnes (objet et expéditeur, date), écart de 12 px, rembourrage de 8 px en haut et en bas, filet haut de 1 px `--filet` sauf la première ; 12,5 px. Objet en 13 px, 700, sur sa ligne ; expéditeur et date en 12 px `--graphite`. Sous la liste, une mention `.contacts-mention` de 12 px `--graphite` avec une icône d'information de 14 px, 14 px plus bas. Écart assumé avec la maquette : elle rend l'expéditeur et la date à 10,4 px (élément `small` hérité de 12,5 px) ; l'échelle commune (étiquettes, dates : 12 px) l'emporte.
+- **État vide composé** `.contacts-vide` : 14 px `--graphite`, rembourrage de 18 px en haut et en bas, 60 caractères au plus. Un titre en gras `--encre` sur sa propre ligne (3 px d'écart), puis une phrase qui dit quoi faire (« Aucune note », « Ce que le cabinet doit savoir de ce contact et qui n'a pas sa place ailleurs. »). Il complète `.etat-vide` (une phrase seule) pour les onglets d'une fiche ; il ne le remplace pas.
+- **Bloc de notes** `.contacts-notes` : fond `--feuille-2`, rayon 12 px, rembourrage 12 px et 14 px, 13 px, interligne 1,55, 72 caractères au plus ; un paragraphe par note, 8 px d'écart, sans filet ni ombre.
+- **Ligne de lien** `.contacts-lien` : deux colonnes (fonction et contact, période alignée à droite), écart de 14 px, rembourrage de 8 px, filet haut de 1 px sauf la première ; 13 px, fonction en 700, contact en lien souligné (`.contacts-lk`), pièce source en 12 px `--graphite` dessous ; un lien terminé passe en `--graphite`. Les groupes (Mandats sociaux, Dirigeants, Famille…) ont un titre `.sec-t`.
 
 ## 8. Écrans
 

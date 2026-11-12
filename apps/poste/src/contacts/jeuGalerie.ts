@@ -1,4 +1,5 @@
-import { champsFicheVides, type ContactListe } from "@/contacts/listeContacts";
+import { champsFicheVides, libelleListeContact, type ContactListe } from "@/contacts/listeContacts";
+import type { LienAffiche } from "@/contacts/liensContacts";
 import type { DossierFiche, FactureFiche, MailFiche, NoteFiche } from "@/contacts/historiqueFiche";
 
 type FichePersonneDemo = Partial<ContactListe> & Pick<ContactListe, "id" | "nom">;
@@ -100,6 +101,9 @@ export const CONTACTS_DEMO: ContactListe[] = [
     greffe: "RCS de Lyon",
     activite: "Activités des sociétés holding",
     adresseSiege: "8 chemin des Vignes, 69290 Craponne",
+    immatriculeLe: "2025-01-18",
+    sourceImport: "recherche-entreprises",
+    importeLe: "2026-10-02T09:00:00Z",
   }),
   societeDemo({
     id: "ferrandlog",
@@ -111,6 +115,9 @@ export const CONTACTS_DEMO: ContactListe[] = [
     greffe: "RCS de Lyon",
     activite: "Transports routiers de fret",
     adresseSiege: "5 avenue de l'Industrie, 69800 Saint-Priest",
+    immatriculeLe: "2021-09-02",
+    sourceImport: "recherche-entreprises",
+    importeLe: "2026-10-02T09:00:00Z",
   }),
   societeDemo({
     id: "duclos",
@@ -155,6 +162,8 @@ export const CONTACTS_DEMO: ContactListe[] = [
     greffe: "RCS de Lyon",
     activite: "Autres intermédiations monétaires",
     adresseSiege: "2 place de la Bourse, 69002 Lyon",
+    sourceImport: "recherche-entreprises",
+    importeLe: "2026-02-11T09:00:00Z",
   }),
   societeDemo({
     id: "rivegauche",
@@ -167,6 +176,8 @@ export const CONTACTS_DEMO: ContactListe[] = [
     activite: "Activités comptables",
     professionCode: "expert_comptable",
     adresseSiege: "31 cours Gambetta, 69003 Lyon",
+    sourceImport: "recherche-entreprises",
+    importeLe: "2026-10-02T09:00:00Z",
   }),
   personneDemo({
     id: "rambert",
@@ -200,6 +211,8 @@ export const CONTACTS_DEMO: ContactListe[] = [
     greffe: "RCS de Lyon",
     activite: "Activités des sociétés holding",
     adresseSiege: "11 cours de Verdun, 69002 Lyon",
+    sourceImport: "recherche-entreprises",
+    importeLe: "2026-09-06T09:00:00Z",
   }),
   personneDemo({
     id: "operrache",
@@ -346,3 +359,58 @@ export function incoherencesGalerie(
   }
   return resultat;
 }
+
+type LienDemo = Omit<LienAffiche, "id" | "sourceCivilite" | "sourcePrenoms" | "sourceNom" | "cibleNom">;
+
+function lienDemo(lien: LienDemo): LienAffiche {
+  const source = CONTACTS_DEMO.find((contact) => contact.id === lien.sourceId);
+  const cible = CONTACTS_DEMO.find((contact) => contact.id === lien.cibleId);
+  return {
+    id: `lien-${lien.sourceId}-${lien.cibleId}-${lien.fonction ?? lien.typeLien}`,
+    sourceCivilite: source?.civilite ?? null,
+    sourcePrenoms: source?.prenoms ?? null,
+    sourceNom: source === undefined ? "" : libelleListeContact({ ...source, prenoms: null, civilite: null }),
+    cibleNom: cible === undefined ? "" : libelleListeContact(cible),
+    ...lien,
+  };
+}
+
+const mandat = (
+  sourceId: string,
+  cibleId: string,
+  fonction: string,
+  debut: string,
+  source: string,
+  fin: string | null = null,
+) =>
+  lienDemo({
+    sourceId,
+    cibleId,
+    typeLien: "mandat_social",
+    fonction,
+    libelle: null,
+    representeSociete: fin === null,
+    debut,
+    fin,
+    source,
+  });
+const lienSimple = (
+  sourceId: string,
+  cibleId: string,
+  typeLien: string,
+  debut: string | null = null,
+  source: string | null = null,
+) => lienDemo({ sourceId, cibleId, typeLien, fonction: null, libelle: null, representeSociete: false, debut, fin: null, source });
+
+/** Liens figés de la galerie : début et pièce source comme la maquette `prototype-contacts.html` (« depuis 2019 », « Kbis du 6 septembre 2026 »). */
+export const LIENS_CONTACTS_DEMO: LienAffiche[] = [
+  mandat("antoine", "ferrand", "president", "2019-04-04", "Kbis du 2 octobre 2026"),
+  mandat("claire", "ferrand", "directeur_general", "2019-04-04", "Procès-verbal du 12 mars 2025", "2025-03-12"),
+  mandat("antoine", "afp", "gerant", "2025-01-18", "Statuts constitutifs"),
+  mandat("antoine", "ferrandlog", "gerant", "2021-09-02", "Kbis du 2 octobre 2026"),
+  mandat("operrache", "perrache", "president", "2022-07-01", "Kbis du 6 septembre 2026"),
+  lienSimple("rivegauche", "ferrand", "expert_comptable", "2019", "Lettre de mission"),
+  lienSimple("antoine", "claire", "conjoint_pacs"),
+  lienSimple("antoine", "hugo", "parent"),
+  lienSimple("claire", "hugo", "parent"),
+];

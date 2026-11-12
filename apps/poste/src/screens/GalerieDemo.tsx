@@ -17,12 +17,13 @@ import type { DemonstrationMessagerie } from "@/messagerie/ReglagesMessagerie";
 import { Dossiers } from "@/screens/Dossiers";
 import type { IntervenantAffiche } from "@/contacts/intervenants";
 import { Contacts } from "@/screens/Contacts";
-import { COMPTES_DOSSIERS_GALERIE, CONTACTS_DEMO, HISTORIQUES_GALERIE } from "@/contacts/jeuGalerie";
 import {
-  libelleListeContact,
-  type CoordonneeLue,
-} from "@/contacts/listeContacts";
-import type { LienAffiche } from "@/contacts/liensContacts";
+  COMPTES_DOSSIERS_GALERIE,
+  CONTACTS_DEMO,
+  HISTORIQUES_GALERIE,
+  LIENS_CONTACTS_DEMO,
+} from "@/contacts/jeuGalerie";
+import type { CoordonneeLue } from "@/contacts/listeContacts";
 import { Journee } from "@/screens/Journee";
 import { EcranConnexion } from "@/onboarding/EcranConnexion";
 import {
@@ -56,38 +57,6 @@ const INTERVENANTS_DEMO: IntervenantAffiche[] = [
   },
 ];
 
-type LienDemo = Omit<LienAffiche, "id" | "sourceCivilite" | "sourcePrenoms" | "sourceNom" | "cibleNom">;
-
-function lienDemo(lien: LienDemo): LienAffiche {
-  const source = CONTACTS_DEMO.find((contact) => contact.id === lien.sourceId);
-  const cible = CONTACTS_DEMO.find((contact) => contact.id === lien.cibleId);
-  return {
-    id: `lien-${lien.sourceId}-${lien.cibleId}-${lien.fonction ?? lien.typeLien}`,
-    sourceCivilite: source?.civilite ?? null,
-    sourcePrenoms: source?.prenoms ?? null,
-    sourceNom: source === undefined ? "" : libelleListeContact({ ...source, prenoms: null, civilite: null }),
-    cibleNom: cible === undefined ? "" : libelleListeContact(cible),
-    ...lien,
-  };
-}
-
-const mandat = (sourceId: string, cibleId: string, fonction: string, debut: string, fin: string | null = null) =>
-  lienDemo({ sourceId, cibleId, typeLien: "mandat_social", fonction, libelle: null, representeSociete: fin === null, debut, fin });
-const lienSimple = (sourceId: string, cibleId: string, typeLien: string) =>
-  lienDemo({ sourceId, cibleId, typeLien, fonction: null, libelle: null, representeSociete: false, debut: null, fin: null });
-
-const LIENS_CONTACTS_DEMO: LienAffiche[] = [
-  { ...mandat("antoine", "ferrand", "president", "2019-04-04"), source: "Kbis du 2 octobre 2026" },
-  { ...mandat("claire", "ferrand", "directeur_general", "2019-04-04", "2025-03-12"), source: "Procès-verbal du 12 mars 2025" },
-  { ...mandat("antoine", "afp", "gerant", "2025-01-18"), source: "Statuts constitutifs" },
-  { ...mandat("antoine", "ferrandlog", "gerant", "2021-09-02"), source: "Kbis du 2 octobre 2026" },
-  mandat("operrache", "perrache", "president", "2022-07-01"),
-  { ...lienSimple("rivegauche", "ferrand", "expert_comptable"), source: "Lettre de mission" },
-  lienSimple("antoine", "claire", "conjoint_pacs"),
-  lienSimple("antoine", "hugo", "parent"),
-  lienSimple("claire", "hugo", "parent"),
-];
-
 const COORDONNEES_CONTACTS_DEMO: CoordonneeLue[] = [
   ["ferrand", "adresse", "siege", "14 rue de la Forge, 69007 Lyon", true],
   ["ferrand", "adresse", "facturation", "BP 3021, 69341 Lyon Cedex 07", true],
@@ -100,6 +69,24 @@ const COORDONNEES_CONTACTS_DEMO: CoordonneeLue[] = [
   ["perrin", "adresse", "cabinet", "18 quai de Bondy, 69005 Lyon", true],
   ["perrin", "telephone", "autre", "04 78 37 52 10", true],
   ["perrin", "email", "autre", "a.perrin@perrin-avocats.example", true],
+  ["claire", "adresse", "domicile", "8 chemin des Vignes, 69290 Craponne", true],
+  ["claire", "email", "autre", "claire.ferrand@example.fr", true],
+  ["hugo", "adresse", "domicile", "22 rue Chevreul, 69007 Lyon", true],
+  ["afp", "adresse", "siege", "8 chemin des Vignes, 69290 Craponne", true],
+  ["ferrandlog", "adresse", "siege", "5 avenue de l'Industrie, 69800 Saint-Priest", true],
+  ["duclos", "adresse", "siege", "120 rue de la République, 69400 Villefranche-sur-Saône", true],
+  ["banque", "adresse", "siege", "2 place de la Bourse, 69002 Lyon", true],
+  ["rivegauche", "adresse", "siege", "31 cours Gambetta, 69003 Lyon", true],
+  ["rivegauche", "telephone", "autre", "04 78 62 19 40", true],
+  ["rambert", "adresse", "etude", "9 rue Servient, 69003 Lyon", true],
+  ["rambert", "telephone", "autre", "04 78 95 60 21", true],
+  ["moreau", "adresse", "domicile", "3 allée des Cèdres, 69130 Écully", true],
+  ["moreau", "telephone", "autre", "04 78 33 08 51", true],
+  ["perrache", "adresse", "siege", "11 cours de Verdun, 69002 Lyon", true],
+  ["operrache", "adresse", "domicile", "27 quai Saint-Antoine, 69002 Lyon", true],
+  ["operrache", "email", "autre", "o.perrache@holding-perrache.example", true],
+  ["vasseur", "adresse", "cabinet", "6 rue de la Bourse, 69002 Lyon", true],
+  ["vasseur", "email", "autre", "c.vasseur@vasseur-associes.example", true],
 ].map(([contactId, genre, usage, valeur, principale]) => ({
   contactId: String(contactId),
   genre: String(genre),

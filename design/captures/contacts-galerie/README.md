@@ -11,6 +11,9 @@ Jeu de la galerie aligné sur la maquette (Ferrand Métal, Antoine Ferrand, impo
 | ferrand-factures | jour | 1366×768 | `ferrand-factures-jour-1366.png` |
 | ferrand-mails | jour | 1366×768 | `ferrand-mails-jour-1366.png` |
 | perrache-dossiers | jour | 1366×768 | `perrache-dossiers-jour-1366.png` |
+| claire-dossiers-vide | jour | 1366×768 | `claire-dossiers-vide-jour-1366.png` |
+| ferrand-notes | jour | 1366×768 | `ferrand-notes-jour-1366.png` |
+| perrin-liens-vide | jour | 1366×768 | `perrin-liens-vide-jour-1366.png` |
 | importer-siren | jour | 1366×768 | `importer-siren-jour-1366.png` |
 | nouveau-personne | jour | 1366×768 | `nouveau-personne-jour-1366.png` |
 | importer-siren-resultat | jour | 1366×768 | `importer-siren-resultat-jour-1366.png` |
@@ -20,6 +23,9 @@ Jeu de la galerie aligné sur la maquette (Ferrand Métal, Antoine Ferrand, impo
 | ferrand-factures | jour | 1920×1080 | `ferrand-factures-jour-1920.png` |
 | ferrand-mails | jour | 1920×1080 | `ferrand-mails-jour-1920.png` |
 | perrache-dossiers | jour | 1920×1080 | `perrache-dossiers-jour-1920.png` |
+| claire-dossiers-vide | jour | 1920×1080 | `claire-dossiers-vide-jour-1920.png` |
+| ferrand-notes | jour | 1920×1080 | `ferrand-notes-jour-1920.png` |
+| perrin-liens-vide | jour | 1920×1080 | `perrin-liens-vide-jour-1920.png` |
 | importer-siren | jour | 1920×1080 | `importer-siren-jour-1920.png` |
 | nouveau-personne | jour | 1920×1080 | `nouveau-personne-jour-1920.png` |
 | importer-siren-resultat | jour | 1920×1080 | `importer-siren-resultat-jour-1920.png` |
@@ -29,6 +35,9 @@ Jeu de la galerie aligné sur la maquette (Ferrand Métal, Antoine Ferrand, impo
 | ferrand-factures | jour | 2560×1440 | `ferrand-factures-jour-2560.png` |
 | ferrand-mails | jour | 2560×1440 | `ferrand-mails-jour-2560.png` |
 | perrache-dossiers | jour | 2560×1440 | `perrache-dossiers-jour-2560.png` |
+| claire-dossiers-vide | jour | 2560×1440 | `claire-dossiers-vide-jour-2560.png` |
+| ferrand-notes | jour | 2560×1440 | `ferrand-notes-jour-2560.png` |
+| perrin-liens-vide | jour | 2560×1440 | `perrin-liens-vide-jour-2560.png` |
 | importer-siren | jour | 2560×1440 | `importer-siren-jour-2560.png` |
 | nouveau-personne | jour | 2560×1440 | `nouveau-personne-jour-2560.png` |
 | importer-siren-resultat | jour | 2560×1440 | `importer-siren-resultat-jour-2560.png` |
@@ -38,6 +47,9 @@ Jeu de la galerie aligné sur la maquette (Ferrand Métal, Antoine Ferrand, impo
 | ferrand-factures | nuit | 1366×768 | `ferrand-factures-nuit-1366.png` |
 | ferrand-mails | nuit | 1366×768 | `ferrand-mails-nuit-1366.png` |
 | perrache-dossiers | nuit | 1366×768 | `perrache-dossiers-nuit-1366.png` |
+| claire-dossiers-vide | nuit | 1366×768 | `claire-dossiers-vide-nuit-1366.png` |
+| ferrand-notes | nuit | 1366×768 | `ferrand-notes-nuit-1366.png` |
+| perrin-liens-vide | nuit | 1366×768 | `perrin-liens-vide-nuit-1366.png` |
 | importer-siren | nuit | 1366×768 | `importer-siren-nuit-1366.png` |
 | nouveau-personne | nuit | 1366×768 | `nouveau-personne-nuit-1366.png` |
 | importer-siren-resultat | nuit | 1366×768 | `importer-siren-resultat-nuit-1366.png` |
@@ -47,6 +59,9 @@ Jeu de la galerie aligné sur la maquette (Ferrand Métal, Antoine Ferrand, impo
 | ferrand-factures | nuit | 1920×1080 | `ferrand-factures-nuit-1920.png` |
 | ferrand-mails | nuit | 1920×1080 | `ferrand-mails-nuit-1920.png` |
 | perrache-dossiers | nuit | 1920×1080 | `perrache-dossiers-nuit-1920.png` |
+| claire-dossiers-vide | nuit | 1920×1080 | `claire-dossiers-vide-nuit-1920.png` |
+| ferrand-notes | nuit | 1920×1080 | `ferrand-notes-nuit-1920.png` |
+| perrin-liens-vide | nuit | 1920×1080 | `perrin-liens-vide-nuit-1920.png` |
 | importer-siren | nuit | 1920×1080 | `importer-siren-nuit-1920.png` |
 | nouveau-personne | nuit | 1920×1080 | `nouveau-personne-nuit-1920.png` |
 | importer-siren-resultat | nuit | 1920×1080 | `importer-siren-resultat-nuit-1920.png` |
@@ -56,6 +71,9 @@ Jeu de la galerie aligné sur la maquette (Ferrand Métal, Antoine Ferrand, impo
 | ferrand-factures | nuit | 2560×1440 | `ferrand-factures-nuit-2560.png` |
 | ferrand-mails | nuit | 2560×1440 | `ferrand-mails-nuit-2560.png` |
 | perrache-dossiers | nuit | 2560×1440 | `perrache-dossiers-nuit-2560.png` |
+| claire-dossiers-vide | nuit | 2560×1440 | `claire-dossiers-vide-nuit-2560.png` |
+| ferrand-notes | nuit | 2560×1440 | `ferrand-notes-nuit-2560.png` |
+| perrin-liens-vide | nuit | 2560×1440 | `perrin-liens-vide-nuit-2560.png` |
 | importer-siren | nuit | 2560×1440 | `importer-siren-nuit-2560.png` |
 | nouveau-personne | nuit | 2560×1440 | `nouveau-personne-nuit-2560.png` |
 | importer-siren-resultat | nuit | 2560×1440 | `importer-siren-resultat-nuit-2560.png` |

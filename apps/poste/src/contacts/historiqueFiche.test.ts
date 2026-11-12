@@ -4,6 +4,10 @@ import {
   anneeFacturation,
   colonnesFactures,
   etatVideDossiers,
+  etatVideLiens,
+  etatVideMails,
+  etatVideNotes,
+  MENTION_MAILS,
   lignesDossiers,
   lignesFactures,
   lignesMails,
@@ -238,5 +242,18 @@ describe("historique de la fiche, dossiers", () => {
       vide.phrase,
       "Ce contact n'intervient dans aucun dossier que vous pouvez consulter. « Ajouter à un dossier » le rattache avec une qualité.",
     );
+  });
+
+  it("donne le titre en gras et la phrase d'aide des états vides Liens, Notes et Mails", () => {
+    assert.deepEqual(etatVideLiens(), {
+      titre: "Aucun lien",
+      phrase:
+        "Reliez ce contact à ses dirigeants, à sa société, à sa famille ou à ses conseils. Pour une société, « Mettre à jour depuis le registre » propose ses dirigeants.",
+    });
+    assert.deepEqual(etatVideNotes(), {
+      titre: "Aucune note",
+      phrase: "Ce que le cabinet doit savoir de ce contact et qui n'a pas sa place ailleurs.",
+    });
+    assert.deepEqual(etatVideMails(), { titre: "Aucun mail", phrase: MENTION_MAILS });
   });
 });

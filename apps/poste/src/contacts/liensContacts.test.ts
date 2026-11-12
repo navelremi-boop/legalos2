@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { groupesLiens, libelleLien, type LienAffiche } from "./liensContacts.ts";
+import { accordMandataire, groupesLiens, libelleLien, titreLien, type LienAffiche } from "./liensContacts.ts";
 
 const LIEN: LienAffiche = {
   id: "l1",
@@ -80,5 +80,57 @@ describe("liens entre contacts", () => {
     const hugo = groupesLiens(liens, "hugo");
     assert.equal(hugo[0]?.lignes[0]?.titre, "Enfant");
     assert.equal(hugo[0]?.lignes[0]?.liaison, "de");
+  });
+
+  it("accorde la fonction d'un mandat au féminin quand le mandataire est une femme", () => {
+    const directrice: LienAffiche = {
+      ...LIEN,
+      id: "l5",
+      sourceId: "claire",
+      sourceCivilite: "Madame",
+      sourcePrenoms: "Claire",
+      fonction: "directeur_general",
+    };
+    assert.equal(libelleLien(directrice, "claire").texte, "Directrice générale de SAS Ferrand Métal");
+    assert.equal(libelleLien(directrice, "ferrand").texte, "Directrice générale : Mme Claire Ferrand");
+    assert.equal(groupesLiens([directrice], "ferrand")[0]?.lignes[0]?.titre, "Directrice générale");
+    assert.equal(groupesLiens([directrice], "claire")[0]?.lignes[0]?.titre, "Directrice générale");
+    // « Madame » seule suffit ; une civilité sans accord connu garde le masculin ; membre du directoire ne change pas.
+    assert.equal(titreLien({ typeLien: "mandat_social", fonction: "gerant", libelle: null }, accordMandataire("Mme")), "Gérante");
+    assert.equal(titreLien({ typeLien: "mandat_social", fonction: "gerant", libelle: null }, accordMandataire("Maître")), "Gérant");
+    assert.equal(
+      titreLien({ typeLien: "mandat_social", fonction: "membre_directoire", libelle: null }, "feminin"),
+      "Membre du directoire",
+    );
+    assert.equal(titreLien({ typeLien: "mandat_social", fonction: "inconnue", libelle: null }, "feminin"), "inconnue");
+    // Le type « Conjoint ou partenaire de PACS » ne change pas.
+    assert.equal(titreLien({ typeLien: "conjoint_pacs", fonction: null, libelle: null }, "feminin"), "Conjoint ou partenaire de PACS");
+  });
+
+  it("écrit l'année seule d'un début de lien et met « de » en gras avec la profession", () => {
+    const comptable: LienAffiche = {
+      ...LIEN,
+      id: "l6",
+      sourceId: "rivegauche",
+      sourceCivilite: null,
+      sourcePrenoms: null,
+      sourceNom: "Rive Gauche Expertise",
+      cibleId: "ferrand",
+      cibleNom: "SAS Ferrand Métal",
+      typeLien: "expert_comptable",
+      fonction: null,
+      representeSociete: false,
+      debut: "2019",
+      source: "Lettre de mission",
+    };
+    const depuisComptable = groupesLiens([comptable], "rivegauche")[0]?.lignes[0];
+    assert.equal(depuisComptable?.titre, "Expert-comptable de");
+    assert.equal(depuisComptable?.liaison, "titre");
+    assert.equal(depuisComptable?.periode, "depuis 2019");
+    assert.equal(depuisComptable?.source, "Lettre de mission");
+    const depuisSociete = groupesLiens([comptable], "ferrand")[0]?.lignes[0];
+    assert.equal(depuisSociete?.titre, "Expert-comptable");
+    assert.equal(depuisSociete?.liaison, ":");
+    assert.equal(groupesLiens([{ ...comptable, fin: "2022" }], "ferrand")[0]?.lignes[0]?.periode, "du 2019 au 2022");
   });
 });

@@ -115,6 +115,13 @@ const FONCTION_ACCORD: Record<string, { feminin: string; masculin: string }> = {
   liquidateur_amiable: { feminin: "liquidatrice amiable", masculin: "liquidateur amiable" },
 };
 
+/** Fonction d'un mandat accordée avec la personne qui l'exerce (« directrice générale »), ou null si le code est inconnu. */
+export function fonctionMandatAccordee(code: string | null, accord: AccordGrammatical | null): string | null {
+  const formes = FONCTION_ACCORD[code ?? ""];
+  if (formes === undefined) return null;
+  return participe(accord ?? "masculin", formes.feminin, formes.masculin);
+}
+
 function mandatRepresentant(societeId: string, liens: readonly LienAffiche[]): LienAffiche | null {
   const candidats = liens.filter(
     (lien) =>

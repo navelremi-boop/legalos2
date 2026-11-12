@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Captures côte à côte maquette Contacts (prototype-contacts.html) :
- * Ferrand Métal (Général, Dossiers, Factures, Mails), Antoine Ferrand (Liens), Holding Perrache (Dossiers), création d'un contact (personne physique),
+ * Ferrand Métal (Général, Dossiers, Factures, Mails), Antoine Ferrand (Liens), Holding Perrache (Dossiers), états vides et notes (Claire Ferrand, Dossiers ; Ferrand Métal, Notes ; Me Anne Perrin, Liens), création d'un contact (personne physique),
  * Importer par SIREN (société déjà dans l'annuaire, puis société trouvée au registre) ;
  * 1 366 × 768, 1 920 × 1 080, 2 560 × 1 440 ; jour et nuit.
  * Écrit dans design/captures/contacts-maquette/ et un index Markdown.
@@ -31,6 +31,10 @@ const SCENES = [
   { id: "ferrand-factures", contact: "ferrand", onglet: "factures" },
   { id: "ferrand-mails", contact: "ferrand", onglet: "mails" },
   { id: "perrache-dossiers", contact: "perrache", onglet: "dossiers" },
+  // États vides composés (titre en gras puis phrase d'aide) et bloc de notes.
+  { id: "claire-dossiers-vide", contact: "claire", onglet: "dossiers" },
+  { id: "ferrand-notes", contact: "ferrand", onglet: "notes" },
+  { id: "perrin-liens-vide", contact: "perrin", onglet: "liens" },
   { id: "importer-siren", mode: "siren" },
   { id: "nouveau-personne", mode: "personne" },
   { id: "importer-siren-resultat", mode: "siren-resultat" },

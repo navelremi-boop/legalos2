@@ -37,11 +37,17 @@ import { ecrireCoordonnee, type GenreCoordonnee, type UsageCoordonnee } from "@/
 import { avecCommune, communesDuCode, estAdresseFrance } from "@/contacts/codesPostaux";
 import { groupesLiens, type LienAffiche } from "@/contacts/liensContacts";
 import { envoyerLien, envoyerRetrait } from "@/contacts/envoyerLien";
-import { HistoriqueFiche } from "@/contacts/OngletsHistorique";
+import { EtatVideFiche, HistoriqueFiche } from "@/contacts/OngletsHistorique";
 import { ligneIndex, villeListeContact } from "@/contacts/indexAnnuaire";
 import type { IndexAnnuaire } from "@/contacts/indexAnnuaireFts";
 import { PropositionImport, type PropositionImportHandle } from "@/contacts/PropositionImport";
-import type { DossierFiche, FactureFiche, MailFiche, NoteFiche } from "@/contacts/historiqueFiche";
+import {
+  etatVideLiens,
+  type DossierFiche,
+  type FactureFiche,
+  type MailFiche,
+  type NoteFiche,
+} from "@/contacts/historiqueFiche";
 import {
   compterDossiersParContact,
   lireDossiersContact,
@@ -96,14 +102,6 @@ import { libelleCoordonnee } from "@/contacts/libelleCoordonnee";
 import { dateImmatriculation, libelleGreffe, ligneSourceFiche } from "@/contacts/registreFiche";
 import { fr } from "@/lib/fr";
 import { formatDateActe, formatMontant } from "@/lib/format";
-
-const VIDE_ONGLET: Record<Exclude<OngletFicheContact, "general">, string> = {
-  liens: "Aucun lien.",
-  dossiers: "Aucun dossier.",
-  factures: "Aucune facture.",
-  mails: "Aucun mail.",
-  notes: "Aucune note.",
-};
 
 type ContactsProps = {
   /** Jeu figé de la galerie. Sans cela, la liste est lue dans la base locale. */
@@ -657,7 +655,7 @@ export function Contacts({
                     );
                   })}
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4" role="tabpanel">
+                <div className="contacts-corps" role="tabpanel">
                   <div
                     className={onglet === "general" ? undefined : "hidden"}
                     aria-hidden={onglet !== "general"}
@@ -830,7 +828,7 @@ function LiensFiche({
   return (
     <div data-testid="contacts-liens">
       <div className="sec-t">{fr("Liens avec d'autres contacts")}</div>
-      {groupes.length === 0 ? <p className="etat-vide">{fr(VIDE_ONGLET.liens)}</p> : null}
+      {groupes.length === 0 ? <EtatVideFiche vide={etatVideLiens()} testId="contacts-liens-vide" /> : null}
       {groupes.map((entree) => (
         <Fragment key={entree.groupe}>
           <div className="sec-t">{fr(entree.groupe)}</div>
@@ -843,7 +841,7 @@ function LiensFiche({
               >
                 <div className="contacts-lien__q">
                   <b>{fr(ligne.titre)}</b>
-                  {fr(ligne.liaison === "de" ? " de " : " : ")}
+                  {fr(ligne.liaison === "de" ? " de " : ligne.liaison === "titre" ? " " : " : ")}
                   <button
                     type="button"
                     className="contacts-lk"
