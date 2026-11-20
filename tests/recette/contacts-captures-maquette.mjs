@@ -30,6 +30,8 @@ const SCENES = [
   { id: "antoine-general", contact: "antoine", onglet: "general" },
   { id: "claire-general", contact: "claire", onglet: "general" },
   { id: "antoine-liens", contact: "antoine", onglet: "liens" },
+  // « Ajouter un lien » : formulaire ouvert dans l'onglet Liens (lot 2a, écart 12).
+  { id: "ajouter-lien", contact: "antoine", onglet: "liens", form: "lien" },
   { id: "ferrand-dossiers", contact: "ferrand", onglet: "dossiers" },
   { id: "ferrand-factures", contact: "ferrand", onglet: "factures" },
   { id: "ferrand-mails", contact: "ferrand", onglet: "mails" },
@@ -94,14 +96,14 @@ async function scene(s) {
     return;
   }
   await page.evaluate(
-    ({ contact, onglet }) => {
+    ({ contact, onglet, form }) => {
       etat.sel = contact;
       etat.onglet = onglet;
       etat.mode = "fiche";
-      etat.form = null;
+      etat.form = form ?? null;
       render();
     },
-    { contact: s.contact, onglet: s.onglet },
+    { contact: s.contact, onglet: s.onglet, form: s.form },
   );
 }
 

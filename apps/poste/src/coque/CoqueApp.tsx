@@ -15,6 +15,8 @@ import {
 } from "@/coque/BarreHaut";
 import { initialesDuCompte } from "@/coque/identiteCompte";
 import { MenuCompte } from "@/coque/MenuCompte";
+import { PanneauLateral } from "@/coque/PanneauLateral";
+import { MonProfil } from "@/identite/MonProfil";
 import { FormulaireDelai } from "@/delais/FormulaireDelai";
 import { EcranAgenda } from "@/agenda/EcranAgenda";
 import { emettreRappelsEchus } from "@/agenda/rappels";
@@ -80,6 +82,7 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect, onVerrouill
   const [ongletActifId, setOngletActifId] = useState<string | null>(null);
   const [dossierCharge, setDossierCharge] = useState<DossierVue | null>(null);
   const [panneau, setPanneau] = useState<Panneau>("aucun");
+  const [profilOuvert, setProfilOuvert] = useState(false);
   const [chrono, setChrono] = useState<EtatChrono>(chronoArrete);
   const [enAttente, setEnAttente] = useState(0);
   const [mailsAClasser, setMailsAClasser] = useState(0);
@@ -579,6 +582,9 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect, onVerrouill
   const compteMenu = (
     <MenuCompte
       initiales={initiales}
+      onProfil={() => {
+        setProfilOuvert(true);
+      }}
       onTemps={() => {
         setNav("temps");
           setPanneau("aucun");
@@ -649,6 +655,20 @@ export function CoqueApp({ instanceUrl, onResetSession, onReconnect, onVerrouill
         compteMenu={compteMenu}
       />
       <div className="coque-workspace">{contenu}</div>
+
+      {profilOuvert ? (
+        <PanneauLateral
+          ouvert
+          titre="Mon profil"
+          sousTitre="Votre identité dans le cabinet."
+          testId="panneau-profil"
+          onFermer={() => {
+            setProfilOuvert(false);
+          }}
+        >
+          <MonProfil instanceUrl={instanceUrl} horsLigne={horsLigne} />
+        </PanneauLateral>
+      ) : null}
 
       {panneau !== "aucun" ? (
         <div

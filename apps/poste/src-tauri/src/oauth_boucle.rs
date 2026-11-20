@@ -326,24 +326,21 @@ fn attendre_bloquant(
         if Instant::now() >= fin {
             return RetourBouclage::echec(ERREUR_DELAI);
         }
-        match ecouteur.accept() {
-            Ok((flux, _)) => {
-                if actives.fetch_add(1, Ordering::SeqCst) >= CONNEXIONS_MAX {
-                    actives.fetch_sub(1, Ordering::SeqCst);
-                    drop(flux);
-                    continue;
-                }
-                let deja_recue = Arc::clone(&deja_recue);
-                let actives = Arc::clone(&actives);
-                let envoi = envoi.clone();
-                thread::spawn(move || {
-                    traiter_connexion(flux, port, &deja_recue, &envoi);
-                    actives.fetch_sub(1, Ordering::SeqCst);
-                });
+        // Rien à accepter pour l'instant (ou erreur passagère) : on réessaie au pas suivant.
+        if let Ok((flux, _)) = ecouteur.accept() {
+            if actives.fetch_add(1, Ordering::SeqCst) >= CONNEXIONS_MAX {
+                actives.fetch_sub(1, Ordering::SeqCst);
+                drop(flux);
                 continue;
             }
-            // Rien à accepter pour l'instant (ou erreur passagère) : on réessaie au pas suivant.
-            Err(_) => {}
+            let deja_recue = Arc::clone(&deja_recue);
+            let actives = Arc::clone(&actives);
+            let envoi = envoi.clone();
+            thread::spawn(move || {
+                traiter_connexion(flux, port, &deja_recue, &envoi);
+                actives.fetch_sub(1, Ordering::SeqCst);
+            });
+            continue;
         }
         thread::sleep(PAS);
     }

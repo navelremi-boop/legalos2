@@ -5207,3 +5207,176 @@
     white-space: nowrap;
   }
 }
+
+@layer components {
+  /* --- Identité des membres : « Mon profil » et Réglages, Utilisateurs --- */
+  .profil-formulaire {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espace-4);
+  }
+
+  .profil-formulaire__ligne {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--espace-3);
+  }
+
+  .profil-formulaire__pied {
+    display: flex;
+    gap: var(--espace-3);
+    align-items: center;
+  }
+
+  .profil-invitation {
+    margin: 0 0 var(--espace-4);
+  }
+
+  .profil-email {
+    margin: 0 0 var(--espace-4);
+    font-size: var(--font-size-base);
+  }
+
+  .profil-email .etiquette-champ {
+    display: block;
+  }
+
+  .utilisateurs-liste {
+    display: flex;
+    flex-direction: column;
+    max-width: 760px;
+    border-radius: 14px;
+    background: var(--feuille-2);
+    padding: 2px var(--espace-4);
+  }
+
+  .utilisateurs-ligne {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 120px 84px;
+    gap: var(--espace-3);
+    align-items: center;
+    min-height: var(--row-height-list);
+    padding: var(--espace-2) 0;
+    border-top: 1px solid var(--filet);
+    font-size: var(--font-size-dense);
+  }
+
+  .utilisateurs-liste > li:first-child .utilisateurs-ligne {
+    border-top: 0;
+  }
+
+  .utilisateurs-ligne--tete {
+    min-height: 0;
+    padding: var(--espace-3) 0 var(--espace-1);
+    border-top: 0;
+    font-size: var(--font-size-meta);
+    color: var(--graphite);
+  }
+
+  .utilisateurs-ligne__nom b {
+    display: block;
+    font-weight: 700;
+  }
+
+  .utilisateurs-ligne__nom small {
+    display: block;
+    font-size: var(--font-size-meta);
+    color: var(--graphite);
+  }
+
+  .utilisateurs-ligne__action {
+    text-align: right;
+  }
+
+  .utilisateurs-edition {
+    padding: var(--espace-2) 0 var(--espace-4);
+    max-width: var(--formulaire-max);
+  }
+}
+
+@layer components {
+  /* --- Contacts : « Ajouter un lien » et « Modifier » un lien (maquette prototype-contacts, formulaire de lien) --- */
+  .contacts-lien-form {
+    margin: 0 0 14px;
+    padding: 14px;
+    border-radius: 12px;
+    background: var(--feuille-2);
+    box-shadow: inset 0 0 0 1px var(--filet);
+  }
+
+  .contacts-lien-form > * + * {
+    margin-top: var(--espace-3);
+  }
+
+  .contacts-lien-form__titre {
+    margin: 0;
+    font-size: var(--font-size-dense);
+    font-weight: 700;
+  }
+
+  .contacts-lien-form__case {
+    display: flex;
+    gap: var(--espace-2);
+    align-items: center;
+    font-size: var(--font-size-dense);
+  }
+
+  .contacts-lien-form__avec {
+    position: relative;
+  }
+
+  /* Les propositions se posent sur la suite du formulaire (menu élevé) au lieu d'agrandir la rangée. */
+  .contacts-lien-form__choix {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    z-index: 5;
+    margin-top: var(--espace-1);
+    overflow: hidden;
+    border-radius: var(--radius-control);
+    background: var(--feuille);
+    box-shadow: var(--ombre-etiquette), inset 0 0 0 1px var(--champ-bord);
+  }
+
+  .contacts-lien-form__choix button {
+    display: flex;
+    gap: var(--espace-2);
+    align-items: baseline;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 34px;
+    padding: var(--espace-1) var(--espace-3);
+    font-size: var(--font-size-dense);
+    text-align: left;
+  }
+
+  .contacts-lien-form__choix button:hover,
+  .contacts-lien-form__choix button:focus-visible {
+    background: var(--survol);
+  }
+
+  .contacts-lien-form__choix small {
+    font-size: var(--font-size-meta);
+    color: var(--graphite);
+  }
+
+  .contacts-lien__date {
+    display: flex;
+    gap: var(--espace-3);
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .contacts-lien__edition {
+    grid-column: 1 / -1;
+  }
+
+  /* Signature d'une note : « Modifié par Me Julien Marchal le 14 octobre 2026 » (maquette, bloc de notes). */
+  .contacts-note__signature {
+    display: block;
+    margin-top: 2px;
+    font-size: var(--font-size-meta);
+    color: var(--graphite);
+  }
+}

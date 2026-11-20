@@ -58,6 +58,18 @@ async function attendreSqlite(id, sql, predicat) {
   fail(`SQLite : ${dernier}`);
 }
 
+/** Interroge la base du serveur jusqu'à obtenir la valeur attendue (une écriture locale arrive par la file d'envoi). */
+async function attendreServeur(sql, attendu, delai = 90_000) {
+  const debut = Date.now();
+  let dernier = "";
+  while (Date.now() - debut < delai) {
+    dernier = (await sqlServeur(sql)).trim();
+    if (dernier === attendu) return;
+    await sleep(1000);
+  }
+  fail(`serveur : « ${dernier} » au lieu de « ${attendu} » pour ${sql.replace(/\s+/g, " ").slice(0, 160)}`);
+}
+
 async function attendreImport(send) {
   const debut = Date.now();
   while (Date.now() - debut < 20_000) {
@@ -130,6 +142,13 @@ try {
                   qualite: "Président",
                   type_dirigeant: "personne physique",
                 },
+                {
+                  nom: "Lambert",
+                  prenoms: "Sophie",
+                  date_de_naissance: "1990-06-20",
+                  qualite: "Directrice générale",
+                  type_dirigeant: "personne physique",
+                },
               ],
             },
           ],
@@ -188,6 +207,17 @@ try {
     siren: "130025265",
   });
   if (coupe.status !== 200) fail(`société coupée ${coupe.status} ${coupe.texte.slice(0, 180)}`);
+  // Autre personne physique de l'annuaire : cible d'un lien refusé par le poste, source d'un mandat posé sur le serveur.
+  const tiersId = randomUUID();
+  const tiers = await ui.apiJson(jeton, "POST", "/contacts", {
+    id: tiersId,
+    idempotence_cle: `annuaire-tiers-${marque}`,
+    nature: "physique",
+    nom: `Tiers ${marque}`,
+    prenoms: "Alice",
+    type_client: "particulier",
+  });
+  if (tiers.status !== 200) fail(`tiers ${tiers.status} ${tiers.texte.slice(0, 180)}`);
   const jumeauId = randomUUID();
   const jumeau = await ui.apiJson(jeton, "POST", "/contacts", {
     id: jumeauId,
@@ -236,6 +266,13 @@ try {
   const encaissementId = randomUUID();
   const noteId = randomUUID();
   const messageId = randomUUID();
+  // Identité du compte de démo : remise à vide (le profil se saisit dans l'app) ; la note lui est attribuée.
+  const moiId = (await sqlServeur(`SELECT id FROM utilisateurs WHERE email = '${demoEmail}'`)).trim();
+  if (moiId === "") fail("compte de démo absent de la table utilisateurs");
+  await sqlServeur(
+    `UPDATE utilisateurs SET civilite = NULL, prenom = NULL, nom = NULL, qualite = NULL, barreau = NULL, toque = NULL
+     WHERE id = '${moiId}'`,
+  );
   await sqlServeur(
     `INSERT INTO dossier_intervenants (id, cabinet_id, dossier_id, contact_id, qualite_id, visibilite, revision)
      SELECT '${intervenantId}', c.cabinet_id, '${dossierId}', c.id, q.id, 'public', 1
@@ -262,8 +299,9 @@ try {
      VALUES ('${encaissementId}', '${factureId}', 4000, 'annuaire-enc-${marque}')`,
   );
   await sqlServeur(
-    `INSERT INTO contact_notes (id, cabinet_id, contact_id, texte)
-     SELECT '${noteId}', cabinet_id, id, 'Note ${marque}'
+    `INSERT INTO contact_notes (id, cabinet_id, contact_id, texte, auteur_id, cree_le, modifie_le)
+     SELECT '${noteId}', cabinet_id, id, 'Note ${marque}', '${moiId}',
+            '2026-10-02 09:30:00+00', '2026-10-14 09:30:00+00'
      FROM contacts WHERE id = '${personneId}'`,
   );
   let compte = (
@@ -320,6 +358,98 @@ try {
     })()`,
   );
   if (ordre) fail(String(ordre));
+
+  async function texteDe(selecteur) {
+    return String(
+      (await evaluate(cdp.send, `document.querySelector(${JSON.stringify(selecteur)})?.textContent ?? ""`)) ?? "",
+    ).replace(/[\u00a0\u202f]/g, " ");
+  }
+  async function attendreTexteDe(selecteur, morceau, delai = 20_000) {
+    const debut = Date.now();
+    while (Date.now() - debut < delai) {
+      if ((await texteDe(selecteur)).replace(/\u2019/g, "'").includes(morceau)) return;
+      await sleep(300);
+    }
+    fail(`texte absent (${selecteur}) : ${morceau} — lu : ${(await texteDe(selecteur)).slice(0, 200)}`);
+  }
+  async function ouvrirMenuCompte(entree) {
+    await cliquer(cdp.send, "[data-testid=menu-compte]");
+    await attendre(cdp.send, `[data-testid=${entree}]`);
+    await cliquer(cdp.send, `[data-testid=${entree}]`);
+  }
+
+  // — « Mon profil » : identité saisie en ligne, invitation tant qu'elle est vide, erreurs en français —
+  await ouvrirMenuCompte("menu-compte-profil");
+  await attendre(cdp.send, "[data-testid=mon-profil]");
+  await attendreTexteDe("[data-testid=profil-invitation]", "Complétez votre profil");
+  await saisir(cdp.send, "[data-testid=profil-qualite]", "avocat");
+  await attendre(cdp.send, "[data-testid=profil-toque]");
+  await saisir(cdp.send, "[data-testid=profil-toque]", "T".repeat(21));
+  await cliquer(cdp.send, "[data-testid=profil-enregistrer]");
+  await attendreTexteDe("[data-testid=profil-message]", "La toque ne dépasse pas 20 caractères.");
+  await sleep(800);
+  if ((await sqlServeur(`SELECT COALESCE(qualite, '') FROM utilisateurs WHERE id = '${moiId}'`)).trim() !== "") {
+    fail("une saisie refusée par le poste a tout de même été envoyée");
+  }
+  await saisir(cdp.send, "[data-testid=profil-civilite]", "monsieur");
+  await saisir(cdp.send, "[data-testid=profil-prenom]", "Julien");
+  await saisir(cdp.send, "[data-testid=profil-nom]", "Marchal");
+  await saisir(cdp.send, "[data-testid=profil-barreau]", "Lyon");
+  await saisir(cdp.send, "[data-testid=profil-toque]", "1234");
+  await cliquer(cdp.send, "[data-testid=profil-enregistrer]");
+  await attendreTexteDe("[data-testid=profil-message]", "Identité enregistrée.");
+  await attendreServeur(
+    `SELECT civilite || '|' || prenom || '|' || nom || '|' || qualite || '|' || barreau || '|' || toque
+     FROM utilisateurs WHERE id = '${moiId}'`,
+    "monsieur|Julien|Marchal|avocat|Lyon|1234",
+    20_000,
+  );
+  if (await evaluate(cdp.send, `Boolean(document.querySelector("[data-testid=profil-invitation]"))`)) {
+    fail("l'invitation « Complétez votre profil » reste affichée une fois l'identité saisie");
+  }
+  // Refus de l'API : le serveur a changé de qualité entre-temps, la toque n'a plus de sens ; le message est en français.
+  await sqlServeur(`UPDATE utilisateurs SET qualite = 'juriste', barreau = NULL, toque = NULL WHERE id = '${moiId}'`);
+  await saisir(cdp.send, "[data-testid=profil-toque]", "T 42");
+  await cliquer(cdp.send, "[data-testid=profil-enregistrer]");
+  await attendreTexteDe("[data-testid=profil-message]", "ne se renseignent que pour un avocat");
+  await sqlServeur(
+    `UPDATE utilisateurs SET qualite = 'avocat', barreau = 'Lyon', toque = '1234' WHERE id = '${moiId}'`,
+  );
+  await cliquer(cdp.send, "[data-testid=panneau-profil] [data-fermer]");
+  await attendreSqlite(
+    posteId,
+    `SELECT COALESCE(prenom, '') || '|' || COALESCE(qualite, '') FROM utilisateurs WHERE id = '${moiId}'`,
+    (v) => v === "Julien|avocat",
+  );
+  // Hors ligne : message en français, saisie désactivée, identité connue lue dans la base locale.
+  await evaluate(cdp.send, `window.dispatchEvent(new Event("offline"))`);
+  await ouvrirMenuCompte("menu-compte-profil");
+  await attendre(cdp.send, "[data-testid=profil-hors-ligne]");
+  await attendreTexteDe("[data-testid=profil-hors-ligne]", "Hors ligne");
+  const horsLigneProfil = await evaluate(
+    cdp.send,
+    `JSON.stringify({ prenom: document.querySelector("[data-testid=profil-prenom]")?.disabled, valeur: document.querySelector("[data-testid=profil-prenom]")?.value, bouton: document.querySelector("[data-testid=profil-enregistrer]")?.disabled })`,
+  );
+  if (horsLigneProfil !== JSON.stringify({ prenom: true, valeur: "Julien", bouton: true })) {
+    fail(`« Mon profil » hors ligne : ${String(horsLigneProfil)}`);
+  }
+  await cliquer(cdp.send, "[data-testid=panneau-profil] [data-fermer]");
+  await evaluate(cdp.send, `window.dispatchEvent(new Event("online"))`);
+  ok("Mon profil");
+
+  // — Réglages, Utilisateurs : liste des membres, identité modifiée par un administrateur —
+  await ouvrirMenuCompte("menu-reglages");
+  await attendre(cdp.send, "[data-testid=reglages-section-utilisateurs]");
+  await cliquer(cdp.send, "[data-testid=reglages-section-utilisateurs]");
+  await attendreTexteDe("[data-testid=utilisateurs-liste]", "Me Julien Marchal");
+  await cliquer(cdp.send, `[data-testid=utilisateur][data-utilisateur-id="${moiId}"] [data-testid=utilisateur-modifier]`);
+  await attendre(cdp.send, "[data-testid=utilisateur-edition]");
+  await saisir(cdp.send, "[data-testid=utilisateur-toque]", "5678");
+  await cliquer(cdp.send, "[data-testid=utilisateur-enregistrer]");
+  await attendreTexteDe("[data-testid=utilisateur-message]", "Identité enregistrée.");
+  await attendreServeur(`SELECT toque FROM utilisateurs WHERE id = '${moiId}'`, "5678", 20_000);
+  await sqlServeur(`UPDATE utilisateurs SET toque = '1234' WHERE id = '${moiId}'`);
+  ok("Réglages, Utilisateurs");
 
   await cliquer(cdp.send, "[data-testid=nav-contacts]");
   await attendre(cdp.send, "[data-testid=barre-actions]");
@@ -504,6 +634,8 @@ try {
   }
   await cliquer(cdp.send, "[data-testid=contacts-onglet-notes]");
   await attendreTexte("[data-testid=contacts-notes]", `Note ${marque}`);
+  // L'auteur de la note est résolu dans la table des membres : « Modifié par Me Julien Marchal le 14 octobre 2026 ».
+  await attendreTexte("[data-testid=contacts-note-signature]", "Modifié par Me Julien Marchal le 14 octobre 2026");
   // Bloc de notes de la maquette : fond teinté, rayon 12 px, rembourrage 12 et 14 px, 13 px, interligne 1,55.
   const blocNotes = String(
     await evaluate(
@@ -686,11 +818,56 @@ try {
     await sleep(300);
   }
   if (!etatDirigeant.includes("Relié")) fail(`lien dirigeant : ${etatDirigeant.slice(0, 200)}`);
+  // Le lien est écrit dans la base locale puis arrive sur le serveur par la file d'envoi (plus d'appel direct de l'écran).
+  await attendreServeur(
+    `SELECT COUNT(*) FROM contact_liens
+     WHERE contact_source_id = '${personneId}' AND contact_cible_id = '${societeId}'
+       AND type_lien = 'mandat_social' AND fonction = 'gerant'`,
+    "1",
+  );
+  // Écart 15 : « Créer une fiche » crée la fiche ET le lien dans la même transaction locale, la fiche avant le lien.
+  await evaluate(cdp.send, `window.__legalosRecette.disconnectSync()`);
+  await sleep(500);
+  const creer = await evaluate(
+    cdp.send,
+    `(() => { const boutons = document.querySelectorAll("[data-testid=contacts-dirigeant-creer]"); boutons[2]?.click(); return boutons.length; })()`,
+  );
+  if (creer !== 3) fail(`boutons créer : ${String(creer)}`);
+  const debutCreationFiche = Date.now();
+  while (Date.now() - debutCreationFiche < 10_000) {
+    etatDirigeant = String(
+      (await evaluate(cdp.send, `document.querySelector("[data-testid=contacts-dirigeants]")?.textContent ?? ""`)) ?? "",
+    );
+    if (etatDirigeant.includes("Fiche créée")) break;
+    await sleep(200);
+  }
+  if (!etatDirigeant.includes("Fiche créée")) fail(`fiche du dirigeant : ${etatDirigeant.slice(0, 200)}`);
+  const fileLocale = await sqliteLocal(
+    posteId,
+    `SELECT group_concat(t, ',') FROM (SELECT tx_id || ':' || json_extract(data, '$.type') AS t FROM ps_crud ORDER BY id)`,
+  );
+  if (!/(\d+):contacts,\1:contact_liens$/.test(fileLocale)) {
+    fail(`la fiche et le lien ne sont pas dans la même transaction, la fiche d'abord : ${fileLocale}`);
+  }
+  await evaluate(cdp.send, `window.__legalosRecette.reconnectSync()`);
+  await attendreServeur(
+    `SELECT COUNT(*) FROM contacts c JOIN contact_liens l ON l.contact_source_id = c.id
+     WHERE c.nom = 'Lambert' AND c.prenoms = 'Sophie' AND c.source_import = 'recherche-entreprises'
+       AND l.contact_cible_id = '${societeId}'`,
+    "1",
+  );
+  await attendreServeur(
+    `SELECT COUNT(*) FROM contact_liens l JOIN contacts c ON c.id = l.contact_source_id
+     WHERE c.nom = 'Lambert' AND c.prenoms = 'Sophie' AND l.contact_cible_id = '${societeId}'
+       AND l.type_lien = 'mandat_social' AND l.fonction = 'directeur_general' AND NOT l.represente_societe`,
+    "1",
+  );
+  ok("fiche du dirigeant et lien créés ensemble");
   const ignore = await evaluate(
     cdp.send,
     `(() => { const boutons = document.querySelectorAll("[data-testid=contacts-dirigeant-ignorer]"); boutons[1]?.click(); return boutons.length; })()`,
   );
-  if (ignore !== 2) fail(`boutons ignorer : ${String(ignore)}`);
+  if (ignore !== 3) fail(`boutons ignorer : ${String(ignore)}`);
   const debutIgnore = Date.now();
   while (Date.now() - debutIgnore < 5_000) {
     etatDirigeant = String(
@@ -713,6 +890,156 @@ try {
   ).trim();
   if (paul !== "0") fail("Paul Renard a été créé d'office");
   ok("dirigeants");
+
+  // ——— « Ajouter un lien » (écart 12) : écriture locale synchronisée, contrôles du poste, refus de l'API ———
+  // Le registre simulé donne le même nom à toutes les sociétés des essais précédents : la cible porte un nom propre à cet essai.
+  const nomSociete = `Cible ${marque}`;
+  await sqlServeur(`UPDATE contacts SET nom = '${nomSociete}' WHERE id = '${societeId}'`);
+  await attendreSqlite(posteId, `SELECT nom FROM contacts WHERE id = '${societeId}'`, (v) => v === nomSociete);
+  async function ouvrirFormulaireLien() {
+    await cliquer(cdp.send, `[data-testid=contacts-ligne][data-contact-id="${personneId}"]`);
+    await attendre(cdp.send, "[data-testid=contacts-onglet-liens]");
+    await cliquer(cdp.send, "[data-testid=contacts-onglet-liens]");
+    await attendre(cdp.send, "[data-testid=contacts-lien-ajouter]");
+    const ouvert = await evaluate(cdp.send, `Boolean(document.querySelector("[data-testid=contacts-lien-formulaire]"))`);
+    if (!ouvert) await cliquer(cdp.send, "[data-testid=contacts-lien-ajouter]");
+    await attendre(cdp.send, "[data-testid=contacts-lien-formulaire]");
+  }
+  async function choisirAvec(recherche, id) {
+    await saisir(cdp.send, "[data-testid=contacts-lien-avec]", recherche);
+    await attendre(cdp.send, `[data-testid=contacts-lien-candidat][data-contact-id="${id}"]`);
+    await cliquer(cdp.send, `[data-testid=contacts-lien-candidat][data-contact-id="${id}"]`);
+  }
+  async function enregistrerLien(attenduMessage) {
+    await cliquer(cdp.send, "[data-testid=contacts-lien-enregistrer]");
+    if (attenduMessage !== null) await attendreTexteDe("[data-testid=contacts-lien-message]", attenduMessage, 8_000);
+  }
+  await ouvrirFormulaireLien();
+  // Contrôles du poste, refus lisibles, rien n'est écrit.
+  await choisirAvec(`Tiers ${marque}`, tiersId);
+  await enregistrerLien("Un mandat social vise une personne morale.");
+  await saisir(cdp.send, "[data-testid=contacts-lien-type]", "salarie");
+  await choisirAvec(nomSociete, societeId);
+  await saisir(cdp.send, "[data-testid=contacts-lien-fin]", "2024-01-01");
+  await enregistrerLien("Indiquez la date de début pour poser une date de fin.");
+  await saisir(cdp.send, "[data-testid=contacts-lien-debut]", "2024-06-01");
+  await enregistrerLien("La fin doit être postérieure au début.");
+  const ecritLocalement = await sqliteLocal(
+    posteId,
+    `SELECT COUNT(*) FROM contact_liens WHERE contact_source_id = '${personneId}' AND type_lien = 'salarie'`,
+  );
+  if (ecritLocalement !== "0") fail(`un lien refusé par le poste a été écrit : ${ecritLocalement}`);
+  // En ligne : écriture locale, puis arrivée sur le serveur.
+  await saisir(cdp.send, "[data-testid=contacts-lien-debut]", "2021-02-01");
+  await saisir(cdp.send, "[data-testid=contacts-lien-fin]", "");
+  await saisir(cdp.send, "[data-testid=contacts-lien-source]", "Contrat de travail");
+  await enregistrerLien(null);
+  await attendreTexte("[data-testid=contacts-liens]", "Salarié de");
+  await attendreSqlite(
+    posteId,
+    `SELECT COUNT(*) FROM contact_liens WHERE contact_source_id = '${personneId}' AND contact_cible_id = '${societeId}' AND type_lien = 'salarie'`,
+    (v) => v === "1",
+  );
+  await attendreServeur(
+    `SELECT debut::text || '|' || COALESCE(source, '') FROM contact_liens
+     WHERE contact_source_id = '${personneId}' AND contact_cible_id = '${societeId}' AND type_lien = 'salarie'`,
+    "2021-02-01|Contrat de travail",
+  );
+  ok("lien ajouté en ligne");
+
+  // Date de fin posée sur un mandat : « Modifier ».
+  async function modifierLigne(motif) {
+    const clique = await evaluate(
+      cdp.send,
+      `(() => {
+        const ligne = [...document.querySelectorAll("[data-testid=contacts-lien]")].find((li) => ${motif}.test(li.textContent || ""));
+        const bouton = ligne?.querySelector("[data-testid=contacts-lien-modifier]");
+        bouton?.click();
+        return Boolean(bouton);
+      })()`,
+    );
+    if (!clique) fail(`ligne de lien absente : ${motif}`);
+    await attendre(cdp.send, "[data-testid=contacts-lien-edition]");
+  }
+  await modifierLigne("/G[ée]rant/");
+  await saisir(cdp.send, "[data-testid=contacts-lien-edition-fin]", "2024-06-30");
+  await cliquer(cdp.send, "[data-testid=contacts-lien-edition-enregistrer]");
+  await attendreTexteDe("[data-testid=contacts-lien-edition-message]", "Indiquez la date de début pour poser une date de fin.", 8_000);
+  await saisir(cdp.send, "[data-testid=contacts-lien-edition-debut]", "2019-01-01");
+  await cliquer(cdp.send, "[data-testid=contacts-lien-edition-enregistrer]");
+  await attendreTexte("[data-testid=contacts-liens]", "du 1er janvier 2019 au 30 juin 2024");
+  await attendreServeur(
+    `SELECT debut::text || '|' || fin::text FROM contact_liens
+     WHERE contact_source_id = '${personneId}' AND contact_cible_id = '${societeId}' AND fonction = 'gerant'`,
+    "2019-01-01|2024-06-30",
+  );
+  ok("date de fin posée");
+
+  // Hors ligne : le lien s'écrit localement, puis arrive sur le serveur au retour de la synchronisation.
+  await evaluate(cdp.send, `window.__legalosRecette.disconnectSync()`);
+  await sleep(500);
+  await ouvrirFormulaireLien();
+  await saisir(cdp.send, "[data-testid=contacts-lien-type]", "expert_comptable");
+  await choisirAvec(nomSociete, societeId);
+  await saisir(cdp.send, "[data-testid=contacts-lien-debut]", "2022-01-01");
+  await enregistrerLien(null);
+  await attendreTexte("[data-testid=contacts-liens]", "Expert-comptable de");
+  const horsLigneLocal = await sqliteLocal(
+    posteId,
+    `SELECT COUNT(*) FROM contact_liens WHERE contact_source_id = '${personneId}' AND type_lien = 'expert_comptable'`,
+  );
+  const fileHorsLigne = await sqliteLocal(posteId, `SELECT COUNT(*) FROM ps_crud`);
+  const serveurAvant = (
+    await sqlServeur(`SELECT COUNT(*) FROM contact_liens WHERE contact_source_id = '${personneId}' AND type_lien = 'expert_comptable'`)
+  ).trim();
+  if (horsLigneLocal !== "1" || Number(fileHorsLigne) < 1 || serveurAvant !== "0") {
+    fail(`lien hors ligne : local ${horsLigneLocal}, file ${fileHorsLigne}, serveur ${serveurAvant}`);
+  }
+  await evaluate(cdp.send, `window.__legalosRecette.reconnectSync()`);
+  await attendreServeur(
+    `SELECT COUNT(*) FROM contact_liens WHERE contact_source_id = '${personneId}' AND type_lien = 'expert_comptable'`,
+    "1",
+  );
+  ok("lien ajouté hors ligne");
+
+  // Refus de l'API lisible : le poste ignore un mandat posé entre-temps sur le serveur, l'API le refuse à l'envoi.
+  await evaluate(cdp.send, `window.__legalosRecette.disconnectSync()`);
+  await sleep(500);
+  await sqlServeur(
+    `INSERT INTO contact_liens (id, cabinet_id, contact_source_id, contact_cible_id, type_lien, fonction, represente_societe, debut, revision)
+     SELECT '${randomUUID()}', cabinet_id, '${tiersId}', '${societeId}', 'mandat_social', 'directeur_general_delegue', TRUE, '2020-01-01', 1
+     FROM contacts WHERE id = '${societeId}'`,
+  );
+  await ouvrirFormulaireLien();
+  await saisir(cdp.send, "[data-testid=contacts-lien-fonction]", "directeur_general_delegue");
+  await choisirAvec(nomSociete, societeId);
+  await saisir(cdp.send, "[data-testid=contacts-lien-debut]", "2023-01-01");
+  await cliquer(cdp.send, "[data-testid=contacts-lien-represente]");
+  await enregistrerLien(null);
+  await attendreSqlite(
+    posteId,
+    `SELECT COUNT(*) FROM contact_liens WHERE contact_source_id = '${personneId}' AND fonction = 'directeur_general_delegue'`,
+    (v) => v === "1",
+  );
+  await evaluate(cdp.send, `window.__legalosRecette.reconnectSync()`);
+  await attendreSqlite(
+    posteId,
+    // Lecture en ASCII : la sortie de python n'est pas en UTF-8 ; le texte complet est vérifié dans l'écran, plus bas.
+    `SELECT COUNT(*) FROM refus_sync WHERE table_cible = 'contact_liens' AND message LIKE 'Un mandat en cours repr%'`,
+    (v) => Number(v) >= 1,
+  );
+  await ouvrirMenuCompte("menu-reglages");
+  await attendre(cdp.send, "[data-testid=refus-sync]");
+  await attendreTexteDe("[data-testid=refus-sync]", "Un mandat en cours représente déjà la société pour cette fonction");
+  await attendreServeur(
+    `SELECT COUNT(*) FROM contact_liens WHERE contact_source_id = '${personneId}' AND fonction = 'directeur_general_delegue'`,
+    "0",
+    10_000,
+  );
+  await cliquer(cdp.send, "[data-testid=nav-contacts]");
+  // L'écran Contacts se remonte après Réglages : la liste se relit dans la base locale avant la suite.
+  await attendre(cdp.send, `[data-testid=contacts-ligne][data-contact-id="${coupeId}"]`);
+  ok("refus de l'API lisible");
 
   await cliquer(cdp.send, `[data-testid=contacts-ligne][data-contact-id="${coupeId}"]`);
   await attendre(cdp.send, "[data-testid=contacts-import-siren]");

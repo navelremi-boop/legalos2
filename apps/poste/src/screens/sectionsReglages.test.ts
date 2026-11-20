@@ -16,8 +16,16 @@ describe("sections des réglages", () => {
 
   it("affiche les sections déjà livrées", () => {
     const ids = sectionsVisibles().map((section) => section.id);
-    for (const present of ["cabinet", "messagerie", "apparence", "reference", "modeles", "qualites"]) {
+    for (const present of ["cabinet", "utilisateurs", "messagerie", "apparence", "reference", "modeles", "qualites"]) {
       assert.equal(ids.includes(present), true, present);
     }
+  });
+
+  it("masque Utilisateurs à un collaborateur, l'affiche à un administrateur ou tant que le rôle est inconnu", () => {
+    const ids = (administrateur: boolean | null) => sectionsVisibles(administrateur).map((section) => section.id);
+    assert.equal(ids(false).includes("utilisateurs"), false);
+    assert.equal(ids(true).includes("utilisateurs"), true);
+    assert.equal(ids(null).includes("utilisateurs"), true);
+    assert.equal(ids(false).includes("cabinet"), true);
   });
 });

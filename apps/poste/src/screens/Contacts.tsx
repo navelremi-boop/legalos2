@@ -37,7 +37,17 @@ import { designationActe, accordDe } from "@/contacts/designation";
 import { ecrireCoordonnee, type GenreCoordonnee, type UsageCoordonnee } from "@/contacts/ecrireCoordonnee";
 import { avecCommune, communesDuCode, estAdresseFrance } from "@/contacts/codesPostaux";
 import { groupesLiens, type LienAffiche } from "@/contacts/liensContacts";
-import { envoyerLien, envoyerRetrait } from "@/contacts/envoyerLien";
+import { envoyerRetrait } from "@/contacts/envoyerLien";
+import type { ChampsLienModifies } from "@/contacts/controleLien";
+import type { DirigeantRegistre } from "@/contacts/dirigeants";
+import type { LienAEcrire } from "@/contacts/ecrireLien";
+import {
+  ecrireLienDirigeantLocal,
+  ecrireLienLocal,
+  ecrireModificationLienLocal,
+} from "@/contacts/enregistrerLien";
+import { FormulaireLien, FormulaireModificationLien } from "@/contacts/FormulaireLien";
+import { lienAfficheDepuisEcriture } from "@/contacts/lienGalerie";
 import { EtatVideFiche, HistoriqueFiche } from "@/contacts/OngletsHistorique";
 import { ligneIndex, villeListeContact } from "@/contacts/indexAnnuaire";
 import type { IndexAnnuaire } from "@/contacts/indexAnnuaireFts";
@@ -56,6 +66,9 @@ import {
   lireMailsClasses,
   lireNotesContact,
 } from "@/contacts/lireHistorique";
+import { notesAffichees } from "@/contacts/signatureNote";
+import { indexerMembres } from "@/identite/libelleMembre";
+import { lireMembres } from "@/identite/lireMembres";
 import { DoublonsFiche, type DoublonDetecte } from "@/contacts/DoublonsFiche";
 import { NouveauContact } from "@/contacts/NouveauContact";
 import type { NatureCreation } from "@/contacts/creationContact";
@@ -160,6 +173,13 @@ export function Contacts({
   const [creation, setCreation] = useState<{ nature: NatureCreation; focusSiren: boolean } | null>(null);
   const [creees, setCreees] = useState<ContactListe[]>([]);
   const [liensAjoutes, setLiensAjoutes] = useState<LienAffiche[]>([]);
+  /** Galerie seulement : modifications de liens figés (début, fin, source), sans base locale. */
+  const [liensModifies, setLiensModifies] = useState<Record<string, ChampsLienModifies>>({});
+  /** Relit l'annuaire local tout de suite après une écriture, sans attendre le prochain passage. */
+  const [rechargement, setRechargement] = useState(0);
+  const recharger = () => {
+    setRechargement((n) => n + 1);
+  };
   const [archives, setArchives] = useState<ReadonlySet<string>>(new Set());
   const [retires, setRetires] = useState<ReadonlySet<string>>(new Set());
   const [situations, setSituations] = useState<Record<string, string | null>>({});
@@ -212,7 +232,7 @@ export function Contacts({
       ignore = true;
       window.clearInterval(timer);
     };
-  }, [lignesFixes]);
+  }, [lignesFixes, rechargement]);
 
   const lignes = useMemo(() => {
     const base = lignesFixes ?? lignesSync;
@@ -223,8 +243,18 @@ export function Contacts({
   }, [lignesFixes, lignesSync, creees, retires]);
   const liens = useMemo(() => {
     const base = liensFixes ?? liensSync;
-    return [...base, ...liensAjoutes.filter((ajoute) => !base.some((lien) => lien.id === ajoute.id))];
-  }, [liensFixes, liensSync, liensAjoutes]);
+    const tous = [...base, ...liensAjoutes.filter((ajoute) => !base.some((lien) => lien.id === ajoute.id))];
+    return tous.map((lien) => {
+      const modifie = liensModifies[lien.id];
+      if (modifie === undefined) return lien;
+      return {
+        ...lien,
+        debut: modifie.debut === undefined ? lien.debut : modifie.debut,
+        fin: modifie.fin === undefined ? lien.fin : modifie.fin,
+        source: modifie.source === undefined ? lien.source : modifie.source,
+      };
+    });
+  }, [liensFixes, liensSync, liensAjoutes, liensModifies]);
 
   const comptes = useMemo(() => compteursFiltres(lignes ?? []), [lignes]);
   const corpsParId = useMemo(() => {
@@ -346,9 +376,9 @@ export function Contacts({
       .catch(() => {
         if (!ignore) setMailsSync([]);
       });
-    void lireNotesContact(id)
-      .then((lignes) => {
-        if (!ignore) setNotesSync(lignes);
+    void Promise.all([lireNotesContact(id), lireMembres()])
+      .then(([notes, membres]) => {
+        if (!ignore) setNotesSync(notesAffichees(notes, indexerMembres(membres)));
       })
       .catch(() => {
         if (!ignore) setNotesSync([]);
@@ -675,14 +705,26 @@ export function Contacts({
                       importRef={importRef}
                       contactLie={contactLie}
                       onRetirer={retirerChoisi}
-                      onCreer={(contact) => {
-                        setCreees((etat) => [...etat, contact]);
-                      }}
-                      onRelier={async (lien) => {
-                        if (instanceUrl !== undefined && propositionFixe === null) {
-                          await envoyerLien(instanceUrl, lien);
+                      onCreer={async (contact, dirigeant) => {
+                        if (lignesFixes !== undefined) {
+                          setCreees((etat) => [...etat, contact]);
+                          return;
                         }
-                        setLiensAjoutes((etat) => [...etat, lien]);
+                        await ecrireLienDirigeantLocal({ id: choisi.id, nature: choisi.nature }, dirigeant, null, liens);
+                        recharger();
+                      }}
+                      onRelier={async (lien, dirigeant) => {
+                        if (lignesFixes !== undefined) {
+                          setLiensAjoutes((etat) => [...etat, lien]);
+                          return;
+                        }
+                        await ecrireLienDirigeantLocal(
+                          { id: choisi.id, nature: choisi.nature },
+                          dirigeant,
+                          lien.sourceId,
+                          liens,
+                        );
+                        recharger();
                       }}
                       onSituation={(code) => {
                         setSituations((etat) => ({ ...etat, [choisi.id]: code }));
@@ -742,6 +784,22 @@ export function Contacts({
                       contactId={choisi.id}
                       liens={liens}
                       contacts={lignes ?? []}
+                      onAjouter={async (lien) => {
+                        if (lignesFixes !== undefined) {
+                          setLiensAjoutes((etat) => [...etat, lienAfficheDepuisEcriture(lien, crypto.randomUUID(), lignes ?? [])]);
+                          return;
+                        }
+                        await ecrireLienLocal(lien);
+                        recharger();
+                      }}
+                      onModifier={async (id, champs) => {
+                        if (lignesFixes !== undefined) {
+                          setLiensModifies((etat) => ({ ...etat, [id]: { ...etat[id], ...champs } }));
+                          return;
+                        }
+                        await ecrireModificationLienLocal(id, champs);
+                        recharger();
+                      }}
                       onOuvrir={(id) => {
                         setSelection(id);
                         setOnglet("general");
@@ -818,19 +876,50 @@ function LiensFiche({
   liens,
   contacts,
   onOuvrir,
+  onAjouter,
+  onModifier,
 }: {
   contactId: string;
   liens: readonly LienAffiche[];
   contacts: readonly ContactListe[];
   onOuvrir: (id: string) => void;
+  onAjouter: (lien: LienAEcrire) => Promise<void>;
+  onModifier: (id: string, champs: ChampsLienModifies) => Promise<void>;
 }) {
+  const [formulaire, setFormulaire] = useState(false);
+  const [enEdition, setEnEdition] = useState<string | null>(null);
   const groupes = groupesLiens(liens, contactId, (id) => {
     const fiche = contacts.find((contact) => contact.id === id);
     return fiche === undefined ? null : nomCourtContact(fiche);
   });
   return (
     <div data-testid="contacts-liens">
-      <div className="sec-t">{fr("Liens avec d'autres contacts")}</div>
+      <div className="sec-t">
+        {fr("Liens avec d'autres contacts")}
+        <button
+          type="button"
+          className="contacts-act act"
+          data-testid="contacts-lien-ajouter"
+          aria-expanded={formulaire}
+          onClick={() => {
+            setFormulaire((ouvert) => !ouvert);
+          }}
+        >
+          <IconPlus size={14} stroke={1.8} aria-hidden />
+          {fr("Ajouter un lien")}
+        </button>
+      </div>
+      {formulaire ? (
+        <FormulaireLien
+          sourceId={contactId}
+          contacts={contacts}
+          liens={liens}
+          onAjouter={onAjouter}
+          onFermer={() => {
+            setFormulaire(false);
+          }}
+        />
+      ) : null}
       {groupes.length === 0 ? <EtatVideFiche vide={etatVideLiens()} testId="contacts-liens-vide" /> : null}
       {groupes.map((entree) => (
         <Fragment key={entree.groupe}>
@@ -856,7 +945,40 @@ function LiensFiche({
                   </button>
                   {ligne.source !== null ? <small>{fr(`Source : ${ligne.source}`)}</small> : null}
                 </div>
-                <div className="contacts-lien__date">{fr(ligne.periode)}</div>
+                <div className="contacts-lien__date">
+                  {fr(ligne.periode)}
+                  <button
+                    type="button"
+                    className="contacts-act act"
+                    data-testid="contacts-lien-modifier"
+                    aria-expanded={enEdition === ligne.id}
+                    onClick={() => {
+                      setEnEdition((courant) => (courant === ligne.id ? null : ligne.id));
+                    }}
+                  >
+                    {fr("Modifier")}
+                  </button>
+                </div>
+                {enEdition === ligne.id
+                  ? (() => {
+                      const lien = liens.find((entree) => entree.id === ligne.id);
+                      if (lien === undefined) return null;
+                      return (
+                        <div className="contacts-lien__edition">
+                          <FormulaireModificationLien
+                            lien={lien}
+                            titre={`${ligne.titre}${ligne.liaison === "de" ? " de " : ligne.liaison === "titre" ? " " : " : "}${ligne.autreNom}`}
+                            cibleNature={contacts.find((fiche) => fiche.id === lien.cibleId)?.nature ?? "morale"}
+                            liens={liens}
+                            onModifier={onModifier}
+                            onFermer={() => {
+                              setEnEdition(null);
+                            }}
+                          />
+                        </div>
+                      );
+                    })()
+                  : null}
               </li>
             ))}
           </ul>
@@ -1467,8 +1589,8 @@ function FicheGenerale({
   importRef: RefObject<PropositionImportHandle | null>;
   contactLie: boolean;
   onRetirer: () => void;
-  onCreer: (contact: ContactListe) => void;
-  onRelier: (lien: LienAffiche) => Promise<void> | void;
+  onCreer: (contact: ContactListe, dirigeant: DirigeantRegistre) => Promise<void> | void;
+  onRelier: (lien: LienAffiche, dirigeant: DirigeantRegistre) => Promise<void> | void;
   onSituation: (code: string | null) => void;
   onForme: (code: string | null) => void;
   onCapital: (centimes: number | null, monnaie: string | null) => void;

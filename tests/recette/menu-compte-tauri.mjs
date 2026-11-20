@@ -53,7 +53,7 @@ const creds = { email: demoEmail, password: demoPassword, secret: totpSecretB32,
     const send = page.send;
     await attendre("menu du compte", `Boolean(document.querySelector("[data-testid=menu-compte]"))`, send);
 
-    // Avatar : les initiales de l'utilisateur connecté (table locale users) s'affichent une fois synchronisées.
+    // Avatar : les initiales de l'utilisateur connecté (adresse du compte) s'affichent une fois synchronisées.
     await attendre(
       "initiales de l'avatar",
       String.raw`/^\p{L}{1,2}$/u.test(document.querySelector("[data-testid=menu-compte]")?.getAttribute("data-initiales") ?? "")`,
@@ -75,13 +75,13 @@ const creds = { email: demoEmail, password: demoPassword, secret: totpSecretB32,
       send,
       `JSON.stringify([...document.querySelectorAll("[data-testid=menu-compte-liste] [role=menuitem]")].map((e) => e.textContent.trim()))`,
     );
-    const attendues = ["Temps", "Réglages", "Palette de commandes", "Verrouiller", "Se déconnecter"];
+    const attendues = ["Mon profil", "Temps", "Réglages", "Palette de commandes", "Verrouiller", "Se déconnecter"];
     // Hors build distribué, une entrée « Galerie (dev) » s'ajoute : elle n'est pas comptée.
     const reelles = JSON.parse(entrees).filter((e) => e !== "Galerie (dev)");
     if (JSON.stringify(reelles) !== JSON.stringify(attendues)) fail(`entrées du menu : ${entrees}`);
     await evaluate(send, `document.querySelector("[data-testid=menu-compte]")?.click()`);
     await attendre("fermeture", `!document.querySelector("[data-testid=menu-compte-liste]")`, send, 5_000);
-    ok("menu : Temps, Réglages, Palette de commandes, Verrouiller, Se déconnecter");
+    ok("menu : Mon profil, Temps, Réglages, Palette de commandes, Verrouiller, Se déconnecter");
 
     // Temps : l'écran s'ouvre.
     await choisir(send, "menu-compte-temps");

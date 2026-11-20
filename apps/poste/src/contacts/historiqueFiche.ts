@@ -46,6 +46,8 @@ export type MailFiche = {
 export type NoteFiche = {
   id: string;
   texte: string;
+  /** « Modifié par Me Julien Marchal le 14 octobre 2026 » ; nulle quand ni l'auteur ni la date ne sont connus. */
+  signature?: string | null;
 };
 
 export type SyntheseFactures = {

@@ -82,7 +82,7 @@ export async function enregistrerTemps(base: BaseTemps, saisie: SaisieTemps): Pr
   const visibilite = dossiers[0]?.restreint ? "restreint" : "public";
   let intervenantId = saisie.intervenantId ?? null;
   if (intervenantId === null || intervenantId === "") {
-    const utilisateurs = await base.getAll<{ id: string }>("SELECT id FROM users LIMIT 1");
+    const utilisateurs = await base.getAll<{ id: string }>("SELECT id FROM utilisateurs WHERE actif = 1 LIMIT 1");
     intervenantId = utilisateurs[0]?.id ?? cabinetId;
   }
   const tempsId = saisie.tempsId ?? crypto.randomUUID();

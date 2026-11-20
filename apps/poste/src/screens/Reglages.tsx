@@ -17,6 +17,9 @@ import {
   type ApercuReference,
 } from "@/lib/referenceCabinet";
 import { clearSession } from "@/lib/session/storage";
+import { PanneauUtilisateurs } from "@/identite/PanneauUtilisateurs";
+import { lireMonProfil } from "@/identite/profilApi";
+import type { ProfilMembre } from "@/identite/profilMembre";
 import { ReglagesMessagerie, type DemonstrationMessagerie } from "@/messagerie/ReglagesMessagerie";
 import { PanneauModeles } from "@/modeles/PanneauModeles";
 import { ConstructeurReference } from "@/screens/ConstructeurReference";
@@ -41,6 +44,8 @@ type ReglagesProps = {
   messagerieDemo?: DemonstrationMessagerie;
   /** Galerie : qualités livrées, modifications locales. */
   qualitesDemo?: readonly QualiteReglage[];
+  /** Galerie : membres du cabinet figés pour la rubrique Utilisateurs. */
+  utilisateursDemo?: readonly ProfilMembre[];
 };
 
 function estRemise(valeur: string): valeur is RemiseAZero {
@@ -59,6 +64,7 @@ export function Reglages({
   onSaisirTemps,
   messagerieDemo,
   qualitesDemo,
+  utilisateursDemo,
 }: ReglagesProps) {
   const [nom, setNom] = useState("");
   const [slug, setSlug] = useState("");
@@ -74,6 +80,10 @@ export function Reglages({
   const [sectionOuverte, setSectionOuverte] = useState("cabinet");
   const [densite, setDensite] = useState<Densite>(lireDensite);
   const [numeroDepartMinimal, setNumeroDepartMinimal] = useState<number | null>(null);
+  /** Rôle de l'utilisateur, connu après une lecture de son profil en ligne ; `null` tant qu'il ne l'est pas. */
+  const [administrateur, setAdministrateur] = useState<boolean | null>(
+    utilisateursDemo === undefined ? null : true,
+  );
   const baseNomRef = useRef("");
   const baseSlugRef = useRef("");
 
@@ -180,6 +190,17 @@ export function Reglages({
     };
   }, [horsLigne, instanceUrl]);
 
+  useEffect(() => {
+    if (horsLigne || utilisateursDemo !== undefined) return;
+    let stop = false;
+    void lireMonProfil(instanceUrl).then((resultat) => {
+      if (!stop && resultat.ok) setAdministrateur(resultat.profil.role === "administrateur");
+    });
+    return () => {
+      stop = true;
+    };
+  }, [horsLigne, instanceUrl, utilisateursDemo]);
+
   const apercuActif = horsLigne ? apercuHorsLigne() : apercuValeurs;
   let apercuTexte = "";
   let erreurModele = "";
@@ -252,7 +273,7 @@ export function Reglages({
             <h2 className="feuille-sous-titre mb-2 px-3">
               {fr("Réglages du cabinet")}
             </h2>
-            {sectionsVisibles().map((section) => (
+            {sectionsVisibles(administrateur).map((section) => (
               <button
                 key={section.id}
                 type="button"
@@ -268,6 +289,9 @@ export function Reglages({
             ))}
           </nav>
           <div className="reglages-contenu min-w-0 flex-1 space-y-6 overflow-auto">
+          <div id="reglages-utilisateurs" hidden={sectionOuverte !== "utilisateurs"}>
+            <PanneauUtilisateurs instanceUrl={instanceUrl} horsLigne={horsLigne} demo={utilisateursDemo} />
+          </div>
           <div id="reglages-qualites" hidden={sectionOuverte !== "qualites"}>
             <PanneauQualites
               demo={qualitesDemo}

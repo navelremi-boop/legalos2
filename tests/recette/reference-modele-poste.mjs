@@ -264,7 +264,8 @@ const connecteur = readFileSync(
   join(root, "apps/poste/src-tauri/src/powersync_connect.rs"),
   "utf8",
 );
-const envoieChampsPresents = /for \(k, v\) in &data/.test(connecteur);
+// Le corps de création (`corps_put`) parcourt toutes les colonnes présentes de la ligne locale.
+const envoieChampsPresents = /for \(k, v\) in &?data/.test(connecteur);
 if (!/responsable_id/.test(connecteur) && !envoieChampsPresents) {
   fail("upload_dossier n’envoie pas responsable_id");
 }

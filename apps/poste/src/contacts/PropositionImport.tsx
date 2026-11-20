@@ -6,7 +6,7 @@ import {
   type ChampImport,
   type PropositionSiren,
 } from "@/contacts/propositionSiren";
-import { dirigeantsDepuisJson } from "@/contacts/dirigeants";
+import { dirigeantsDepuisJson, type DirigeantRegistre } from "@/contacts/dirigeants";
 import { DirigeantsProposes } from "@/contacts/DirigeantsProposes";
 import type { ContactListe } from "@/contacts/listeContacts";
 import { fr } from "@/lib/fr";
@@ -27,8 +27,11 @@ type PropositionImportProps = {
   /** Proposition figée de la galerie. Sans instance, le bouton l'affiche. */
   propositionFixe?: PropositionSiren | null;
   contacts?: readonly ContactListe[];
-  onCreer?: (contact: ContactListe) => void;
-  onRelier?: (lien: import("@/contacts/liensContacts").LienAffiche) => Promise<void> | void;
+  onCreer?: (contact: ContactListe, dirigeant: DirigeantRegistre) => Promise<void> | void;
+  onRelier?: (
+    lien: import("@/contacts/liensContacts").LienAffiche,
+    dirigeant: DirigeantRegistre,
+  ) => Promise<void> | void;
   /** Quand faux, le déclencheur est rendu ailleurs (tête de fiche). */
   afficherDeclencheur?: boolean;
 };
@@ -252,9 +255,7 @@ export const PropositionImport = forwardRef<PropositionImportHandle, Proposition
               dirigeants={proposition.dirigeants ?? []}
               contacts={contacts}
               societe={contact}
-              onCreer={(cree) => {
-                onCreer?.(cree);
-              }}
+              onCreer={(cree, dirigeant) => onCreer?.(cree, dirigeant)}
               onRelier={onRelier}
             />
           </div>

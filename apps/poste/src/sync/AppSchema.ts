@@ -49,18 +49,6 @@ const refusSync = new Table(
   { localOnly: true },
 );
 
-const users = new Table(
-  {
-    cabinet_id: column.text,
-    display_name: column.text,
-    email: column.text,
-    role: column.text,
-    created_at: column.text,
-    updated_at: column.text,
-  },
-  { indexes: { cabinet: ["cabinet_id"] } },
-);
-
 const postes = new Table(
   {
     cabinet_id: column.text,
@@ -534,7 +522,6 @@ export const AppSchema = new Schema({
   cabinets,
   journal_modifications: journalModifications,
   refus_sync: refusSync,
-  users,
   postes,
   dossiers,
   parties,
@@ -565,7 +552,6 @@ export const AppSchema = new Schema({
 
 export type Database = (typeof AppSchema)["types"];
 export type CabinetRecord = Database["cabinets"];
-export type UserRecord = Database["users"];
 export type PosteRecord = Database["postes"];
 export type DossierRecord = Database["dossiers"];
 export type PartieRecord = Database["parties"];

@@ -142,9 +142,15 @@ export function HistoriqueFiche({
   if (notes.length === 0) return <EtatVideFiche vide={etatVideNotes()} testId="contacts-notes-vide" />;
   return (
     <div className="contacts-notes" data-testid="contacts-notes">
-      {notes.map((note) => (
+      {notes.map((note, index) => (
         <p key={note.id} data-testid="contacts-note">
           {fr(note.texte)}
+          {/* Des notes qui se suivent avec la même signature (même auteur, même jour) n'en portent qu'une, après la dernière. */}
+          {note.signature != null && notes[index + 1]?.signature !== note.signature ? (
+            <small className="contacts-note__signature" data-testid="contacts-note-signature">
+              {fr(note.signature)}
+            </small>
+          ) : null}
         </p>
       ))}
     </div>

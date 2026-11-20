@@ -3,7 +3,7 @@
  * Captures galerie Contacts (Vite) aux mêmes scènes, tailles et thèmes que la maquette
  * (`contacts-captures-maquette.mjs`) : SAS Ferrand Métal (Général, Dossiers, Factures, Mails), Antoine et Claire Ferrand (Général), Antoine Ferrand (Liens), Holding Perrache (Dossiers),
  * états vides et notes (Claire Ferrand, Dossiers ; Ferrand Métal, Notes ; Me Anne Perrin, Liens),
- * création d'un contact (personne physique), Importer par SIREN (société déjà dans l'annuaire,
+ * « Ajouter un lien » (formulaire ouvert, Antoine Ferrand, Liens), création d'un contact (personne physique), Importer par SIREN (société déjà dans l'annuaire,
  * puis société trouvée au registre) ; 1 366 × 768, 1 920 × 1 080, 2 560 × 1 440 ; jour et nuit.
  * Jeu de la galerie : celui de la maquette (famille Ferrand, dossier 2026-031).
  * Prérequis : `pnpm --filter @legal-os/poste dev` sur le port 1420.
@@ -34,6 +34,8 @@ const SCENES = [
   { id: "antoine-general", contact: "antoine", onglet: "general" },
   { id: "claire-general", contact: "claire", onglet: "general" },
   { id: "antoine-liens", contact: "antoine", onglet: "liens" },
+  // « Ajouter un lien » : formulaire ouvert dans l'onglet Liens (lot 2a, écart 12).
+  { id: "ajouter-lien", contact: "antoine", onglet: "liens", form: "lien" },
   { id: "ferrand-dossiers", contact: "ferrand", onglet: "dossiers" },
   { id: "ferrand-factures", contact: "ferrand", onglet: "factures" },
   { id: "ferrand-mails", contact: "ferrand", onglet: "mails" },
@@ -89,6 +91,10 @@ async function scene(s) {
   }
   await page.locator(`[data-testid=contacts-ligne][data-contact-id="${s.contact}"]`).click();
   await page.locator(`[data-testid=contacts-onglet-${s.onglet}]`).click();
+  if (s.form === "lien") {
+    await page.locator("[data-testid=contacts-lien-ajouter]").click();
+    await page.locator("[data-testid=contacts-lien-formulaire]").waitFor({ timeout: 5_000 });
+  }
 }
 
 await ouvrirContacts();

@@ -158,7 +158,7 @@ function baseFictive(options: { cabinet?: boolean; dossier?: { restreint: number
       if (sql.includes("FROM taux_horaires")) {
         return Promise.resolve(options.taux === null || options.taux === undefined ? [] : [{ centimes_par_heure: options.taux }]);
       }
-      if (sql.includes("FROM users")) return Promise.resolve([{ id: "utilisateur-local" }]);
+      if (sql.includes("FROM utilisateurs")) return Promise.resolve([{ id: "utilisateur-local" }]);
       return Promise.resolve([]);
     }) as BaseTemps["getAll"],
     writeTransaction: ((travail: (tx: { execute: (sql: string, valeurs: unknown[]) => Promise<void> }) => Promise<unknown>) =>

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { champsFicheVides, type ContactListe } from "./listeContacts.ts";
-import { fichesDuDirigeant, lienDepuisDirigeant, type DirigeantRegistre } from "./dirigeants.ts";
+import { fichesDuDirigeant, lienDepuisDirigeant, preparerLienDirigeant, type DirigeantRegistre } from "./dirigeants.ts";
 
 function personne(partiel: Partial<ContactListe>): ContactListe {
   return {
@@ -79,5 +79,52 @@ describe("dirigeants du registre", () => {
     assert.equal(inconnu.typeLien, "autre");
     assert.equal(inconnu.libelle, "Commissaire aux comptes");
     assert.equal(inconnu.representeSociete, false);
+  });
+});
+
+describe("lien d'un dirigeant du registre, contrôles du poste", () => {
+  const SOCIETE = { id: "duclos", nature: "morale" as const };
+
+  it("prépare le lien et la fiche d'une personne à créer", () => {
+    const resultat = preparerLienDirigeant(SOCIETE, CAMILLE, null, []);
+    assert.equal(resultat.ok, true);
+    if (!resultat.ok) return;
+    assert.equal(resultat.lien.typeLien, "mandat_social");
+    assert.equal(resultat.lien.fonction, "gerant");
+    assert.equal(resultat.lien.representeSociete, false);
+    assert.deepEqual(resultat.fiche, { nature: "physique", nom: "Martin", prenoms: "Camille", siren: null });
+  });
+
+  it("ne rend pas de fiche quand la personne a déjà la sienne", () => {
+    const resultat = preparerLienDirigeant(SOCIETE, CAMILLE, "anne", []);
+    assert.equal(resultat.ok, true);
+    if (resultat.ok) assert.equal(resultat.fiche, null);
+  });
+
+  it("une qualité inconnue du registre devient un lien « Autre » libellé", () => {
+    const resultat = preparerLienDirigeant(SOCIETE, { ...CAMILLE, qualite: "Commissaire aux comptes" }, null, []);
+    assert.equal(resultat.ok, true);
+    if (resultat.ok) {
+      assert.equal(resultat.lien.typeLien, "autre");
+      assert.equal(resultat.lien.libelle, "Commissaire aux comptes");
+    }
+  });
+
+  it("refuse une fiche sans nom, et une société qui serait son propre dirigeant", () => {
+    const sansNom = preparerLienDirigeant(SOCIETE, { ...CAMILLE, nom: null }, null, []);
+    assert.deepEqual(sansNom, { ok: false, message: "Le registre ne donne pas le nom de ce dirigeant." });
+    const soiMeme = preparerLienDirigeant(SOCIETE, CAMILLE, "duclos", []);
+    assert.deepEqual(soiMeme, { ok: false, message: "Un contact ne se lie pas à lui-même." });
+  });
+
+  it("garde le SIREN d'une société dirigeante, pas les prénoms", () => {
+    const resultat = preparerLienDirigeant(
+      SOCIETE,
+      { nature: "morale", nom: "Holding Duclos", prenoms: "ignoré", naissance: null, siren: "552100554", qualite: "Président" },
+      null,
+      [],
+    );
+    assert.equal(resultat.ok, true);
+    if (resultat.ok) assert.deepEqual(resultat.fiche, { nature: "morale", nom: "Holding Duclos", prenoms: null, siren: "552100554" });
   });
 });

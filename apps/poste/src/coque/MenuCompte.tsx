@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { fr } from "@/lib/fr";
 
 export type MenuCompteProps = {
+  /** Ouvre « Mon profil » (identité de l'utilisateur). Absent : l'entrée n'est pas affichée. */
+  onProfil?: () => void;
   onTemps: () => void;
   onReglages: () => void;
   onPalette: () => void;
@@ -33,6 +35,7 @@ type Entree = {
  * dépasse (`overflow: hidden`).
  */
 export function MenuCompte({
+  onProfil,
   onTemps,
   onReglages,
   onPalette,
@@ -81,6 +84,7 @@ export function MenuCompte({
   }, [ouvert, fermer]);
 
   const entrees: Entree[] = [
+    ...(onProfil !== undefined ? [{ testid: "menu-compte-profil", libelle: "Mon profil", action: onProfil }] : []),
     { testid: "menu-compte-temps", libelle: "Temps", action: onTemps },
     { testid: "menu-reglages", libelle: "Réglages", action: onReglages },
     { testid: "menu-compte-palette", libelle: "Palette de commandes", action: onPalette, raccourci: RACCOURCIS.palette.touche },

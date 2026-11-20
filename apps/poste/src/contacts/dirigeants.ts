@@ -1,4 +1,6 @@
 import type { ContactListe } from "@/contacts/listeContacts";
+import { controlerLien, saisieLienVide, type LienNormalise, type SaisieLien } from "@/contacts/controleLien";
+import type { FicheDirigeant } from "@/contacts/ecrireLien";
 import type { LienAffiche } from "@/contacts/liensContacts";
 
 export type DirigeantRegistre = {
@@ -66,6 +68,58 @@ function fonctionDepuisQualite(qualite: string | null): string | null {
     "liquidatrice amiable": "liquidateur_amiable",
   };
   return fonctions[net] ?? null;
+}
+
+/** Type et fonction du lien que propose la qualité indiquée par le registre. */
+function typeEtFonction(dirigeant: DirigeantRegistre): Pick<LienNormalise, "typeLien" | "fonction" | "libelle"> {
+  const fonction = fonctionDepuisQualite(dirigeant.qualite);
+  return fonction === null
+    ? { typeLien: "autre", fonction: null, libelle: dirigeant.qualite?.trim() || "Dirigeant" }
+    : { typeLien: "mandat_social", fonction, libelle: null };
+}
+
+export type PreparationDirigeant =
+  | { ok: true; lien: LienNormalise; fiche: FicheDirigeant | null }
+  | { ok: false; message: string };
+
+/**
+ * Prépare l'écriture du lien d'un dirigeant vers la société, contrôles du poste compris (les mêmes que
+ * « Ajouter un lien »). `sourceId` : la fiche existante à relier, ou `null` pour une fiche à créer, dont la
+ * description est alors rendue avec le lien. Le lien ne représente pas la société : ce choix reste à part.
+ */
+export function preparerLienDirigeant(
+  societe: { id: string; nature: "physique" | "morale" },
+  dirigeant: DirigeantRegistre,
+  sourceId: string | null,
+  liensExistants: readonly LienAffiche[],
+): PreparationDirigeant {
+  const nom = dirigeant.nom?.trim() ?? "";
+  if (sourceId === null && nom === "") return { ok: false, message: "Le registre ne donne pas le nom de ce dirigeant." };
+  const propose = typeEtFonction(dirigeant);
+  const saisie: SaisieLien = {
+    ...saisieLienVide(),
+    typeLien: propose.typeLien,
+    fonction: propose.fonction ?? "",
+    libelle: propose.libelle ?? "",
+    representeSociete: false,
+  };
+  const controle = controlerLien(saisie, {
+    sourceId: sourceId ?? "nouvelle-fiche",
+    cible: { id: societe.id, nature: societe.nature },
+    liensExistants,
+    lienId: null,
+  });
+  if (!controle.ok) return { ok: false, message: controle.message };
+  const fiche: FicheDirigeant | null =
+    sourceId === null
+      ? {
+          nature: dirigeant.nature,
+          nom,
+          prenoms: dirigeant.nature === "physique" ? (dirigeant.prenoms?.trim() || null) : null,
+          siren: dirigeant.nature === "morale" ? dirigeant.siren : null,
+        }
+      : null;
+  return { ok: true, lien: controle.lien, fiche };
 }
 
 /** Lien à enregistrer. Ne représente pas la société : ce choix reste à part. */

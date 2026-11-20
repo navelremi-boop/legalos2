@@ -8,8 +8,9 @@ type DirigeantsProposesProps = {
   dirigeants: readonly DirigeantRegistre[];
   contacts: readonly ContactListe[];
   societe?: Pick<ContactListe, "id" | "nom">;
-  onCreer: (contact: ContactListe) => void;
-  onRelier?: (lien: LienAffiche) => Promise<void> | void;
+  /** Crée la fiche du dirigeant et son lien vers la société, en une seule écriture locale. */
+  onCreer: (contact: ContactListe, dirigeant: DirigeantRegistre) => Promise<void> | void;
+  onRelier?: (lien: LienAffiche, dirigeant: DirigeantRegistre) => Promise<void> | void;
 };
 
 function libelle(dirigeant: DirigeantRegistre): string {
@@ -51,8 +52,11 @@ export function DirigeantsProposes({ dirigeants, contacts, societe, onCreer, onR
                         return;
                       }
                       const lien = lienDepuisDirigeant(societe, fiche, dirigeant, crypto.randomUUID());
-                      void Promise.resolve(onRelier(lien)).then(poser, () => {
-                        setChoix((etatCourant) => ({ ...etatCourant, [index]: "Le lien n'a pas été enregistré." }));
+                      void Promise.resolve(onRelier(lien, dirigeant)).then(poser, (erreur: unknown) => {
+                        setChoix((etatCourant) => ({
+                          ...etatCourant,
+                          [index]: erreur instanceof Error ? erreur.message : "Le lien n'a pas été enregistré.",
+                        }));
                       });
                     }}
                   >
@@ -66,18 +70,32 @@ export function DirigeantsProposes({ dirigeants, contacts, societe, onCreer, onR
                   onClick={() => {
                     const nom = dirigeant.nom?.trim() ?? "";
                     if (nom === "") return;
-                    onCreer({
-                      id: crypto.randomUUID(),
-                      nature: dirigeant.nature,
-                      nom,
-                      siren: dirigeant.siren,
-                      numeroTva: null,
-                      typeClient: dirigeant.nature === "morale" ? "professionnel" : "particulier",
-                      professionReglementee: false,
-                      ...champsFicheVides(),
-                      prenoms: dirigeant.prenoms,
-                    });
-                    setChoix((etatCourant) => ({ ...etatCourant, [index]: "Fiche créée" }));
+                    void Promise.resolve(
+                      onCreer(
+                        {
+                          id: crypto.randomUUID(),
+                          nature: dirigeant.nature,
+                          nom,
+                          siren: dirigeant.siren,
+                          numeroTva: null,
+                          typeClient: dirigeant.nature === "morale" ? "professionnel" : "particulier",
+                          professionReglementee: false,
+                          ...champsFicheVides(),
+                          prenoms: dirigeant.prenoms,
+                        },
+                        dirigeant,
+                      ),
+                    ).then(
+                      () => {
+                        setChoix((etatCourant) => ({ ...etatCourant, [index]: "Fiche créée" }));
+                      },
+                      (erreur: unknown) => {
+                        setChoix((etatCourant) => ({
+                          ...etatCourant,
+                          [index]: erreur instanceof Error ? erreur.message : "La fiche n'a pas été créée.",
+                        }));
+                      },
+                    );
                   }}
                 >
                   {fr("Créer une fiche")}

@@ -24,6 +24,7 @@ import {
   type PerimetreSaisie,
   type SaisieTemps,
 } from "@/facturation/listeTemps";
+import { libelleMembre } from "@/identite/libelleMembre";
 import { isChemiseId } from "@/lib/chemise";
 import { libelleReferenceDossier } from "@/lib/referenceDossier";
 import { formatDateCourte, formatDateLongue, formatDuree, formatMontant } from "@/lib/format";
@@ -53,7 +54,11 @@ type LigneSql = {
   dossier_nom: string | null;
   dossier_chemise: string | null;
   dossier_reference: string | null;
-  intervenant_nom: string | null;
+  intervenant_email: string | null;
+  intervenant_civilite: string | null;
+  intervenant_prenom: string | null;
+  intervenant_nom_famille: string | null;
+  intervenant_qualite: string | null;
 };
 
 const FILTRES: { id: FiltreSaisie; label: string }[] = [
@@ -88,10 +93,12 @@ export function EcranTemps({
             `SELECT t.id, t.cree_le, t.minutes, t.libelle, t.dossier_id, t.intervenant_id,
                     t.taux_centimes_heure, t.ht_centimes, d.nom AS dossier_nom,
                     d.chemise AS dossier_chemise, d.reference AS dossier_reference,
-                    u.display_name AS intervenant_nom
+                    u.email AS intervenant_email, u.civilite AS intervenant_civilite,
+                    u.prenom AS intervenant_prenom, u.nom AS intervenant_nom_famille,
+                    u.qualite AS intervenant_qualite
              FROM temps_saisis t
              LEFT JOIN dossiers d ON d.id = t.dossier_id
-             LEFT JOIN users u ON u.id = t.intervenant_id`,
+             LEFT JOIN utilisateurs u ON u.id = t.intervenant_id`,
           );
           const factures = await database.getAll<{ temps_id: string }>(
             "SELECT temps_id FROM brouillons_facture WHERE numero IS NOT NULL",
@@ -110,7 +117,14 @@ export function EcranTemps({
                 : undefined,
             reference: ligne.dossier_reference,
             intervenantId: ligne.intervenant_id,
-            intervenantNom: ligne.intervenant_nom ?? undefined,
+            intervenantNom:
+              libelleMembre({
+                email: ligne.intervenant_email,
+                civilite: ligne.intervenant_civilite,
+                prenom: ligne.intervenant_prenom,
+                nom: ligne.intervenant_nom_famille,
+                qualite: ligne.intervenant_qualite,
+              }) || undefined,
             tauxCentimesHeure: ligne.taux_centimes_heure,
             htCentimes: ligne.ht_centimes,
             facturee: facturesIds.has(ligne.id),

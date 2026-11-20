@@ -9,6 +9,7 @@ Données : jeu du prototype (Ferrand Métal, Antoine Ferrand, import SIREN).
 | antoine-general | jour | 1366×768 | `antoine-general-jour-1366.png` |
 | claire-general | jour | 1366×768 | `claire-general-jour-1366.png` |
 | antoine-liens | jour | 1366×768 | `antoine-liens-jour-1366.png` |
+| ajouter-lien | jour | 1366×768 | `ajouter-lien-jour-1366.png` |
 | ferrand-dossiers | jour | 1366×768 | `ferrand-dossiers-jour-1366.png` |
 | ferrand-factures | jour | 1366×768 | `ferrand-factures-jour-1366.png` |
 | ferrand-mails | jour | 1366×768 | `ferrand-mails-jour-1366.png` |
@@ -23,6 +24,7 @@ Données : jeu du prototype (Ferrand Métal, Antoine Ferrand, import SIREN).
 | antoine-general | jour | 1920×1080 | `antoine-general-jour-1920.png` |
 | claire-general | jour | 1920×1080 | `claire-general-jour-1920.png` |
 | antoine-liens | jour | 1920×1080 | `antoine-liens-jour-1920.png` |
+| ajouter-lien | jour | 1920×1080 | `ajouter-lien-jour-1920.png` |
 | ferrand-dossiers | jour | 1920×1080 | `ferrand-dossiers-jour-1920.png` |
 | ferrand-factures | jour | 1920×1080 | `ferrand-factures-jour-1920.png` |
 | ferrand-mails | jour | 1920×1080 | `ferrand-mails-jour-1920.png` |
@@ -37,6 +39,7 @@ Données : jeu du prototype (Ferrand Métal, Antoine Ferrand, import SIREN).
 | antoine-general | jour | 2560×1440 | `antoine-general-jour-2560.png` |
 | claire-general | jour | 2560×1440 | `claire-general-jour-2560.png` |
 | antoine-liens | jour | 2560×1440 | `antoine-liens-jour-2560.png` |
+| ajouter-lien | jour | 2560×1440 | `ajouter-lien-jour-2560.png` |
 | ferrand-dossiers | jour | 2560×1440 | `ferrand-dossiers-jour-2560.png` |
 | ferrand-factures | jour | 2560×1440 | `ferrand-factures-jour-2560.png` |
 | ferrand-mails | jour | 2560×1440 | `ferrand-mails-jour-2560.png` |
@@ -51,6 +54,7 @@ Données : jeu du prototype (Ferrand Métal, Antoine Ferrand, import SIREN).
 | antoine-general | nuit | 1366×768 | `antoine-general-nuit-1366.png` |
 | claire-general | nuit | 1366×768 | `claire-general-nuit-1366.png` |
 | antoine-liens | nuit | 1366×768 | `antoine-liens-nuit-1366.png` |
+| ajouter-lien | nuit | 1366×768 | `ajouter-lien-nuit-1366.png` |
 | ferrand-dossiers | nuit | 1366×768 | `ferrand-dossiers-nuit-1366.png` |
 | ferrand-factures | nuit | 1366×768 | `ferrand-factures-nuit-1366.png` |
 | ferrand-mails | nuit | 1366×768 | `ferrand-mails-nuit-1366.png` |
@@ -65,6 +69,7 @@ Données : jeu du prototype (Ferrand Métal, Antoine Ferrand, import SIREN).
 | antoine-general | nuit | 1920×1080 | `antoine-general-nuit-1920.png` |
 | claire-general | nuit | 1920×1080 | `claire-general-nuit-1920.png` |
 | antoine-liens | nuit | 1920×1080 | `antoine-liens-nuit-1920.png` |
+| ajouter-lien | nuit | 1920×1080 | `ajouter-lien-nuit-1920.png` |
 | ferrand-dossiers | nuit | 1920×1080 | `ferrand-dossiers-nuit-1920.png` |
 | ferrand-factures | nuit | 1920×1080 | `ferrand-factures-nuit-1920.png` |
 | ferrand-mails | nuit | 1920×1080 | `ferrand-mails-nuit-1920.png` |
@@ -79,6 +84,7 @@ Données : jeu du prototype (Ferrand Métal, Antoine Ferrand, import SIREN).
 | antoine-general | nuit | 2560×1440 | `antoine-general-nuit-2560.png` |
 | claire-general | nuit | 2560×1440 | `claire-general-nuit-2560.png` |
 | antoine-liens | nuit | 2560×1440 | `antoine-liens-nuit-2560.png` |
+| ajouter-lien | nuit | 2560×1440 | `ajouter-lien-nuit-2560.png` |
 | ferrand-dossiers | nuit | 2560×1440 | `ferrand-dossiers-nuit-2560.png` |
 | ferrand-factures | nuit | 2560×1440 | `ferrand-factures-nuit-2560.png` |
 | ferrand-mails | nuit | 2560×1440 | `ferrand-mails-nuit-2560.png` |

@@ -337,6 +337,18 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
         champs_entiers: &[],
         champs_booleens: &["represente_societe"],
     };
+    static NOTES_CONTACT: Ressource = Ressource {
+        table: "contact_notes",
+        patch_chemin: |id| format!("/api/contact-notes/{id}"),
+        put_chemin: |data| {
+            let contact_id = json_text(data.get("contact_id"))
+                .ok_or_else(|| "contact de la note absent".to_string())?;
+            Ok(format!("/api/contacts/{contact_id}/notes"))
+        },
+        champs_modifiables: &["texte"],
+        champs_entiers: &[],
+        champs_booleens: &[],
+    };
     static INTERVENANTS: Ressource = Ressource {
         table: "dossier_intervenants",
         patch_chemin: |id| format!("/api/intervenants/{id}"),
@@ -385,6 +397,7 @@ fn ressource_connue(table: &str) -> Option<&'static Ressource> {
         "contacts" => Some(&CONTACTS),
         "contact_coordonnees" => Some(&COORDONNEES),
         "contact_liens" => Some(&LIENS_CONTACT),
+        "contact_notes" => Some(&NOTES_CONTACT),
         "dossier_intervenants" => Some(&INTERVENANTS),
         "dossier_liens" => Some(&DOSSIER_LIENS),
         "agenda_elements" => Some(&AGENDA),
@@ -598,19 +611,7 @@ async fn envoyer_put(
             return Ok(());
         }
     };
-    let mut body = Map::new();
-    body.insert("id".into(), json!(entry.id));
-    body.insert(
-        "idempotence_cle".into(),
-        json!(format!("{}:{}:put", entry.id, ressource.table)),
-    );
-    // Envoi de tous les champs présents (y compris un seul) — pas d'exigence d'accompagnateurs.
-    for (k, v) in &data {
-        if k == "id" {
-            continue;
-        }
-        body.insert(k.clone(), normaliser_valeur(ressource, k, v.clone()));
-    }
+    let body = corps_put(ressource, &entry.id, &data);
     envoyer_http(
         session,
         db,
@@ -621,6 +622,85 @@ async fn envoyer_put(
         &body,
     )
     .await
+}
+
+/// Colonnes d'une création locale que l'API accepte, quand la ressource en limite la liste : seules celles-là
+/// partent, tout le reste est posé par le serveur (cabinet, révision, dates, auteur). Les autres ressources
+/// envoient toutes les colonnes présentes, comme avant.
+fn champs_creation(table: &str) -> Option<&'static [&'static str]> {
+    match table {
+        // Le contact source est dans le chemin (`/contacts/{source}/liens`), jamais dans le corps.
+        "contact_liens" => Some(&[
+            "contact_cible_id",
+            "type_lien",
+            "fonction",
+            "libelle",
+            "represente_societe",
+            "pour_le_compte_de",
+            "debut",
+            "fin",
+            "source",
+            "note",
+        ]),
+        // Le contact est dans le chemin ; l'auteur et les dates de la note sont posés par le serveur.
+        "contact_notes" => Some(&["texte"]),
+        "contacts" => Some(&[
+            "nature",
+            "nom",
+            "type_client",
+            "civilite",
+            "accord",
+            "prenoms",
+            "nom_naissance",
+            "date_naissance",
+            "lieu_naissance",
+            "nationalite",
+            "profession",
+            "profession_reglementee",
+            "siren",
+            "numero_tva",
+            "forme",
+            "capital_centimes",
+            "monnaie",
+            "greffe_rcs",
+            "activite",
+            "barreau",
+            "toque",
+            "specialite",
+            "cour_appel",
+            "situation_familiale",
+        ]),
+        _ => None,
+    }
+}
+
+/// Corps de la création (`POST`) d'une ligne écrite localement : l'identifiant du client, une clé d'idempotence
+/// stable (un rejeu ne crée rien de plus) et les colonnes locales, les booléens et les entiers normalisés.
+fn corps_put(ressource: &Ressource, id: &str, data: &Map<String, Value>) -> Map<String, Value> {
+    let mut body = Map::new();
+    body.insert("id".into(), json!(id));
+    body.insert(
+        "idempotence_cle".into(),
+        json!(format!("{id}:{}:put", ressource.table)),
+    );
+    let retenues = champs_creation(ressource.table);
+    for (k, v) in data {
+        if k == "id" {
+            continue;
+        }
+        if let Some(liste) = retenues {
+            if !liste.contains(&k.as_str()) {
+                continue;
+            }
+        }
+        body.insert(k.clone(), normaliser_valeur(ressource, k, v.clone()));
+    }
+    // Une fiche née d'une proposition du registre porte sa marque d'import : l'API la pose elle-même
+    // (`depuis_registre`), le poste n'envoie ni la source ni la date d'import.
+    if ressource.table == "contacts" && texte_non_vide(data, "source_import").is_some() {
+        body.insert("depuis_registre".into(), json!(true));
+    }
+    body
 }
 
 fn normaliser_valeur(ressource: &Ressource, cle: &str, valeur: Value) -> Value {
@@ -848,6 +928,8 @@ async fn lire_revision(
         }
         "intercalaire_elements" => "SELECT revision FROM intercalaire_elements WHERE id = ?1",
         "contacts" => "SELECT revision FROM contacts WHERE id = ?1",
+        "contact_liens" => "SELECT revision FROM contact_liens WHERE id = ?1",
+        "contact_notes" => "SELECT revision FROM contact_notes WHERE id = ?1",
         "dossier_liens" => "SELECT revision FROM dossier_liens WHERE id = ?1",
         "agenda_elements" => "SELECT revision FROM agenda_elements WHERE id = ?1",
         _ => return Ok(depuis_edition.max(1)),
@@ -897,6 +979,8 @@ mod tests {
         assert!(ressource_connue("intercalaire_elements").is_some());
         assert!(ressource_connue("contacts").is_some());
         assert!(ressource_connue("dossier_liens").is_some());
+        assert!(ressource_connue("contact_liens").is_some());
+        assert!(ressource_connue("contact_notes").is_some());
         assert!(ressource_connue("agenda_elements").is_some());
         assert!(ressource_connue("inconnue").is_none());
         assert!(ressource_suppression("intercalaires_personnalises").is_some());
@@ -955,6 +1039,179 @@ mod tests {
                 cas["nom"]
             );
         }
+    }
+
+    fn colonnes(valeur: Value) -> Map<String, Value> {
+        valeur.as_object().cloned().unwrap_or_default()
+    }
+
+    #[test]
+    fn lien_de_contact_part_en_post_sur_le_contact_source() {
+        let ressource = ressource_connue("contact_liens").expect("ressource des liens");
+        let data = colonnes(json!({
+            "cabinet_id": "cab",
+            "contact_source_id": "dirigeant",
+            "contact_cible_id": "societe",
+            "type_lien": "mandat_social",
+            "fonction": "gerant",
+            "libelle": null,
+            "represente_societe": 1,
+            "pour_le_compte_de": null,
+            "debut": "2020-01-01",
+            "fin": null,
+            "source": "Kbis",
+            "note": null,
+            "revision": 1,
+            "cree_le": "2026-11-20T10:00:00.000Z"
+        }));
+        assert_eq!(
+            (ressource.put_chemin)(&data).unwrap(),
+            "/api/contacts/dirigeant/liens"
+        );
+        let corps = corps_put(ressource, "lien-1", &data);
+        assert_eq!(corps["id"], json!("lien-1"));
+        assert_eq!(corps["idempotence_cle"], json!("lien-1:contact_liens:put"));
+        assert_eq!(corps["contact_cible_id"], json!("societe"));
+        assert_eq!(corps["type_lien"], json!("mandat_social"));
+        // La colonne locale est un entier 0/1 ; l'API attend un booléen.
+        assert_eq!(corps["represente_societe"], json!(true));
+        assert_eq!(corps["debut"], json!("2020-01-01"));
+        assert_eq!(corps["fin"], Value::Null);
+        // Le contact source est dans le chemin ; cabinet, révision et dates sont posés par le serveur.
+        for absente in ["contact_source_id", "cabinet_id", "revision", "cree_le"] {
+            assert!(!corps.contains_key(absente), "{absente} ne part pas");
+        }
+        let faux = colonnes(
+            json!({ "contact_source_id": "d", "contact_cible_id": "s", "represente_societe": 0 }),
+        );
+        assert_eq!(
+            corps_put(ressource, "lien-2", &faux)["represente_societe"],
+            json!(false)
+        );
+    }
+
+    #[test]
+    fn lien_sans_contact_source_est_refuse_sans_envoi() {
+        let ressource = ressource_connue("contact_liens").expect("ressource des liens");
+        let data = colonnes(json!({ "contact_cible_id": "societe" }));
+        assert!((ressource.put_chemin)(&data).is_err());
+    }
+
+    #[test]
+    fn modification_d_un_lien_part_en_patch_sur_son_identifiant() {
+        let ressource = ressource_connue("contact_liens").expect("ressource des liens");
+        assert_eq!(
+            (ressource.patch_chemin)("lien-1"),
+            "/api/contact-liens/lien-1"
+        );
+        for champ in [
+            "type_lien",
+            "fonction",
+            "libelle",
+            "pour_le_compte_de",
+            "debut",
+            "fin",
+            "source",
+            "note",
+        ] {
+            assert!(ressource.champs_modifiables.contains(&champ), "{champ}");
+        }
+        // La cible ne change pas ; le booléen se normalise comme à la création.
+        assert!(!ressource.champs_modifiables.contains(&"contact_cible_id"));
+        assert_eq!(
+            normaliser_valeur(ressource, "represente_societe", json!(1)),
+            json!(true)
+        );
+    }
+
+    #[test]
+    fn note_de_contact_part_avec_son_seul_texte() {
+        let ressource = ressource_connue("contact_notes").expect("ressource des notes");
+        let data = colonnes(json!({
+            "cabinet_id": "cab",
+            "contact_id": "fiche",
+            "texte": "Joignable le matin.",
+            "auteur_id": "moi",
+            "revision": 1,
+            "cree_le": "2026-11-20T10:00:00.000Z",
+            "modifie_le": "2026-11-20T10:00:00.000Z"
+        }));
+        assert_eq!(
+            (ressource.put_chemin)(&data).unwrap(),
+            "/api/contacts/fiche/notes"
+        );
+        let corps = corps_put(ressource, "note-1", &data);
+        assert_eq!(corps["id"], json!("note-1"));
+        assert_eq!(corps["texte"], json!("Joignable le matin."));
+        // L'auteur et les dates sont posés par le serveur, jamais envoyés par le poste.
+        for absente in [
+            "auteur_id",
+            "contact_id",
+            "cabinet_id",
+            "revision",
+            "cree_le",
+            "modifie_le",
+        ] {
+            assert!(!corps.contains_key(absente), "{absente} ne part pas");
+        }
+        assert_eq!(
+            (ressource.patch_chemin)("note-1"),
+            "/api/contact-notes/note-1"
+        );
+        assert_eq!(ressource.champs_modifiables, &["texte"]);
+    }
+
+    #[test]
+    fn creation_de_contact_garde_l_identifiant_du_client_et_les_colonnes_de_la_fiche() {
+        let ressource = ressource_connue("contacts").expect("ressource des contacts");
+        let data = colonnes(json!({
+            "cabinet_id": "cab",
+            "nature": "physique",
+            "nom": "Martin",
+            "prenoms": "Camille",
+            "type_client": "particulier",
+            "capital_centimes": "1000000",
+            "revision": 1,
+            "cree_le": "2026-11-20T10:00:00.000Z"
+        }));
+        assert_eq!((ressource.put_chemin)(&data).unwrap(), "/api/contacts");
+        let corps = corps_put(ressource, "contact-1", &data);
+        assert_eq!(corps["id"], json!("contact-1"));
+        assert_eq!(corps["idempotence_cle"], json!("contact-1:contacts:put"));
+        assert_eq!(corps["nature"], json!("physique"));
+        assert_eq!(corps["prenoms"], json!("Camille"));
+        assert_eq!(corps["capital_centimes"], json!(1_000_000));
+        for absente in ["cabinet_id", "revision", "cree_le"] {
+            assert!(!corps.contains_key(absente), "{absente} ne part pas");
+        }
+        assert!(!corps.contains_key("depuis_registre"));
+    }
+
+    #[test]
+    fn une_fiche_du_registre_est_creee_avec_sa_marque_d_import() {
+        let ressource = ressource_connue("contacts").expect("ressource des contacts");
+        let data = colonnes(json!({
+            "nature": "physique",
+            "nom": "Renard",
+            "prenoms": "Paul",
+            "type_client": "particulier",
+            "source_import": "recherche-entreprises",
+            "importe_le": "2026-11-20T10:00:00.000Z"
+        }));
+        let corps = corps_put(ressource, "dirigeant-1", &data);
+        assert_eq!(corps["depuis_registre"], json!(true));
+        assert!(!corps.contains_key("source_import"));
+        assert!(!corps.contains_key("importe_le"));
+    }
+
+    #[test]
+    fn une_ressource_sans_liste_de_creation_envoie_toutes_ses_colonnes() {
+        let ressource = ressource_connue("parties").expect("ressource des parties");
+        assert!(champs_creation("parties").is_none());
+        let data = colonnes(json!({ "dossier_id": "d", "role": "client", "nom": "X" }));
+        let corps = corps_put(ressource, "p1", &data);
+        assert_eq!(corps["role"], json!("client"));
+        assert_eq!(corps["dossier_id"], json!("d"));
     }
 
     #[test]

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { BarreHaut } from "@/coque/BarreHaut";
 import { MenuCompte } from "@/coque/MenuCompte";
+import { PanneauLateral } from "@/coque/PanneauLateral";
+import { MonProfil } from "@/identite/MonProfil";
 import { CHRONO_DEMO } from "@/coque/chrono/donneesDemo";
 import { DossierOuvert, DOSSIERS_DEMO } from "@/screens/DossierOuvert";
 import { EcranAgenda } from "@/agenda/EcranAgenda";
@@ -32,6 +34,7 @@ import {
   type EtatConnexion,
 } from "@/onboarding/etatsConnexion";
 import { QUALITES_LIVREES } from "@/contacts/intervenants";
+import type { ProfilMembre } from "@/identite/profilMembre";
 import { Reglages } from "@/screens/Reglages";
 import type { ChemiseId } from "@/lib/chemise";
 import { fr } from "@/lib/fr";
@@ -101,6 +104,51 @@ function jourDans(jours: number): string {
 }
 
 /** Données fictives de la rubrique Messagerie des réglages (signature et modèles, sans appel à l'API). */
+/** Membres du cabinet de la maquette (données fictives) : Réglages, Utilisateurs. La troisième identité reste à compléter. */
+const UTILISATEURS_DEMO: readonly ProfilMembre[] = [
+  {
+    id: "membre-marchal",
+    email: "julien.marchal@cabinet-marchal.example",
+    role: "administrateur",
+    actif: true,
+    civilite: "monsieur",
+    prenom: "Julien",
+    nom: "Marchal",
+    qualite: "avocat",
+    barreau: "Lyon",
+    toque: "1234",
+    revision: 2,
+  },
+  {
+    id: "membre-garnier",
+    email: "ines.garnier@cabinet-marchal.example",
+    role: "collaborateur",
+    actif: true,
+    civilite: "madame",
+    prenom: "Inès",
+    nom: "Garnier",
+    qualite: "juriste",
+    barreau: null,
+    toque: null,
+    revision: 1,
+  },
+  {
+    id: "membre-assistant",
+    email: "assistant@cabinet-marchal.example",
+    role: "collaborateur",
+    actif: true,
+    civilite: null,
+    prenom: null,
+    nom: null,
+    qualite: null,
+    barreau: null,
+    toque: null,
+    revision: 1,
+  },
+];
+
+const profilVideDemo = UTILISATEURS_DEMO[2];
+
 const messagerieDemo: DemonstrationMessagerie = {
   comptes: [
     { id: "demo-compte-perso", adresse: "j.marchal@cabinet-marchal.example", typeCompte: "nominatif" },
@@ -237,6 +285,7 @@ export function GalerieDemo() {
   const [chemise, setChemise] = useState<ChemiseId>("kraft");
   /** Dernière entrée choisie dans le menu du compte (la galerie n'exécute rien), lue par les recettes. */
   const [dernierChoixCompte, setDernierChoixCompte] = useState("");
+  const [profilGalerie, setProfilGalerie] = useState(false);
   const [vue, setVue] = useState<
     | "dossier"
     | "journee"
@@ -743,6 +792,18 @@ export function GalerieDemo() {
             </button>
           ))}
         </div>
+        {vue === "reglages" ? (
+          <button
+            type="button"
+            className="rounded-[var(--radius-control)] border border-filet bg-feuille px-3 py-1.5 text-graphite"
+            data-testid="galerie-profil"
+            onClick={() => {
+              setProfilGalerie(true);
+            }}
+          >
+            {fr("Mon profil")}
+          </button>
+        ) : null}
         {vue === "dossier"
           ? (["kraft", "bleu-classeur", "vert-amande"] as const).map((id) => (
               <button
@@ -939,12 +1000,27 @@ export function GalerieDemo() {
                 utilisee: qualite.code === "avocat",
               }))}
               messagerieDemo={messagerieDemo}
+              utilisateursDemo={UTILISATEURS_DEMO}
               onNouveauDossier={() => undefined}
               onNouveauMail={() => undefined}
               onSaisirTemps={() => undefined}
             />
           ) : null}
           {vue === "connexion" ? <EcranConnexion etat={etatConnexion} /> : null}
+          {profilGalerie && vue === "reglages" && profilVideDemo !== undefined ? (
+            <PanneauLateral
+              ouvert
+              titre="Mon profil"
+              sousTitre="Votre identité dans le cabinet."
+              testId="panneau-profil"
+              onFermer={() => {
+                setProfilGalerie(false);
+              }}
+            >
+              {/* Identité encore vide : l'invitation « Complétez votre profil » s'affiche. */}
+              <MonProfil instanceUrl="" horsLigne={false} profilFixe={profilVideDemo} />
+            </PanneauLateral>
+          ) : null}
         </div>
       </div>
     </div>

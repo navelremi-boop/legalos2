@@ -5,13 +5,8 @@ import { fr } from "@/lib/fr";
 import { loadSessionTokens } from "@/lib/session/storage";
 import { utilisateurIdDepuisJeton } from "@/lib/session/utilisateurCourant";
 import { ecrireDossier } from "@/dossiers/ecrireDossier";
-import { getPowerSyncDatabase } from "@/sync/database";
-
-type UtilisateurLocal = {
-  id: string;
-  display_name: string | null;
-  email: string | null;
-};
+import { libelleMembre, membresActifs, type LigneUtilisateur } from "@/identite/libelleMembre";
+import { lireMembres } from "@/identite/lireMembres";
 
 function champ(form: FormData, nom: string): string {
   const valeur = form.get(nom);
@@ -39,14 +34,6 @@ function etapeSaisie(
   return "ouverture";
 }
 
-function libelleUtilisateur(utilisateur: UtilisateurLocal): string {
-  const nom = utilisateur.display_name?.trim() ?? "";
-  if (nom !== "") return nom;
-  const email = utilisateur.email?.trim() ?? "";
-  if (email !== "") return email;
-  return utilisateur.id;
-}
-
 export function FormulaireDossier({
   onCree,
 }: {
@@ -58,7 +45,7 @@ export function FormulaireDossier({
   }) => void;
 } = {}) {
   const [message, setMessage] = useState("");
-  const [utilisateurs, setUtilisateurs] = useState<UtilisateurLocal[]>([]);
+  const [utilisateurs, setUtilisateurs] = useState<LigneUtilisateur[]>([]);
   const [responsableId, setResponsableId] = useState("");
   const moiId = utilisateurIdDepuisJeton(loadSessionTokens().accessToken);
 
@@ -66,14 +53,10 @@ export function FormulaireDossier({
     let stop = false;
     let timer = 0;
     const charger = () => {
-      void getPowerSyncDatabase()
-        .then((database) =>
-          database.getAll<UtilisateurLocal>(
-            "SELECT id, display_name, email FROM users ORDER BY display_name COLLATE NOCASE, email COLLATE NOCASE",
-          ),
-        )
-        .then((rows) => {
+      void lireMembres()
+        .then((tous) => {
           if (stop) return;
+          const rows = membresActifs(tous);
           const moi = utilisateurIdDepuisJeton(loadSessionTokens().accessToken);
           setUtilisateurs(rows);
           const defaut =
@@ -195,7 +178,7 @@ export function FormulaireDossier({
           >
             {utilisateurs.map((utilisateur) => (
               <option key={utilisateur.id} value={utilisateur.id}>
-                {fr(libelleUtilisateur(utilisateur))}
+                {fr(libelleMembre(utilisateur))}
               </option>
             ))}
           </select>

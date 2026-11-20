@@ -1,6 +1,32 @@
 import { champsFicheVides, libelleListeContact, type ContactListe } from "@/contacts/listeContacts";
 import type { LienAffiche } from "@/contacts/liensContacts";
 import type { DossierFiche, FactureFiche, MailFiche, NoteFiche } from "@/contacts/historiqueFiche";
+import { signatureNote } from "@/contacts/signatureNote";
+import { indexerMembres } from "@/identite/libelleMembre";
+
+/** Membres du cabinet de la galerie (données fictives de la maquette) : auteur des notes. */
+const MEMBRES_DEMO = indexerMembres([
+  {
+    id: "membre-marchal",
+    email: "julien.marchal@cabinet-marchal.example",
+    civilite: "monsieur",
+    prenom: "Julien",
+    nom: "Marchal",
+    qualite: "avocat",
+    actif: 1,
+  },
+]);
+
+function noteDemo(id: string, texte: string): NoteFiche {
+  return {
+    id,
+    texte,
+    signature: signatureNote(
+      { id, texte, auteur_id: "membre-marchal", modifie_le: "2026-10-14T09:30:00.000Z", cree_le: "2026-10-02T09:30:00.000Z" },
+      MEMBRES_DEMO,
+    ),
+  };
+}
 
 type FichePersonneDemo = Partial<ContactListe> & Pick<ContactListe, "id" | "nom">;
 
@@ -304,8 +330,11 @@ export const HISTORIQUES_GALERIE: readonly HistoriqueGalerie[] = [
       { id: "mail-ferrand-3", objet: "Convocation à l'audience du 6 novembre", auteur: "Vous", dateIso: "2026-10-09" },
     ],
     notes: [
-      { id: "note-ferrand-1", texte: "Interlocuteur habituel : M. Antoine Ferrand, joignable de préférence le matin." },
-      { id: "note-ferrand-2", texte: "Comptabilité tenue par Rive Gauche Expertise ; les relances de factures partent en copie à compta@ferrand-metal.example." },
+      noteDemo("note-ferrand-1", "Interlocuteur habituel : M. Antoine Ferrand, joignable de préférence le matin."),
+      noteDemo(
+        "note-ferrand-2",
+        "Comptabilité tenue par Rive Gauche Expertise ; les relances de factures partent en copie à compta@ferrand-metal.example.",
+      ),
     ],
   },
   unDossier("duclos", DOSSIER_FERRAND, "adversaire, défendeur"),
