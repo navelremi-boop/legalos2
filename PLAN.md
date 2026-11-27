@@ -1,6 +1,6 @@
 # LEGAL OS — Plan de mission
 
-Dernière mise à jour : 2026-10-30 (jalon en cours : **Annuaire** ; **Tenue visuelle** validée, veto B9 levé à titre provisoire le 30/10/2026 ; **Conventions d'honoraires** suspendu, reprend après Diligences ; le crash `0xC0000374` bloque J14).
+Dernière mise à jour : 2026-11-27 (**Annuaire** validé ; jalon en cours : **J8, lot correctif Factur-X** ; **Tenue visuelle** validée, veto B9 levé à titre provisoire le 30/10/2026 ; **Conventions d'honoraires** suspendu, reprend après Diligences ; le crash `0xC0000374` bloque J14).
 
 Références : `docs/cahier-des-charges.md`, `docs/ordre-operation.md`, scénarios S1–S14.
 
@@ -265,7 +265,7 @@ Preuve visuelle commune à tout jalon d'écran : le contrôleur rend la maquette
     - `node tests/recette/tenue-visuelle-captures.mjs` → exit 0 : captures jour et nuit à 1 366 × 768, 1 920 × 1 080 et 2 560 × 1 440, sur le jeu de démonstration, pour Dossiers, la vue d'un dossier, Mails, Agenda, La journée, Temps et Réglages.
     - Le contrôleur compare ces captures, puis le commandement valide sur son écran (B9). `pnpm --filter @legal-os/poste lint:ci` → exit 0 ; contrôleur VALIDÉ ; CI verte.
 
-- [ ] **Annuaire** — § 4.2 n° 2 — critères validés par l'architecte le 29/10/2026 — après Tenue visuelle, avant Juridictions et administrations
+- [x] **Annuaire** — VALIDÉ `84696a8` (contrôleur [borné](8a2397d9-3105-4401-9a49-1fc498137a67) après le refus [fin de jalon](badf1fb2-a329-41d9-ab05-ca8d271702a0) du 27/11/2026, CI [46025438415](https://github.com/navelremi-boop/legalos2/actions/runs/46025438415) sur `4e235a2` ; B9 : le commandement valide sur son écran, veto provisoirement levé) — § 4.2 n° 2 — critères validés par l'architecte le 29/10/2026 — après Tenue visuelle, avant Juridictions et administrations
   - **Critères d'acceptation (commandes)** :
     - `node tests/recette/annuaire.mjs` → exit 0 (app Tauri) :
       - **Écran.** Entrée « Contacts » de la navigation principale, entre Dossiers et Mails, d'après `design/maquettes/prototype-contacts.html` : liste à gauche (recherche, filtres Tous, Personnes, Sociétés, Professions, regroupement alphabétique), fiche à droite (onglets Général, Liens, Dossiers, Factures, Mails, Notes ; Structure ou Participations au jalon suivant). Contacts accessibles aussi depuis la palette. `data-testid` stables.
