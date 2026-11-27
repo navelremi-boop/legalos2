@@ -90,7 +90,14 @@ type MailLu = {
   date_entete: string | null;
 };
 
-export async function lireMailsClasses(emails: readonly string[]): Promise<MailFiche[]> {
+/**
+ * Mails classés de la fiche. La base locale porte l'expéditeur (une adresse) et les destinataires À et Cc (adresses,
+ * sans nom affiché ni copie cachée) : `noms` donne le nom des adresses de l'annuaire, les autres restent des adresses.
+ */
+export async function lireMailsClasses(
+  emails: readonly string[],
+  noms: ReadonlyMap<string, string> = new Map(),
+): Promise<MailFiche[]> {
   const database = await getPowerSyncDatabase();
   const lignes = await database.getAll<MailLu>(
     `SELECT id, objet, expediteur, destinataires_texte AS destinataires, etat_classement AS etat, date_entete
@@ -110,6 +117,7 @@ export async function lireMailsClasses(emails: readonly string[]): Promise<MailF
     bruts,
     emails,
     comptes.map((compte) => compte.adresse ?? "").filter((adresse) => adresse !== ""),
+    noms,
   );
 }
 

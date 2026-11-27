@@ -73,9 +73,9 @@ describe("historique de la fiche, factures", () => {
     assert.deepEqual(
       tuiles.map((tuile) => [tuile.libelle, lisible(tuile.montant)]),
       [
-        ["Facturé en 2026", "6 000,00 €"],
-        ["Encaissé", "2 400,00 €"],
-        ["Encours", "3 600,00 €"],
+        ["Facturé en 2026", "6 000 €"],
+        ["Encaissé", "2 400 €"],
+        ["Encours", "3 600 €"],
       ],
     );
   });
@@ -100,15 +100,59 @@ describe("historique de la fiche, factures", () => {
     assert.equal(anneeFacturation(factures), null);
     const tuiles = tuilesFactures(factures);
     assert.equal(tuiles[0]?.libelle, "Facturé");
-    assert.equal(lisible(tuiles[0]?.montant ?? ""), "1 300,00 €");
+    assert.equal(lisible(tuiles[0]?.montant ?? ""), "1 300 €");
     assert.equal(anneeFacturation([]), null);
   });
 
-  it("donne le statut Payée, En attente ou Brouillon", () => {
+  it("déduit le statut des encaissements : Payée, Partiellement payée, En attente, et Brouillon", () => {
     assert.equal(statutFacture(FACTURE), "payee");
-    assert.equal(statutFacture({ ...FACTURE, encaisseCentimes: 100 }), "attente");
+    assert.equal(statutFacture({ ...FACTURE, encaisseCentimes: 250_000 }), "payee");
+    assert.equal(statutFacture({ ...FACTURE, encaisseCentimes: 239_999 }), "partielle");
+    assert.equal(statutFacture({ ...FACTURE, encaisseCentimes: 100 }), "partielle");
+    assert.equal(statutFacture({ ...FACTURE, encaisseCentimes: 0 }), "attente");
     assert.equal(statutFacture({ ...FACTURE, encaisseCentimes: 0, ttcCentimes: 0 }), "attente");
     assert.equal(statutFacture({ ...FACTURE, brouillon: true, encaisseCentimes: 240_000 }), "brouillon");
+    assert.deepEqual(
+      lignesFactures([
+        { ...FACTURE, id: "a", reference: "1", encaisseCentimes: 240_000 },
+        { ...FACTURE, id: "b", reference: "2", encaisseCentimes: 100 },
+        { ...FACTURE, id: "c", reference: "3", encaisseCentimes: 0 },
+        { ...FACTURE, id: "d", reference: "4", brouillon: true, encaisseCentimes: 0 },
+      ]).map((ligne) => ligne.statutLibelle),
+      ["Payée", "Partiellement payée", "En attente", "Brouillon"],
+    );
+  });
+
+  it("ne compte les brouillons ni dans le facturé ni dans l'encours, ni dans l'encaissé, et les garde listés", () => {
+    const factures: FactureFiche[] = [
+      { ...FACTURE, id: "payee", reference: "1", ttcCentimes: 100_000, encaisseCentimes: 100_000 },
+      { ...FACTURE, id: "partielle", reference: "2", ttcCentimes: 90_050, encaisseCentimes: 30_000 },
+      { ...FACTURE, id: "attente", reference: "3", ttcCentimes: 30_000, encaisseCentimes: 0 },
+      { ...FACTURE, id: "brouillon", reference: "4", ttcCentimes: 120_000, encaisseCentimes: 40_000, brouillon: true, dateIso: null },
+    ];
+    const synthese = syntheseFactures(factures);
+    assert.equal(synthese.factureCentimes, 220_050);
+    assert.equal(synthese.encaisseCentimes, 130_000);
+    assert.equal(synthese.encoursCentimes, 90_050);
+    assert.equal(synthese.annee, 2026);
+    assert.deepEqual(
+      tuilesFactures(factures).map((tuile) => [tuile.libelle, lisible(tuile.montant)]),
+      [
+        ["Facturé en 2026", "2 200,50 €"],
+        ["Encaissé", "1 300 €"],
+        ["Encours", "900,50 €"],
+      ],
+    );
+    assert.equal(lignesFactures(factures).length, 4);
+    assert.equal(lignesFactures(factures).find((ligne) => ligne.id === "brouillon")?.statutLibelle, "Brouillon");
+  });
+
+  it("avec un seul brouillon, les trois tuiles sont à zéro", () => {
+    const tuiles = tuilesFactures([{ ...FACTURE, brouillon: true, encaisseCentimes: 0 }]);
+    assert.deepEqual(
+      tuiles.map((tuile) => lisible(tuile.montant)),
+      ["0 €", "0 €", "0 €"],
+    );
   });
 
   it("trie par date puis par numéro, les factures sans date ou sans numéro en dernier", () => {
@@ -136,10 +180,12 @@ describe("historique de la fiche, factures", () => {
     );
   });
 
-  it("met en forme la ligne : date à la française, montant en centimes entiers, statut", () => {
+  it("met en forme la ligne : date à la française, montant sans centimes s'il est rond, statut", () => {
     const [ligne] = lignesFactures([FACTURE]);
     assert.equal(ligne?.date, "3 septembre 2026");
-    assert.equal(lisible(ligne?.montant ?? ""), "2 400,00 €");
+    assert.equal(lisible(ligne?.montant ?? ""), "2 400 €");
+    const [centimes] = lignesFactures([{ ...FACTURE, ttcCentimes: 240_050 }]);
+    assert.equal(lisible(centimes?.montant ?? ""), "2 400,50 €");
     assert.equal(ligne?.statutLibelle, "Payée");
   });
 
@@ -169,40 +215,91 @@ describe("historique de la fiche, mails", () => {
     assert.equal(mailsDuContact([MAIL], []).length, 0);
   });
 
-  it("nomme l'expéditeur, ou « Vous » quand c'est un compte mail du cabinet", () => {
+  it("« De : » l'expéditeur pour un mail reçu, « À : » les destinataires pour un mail envoyé par le cabinet", () => {
     const gardes = mailsDuContact(
       [
         MAIL,
         { ...MAIL, id: "m2", expediteur: "compta@example.test", destinataires: "camille@example.test" },
-        { ...MAIL, id: "m3", expediteur: "Cabinet <Cabinet@Example.test>", destinataires: "camille@example.test" },
+        {
+          ...MAIL,
+          id: "m3",
+          expediteur: "Cabinet <Cabinet@Example.test>",
+          destinataires: "camille@example.test, Autre@example.test, camille@example.test",
+        },
       ],
       ["camille@example.test"],
       ["cabinet@example.test"],
     );
-    const auteurs = Object.fromEntries(gardes.map((mail) => [mail.id, mail.auteur]));
-    assert.deepEqual(auteurs, { m1: "Camille Martin", m2: "compta@example.test", m3: "Vous" });
+    const sens = Object.fromEntries(gardes.map((mail) => [mail.id, mail.sens]));
+    assert.deepEqual(sens, { m1: "recu", m2: "recu", m3: "envoye" });
+    const lignes = Object.fromEntries(lignesMails(gardes, 2026).map((ligne) => [ligne.id, ligne.correspondants]));
+    assert.deepEqual(lignes, {
+      m1: "De : Camille Martin",
+      m2: "De : compta@example.test",
+      m3: "À : camille@example.test, autre@example.test",
+    });
   });
 
-  it("trie du plus récent au plus ancien, les mails sans date en dernier", () => {
+  it("écrit le nom de l'annuaire à la place de l'adresse quand il est connu", () => {
+    const noms = new Map([
+      ["camille@example.test", "Mme Camille Martin"],
+      ["autre@example.test", "M. Paul Autre"],
+    ]);
+    const gardes = mailsDuContact(
+      [
+        MAIL,
+        { ...MAIL, id: "m3", expediteur: "cabinet@example.test", destinataires: "camille@example.test, autre@example.test, x@example.test" },
+      ],
+      ["camille@example.test"],
+      ["cabinet@example.test"],
+      noms,
+    );
+    const lignes = Object.fromEntries(lignesMails(gardes, 2026).map((ligne) => [ligne.id, ligne.correspondants]));
+    assert.deepEqual(lignes, {
+      m1: "De : Mme Camille Martin",
+      m3: "À : Mme Camille Martin, M. Paul Autre, x@example.test",
+    });
+  });
+
+  it("ne rattache pas à la fiche un mail envoyé sans destinataire, et n'invente aucun destinataire", () => {
+    const [mail] = mailsDuContact(
+      [{ ...MAIL, expediteur: "cabinet@example.test", destinataires: "" }],
+      ["camille@example.test"],
+      ["cabinet@example.test"],
+    );
+    assert.equal(mail, undefined);
+    const [sans] = lignesMails([{ id: "m", objet: "O", sens: "envoye", personnes: [], dateIso: null }], 2026);
+    assert.equal(sans?.correspondants, "À : destinataire non enregistré");
+  });
+
+  it("trie du plus récent au plus ancien par instant, quel que soit le décalage écrit, les mails sans date en dernier", () => {
     const gardes = mailsDuContact(
       [
         { ...MAIL, id: "sans-date", dateIso: null },
-        { ...MAIL, id: "ancien", dateIso: "2026-10-09" },
-        { ...MAIL, id: "recent", dateIso: "2026-10-27" },
+        { ...MAIL, id: "illisible", dateIso: "hier soir" },
+        // 14 h 00 à Paris le 9 octobre 2026 (heure d'été) : 12 h 00 UTC.
+        { ...MAIL, id: "ancien", dateIso: "Fri, 09 Oct 2026 14:00:00 +0200" },
+        // Plus récent en instant (12 h 30 UTC) bien que l'heure écrite (08 h 30) soit plus petite.
+        { ...MAIL, id: "recent", dateIso: "Fri, 09 Oct 2026 08:30:00 -0400" },
       ],
       ["camille@example.test"],
     );
     assert.deepEqual(
       gardes.map((mail) => mail.id),
-      ["recent", "ancien", "sans-date"],
+      ["recent", "ancien", "sans-date", "illisible"],
     );
   });
 
-  it("écrit la date sans l'année courante et laisse vide une date absente", () => {
-    const [ligne] = lignesMails([{ id: "m1", objet: "Pièces", auteur: "Vous", dateIso: "2026-10-27" }], 2026);
-    assert.equal(ligne?.date, "27 octobre");
-    const [autre] = lignesMails([{ id: "m1", objet: "Pièces", auteur: "Vous", dateIso: null }], 2026);
-    assert.equal(autre?.date, null);
+  it("écrit la date et l'heure de Paris de l'en-tête, sans l'année courante, et laisse vide une date absente ou illisible", () => {
+    const base = { id: "m1", objet: "Pièces", sens: "recu" as const, personnes: ["Vous"] };
+    const [ligne] = lignesMails([{ ...base, dateIso: "2026-10-27 09:12:00+00" }], 2026);
+    assert.equal(lisible(ligne?.date ?? ""), "27 octobre à 10 h 12");
+    const [autreAnnee] = lignesMails([{ ...base, dateIso: "Tue, 14 Oct 2025 09:05:00 +0200" }], 2026);
+    assert.equal(lisible(autreAnnee?.date ?? ""), "14 octobre 2025 à 9 h 05");
+    const [absente] = lignesMails([{ ...base, dateIso: null }], 2026);
+    assert.equal(absente?.date, null);
+    const [illisible] = lignesMails([{ ...base, dateIso: "n'importe quoi" }], 2026);
+    assert.equal(illisible?.date, null);
   });
 });
 

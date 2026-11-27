@@ -126,7 +126,7 @@ export function HistoriqueFiche({
             <li key={mail.id} className="contacts-mail" data-testid="contacts-mail">
               <span>
                 <b>{fr(mail.objet)}</b>
-                <small>{fr(mail.auteur)}</small>
+                <small>{fr(mail.correspondants)}</small>
               </span>
               <small>{mail.date === null ? "" : fr(mail.date)}</small>
             </li>

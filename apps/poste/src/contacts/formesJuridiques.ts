@@ -34,6 +34,13 @@ export function libelleForme(valeur: string): string {
   return TABLE[net]?.libelle ?? net;
 }
 
+/** Libellé en toutes lettres, sans précision entre parenthèses ni sigle en tête : « société par actions simplifiée ». */
+export function formeSansPrecision(valeur: string): string {
+  return libelleForme(valeur)
+    .replace(/\s*\((?:sans autre indication|s\.a\.i\.|SARL)\)$/u, "")
+    .replace(/^[A-Z]+, /u, "");
+}
+
 /** Sigle usuel des formes courantes, pour le nom affiché (« SAS Ferrand Métal ») ; vide sinon. */
 export function sigleForme(valeur: string | null | undefined): string {
   const code = valeur?.trim() ?? "";

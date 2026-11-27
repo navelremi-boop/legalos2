@@ -1,4 +1,4 @@
-import type { ContactListe, CoordonneeLue } from "@/contacts/listeContacts";
+import { coordonneesParContact, type ContactListe, type CoordonneeLue } from "@/contacts/listeContacts";
 
 export type LigneIndex = {
   id: string;
@@ -29,8 +29,29 @@ export function villeListeContact(contact: ContactListe, coords: readonly Coordo
   return "";
 }
 
+/** Ville de chaque fiche, calculée en une passe sur les coordonnées (liste de dix mille contacts). */
+export function villesParContact(
+  contacts: readonly ContactListe[],
+  coords: readonly CoordonneeLue[],
+): Map<string, string> {
+  const parContact = coordonneesParContact(coords);
+  return new Map(contacts.map((contact) => [contact.id, villeListeContact(contact, parContact.get(contact.id) ?? [])]));
+}
+
+/** Lignes de l'index de recherche de tout l'annuaire, en une passe sur les coordonnées. */
+export function lignesIndex(contacts: readonly ContactListe[], coords: readonly CoordonneeLue[]): LigneIndex[] {
+  const parContact = coordonneesParContact(coords);
+  return contacts.map((contact) => ligneIndexDe(contact, parContact.get(contact.id) ?? []));
+}
+
 export function ligneIndex(contact: ContactListe, coords: readonly CoordonneeLue[]): LigneIndex {
-  const siennes = coords.filter((ligne) => ligne.contactId === contact.id);
+  return ligneIndexDe(
+    contact,
+    coords.filter((ligne) => ligne.contactId === contact.id),
+  );
+}
+
+function ligneIndexDe(contact: ContactListe, siennes: readonly CoordonneeLue[]): LigneIndex {
   const emails = siennes
     .filter((ligne) => ligne.genre === "email")
     .map((ligne) => ligne.valeur.trim().toLocaleLowerCase("fr"));

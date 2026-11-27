@@ -44,6 +44,16 @@ for (const champ of [
 }
 ok("catalogue des champs");
 
+// Formules de désignation dans les actes (écart 10) : le catalogue cite les deux formules exactes de la consigne.
+for (const formule of [
+  "La société [dénomination], [forme en toutes lettres] au capital de [capital] €, immatriculée au registre du commerce et des sociétés de [greffe] sous le numéro [SIREN par groupes de trois], dont le siège social est situé [adresse], prise en la personne de son [fonction] en exercice, [M. ou Mme] [prénom usuel] [nom], domicilié(e) en cette qualité audit siège.",
+  "[M. ou Mme] [prénoms] [nom], né(e) [le …] [à …], de nationalité [nationalité], [profession], demeurant [adresse].",
+]) {
+  if (!catalogue.includes(formule)) fail(`catalogue sans la formule de désignation : ${formule.slice(0, 60)}`);
+}
+if (!/société exerçant une profession réglementée/iu.test(catalogue)) fail("catalogue sans la règle des sociétés d'une profession réglementée");
+ok("formules de désignation du catalogue");
+
 function docx(paragraphes, styleId = "MarqueFusion") {
   const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:styleId="${styleId}" w:type="paragraph"><w:name w:val="${styleId}"/><w:rPr><w:sz w:val="44"/></w:rPr></w:style></w:styles>`;

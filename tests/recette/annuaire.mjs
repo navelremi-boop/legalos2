@@ -2,7 +2,8 @@
 /**
  * Annuaire — écran de l'app Tauri.
  * Navigation Contacts entre Dossiers et Mails, filtres, onglets, fiche personne, fiche société.
- * La reprise, la recherche des 10 000 contacts, la fusion et les conflits restent dans leurs recettes.
+ * La reprise, la fusion et les conflits restent dans leurs recettes. La recherche est mesurée ici, sur l'app Tauri,
+ * avec 10 000 contacts de démonstration marqués (créés sur le serveur, supprimés à la fin).
  */
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -87,11 +88,46 @@ async function attendreImport(send) {
   fail("l'import n'a pas répondu");
 }
 
+/** Critère du PLAN : la liste filtrée s'affiche en moins de 300 ms après la frappe, sur 10 000 contacts. */
+const SEUIL_RECHERCHE_MS = 300;
+const NOMBRE_CONTACTS_MESURE = 10_000;
+
+/** Médiane et maximum d'une série de durées ; `ok` quand le maximum reste sous le seuil. */
+export function evaluerMesure(durees, seuilMs) {
+  if (durees.length === 0) return { mediane: Number.NaN, max: Number.NaN, ok: false };
+  const tri = [...durees].sort((a, b) => a - b);
+  const milieu = Math.floor(tri.length / 2);
+  const mediane = tri.length % 2 === 1 ? tri[milieu] : (tri[milieu - 1] + tri[milieu]) / 2;
+  const max = tri[tri.length - 1];
+  return { mediane, max, ok: max < seuilMs };
+}
+
 const posteId = "annuaire";
 const portRegistre = 18099;
 let app = null;
 let registre = null;
 let nomDirigeant = "Martin";
+/** Marque des contacts de la mesure de recherche : sert à les supprimer, y compris après un échec. */
+let marqueMesure = null;
+
+/** Supprime les contacts de démonstration de la mesure de recherche et leurs coordonnées. Sans effet s'il n'y en a pas. */
+async function supprimerContactsMesure() {
+  if (marqueMesure === null) return;
+  const marque = marqueMesure;
+  await sqlServeur(
+    `DELETE FROM contact_coordonnees WHERE contact_id IN (SELECT id FROM contacts WHERE source_import = '${marque}')`,
+  );
+  await sqlServeur(`DELETE FROM contacts WHERE source_import = '${marque}'`);
+  const reste = (
+    await sqlServeur(
+      `SELECT (SELECT COUNT(*) FROM contacts WHERE source_import = '${marque}') || '|' ||
+              (SELECT COUNT(*) FROM contact_coordonnees k WHERE k.valeur LIKE '%@mesure-recherche.example')`,
+    )
+  ).trim();
+  if (reste !== "0|0") throw new Error(`FAIL : contacts de mesure restants (${reste})`);
+  marqueMesure = null;
+  ok("contacts de démonstration de la mesure supprimés (contacts et coordonnées)");
+}
 
 function relancerApi(urlRegistre) {
   const env = { ...process.env };
@@ -264,6 +300,11 @@ try {
   const coordId = randomUUID();
   const factureId = randomUUID();
   const encaissementId = randomUUID();
+  const facturePayeeId = randomUUID();
+  const facturePartielleId = randomUUID();
+  const factureAttenteId = randomUUID();
+  const encaissementPayeeId = randomUUID();
+  const encaissementPartielId = randomUUID();
   const noteId = randomUUID();
   const messageId = randomUUID();
   // Identité du compte de démo : remise à vide (le profil se saisit dans l'app) ; la note lui est attribuée.
@@ -298,6 +339,31 @@ try {
     `INSERT INTO facture_encaissements (id, facture_id, montant_centimes, cle_idempotence)
      VALUES ('${encaissementId}', '${factureId}', 4000, 'annuaire-enc-${marque}')`,
   );
+  // Trois factures validées (la règle de la consigne du 12/11, soir) : Payée (encaissements = TTC), Partiellement
+  // payée (entre zéro et le TTC), En attente (aucun encaissement). Le brouillon ci-dessus (120,00 TTC, 40,00 encaissés)
+  // ne compte ni dans « Facturé », ni dans « Encaissé », ni dans l'encours.
+  const numeroFacture = 9_000_000 + Number(marque) * 10;
+  for (const [id, ttc, numero] of [
+    [facturePayeeId, 6000, numeroFacture + 1],
+    [facturePartielleId, 9050, numeroFacture + 2],
+    [factureAttenteId, 3000, numeroFacture + 3],
+  ]) {
+    const ht = Math.round((ttc * 5) / 6);
+    await sqlServeur(
+      `INSERT INTO factures (
+         id, cabinet_id, dossier_id, contact_id, type, statut, numero,
+         montant_ht_centimes, montant_tva_centimes, montant_ttc_centimes, taux_tva_bp
+       )
+       SELECT '${id}', cabinet_id, '${dossierId}', id, 'facture', 'validee', ${numero},
+              ${ht}, ${ttc - ht}, ${ttc}, 2000
+       FROM contacts WHERE id = '${personneId}'`,
+    );
+  }
+  await sqlServeur(
+    `INSERT INTO facture_encaissements (id, facture_id, montant_centimes, cle_idempotence)
+     VALUES ('${encaissementPayeeId}', '${facturePayeeId}', 6000, 'annuaire-enc-payee-${marque}'),
+            ('${encaissementPartielId}', '${facturePartielleId}', 3000, 'annuaire-enc-partiel-${marque}')`,
+  );
   await sqlServeur(
     `INSERT INTO contact_notes (id, cabinet_id, contact_id, texte, auteur_id, cree_le, modifie_le)
      SELECT '${noteId}', cabinet_id, id, 'Note ${marque}', '${moiId}',
@@ -321,11 +387,35 @@ try {
   await sqlServeur(
     `INSERT INTO messages (
        id, cabinet_id, compte_id, dossier_id, message_id, uid_validity, uid,
-       objet, expediteur, etat_classement, visibilite, restreint
+       objet, expediteur, etat_classement, visibilite, restreint, date_entete
      )
      SELECT '${messageId}', cabinet_id, '${compte}', '${dossierId}',
             '<annuaire-${marque}@cabinet.example>', 1, ${uid},
-            'Courrier ${marque}', '${email}', 'classe', 'public', FALSE
+            'Courrier ${marque}', '${email}', 'classe', 'public', FALSE, '2026-10-27 09:12:00+00'
+     FROM contacts WHERE id = '${personneId}'`,
+  );
+  // Mail envoyé par le cabinet : l'expéditeur est l'adresse d'un compte mail que le poste connaît (le compte nominatif
+  // du compte de démonstration, synchronisé dans `comptes_mail`), la fiche est destinataire. Le compte partagé de
+  // classement n'est pas utilisé ici : le poste ne reçoit son adresse que si l'utilisateur en est membre.
+  const compteNominatif = (
+    await sqlServeur(
+      `SELECT id || '|' || adresse FROM comptes_mail WHERE type_compte = 'nominatif' AND titulaire_id = '${moiId}' ORDER BY cree_le LIMIT 1`,
+    )
+  ).trim();
+  const [compteEnvoiId, adresseCabinet] = compteNominatif.split("|");
+  if (compteEnvoiId === undefined || adresseCabinet === undefined || adresseCabinet === "") {
+    fail("le compte de démonstration n'a aucun compte mail nominatif");
+  }
+  const messageEnvoyeId = randomUUID();
+  await sqlServeur(
+    `INSERT INTO messages (
+       id, cabinet_id, compte_id, dossier_id, message_id, uid_validity, uid,
+       objet, expediteur, destinataires_texte, etat_classement, visibilite, restreint, date_entete
+     )
+     SELECT '${messageEnvoyeId}', cabinet_id, '${compteEnvoiId}', '${dossierId}',
+            '<annuaire-envoye-${marque}@cabinet.example>', 1, ${uid + 1},
+            'Suite ${marque}', '${adresseCabinet}', '${email}, copie-${marque}@example.test', 'classe', 'public', FALSE,
+            '2026-07-14 12:30:00+00'
      FROM contacts WHERE id = '${personneId}'`,
   );
   ok("fiches créées");
@@ -341,10 +431,18 @@ try {
   await attendreSqlite(posteId, `SELECT COUNT(*) FROM contacts WHERE id = '${personneId}'`, (v) => v === "1");
   await attendreSqlite(posteId, `SELECT COUNT(*) FROM contacts WHERE id = '${coupeId}'`, (v) => v === "1");
   await attendreSqlite(posteId, `SELECT COUNT(*) FROM dossier_intervenants WHERE id = '${intervenantId}'`, (v) => v === "1");
-  await attendreSqlite(posteId, `SELECT COUNT(*) FROM factures WHERE id = '${factureId}'`, (v) => v === "1");
-  await attendreSqlite(posteId, `SELECT COUNT(*) FROM facture_encaissements WHERE id = '${encaissementId}'`, (v) => v === "1");
+  await attendreSqlite(posteId, `SELECT COUNT(*) FROM factures WHERE contact_id = '${personneId}'`, (v) => v === "4");
+  await attendreSqlite(
+    posteId,
+    `SELECT COUNT(*) FROM facture_encaissements WHERE id IN ('${encaissementId}', '${encaissementPayeeId}', '${encaissementPartielId}')`,
+    (v) => v === "3",
+  );
   await attendreSqlite(posteId, `SELECT COUNT(*) FROM contact_notes WHERE id = '${noteId}'`, (v) => v === "1");
-  await attendreSqlite(posteId, `SELECT COUNT(*) FROM messages WHERE id = '${messageId}'`, (v) => v === "1");
+  await attendreSqlite(
+    posteId,
+    `SELECT COUNT(*) FROM messages WHERE id IN ('${messageId}', '${messageEnvoyeId}')`,
+    (v) => v === "2",
+  );
   ok("synchronisé");
 
   const ordre = await evaluate(
@@ -585,6 +683,12 @@ try {
   if (personneEcran.mademoiselle) fail("Mademoiselle est proposée");
   if (!personneEcran.options.includes("Madame") || !personneEcran.options.includes("Maître")) fail("civilités de départ absentes");
   if (!personneEcran.designation.includes("Camille")) fail(`désignation : ${personneEcran.designation.slice(0, 120)}`);
+  {
+    const designation = personneEcran.designation.replace(/[\u00a0\u202f]/g, " ");
+    if (!designation.includes(`Mme Camille Martin ${marque}, née Dupont le 14 mars 1980 à Lyon, de nationalité française, avocate`)) {
+      fail(`formule des personnes : ${designation.slice(0, 200)}`);
+    }
+  }
   // Lieu de naissance : la fiche en lecture écrit la date puis le lieu saisi (14 mars 1980, Lyon).
   if (personneEcran.etatCivil["Née le"] !== "14 mars 1980 à Lyon") {
     fail(`naissance en lecture : ${JSON.stringify(personneEcran.etatCivil["Née le"] ?? personneEcran.etatCivil["Né le"])}`);
@@ -597,6 +701,199 @@ try {
     fail(`profession en lecture : ${JSON.stringify(personneEcran.etatCivil["Profession"])}`);
   }
   ok("fiche personne");
+
+  /**
+   * Mesure de recherche (PLAN, Annuaire) : 10 000 contacts de démonstration créés sur le serveur, attendus dans le
+   * SQLite du poste, puis frappes dans le champ de recherche de la liste. Durée = de la frappe à l'affichage de la
+   * liste filtrée, plus un rendu d'image. « Liste filtrée affichée » : le total annoncé par la liste (`data-total`) est
+   * celui que le serveur calcule avec la même règle de recherche, et le premier lot de résultats (au moins 40 lignes, ou tous
+   * s'il y en a moins) est dans la page ; le reste de la liste se complète ensuite en arrière-plan, par lots. Médiane et maximum affichés ; échec au-delà de 300 ms ; essai négatif avec un filtre ralenti.
+   */
+  async function mesurerRecherche() {
+    marqueMesure = `mesure-recherche-${ui.marque}`;
+    const cabinetId = (await sqlServeur(`SELECT cabinet_id FROM contacts WHERE id = '${personneId}'`)).trim();
+    const debutCreation = Date.now();
+    await sqlServeur(
+      `INSERT INTO contacts (id, cabinet_id, nature, nom, siren, type_client, prenoms, source_import)
+       SELECT gen_random_uuid(), '${cabinetId}',
+              CASE WHEN n % 5 = 0 THEN 'morale' ELSE 'physique' END,
+              CASE WHEN n % 5 = 0
+                   THEN (ARRAY['Atelier','Comptoir','Maison','Groupe','Manufacture'])[1 + n % 5] || ' ' || (ARRAY['Abrial','Belmont','Cazeneuve','Delorme','Esteve','Fabregue','Gaillard','Hubert','Imbert','Jourdan','Kervella','Lacombe','Maillard','Nogaret','Ollivier','Pellerin','Quentin','Rochefort','Savary','Tellier','Ulrich','Vidal','Wagner','Yvert','Zurbano'])[1 + (n / 5) % 25]
+                   ELSE (ARRAY['Abrial','Belmont','Cazeneuve','Delorme','Esteve','Fabregue','Gaillard','Hubert','Imbert','Jourdan','Kervella','Lacombe','Maillard','Nogaret','Ollivier','Pellerin','Quentin','Rochefort','Savary','Tellier','Ulrich','Vidal','Wagner','Yvert','Zurbano'])[1 + n % 25]
+              END,
+              CASE WHEN n % 5 = 0 THEN (800000000 + n)::text ELSE NULL END,
+              CASE WHEN n % 5 = 0 THEN 'professionnel' ELSE 'particulier' END,
+              CASE WHEN n % 5 = 0 THEN NULL
+                   ELSE (ARRAY['Adele','Basile','Camille','Damien','Elise','Fabien','Gaelle','Hugo','Ines','Julien','Karine','Lucas','Manon','Nicolas','Oceane','Paul','Rose','Sophie','Thomas','Valentin'])[1 + (n / 25) % 20] END,
+              '${marqueMesure}'
+       FROM generate_series(1, ${NOMBRE_CONTACTS_MESURE}) AS n`,
+    );
+    await sqlServeur(
+      `INSERT INTO contact_coordonnees (id, cabinet_id, contact_id, genre, usage, valeur, principale)
+       SELECT gen_random_uuid(), cabinet_id, id, 'email', CASE WHEN nature = 'morale' THEN 'cabinet' ELSE 'domicile' END,
+              'contact.' || substr(md5(id::text), 1, 8) || '@mesure-recherche.example', TRUE
+       FROM contacts WHERE source_import = '${marqueMesure}'`,
+    );
+    await sqlServeur(
+      `INSERT INTO contact_coordonnees (id, cabinet_id, contact_id, genre, usage, valeur, principale)
+       SELECT gen_random_uuid(), cabinet_id, id, 'adresse', CASE WHEN nature = 'morale' THEN 'siege' ELSE 'domicile' END,
+              (1 + abs(hashtext(id::text)) % 98) || ' rue de la Mesure, ' ||
+              (ARRAY['69001 Lyon','75011 Paris','13001 Marseille','33000 Bordeaux','31000 Toulouse','59000 Lille','44000 Nantes','67000 Strasbourg','35000 Rennes','38000 Grenoble'])[1 + abs(hashtext(id::text || 'v')) % 10],
+              TRUE
+       FROM contacts WHERE source_import = '${marqueMesure}'`,
+    );
+    const crees = (await sqlServeur(`SELECT COUNT(*) FROM contacts WHERE source_import = '${marqueMesure}'`)).trim();
+    if (crees !== String(NOMBRE_CONTACTS_MESURE)) fail(`contacts de mesure créés : ${crees}`);
+    ok(`${crees} contacts de démonstration créés sur le serveur en ${((Date.now() - debutCreation) / 1000).toFixed(1)} s`);
+
+    // Arrivée dans le SQLite du poste (flux de l'annuaire du cabinet).
+    const debutSync = Date.now();
+    await attendreSqliteLong(
+      `SELECT COUNT(*) FROM contacts WHERE source_import = '${marqueMesure}'`,
+      (v) => v === String(NOMBRE_CONTACTS_MESURE),
+      600_000,
+    );
+    await attendreSqliteLong(
+      `SELECT COUNT(*) FROM contact_coordonnees WHERE contact_id IN (SELECT id FROM contacts WHERE source_import = '${marqueMesure}')`,
+      (v) => v === String(2 * NOMBRE_CONTACTS_MESURE),
+      600_000,
+    );
+    ok(`contacts et coordonnées arrivés dans le SQLite du poste en ${((Date.now() - debutSync) / 1000).toFixed(1)} s`);
+
+    // Nombre de lignes que la liste doit afficher pour une saisie : même règle que l'index FTS5 du poste (mots en
+    // préfixe, sans accent ni casse, sur prénoms, nom, SIREN, e-mails, téléphones et villes) calculée par le serveur
+    // sur tous les contacts du cabinet.
+    const corps = `translate(lower(concat_ws(' ', c.prenoms, c.nom, regexp_replace(coalesce(c.siren, ''), '[^0-9]', '', 'g'),
+        (SELECT string_agg(k.valeur, ' ') FROM contact_coordonnees k WHERE k.contact_id = c.id AND k.genre = 'email'),
+        (SELECT string_agg(regexp_replace(k.valeur, '[^0-9]', '', 'g'), ' ') FROM contact_coordonnees k WHERE k.contact_id = c.id AND k.genre = 'telephone'),
+        (SELECT string_agg(substring(k.valeur from '[0-9]{5}[[:space:]]+(.+)$'), ' ') FROM contact_coordonnees k WHERE k.contact_id = c.id AND k.genre = 'adresse'))),
+      'àâäéèêëîïôöùûüç', 'aaaeeeeiioouuuc')`;
+    async function attendu(saisie) {
+      if (saisie === "") return Number((await sqlServeur(`SELECT COUNT(*) FROM contacts WHERE cabinet_id = '${cabinetId}'`)).trim());
+      return Number(
+        (
+          await sqlServeur(
+            `SELECT COUNT(*) FROM contacts c WHERE c.cabinet_id = '${cabinetId}' AND ${corps} ~ '(^|[^a-z0-9])${saisie}'`,
+          )
+        ).trim(),
+      );
+    }
+
+    // Retour à l'écran Contacts : la liste relit la base locale et l'index se construit sur les 10 000 fiches.
+    await cliquer(cdp.send, "[data-testid=nav-dossiers]");
+    await sleep(500);
+    await cliquer(cdp.send, "[data-testid=nav-contacts]");
+    await attendre(cdp.send, "[data-testid=contacts-recherche]");
+
+    /** Frappe : durée jusqu'à ce que la liste annonce `nombre` résultats et affiche son premier lot, plus un rendu d'image. */
+    async function frapper(texte, nombre) {
+      const duree = await evaluate(
+        cdp.send,
+        `(async () => {
+          const champ = document.querySelector("[data-testid=contacts-recherche]");
+          const liste = document.querySelector("[data-testid=contacts-liste]");
+          const pret = () =>
+            liste.getAttribute("data-total") === String(${nombre}) &&
+            document.querySelectorAll("[data-testid=contacts-ligne]").length >= Math.min(${nombre}, 40);
+          const t0 = performance.now();
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(champ, ${JSON.stringify(texte)});
+          champ.dispatchEvent(new Event("input", { bubbles: true }));
+          while (!pret()) {
+            if (performance.now() - t0 > 30000) return -1;
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
+          await new Promise((resolve) => {
+            let fini = false;
+            const terminer = () => { if (!fini) { fini = true; resolve(); } };
+            requestAnimationFrame(terminer);
+            setTimeout(terminer, 100);
+          });
+          return performance.now() - t0;
+        })()`,
+        40_000,
+      );
+      if (duree < 0) fail(`la liste n'a pas annoncé ${nombre} résultats pour « ${texte} »`);
+      return duree;
+    }
+
+    // Échauffement : attend la construction de l'index FTS (la liste complète puis la première lettre filtrée).
+    const total = await attendu("");
+    const debutIndex = Date.now();
+    await attendreLignes(total);
+    await frapper("b", await attendu("b"));
+    await frapper("", total);
+    ok(`index FTS construit en ${((Date.now() - debutIndex) / 1000).toFixed(1)} s, ${total} contacts dans la liste`);
+
+    const durees = [];
+    const detail = [];
+    for (const mot of ["belmont", "adele", "lyon"]) {
+      for (let i = 1; i <= mot.length; i += 1) {
+        const saisie = mot.slice(0, i);
+        const nombre = await attendu(saisie);
+        const duree = await frapper(saisie, nombre);
+        durees.push(duree);
+        detail.push(`${saisie} (${nombre}) ${duree.toFixed(0)} ms`);
+      }
+      await frapper("", total);
+    }
+    const mesure = evaluerMesure(durees, SEUIL_RECHERCHE_MS);
+    ok(`recherche sur ${total} contacts, ${durees.length} frappes : médiane ${mesure.mediane.toFixed(0)} ms, maximum ${mesure.max.toFixed(0)} ms (seuil ${SEUIL_RECHERCHE_MS} ms)`);
+    console.log(`annuaire: détail des frappes : ${detail.join(" ; ")}`);
+    if (!mesure.ok) fail(`recherche trop lente : maximum ${mesure.max.toFixed(0)} ms au-delà de ${SEUIL_RECHERCHE_MS} ms (${detail.join(" ; ")})`);
+
+    // Essais négatifs : un seuil impossible fait échouer, un filtre volontairement ralenti (350 ms par frappe) aussi.
+    if (evaluerMesure(durees, 0).ok) fail("essai négatif : un seuil impossible n'a pas fait échouer la mesure");
+    if (evaluerMesure([...durees, SEUIL_RECHERCHE_MS + 1], SEUIL_RECHERCHE_MS).ok) {
+      fail("essai négatif : une frappe de 301 ms n'a pas fait échouer la mesure");
+    }
+    await evaluate(
+      cdp.send,
+      `(() => {
+        window.__ralentisseur = () => { const t = performance.now(); while (performance.now() - t < 350); };
+        document.querySelector("[data-testid=contacts-recherche]").addEventListener("input", window.__ralentisseur, true);
+        return true;
+      })()`,
+    );
+    const lente = await frapper("belmont", await attendu("belmont"));
+    await evaluate(
+      cdp.send,
+      `(() => { document.querySelector("[data-testid=contacts-recherche]").removeEventListener("input", window.__ralentisseur, true); return true; })()`,
+    );
+    if (evaluerMesure([lente], SEUIL_RECHERCHE_MS).ok) {
+      fail(`essai négatif : le filtre ralenti (${lente.toFixed(0)} ms) n'a pas fait échouer la mesure`);
+    }
+    await frapper("", total);
+    ok(`essais négatifs de la mesure (seuil impossible, filtre ralenti : ${lente.toFixed(0)} ms)`);
+    await supprimerContactsMesure();
+  }
+
+  async function attendreLignes(nombre) {
+    const debut = Date.now();
+    while (Date.now() - debut < 300_000) {
+      const annonce = await evaluate(
+        cdp.send,
+        `document.querySelector("[data-testid=contacts-liste]")?.getAttribute("data-total") ?? ""`,
+      );
+      if (annonce === String(nombre)) return;
+      await sleep(500);
+    }
+    fail(`la liste n'affiche pas ${nombre} contacts`);
+  }
+
+  async function attendreSqliteLong(sql, predicat, delai) {
+    const debut = Date.now();
+    let dernier = "";
+    while (Date.now() - debut < delai) {
+      try {
+        dernier = await sqliteLocal(posteId, sql);
+        if (predicat(dernier)) return;
+      } catch (err) {
+        dernier = err instanceof Error ? err.message : String(err);
+      }
+      await sleep(2000);
+    }
+    fail(`SQLite (${Math.round(delai / 1000)} s) : ${dernier}`);
+  }
 
   async function attendreTexte(selecteur, morceau) {
     const debut = Date.now();
@@ -623,12 +920,28 @@ try {
   );
   if (pointChemise === "rgba(0, 0, 0, 0)" || pointChemise === "") fail("point de chemise de la pastille sans couleur");
   await cliquer(cdp.send, "[data-testid=contacts-onglet-factures]");
-  await attendreTexte("[data-testid=contacts-factures]", "120,00");
-  await attendreTexte("[data-testid=contacts-facture-encaisse]", "40,00");
-  await attendreTexte("[data-testid=contacts-facture-encours]", "80,00");
+  // Règle de la consigne du 12/11 (soir), qui remplace l'ancienne assertion « encours 80,00 avec une facture en
+  // brouillon » : un brouillon ne compte NI dans « Facturé » NI dans « Encaissé » NI dans l'encours, et il reste listé.
+  // Facturé = 60 + 90,50 + 30 = 180,50 ; encaissé = 60 + 30 = 90 ; encours = 0 + 60,50 + 30 = 90,50.
+  // Montants sans centimes quand ils sont ronds (écart 11).
+  await attendreTexte("[data-testid=contacts-facture-encours]", "90,50 €");
+  const tuilesFactures = await evaluate(
+    cdp.send,
+    `Object.fromEntries(["facture", "encaisse", "encours"].map((id) => [id, (document.querySelector("[data-testid=contacts-facture-" + id + "] b")?.textContent ?? "").replace(/[\\u00a0\\u202f]/g, " ")]))`,
+  );
+  if (tuilesFactures.facture !== "180,50 €") fail(`Facturé (le brouillon ne compte pas) : ${JSON.stringify(tuilesFactures)}`);
+  if (tuilesFactures.encaisse !== "90 €") fail(`Encaissé (sans centimes, brouillon exclu) : ${JSON.stringify(tuilesFactures)}`);
+  if (tuilesFactures.encours !== "90,50 €") fail(`Encours (brouillon exclu) : ${JSON.stringify(tuilesFactures)}`);
+  const lignesFactures = await evaluate(
+    cdp.send,
+    `[...document.querySelectorAll("[data-testid=contacts-facture]")].map((tr) => [...tr.querySelectorAll("td")].map((td) => td.textContent.replace(/[\\u00a0\\u202f]/g, " ").trim()).slice(-2).join(" | "))`,
+  );
+  const attenduFactures = ["30 € | En attente", "60 € | Payée", "90,50 € | Partiellement payée", "120 € | Brouillon"];
+  if (JSON.stringify([...lignesFactures].sort()) !== JSON.stringify([...attenduFactures].sort())) {
+    fail(`lignes de factures : ${JSON.stringify(lignesFactures)}`);
+  }
   // La base locale n'a ni date ni objet de facture : la tuile ne cite pas d'année et les colonnes sont absentes.
   await attendreTexte("[data-testid=contacts-facture-facture]", "Facturé");
-  await attendreTexte("[data-testid=contacts-facture-facture]", "120,00");
   if ((await evaluate(cdp.send, `document.querySelector("[data-testid=contacts-factures] table")?.innerText ?? ""`)).includes("Objet")) {
     fail("colonne Objet affichée sans donnée d'objet en base locale");
   }
@@ -657,6 +970,24 @@ try {
   }
   await cliquer(cdp.send, "[data-testid=contacts-onglet-mails]");
   await attendreTexte("[data-testid=contacts-mails]", `Courrier ${marque}`);
+  await attendreTexte("[data-testid=contacts-mails]", `Suite ${marque}`);
+  {
+    // Sens du mail et heure de Paris : « De : » l'expéditeur d'un mail reçu, « À : » les destinataires d'un mail
+    // envoyé par le cabinet ; date_entete (instant) est affichée à l'heure de Paris (27 octobre : UTC+1 ; 14 juillet : UTC+2).
+    const lignesMails = await evaluate(
+      cdp.send,
+      `[...document.querySelectorAll("[data-testid=contacts-mail]")].map((li) => li.textContent.replace(/[\\u00a0\\u202f]/g, " ").replace(/\\s+/g, " ").trim())`,
+    );
+    const recu = lignesMails.find((ligne) => ligne.includes(`Courrier ${marque}`)) ?? "";
+    const envoye = lignesMails.find((ligne) => ligne.includes(`Suite ${marque}`)) ?? "";
+    if (!recu.includes(`De : Mme Camille Martin ${marque}`)) fail(`mail reçu sans « De : » : ${recu}`);
+    if (!/27 octobre( 2026)? à 10 h 12/.test(recu)) fail(`heure de Paris du mail reçu (09:12 UTC, hiver) : ${recu}`);
+    if (!envoye.includes(`À : Mme Camille Martin ${marque}, copie-${marque}@example.test`)) {
+      fail(`mail envoyé sans « À : » : ${envoye}`);
+    }
+    if (!/14 juillet( 2026)? à 14 h 30/.test(envoye)) fail(`heure de Paris du mail envoyé (12:30 UTC, été) : ${envoye}`);
+    if (envoye.includes("De :") || recu.includes("À :")) fail(`sens des mails mélangé : ${recu} / ${envoye}`);
+  }
   await attendreTexte(
     "[data-testid=contacts-mails-mention]",
     "Mails classés dont l’expéditeur ou un destinataire est une adresse de cette fiche.",
@@ -736,7 +1067,16 @@ try {
   if (societeEcran.greffe !== "RCS de Lyon") fail(`greffe : ${societeEcran.greffe}`);
   if (societeEcran.activite !== "Metallurgie") fail(`activité : ${societeEcran.activite}`);
   if (!societeEcran.forme || !societeEcran.capital) fail("forme ou capital absent");
-  if (!societeEcran.designation.includes("100000009")) fail("la désignation ne reprend pas le SIREN");
+  {
+    const designation = societeEcran.designation.replace(/[\u00a0\u202f]/g, " ");
+    if (!designation.includes("100 000 009")) fail(`la désignation ne reprend pas le SIREN par groupes de trois : ${designation.slice(0, 200)}`);
+    if (!designation.includes(`La société Duclos ${marque}, société à responsabilité limitée au capital de 10 000 €`)) {
+      fail(`formule des sociétés : ${designation.slice(0, 200)}`);
+    }
+    if (!designation.includes("immatriculée au registre du commerce et des sociétés de Lyon sous le numéro 100 000 009")) {
+      fail(`greffe et numéro : ${designation.slice(0, 260)}`);
+    }
+  }
   {
     // Le compteur de la fiche précédente disparaît dès que la lecture locale de la société aboutit.
     const debutAbsent = Date.now();
@@ -1102,6 +1442,8 @@ try {
   if (journalArchive === "0") fail("l'archivage n'est pas journalisé");
   ok("contact lié archivé");
 
+  await mesurerRecherche();
+
   await cliquer(cdp.send, "[data-testid=nav-dossiers]");
   await sleep(300);
   await cliquer(cdp.send, "[aria-label='Palette de commandes']");
@@ -1117,6 +1459,12 @@ try {
   }
   process.exitCode = 1;
 } finally {
+  try {
+    await supprimerContactsMesure();
+  } catch (err) {
+    console.error(String(err instanceof Error ? err.message : err));
+    process.exitCode = 1;
+  }
   if (app) await stopApp(app);
   if (registre) registre.close();
   relancerApi();

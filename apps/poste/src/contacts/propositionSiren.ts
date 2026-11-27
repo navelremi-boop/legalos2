@@ -1,3 +1,4 @@
+import { casseAdresse } from "@/contacts/casseRegistre";
 import { dirigeantsDepuisJson } from "@/contacts/dirigeants";
 import { texteForme } from "@/contacts/formesJuridiques";
 
@@ -79,7 +80,11 @@ export function champsRetenus(
   return retenus;
 }
 
-/** Proposition lue dans la réponse de l'instance ; null si le JSON n'a pas la forme attendue. */
+/**
+ * Proposition lue dans la réponse de l'instance ; null si le JSON n'a pas la forme attendue.
+ * L'adresse du siège, que le registre écrit en capitales, passe en casse normale ; la dénomination reste telle
+ * que le registre la donne.
+ */
 export function propositionDepuisJson(json: unknown): PropositionSiren | null {
   if (json === null || typeof json !== "object") return null;
   const ligne = json as Record<string, unknown>;
@@ -89,7 +94,7 @@ export function propositionDepuisJson(json: unknown): PropositionSiren | null {
     siren: ligne.siren,
     denomination: texte("denomination"),
     forme: texte("forme"),
-    adresseSiege: texte("adresse_siege"),
+    adresseSiege: casseAdresse(texte("adresse_siege")),
     activite: texte("activite"),
     dirigeants: dirigeantsDepuisJson(ligne.dirigeants),
   };

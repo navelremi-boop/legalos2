@@ -1,5 +1,6 @@
 import { formatDateActe } from "@/lib/format";
-import { majusculeInitiale } from "@/contacts/listeContacts";
+import { deElide } from "@/contacts/elision";
+import { majusculeInitiale, type AccordGrammatical } from "@/contacts/listeContacts";
 
 /**
  * Textes de la fiche en lecture (onglet Général), d'après la maquette `prototype-contacts.html`.
@@ -7,7 +8,7 @@ import { majusculeInitiale } from "@/contacts/listeContacts";
  */
 
 export type NaissanceLecture = {
-  /** Texte de la valeur, sous « Né le » ou « Née le ». */
+  /** Texte de la valeur, sous « Né le » ou « Née le » ; « Né à Lyon (Rhône) » quand la date manque. */
   texte: string;
   /** Vrai quand la date manque : la ligne prend le style des mentions à compléter. */
   manque: boolean;
@@ -21,17 +22,19 @@ function lieuNet(lieu: string | null | undefined): string {
  * Date puis lieu de naissance : « 3 février 1972 à Saint-Étienne (Loire) ».
  * Le lieu se lit tel qu'il a été saisi : le département n'est pas une donnée distincte,
  * il figure entre parenthèses dans le lieu quand l'avocat l'a écrit (« Lyon (Rhône) »).
- * Sans lieu, la date seule ; sans date, une mention à compléter qui garde le lieu ; sans l'un ni l'autre, null.
+ * Sans lieu, la date seule ; sans date, le lieu seul (« Né à Lyon (Rhône) », « Née à Lyon (Rhône) » selon l'accord)
+ * avec la ligne en mention à compléter ; sans l'un ni l'autre, null.
  */
 export function naissanceLecture(
   dateNaissance: string | null | undefined,
   lieuNaissance: string | null | undefined,
+  accord: AccordGrammatical | null = null,
 ): NaissanceLecture | null {
   const date = dateNaissance ? formatDateActe(dateNaissance) : "";
   const lieu = lieuNet(lieuNaissance);
   if (date !== "" && lieu !== "") return { texte: `${date} à ${lieu}`, manque: false };
   if (date !== "") return { texte: date, manque: false };
-  if (lieu !== "") return { texte: `Date non renseignée, à ${lieu}`, manque: true };
+  if (lieu !== "") return { texte: `${accord === "feminin" ? "Née" : "Né"} à ${lieu}`, manque: true };
   return null;
 }
 
@@ -45,6 +48,5 @@ export function valeurEtatCivil(valeur: string | null | undefined): string | nul
 export function ressortLecture(courAppel: string | null | undefined): string | null {
   const nom = (courAppel ?? "").replace(/\s+/gu, " ").trim();
   if (nom === "") return null;
-  const elision = /^[AEIOUYÀÂÄÉÈÊËÎÏÔÖÙÛÜŒ]/iu.test(nom);
-  return `Cour d'appel ${elision ? "d'" : "de "}${nom}`;
+  return `Cour d'appel ${deElide(nom)}`;
 }

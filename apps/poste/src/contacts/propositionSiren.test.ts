@@ -49,6 +49,30 @@ describe("proposition d'import par SIREN", () => {
   });
 });
 
+describe("réponse de l'instance, casse du registre", () => {
+  it("met en casse normale les communes et adresses en capitales, sans toucher à la dénomination", () => {
+    const lue = propositionDepuisJson({
+      siren: "903417566",
+      denomination: "FERRAND LOGISTIQUE",
+      forme: "5499",
+      adresse_siege: "5 AVENUE DE L'INDUSTRIE 69800 SAINT-PRIEST",
+      activite: "49.41A",
+    });
+    assert.equal(lue?.denomination, "FERRAND LOGISTIQUE");
+    assert.equal(lue?.adresseSiege, "5 avenue de l'Industrie 69800 Saint-Priest");
+    const villefranche = propositionDepuisJson({
+      siren: "494012305",
+      adresse_siege: "120 RUE DE LA RÉPUBLIQUE 69400 VILLEFRANCHE-SUR-SAÔNE",
+    });
+    assert.equal(villefranche?.adresseSiege, "120 rue de la République 69400 Villefranche-sur-Saône");
+  });
+
+  it("ne retouche pas une adresse que le registre donne déjà en casse mixte", () => {
+    const lue = propositionDepuisJson({ siren: "903417566", adresse_siege: "5 avenue de l'Industrie 69800 Saint-Priest" });
+    assert.equal(lue?.adresseSiege, "5 avenue de l'Industrie 69800 Saint-Priest");
+  });
+});
+
 describe("réponse de l'instance", () => {
   it("lit la proposition du registre et refuse une réponse sans SIREN", () => {
     const lue = propositionDepuisJson({
@@ -59,8 +83,9 @@ describe("réponse de l'instance", () => {
       activite: null,
       dirigeants: [],
     });
+    // La dénomination reste telle que le registre la donne ; l'adresse passe en casse normale.
     assert.equal(lue?.denomination, "DUCLOS INDUSTRIE");
-    assert.equal(lue?.adresseSiege, "8 QUAI SAINT-VINCENT 69001 LYON");
+    assert.equal(lue?.adresseSiege, "8 quai Saint-Vincent 69001 Lyon");
     assert.equal(lue?.activite, null);
     assert.equal(propositionDepuisJson({ denomination: "X" }), null);
     assert.equal(propositionDepuisJson(null), null);

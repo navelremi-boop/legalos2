@@ -1,6 +1,15 @@
 import { formatDateActe } from "@/lib/format";
+import { deElide } from "@/contacts/elision";
+import { formeSansPrecision } from "@/contacts/formesJuridiques";
 import type { LienAffiche } from "@/contacts/liensContacts";
-import { libelleForme } from "@/contacts/formesJuridiques";
+import {
+  civiliteActe,
+  greffeSansRcs,
+  minusculeInitiale,
+  nationaliteAccordee,
+  prenomUsuel,
+  sirenEnGroupes,
+} from "@/contacts/redactionActe";
 import type {
   AccordGrammatical,
   ContactListe,
@@ -43,6 +52,15 @@ function mention(champ: string, libelle: string): MentionManquante {
   return { champ, libelle };
 }
 
+/** Une désignation est une phrase : morceaux séparés par des virgules, terminée par un point. */
+function phrase(morceaux: readonly string[]): string {
+  return morceaux.length === 0 ? "" : `${morceaux.join(", ")}.`;
+}
+
+/**
+ * Personne physique : « [M. ou Mme] [prénoms] [nom], né(e) [le …] à [lieu], de nationalité [nationalité],
+ * [profession], demeurant [adresse]. »
+ */
 function textePersonne(contact: ContactListe): DesignationActe {
   const mentions: MentionManquante[] = [];
   const civilite = contact.civilite?.trim() ?? "";
@@ -58,7 +76,9 @@ function textePersonne(contact: ContactListe): DesignationActe {
     mentions.push(mention("accord", "accord grammatical"));
   }
 
-  const tete = [civiliteRefusee(civilite) ? "" : civilite, prenoms, nom].filter((part) => part !== "").join(" ");
+  const tete = [civiliteRefusee(civilite) ? "" : civiliteActe(civilite), prenoms, nom]
+    .filter((part) => part !== "")
+    .join(" ");
   const morceaux: string[] = [];
   if (tete !== "") morceaux.push(tete);
 
@@ -74,19 +94,19 @@ function textePersonne(contact: ContactListe): DesignationActe {
     morceaux.push(`${ne}${differente === "" ? "" : ` ${differente}`} le ${date} à ${lieu}`);
   }
 
-  const nationalite = contact.nationalite?.trim() ?? "";
+  const nationalite = nationaliteAccordee(contact.nationalite);
   if (nationalite === "") mentions.push(mention("nationalite", "nationalité"));
-  else morceaux.push(nationalite);
+  else morceaux.push(`de nationalité ${nationalite}`);
 
   const profession = contact.profession?.trim() ?? "";
   if (profession === "") mentions.push(mention("profession", "profession"));
-  else morceaux.push(profession);
+  else morceaux.push(minusculeInitiale(profession));
 
   const adresse = contact.adresseDomicile?.trim() ?? "";
   if (adresse === "") mentions.push(mention("adresse_domicile", "adresse du domicile principal"));
-  else morceaux.push(adresse);
+  else morceaux.push(`demeurant ${adresse}`);
 
-  return { texte: morceaux.join(", "), mentions };
+  return { texte: phrase(morceaux), mentions };
 }
 
 /** Un seul mandat en cours par fonction peut représenter la société. Cet ordre tranche s'il y en a plusieurs. */
@@ -168,30 +188,42 @@ function representantDuMandat(
   };
 }
 
+/**
+ * Société : « La société [dénomination], [forme en toutes lettres] au capital de [capital] €, immatriculée au
+ * registre du commerce et des sociétés de [greffe] sous le numéro [SIREN], dont le siège social est situé [adresse],
+ * prise en la personne de son [fonction] en exercice, [M. ou Mme] [prénom usuel] [nom], domicilié(e) en cette
+ * qualité audit siège. » Une société exerçant une profession réglementée suit la même formule.
+ */
 function texteMorale(contact: ContactListe, contexte: ContexteDesignation): DesignationActe {
   const mentions: MentionManquante[] = [];
   const morceaux: string[] = [];
   const nom = contact.nom.trim();
   if (nom === "") mentions.push(mention("denomination", "dénomination"));
-  else morceaux.push(nom);
+  else morceaux.push(`La société ${nom}`);
 
-  const forme = libelleForme(contact.forme ?? "");
+  const formeBrute = contact.forme?.trim() ?? "";
+  const forme = formeBrute === "" ? "" : minusculeInitiale(formeSansPrecision(formeBrute));
   if (forme === "") mentions.push(mention("forme", "forme"));
-  else morceaux.push(forme);
+  const capitalBrut = contact.capitalLibelle?.trim() ?? "";
+  if (capitalBrut === "") mentions.push(mention("capital", "capital"));
+  const capital =
+    capitalBrut === "" || /^au capital/iu.test(capitalBrut) ? capitalBrut : `au capital de ${capitalBrut}`;
+  const identite = [forme, capital].filter((part) => part !== "").join(" ");
+  if (identite !== "") morceaux.push(identite);
 
-  const capital = contact.capitalLibelle?.trim() ?? "";
-  if (capital === "") mentions.push(mention("capital", "capital"));
-  else morceaux.push(capital);
-
-  const greffe = contact.greffe?.trim() ?? "";
-  const siren = contact.siren?.trim() ?? "";
+  const greffe = greffeSansRcs(contact.greffe);
+  const siren = sirenEnGroupes(contact.siren);
   if (greffe === "") mentions.push(mention("greffe", "greffe du RCS"));
   if (siren === "") mentions.push(mention("siren", "numéro du RCS"));
-  if (greffe !== "" && siren !== "") morceaux.push(`${greffe}, numéro ${siren}`);
+  if (greffe !== "" || siren !== "") {
+    const lieu = greffe === "" ? "" : ` ${deElide(greffe)}`;
+    const numero = siren === "" ? "" : ` sous le numéro ${siren}`;
+    morceaux.push(`immatriculée au registre du commerce et des sociétés${lieu}${numero}`);
+  }
 
   const siege = contact.adresseSiege?.trim() ?? "";
   if (siege === "") mentions.push(mention("adresse_siege", "adresse du siège"));
-  else morceaux.push(siege);
+  else morceaux.push(`dont le siège social est situé ${siege}`);
 
   const mandat = mandatRepresentant(contact.id, contexte.liens);
   if (mandat === null) {
@@ -199,15 +231,25 @@ function texteMorale(contact: ContactListe, contexte: ContexteDesignation): Desi
   } else {
     const organe = representantDuMandat(mandat, contexte.contacts);
     if (organe.representant === null) mentions.push(...organe.mentions);
-    else morceaux.push(phraseRepresentant(organe.representant));
+    else morceaux.push(phraseRepresentant(organe.representant, mandat.fonction));
   }
 
-  return { texte: morceaux.join(", "), mentions };
+  return { texte: phrase(morceaux), mentions };
 }
 
-function phraseRepresentant(representant: RepresentantFiche): string {
+/** « sa gérante » quand le féminin diffère du masculin, « son président » sinon (« son membre du directoire »). */
+function possessifFonction(code: string | null, accord: AccordGrammatical): string {
+  const formes = FONCTION_ACCORD[code ?? ""];
+  return accord === "feminin" && formes !== undefined && formes.feminin !== formes.masculin ? "sa" : "son";
+}
+
+function phraseRepresentant(representant: RepresentantFiche, codeFonction: string | null): string {
   const domicile = participe(representant.accord, "domiciliée", "domicilié");
-  return `prise en la personne de son ${representant.fonction} en exercice, ${representant.civilite} ${representant.prenoms} ${representant.nom}, ${domicile} en cette qualité audit siège`;
+  const possessif = possessifFonction(codeFonction, representant.accord);
+  const identite = [civiliteActe(representant.civilite), prenomUsuel(representant.prenoms), representant.nom.trim()]
+    .filter((part) => part !== "")
+    .join(" ");
+  return `prise en la personne de ${possessif} ${representant.fonction} en exercice, ${identite}, ${domicile} en cette qualité audit siège`;
 }
 
 export function titreProfession(code: ProfessionReglementee, accord: AccordGrammatical): string {
@@ -231,6 +273,7 @@ export function titreProfession(code: ProfessionReglementee, accord: AccordGramm
   }
 }
 
+/** Professionnel (personne physique) : « Me [prénom nom], avocat(e) au barreau de … » et équivalents. */
 function texteProfessionnel(contact: ContactListe): DesignationActe | null {
   const code = contact.professionCode;
   if (code === null) return null;
@@ -247,7 +290,7 @@ function texteProfessionnel(contact: ContactListe): DesignationActe | null {
   if (PROFESSIONS_ME.has(code)) {
     identite = ["Me", prenoms, nom].filter((part) => part !== "").join(" ");
   } else {
-    const civiliteUtile = civiliteRefusee(civilite) ? "" : civilite;
+    const civiliteUtile = civiliteRefusee(civilite) ? "" : civiliteActe(civilite);
     if (civiliteUtile === "") mentions.push(mention("civilite", "civilité"));
     identite = [civiliteUtile, prenoms, nom].filter((part) => part !== "").join(" ");
   }
@@ -255,7 +298,7 @@ function texteProfessionnel(contact: ContactListe): DesignationActe | null {
   if (code === "avocat") {
     const barreau = contact.barreau?.trim() ?? "";
     if (barreau === "") mentions.push(mention("barreau", "barreau"));
-    else if (titre !== "") morceaux[morceaux.length - 1] = `${titre} au barreau de ${barreau}`;
+    else if (titre !== "") morceaux[morceaux.length - 1] = `${titre} au barreau ${deElide(barreau)}`;
   }
   if (code === "expert_judiciaire") {
     const specialite = contact.specialite?.trim() ?? "";
@@ -263,9 +306,9 @@ function texteProfessionnel(contact: ContactListe): DesignationActe | null {
     if (specialite === "") mentions.push(mention("specialite", "spécialité"));
     else morceaux.push(specialite);
     if (cour === "") mentions.push(mention("cour_appel", "cour d'appel"));
-    else morceaux.push(`cour d'appel de ${cour}`);
+    else morceaux.push(`cour d'appel ${deElide(cour)}`);
   }
-  return { texte: morceaux.join(", "), mentions };
+  return { texte: phrase(morceaux), mentions };
 }
 
 export type ContexteDesignation = {
@@ -290,8 +333,9 @@ export function designationActe(
   contact: ContactListe,
   contexte: ContexteDesignation = CONTEXTE_VIDE,
 ): DesignationActe {
+  // Une société, même exerçant une profession réglementée, suit la formule des sociétés.
+  if (contact.nature === "morale") return texteMorale(contact, contexte);
   const professionnelle = texteProfessionnel(contact);
   if (professionnelle !== null) return professionnelle;
-  if (contact.nature === "morale") return texteMorale(contact, contexte);
   return textePersonne(contact);
 }

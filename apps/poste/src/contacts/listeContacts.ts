@@ -1,7 +1,9 @@
 import { accordDe, civiliteRefusee, titreProfession } from "@/contacts/designation";
-import { libelleForme, sigleForme } from "@/contacts/formesJuridiques";
+import { deElide } from "@/contacts/elision";
+import { formeSansPrecision, sigleForme } from "@/contacts/formesJuridiques";
+import { sirenEnGroupes } from "@/contacts/redactionActe";
 import { civiliteCourte } from "@/contacts/liensContacts";
-import { formatMontant } from "@/lib/format";
+import { formatMontantRond } from "@/lib/format";
 
 export type NatureContactListe = "physique" | "morale";
 
@@ -178,8 +180,11 @@ export function filtrerContacts(
 
 export type GroupeContacts = { lettre: string; contacts: ContactListe[] };
 
+/** Un seul collateur pour tout le tri : en créer un par comparaison coûte plusieurs secondes sur dix mille fiches. */
+const COLLATEUR_NOMS = new Intl.Collator("fr", { sensitivity: "base" });
+
 export function grouperAlphabetique(contacts: readonly ContactListe[]): GroupeContacts[] {
-  const tries = [...contacts].sort((a, b) => a.nom.localeCompare(b.nom, "fr", { sensitivity: "base" }));
+  const tries = [...contacts].sort((a, b) => COLLATEUR_NOMS.compare(a.nom, b.nom));
   const groupes: GroupeContacts[] = [];
   for (const contact of tries) {
     const brut = contact.nom.trim().charAt(0);
@@ -189,6 +194,27 @@ export function grouperAlphabetique(contacts: readonly ContactListe[]): GroupeCo
     else groupes.push({ lettre, contacts: [contact] });
   }
   return groupes;
+}
+
+/** Lignes affichées d'emblée dans la liste : plus d'un écran, rendues avant le reste. */
+export const PREMIER_LOT_LISTE = 60;
+
+/** Lignes ajoutées à chaque passe pendant que le reste de la liste se complète en arrière-plan. */
+export const LOT_SUIVANT_LISTE = 300;
+
+/**
+ * Les `maximum` premières lignes de la liste, groupes et ordre conservés. La liste de dix mille contacts s'affiche
+ * ainsi par lots : le premier écran paraît tout de suite, le reste suit sans bloquer la frappe.
+ */
+export function tronquerGroupes(groupes: readonly GroupeContacts[], maximum: number): GroupeContacts[] {
+  const gardes: GroupeContacts[] = [];
+  let restant = maximum;
+  for (const groupe of groupes) {
+    if (restant <= 0) break;
+    gardes.push(restant >= groupe.contacts.length ? groupe : { lettre: groupe.lettre, contacts: groupe.contacts.slice(0, restant) });
+    restant -= groupe.contacts.length;
+  }
+  return gardes;
 }
 
 export function compteursFiltres(contacts: readonly ContactListe[]): Record<FiltreContacts, number> {
@@ -204,13 +230,9 @@ export function libelleNature(nature: NatureContactListe): string {
   return nature === "physique" ? "Personne physique" : "Personne morale";
 }
 
+/** « au capital de 50 000 € » ; sans centimes quand le montant est rond, avec centimes seulement s'ils existent. */
 export function libelleCapital(centimes: number, monnaie: string | null): string {
-  if (monnaie !== null && monnaie !== "EUR") {
-    const entier = Math.trunc(centimes / 100);
-    const cent = Math.abs(centimes % 100);
-    return `au capital de ${String(entier)},${String(cent).padStart(2, "0")} ${monnaie}`;
-  }
-  return `au capital de ${formatMontant(centimes)}`;
+  return `au capital de ${formatMontantRond(centimes, monnaie === null || monnaie === "" ? "EUR" : monnaie)}`;
 }
 
 const PROFESSIONS: ReadonlySet<string> = new Set([
@@ -239,11 +261,24 @@ export type CoordonneeLue = {
   pays?: string | null;
 };
 
+/** Coordonnées regroupées par fiche : une seule passe, pour que les calculs sur tout l'annuaire restent linéaires. */
+export function coordonneesParContact(lignes: readonly CoordonneeLue[]): Map<string, CoordonneeLue[]> {
+  const parContact = new Map<string, CoordonneeLue[]>();
+  for (const ligne of lignes) {
+    const liste = parContact.get(ligne.contactId);
+    if (liste === undefined) parContact.set(ligne.contactId, [ligne]);
+    else liste.push(ligne);
+  }
+  return parContact;
+}
+
 /** Reprend l'adresse principale du domicile ou du siège, quand elle existe. */
 export function appliquerCoordonnees(contacts: readonly ContactListe[], lignes: readonly CoordonneeLue[]): ContactListe[] {
+  const parContact = coordonneesParContact(lignes);
   return contacts.map((contact) => {
-    const domicile = adressePrincipale(lignes, contact.id, "domicile");
-    const siege = adressePrincipale(lignes, contact.id, "siege");
+    const siennes = parContact.get(contact.id) ?? [];
+    const domicile = adressePrincipale(siennes, contact.id, "domicile");
+    const siege = adressePrincipale(siennes, contact.id, "siege");
     return {
       ...contact,
       adresseDomicile: domicile ?? contact.adresseDomicile,
@@ -310,9 +345,7 @@ export function initialesListeContact(contact: ContactListe): string {
 
 /** SIREN espacé par groupes de trois chiffres pour la ligne meta. */
 export function sirenListeContact(siren: string | null | undefined): string {
-  const chiffres = (siren ?? "").replace(/\D/g, "");
-  if (chiffres === "") return "";
-  return chiffres.replace(/(\d{3})(?=\d)/g, "$1 ").trim();
+  return sirenEnGroupes(siren);
 }
 
 export function majusculeInitiale(texte: string): string {
@@ -350,7 +383,7 @@ export function metaListeContact(contact: ContactListe, ville = ""): string {
   if (profession !== null) {
     const barreau = contact.barreau?.trim() ?? "";
     if (contact.professionCode === "avocat" && barreau !== "") {
-      parties.push(`${profession}, barreau de ${barreau}`);
+      parties.push(`${profession}, barreau ${deElide(barreau)}`);
     } else {
       parties.push(profession);
       if (villeNette !== "") parties.push(villeNette);
@@ -365,10 +398,7 @@ export function metaListeContact(contact: ContactListe, ville = ""): string {
 
 /** Forme en toutes lettres pour la tête de fiche (« Société par actions simplifiée »). */
 export function formeEnLettres(valeur: string): string {
-  const libelle = libelleForme(valeur)
-    .replace(/\s*\((?:sans autre indication|s\.a\.i\.|SARL)\)$/u, "")
-    .replace(/^[A-Z]+, /u, "");
-  return majusculeInitiale(libelle);
+  return majusculeInitiale(formeSansPrecision(valeur));
 }
 
 /** Sous-titre de la tête de fiche, d'après la maquette. */
@@ -387,8 +417,8 @@ export function sousTitreFiche(contact: ContactListe, ville = ""): string {
   if (profession !== null) {
     const barreau = contact.barreau?.trim() ?? "";
     const cour = contact.courAppel?.trim() ?? "";
-    if (contact.professionCode === "avocat" && barreau !== "") return `${profession} au barreau de ${barreau}`;
-    if (cour !== "") return `${profession}, ressort de la cour d'appel de ${cour}`;
+    if (contact.professionCode === "avocat" && barreau !== "") return `${profession} au barreau ${deElide(barreau)}`;
+    if (cour !== "") return `${profession}, ressort de la cour d'appel ${deElide(cour)}`;
     return [profession, villeNette].filter((part) => part !== "").join(", ");
   }
   const libre = contact.profession?.trim() ?? "";

@@ -8,12 +8,16 @@ import {
   IconFolderPlus,
   IconMail,
   IconPlus,
+  IconSearch,
   IconUser,
   IconUsers,
 } from "@tabler/icons-react";
 import {
   compteursFiltres,
   FILTRES_CONTACTS,
+  LOT_SUIVANT_LISTE,
+  PREMIER_LOT_LISTE,
+  tronquerGroupes,
   filtrerContacts,
   grouperAlphabetique,
   initialesListeContact,
@@ -32,6 +36,7 @@ import {
   type FiltreContacts,
   type OngletFicheContact,
 } from "@/contacts/listeContacts";
+import { empreinte } from "@/contacts/empreinte";
 import { lireAnnuaireLocal } from "@/contacts/lireAnnuaire";
 import { designationActe, accordDe } from "@/contacts/designation";
 import { ecrireCoordonnee, type GenreCoordonnee, type UsageCoordonnee } from "@/contacts/ecrireCoordonnee";
@@ -49,7 +54,7 @@ import {
 import { FormulaireLien, FormulaireModificationLien } from "@/contacts/FormulaireLien";
 import { lienAfficheDepuisEcriture } from "@/contacts/lienGalerie";
 import { EtatVideFiche, HistoriqueFiche } from "@/contacts/OngletsHistorique";
-import { ligneIndex, villeListeContact } from "@/contacts/indexAnnuaire";
+import { lignesIndex, villeListeContact, villesParContact } from "@/contacts/indexAnnuaire";
 import type { IndexAnnuaire } from "@/contacts/indexAnnuaireFts";
 import { PropositionImport, type PropositionImportHandle } from "@/contacts/PropositionImport";
 import {
@@ -68,6 +73,7 @@ import {
 } from "@/contacts/lireHistorique";
 import { notesAffichees } from "@/contacts/signatureNote";
 import { indexerMembres } from "@/identite/libelleMembre";
+import { nomsParAdresse } from "@/contacts/nomsAdresses";
 import { lireMembres } from "@/identite/lireMembres";
 import { DoublonsFiche, type DoublonDetecte } from "@/contacts/DoublonsFiche";
 import { NouveauContact } from "@/contacts/NouveauContact";
@@ -115,7 +121,7 @@ import { PanneauLateral } from "@/coque/PanneauLateral";
 import { libelleCoordonnee } from "@/contacts/libelleCoordonnee";
 import { dateImmatriculation, libelleGreffe, ligneSourceFiche } from "@/contacts/registreFiche";
 import { fr } from "@/lib/fr";
-import { formatMontant } from "@/lib/format";
+import { formatMontantRond } from "@/lib/format";
 import { naissanceLecture, ressortLecture, valeurEtatCivil } from "@/contacts/etatCivilLecture";
 import { phraseMentions } from "@/contacts/mentionsLecture";
 
@@ -203,12 +209,14 @@ export function Contacts({
   );
   const indexRef = useRef<IndexAnnuaire | null>(null);
   const importRef = useRef<PropositionImportHandle | null>(null);
-  const [idsRecherche, setIdsRecherche] = useState<ReadonlySet<string> | null>(null);
   const [messageAction, setMessageAction] = useState("");
 
   useEffect(() => {
     if (lignesFixes !== undefined) return;
     let ignore = false;
+    // Dernière lecture appliquée : une lecture identique ne remplace rien (sur dix mille fiches, reconstruire
+    // l'index et la liste toutes les 2 s bloquerait la frappe).
+    let derniereEmpreinte = "";
     const charger = () => {
       void (async () => {
         try {
@@ -217,6 +225,9 @@ export function Contacts({
             compterDossiersParContact(),
           ]);
           if (ignore) return;
+          const lue = empreinte([annuaire, [...comptesDossiers]]);
+          if (lue === derniereEmpreinte) return;
+          derniereEmpreinte = lue;
           setCoordsSync(annuaire.coordonnees);
           setLiensSync(annuaire.liens);
           setLignesSync(annuaire.contacts);
@@ -258,43 +269,74 @@ export function Contacts({
 
   const comptes = useMemo(() => compteursFiltres(lignes ?? []), [lignes]);
   const corpsParId = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const contact of lignes ?? []) map.set(contact.id, ligneIndex(contact, coordsSync).corps);
-    return map;
+    return new Map(lignesIndex(lignes ?? [], coordsSync).map((ligne) => [ligne.id, ligne.corps]));
   }, [lignes, coordsSync]);
+  const villesParId = useMemo(() => villesParContact(lignes ?? [], coordsSync), [lignes, coordsSync]);
 
+  // L'index FTS5 se reconstruit seulement quand les fiches ou leurs coordonnées changent, jamais à la frappe :
+  // la recherche d'une saisie s'exécute dans le rendu, sur l'index déjà construit (pas d'état intermédiaire périmé).
+  const [indexPret, setIndexPret] = useState<{ index: IndexAnnuaire } | null>(null);
   useEffect(() => {
     if (lignesFixes !== undefined) return;
+    const etat = { annule: false };
     void (async () => {
       try {
         const { IndexAnnuaire: Ouvrir } = await import("@/contacts/indexAnnuaireFts");
         const index = indexRef.current ?? (await Ouvrir.ouvrir());
         indexRef.current = index;
         index.remplacer([...corpsParId].map(([id, corps]) => ({ id, corps })));
-        const trouves = index.chercher(recherche);
-        setIdsRecherche(trouves === null ? null : new Set(trouves));
+        if (!etat.annule) setIndexPret({ index });
       } catch {
-        setIdsRecherche(null);
+        if (!etat.annule) setIndexPret(null);
       }
     })();
-  }, [lignesFixes, corpsParId, recherche]);
+    return () => {
+      etat.annule = true;
+    };
+  }, [lignesFixes, corpsParId]);
+  const idsRecherche = useMemo<ReadonlySet<string> | null>(() => {
+    if (indexPret === null) return null;
+    const trouves = indexPret.index.chercher(recherche);
+    return trouves === null ? null : new Set(trouves);
+  }, [indexPret, recherche]);
 
+  // Fiches telles qu'affichées (identité, dénomination, TVA et SIREN posés localement) : recalculées seulement
+  // quand elles changent, pas à chaque frappe.
+  const sources = useMemo(
+    () =>
+      (lignes ?? []).map((contact) => {
+        const avecIdentite = appliquerIdentite(contact, identites[contact.id]);
+        const denomination = denominations[contact.id];
+        const nomme = denomination === undefined ? avecIdentite : { ...avecIdentite, nom: denomination };
+        const tva = tvas[contact.id];
+        const avecTva = tva === undefined ? nomme : { ...nomme, numeroTva: tva };
+        const siren = sirens[contact.id];
+        return siren === undefined ? avecTva : { ...avecTva, siren };
+      }),
+    [lignes, identites, denominations, tvas, sirens],
+  );
+  const filtres = useMemo(() => filtrerContacts(sources, filtre, ""), [sources, filtre]);
   const visibles = useMemo(() => {
-    const sources = (lignes ?? []).map((contact) => {
-      const avecIdentite = appliquerIdentite(contact, identites[contact.id]);
-      const denomination = denominations[contact.id];
-      const nomme = denomination === undefined ? avecIdentite : { ...avecIdentite, nom: denomination };
-      const tva = tvas[contact.id];
-      const avecTva = tva === undefined ? nomme : { ...nomme, numeroTva: tva };
-      const siren = sirens[contact.id];
-      return siren === undefined ? avecTva : { ...avecTva, siren };
-    });
-    const filtres = filtrerContacts(sources, filtre, "");
     if (recherche.trim() === "") return filtres;
     if (idsRecherche !== null) return filtres.filter((contact) => idsRecherche.has(contact.id));
     return filtrerContacts(sources, filtre, recherche, corpsParId);
-  }, [lignes, filtre, recherche, idsRecherche, corpsParId, identites, denominations, tvas, sirens]);
+  }, [sources, filtres, filtre, recherche, idsRecherche, corpsParId]);
   const groupes = useMemo(() => grouperAlphabetique(visibles), [visibles]);
+  // La liste se rend par lots : le premier écran tout de suite, le reste en arrière-plan. Une nouvelle saisie ou un
+  // autre filtre repart du premier lot.
+  const cleListe = `${filtre}\u0000${recherche}`;
+  const [lot, setLot] = useState({ cle: "", n: PREMIER_LOT_LISTE });
+  const affiches = lot.cle === cleListe ? lot.n : PREMIER_LOT_LISTE;
+  useEffect(() => {
+    if (affiches >= visibles.length) return;
+    const minuterie = window.setTimeout(() => {
+      setLot({ cle: cleListe, n: affiches + LOT_SUIVANT_LISTE });
+    }, 0);
+    return () => {
+      window.clearTimeout(minuterie);
+    };
+  }, [affiches, visibles.length, cleListe]);
+  const groupesAffiches = useMemo(() => tronquerGroupes(groupes, affiches), [groupes, affiches]);
   const choisi = visibles.find((contact) => contact.id === selection) ?? visibles[0] ?? null;
   const dossiersParContact = useMemo(() => {
     const map = new Map(dossiersParContactSync);
@@ -369,7 +411,7 @@ export function Contacts({
       .catch(() => {
         if (!ignore) setFacturesSync([]);
       });
-    void lireMailsClasses(emails)
+    void lireMailsClasses(emails, nomsParAdresse(lignes ?? [], coordsSync))
       .then((lignes) => {
         if (!ignore) setMailsSync(lignes);
       })
@@ -386,7 +428,7 @@ export function Contacts({
     return () => {
       ignore = true;
     };
-  }, [lignesFixes, choisi, coordsSync]);
+  }, [lignesFixes, choisi, coordsSync, lignes]);
   const retirerChoisi = () => {
     if (choisi === null) return;
     const id = choisi.id;
@@ -459,8 +501,9 @@ export function Contacts({
         <div className="grid h-full min-h-0 grid-cols-[368px_minmax(0,1fr)]">
           <div className="flex min-h-0 flex-col overflow-hidden border-r border-filet">
             <div className="px-4 pt-4">
-            <label className="mb-3 block">
+            <label className="contacts-rech mb-3 block">
               <span className="sr-only">{fr("Rechercher un contact")}</span>
+              <IconSearch size={15} stroke={1.7} aria-hidden data-testid="contacts-recherche-loupe" />
               <input
                 type="search"
                 className="champ w-full"
@@ -490,7 +533,11 @@ export function Contacts({
               ))}
             </div>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-24" data-testid="contacts-liste">
+            <div
+              className="min-h-0 flex-1 overflow-y-auto px-2 pb-24"
+              data-testid="contacts-liste"
+              data-total={visibles.length}
+            >
               {lignes === null ? (
                 <p className="etat-vide">{fr("Chargement des contacts.")}</p>
               ) : visibles.length === 0 ? (
@@ -500,17 +547,18 @@ export function Contacts({
                     : fr("Aucun contact dans ce filtre.")}
                 </p>
               ) : (
-                groupes.map((groupe) => (
+                groupesAffiches.map((groupe) => (
                   <section key={groupe.lettre}>
                     <h2 className="dossiers-groupe">
                       {fr(groupe.lettre)}
                     </h2>
                     <ul>
                       {groupe.contacts.map((contact) => {
-                        const selectionne = choisi?.id === contact.id;
+                        // Pendant la création d'un contact, la ligne de la fiche précédemment ouverte n'est plus surlignée.
+                        const selectionne = creation === null && choisi?.id === contact.id;
                         const archive = contact.archivee === true || archives.has(contact.id);
                         const nomListe = libelleListeContact(contact);
-                        const meta = metaListeContact(contact, villeListeContact(contact, coordsSync));
+                        const meta = metaListeContact(contact, villesParId.get(contact.id) ?? "");
                         const nbDossiers = dossiersParContact.get(contact.id) ?? 0;
                         return (
                           <li key={contact.id}>
@@ -1513,14 +1561,7 @@ function afficherCapitalLecture(
   monnaie: string | null,
   libelle: string | null,
 ): string | null {
-  if (centimes !== null) {
-    if (monnaie !== null && monnaie !== "" && monnaie !== "EUR") {
-      const entier = Math.trunc(centimes / 100);
-      const cent = Math.abs(centimes % 100);
-      return `${String(entier)},${String(cent).padStart(2, "0")} ${monnaie}`;
-    }
-    return formatMontant(centimes);
-  }
+  if (centimes !== null) return formatMontantRond(centimes, monnaie === null || monnaie === "" ? "EUR" : monnaie);
   const brut = libelle?.trim() ?? "";
   return brut === "" ? null : brut;
 }
@@ -1633,7 +1674,8 @@ function FicheGenerale({
     contact.capitalLibelle,
   );
   const libelleProfessionCode = professionAccordee(contact);
-  const naissance = naissanceLecture(contact.dateNaissance, contact.lieuNaissance);
+  const accordNaissance = accordDe(contact.civilite ?? "", contact.accordSaisi);
+  const naissance = naissanceLecture(contact.dateNaissance, contact.lieuNaissance, accordNaissance);
   const mentionsLibelle = phraseMentions(acte.mentions);
 
   return (
@@ -1824,7 +1866,11 @@ function FicheGenerale({
             />
             <FaitLecture
               libelle={
-                accordDe(contact.civilite ?? "", contact.accordSaisi) === "feminin" ? "Née le" : "Né le"
+                naissance?.manque === true
+                  ? "Naissance"
+                  : accordNaissance === "feminin"
+                    ? "Née le"
+                    : "Né le"
               }
               valeur={naissance?.texte ?? null}
               manque={naissance?.manque}

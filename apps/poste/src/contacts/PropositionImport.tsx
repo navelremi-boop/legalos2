@@ -3,10 +3,11 @@ import { apiUrl } from "@/lib/auth/client";
 import {
   champsRetenus,
   lignesProposition,
+  propositionDepuisJson,
   type ChampImport,
   type PropositionSiren,
 } from "@/contacts/propositionSiren";
-import { dirigeantsDepuisJson, type DirigeantRegistre } from "@/contacts/dirigeants";
+import type { DirigeantRegistre } from "@/contacts/dirigeants";
 import { DirigeantsProposes } from "@/contacts/DirigeantsProposes";
 import type { ContactListe } from "@/contacts/listeContacts";
 import { fr } from "@/lib/fr";
@@ -39,21 +40,6 @@ type PropositionImportProps = {
 export type PropositionImportHandle = {
   interroger: () => void;
 };
-
-function lireProposition(json: unknown): PropositionSiren | null {
-  if (json === null || typeof json !== "object") return null;
-  const ligne = json as Record<string, unknown>;
-  const texte = (cle: string): string | null => (typeof ligne[cle] === "string" ? ligne[cle] : null);
-  if (typeof ligne.siren !== "string") return null;
-  return {
-    siren: ligne.siren,
-    denomination: texte("denomination"),
-    forme: texte("forme"),
-    adresseSiege: texte("adresse_siege"),
-    activite: texte("activite"),
-    dirigeants: dirigeantsDepuisJson(ligne.dirigeants),
-  };
-}
 
 export const PropositionImport = forwardRef<PropositionImportHandle, PropositionImportProps>(
   function PropositionImport(
@@ -112,7 +98,7 @@ export const PropositionImport = forwardRef<PropositionImportHandle, Proposition
             setMessage(corps?.message ?? "Le registre des entreprises est indisponible. La saisie manuelle reste possible.");
             return;
           }
-          const lue = lireProposition(json);
+          const lue = propositionDepuisJson(json);
           if (lue === null) {
             setMessage("Le registre des entreprises est indisponible. La saisie manuelle reste possible.");
             return;

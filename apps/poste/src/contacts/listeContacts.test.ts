@@ -7,15 +7,17 @@ import {
   filtrerContacts,
   grouperAlphabetique,
   initialesListeContact,
+  libelleCapital,
   libelleListeContact,
   metaListeContact,
   natureEtiquetteFiche,
   ongletsFiche,
   sirenListeContact,
   sousTitreFiche,
+  tronquerGroupes,
   type ContactListe,
 } from "./listeContacts.ts";
-import { formatMontant } from "../lib/format.ts";
+import { formatMontantRond } from "../lib/format.ts";
 
 function contact(partiel: Partial<ContactListe> & Pick<ContactListe, "id" | "nom" | "nature">): ContactListe {
   return {
@@ -266,7 +268,7 @@ describe("liste des contacts", () => {
         }),
         "Lyon",
       ),
-      `Société par actions simplifiée au capital de ${formatMontant(5_000_000)}, Lyon`,
+      `Société par actions simplifiée au capital de ${formatMontantRond(5_000_000)}, Lyon`,
     );
     assert.equal(
       sousTitreFiche(
@@ -292,6 +294,45 @@ describe("liste des contacts", () => {
       "Chef d'entreprise, Craponne",
     );
   });
+
+  it("élide « de » devant une voyelle dans le barreau et la cour d'appel, jamais « de Aix »", () => {
+    const aix = contact({
+      id: "7",
+      nom: "Vasseur",
+      nature: "physique",
+      civilite: "Maître",
+      accordSaisi: "masculin",
+      professionCode: "avocat",
+      professionReglementee: true,
+      barreau: "Aix-en-Provence",
+    });
+    assert.equal(sousTitreFiche(aix, "Aix-en-Provence"), "Avocat au barreau d'Aix-en-Provence");
+    assert.equal(metaListeContact(aix, "Aix-en-Provence"), "Avocat, barreau d'Aix-en-Provence");
+    const expert = contact({
+      id: "8",
+      nom: "Garnier",
+      nature: "physique",
+      civilite: "Madame",
+      professionCode: "expert_judiciaire",
+      professionReglementee: true,
+      courAppel: "Aix-en-Provence",
+    });
+    assert.equal(sousTitreFiche(expert, ""), "Experte judiciaire, ressort de la cour d'appel d'Aix-en-Provence");
+    const lyon = contact({ ...expert, id: "9", courAppel: "Lyon" });
+    assert.equal(sousTitreFiche(lyon, ""), "Experte judiciaire, ressort de la cour d'appel de Lyon");
+    for (const texte of [sousTitreFiche(expert, ""), sousTitreFiche(aix, ""), metaListeContact(aix, "")]) {
+      assert.equal(texte.includes(" de Aix"), false);
+    }
+  });
+
+  it("écrit le capital sans centimes quand il est rond, avec centimes seulement s'ils existent", () => {
+    const lisible = (texte: string) => texte.replace(/[\u00a0\u202f]/gu, " ");
+    assert.equal(lisible(libelleCapital(5_000_000, "EUR")), "au capital de 50 000 €");
+    assert.equal(lisible(libelleCapital(8_400_000_000, null)), "au capital de 84 000 000 €");
+    assert.equal(lisible(libelleCapital(1_000_050, "EUR")), "au capital de 10 000,50 €");
+    assert.equal(lisible(libelleCapital(1_000_000, "CHF")), "au capital de 10 000 CHF");
+    assert.equal(lisible(libelleCapital(1_000_050, "CHF")), "au capital de 10 000,50 CHF");
+  });
 });
 
 describe("ongletsFiche", () => {
@@ -307,5 +348,50 @@ describe("ongletsFiche", () => {
 
   it("retire Factures tant que les compteurs ne sont pas connus", () => {
     assert.equal(ongletsFiche({}).some((entree) => entree.id === "factures"), false);
+  });
+});
+
+describe("liste rendue par lots", () => {
+  const contacts = (lettre: string, n: number): ContactListe[] =>
+    Array.from({ length: n }, (_, i) => contact({ id: `${lettre}${String(i)}`, nom: `${lettre}nom${String(i)}`, nature: "physique" }));
+  const groupes = [
+    { lettre: "A", contacts: contacts("A", 3) },
+    { lettre: "B", contacts: contacts("B", 4) },
+    { lettre: "C", contacts: contacts("C", 2) },
+  ];
+
+  it("garde les premières lignes, groupes et ordre conservés, et coupe un groupe au milieu", () => {
+    const gardes = tronquerGroupes(groupes, 5);
+    assert.deepEqual(
+      gardes.map((groupe) => [groupe.lettre, groupe.contacts.length]),
+      [
+        ["A", 3],
+        ["B", 2],
+      ],
+    );
+    assert.equal(gardes[1]?.contacts[1]?.id, "B1");
+  });
+
+  it("rend tout quand le maximum couvre la liste, rien quand il est nul", () => {
+    assert.equal(tronquerGroupes(groupes, 100).reduce((somme, groupe) => somme + groupe.contacts.length, 0), 9);
+    assert.deepEqual(tronquerGroupes(groupes, 0), []);
+    assert.deepEqual(tronquerGroupes([], 10), []);
+  });
+
+  it("garde le groupe entier quand le maximum tombe pile sur sa fin", () => {
+    const gardes = tronquerGroupes(groupes, 3);
+    assert.deepEqual(
+      gardes.map((groupe) => groupe.lettre),
+      ["A"],
+    );
+  });
+
+  it("trie dix mille noms sans créer un collateur par comparaison", () => {
+    const tous = Array.from({ length: 10_000 }, (_, i) => contact({ id: String(i), nom: `Nom${String((i * 7919) % 10_000)}`, nature: "physique" }));
+    const debut = performance.now();
+    const groupesTries = grouperAlphabetique(tous);
+    const duree = performance.now() - debut;
+    assert.equal(groupesTries.reduce((somme, groupe) => somme + groupe.contacts.length, 0), 10_000);
+    assert.equal(duree < 500, true, `tri en ${duree.toFixed(0)} ms`);
   });
 });

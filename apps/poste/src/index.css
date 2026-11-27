@@ -3430,6 +3430,23 @@
     background: var(--survol);
   }
 
+  .contacts-rech {
+    position: relative;
+  }
+
+  .contacts-rech > svg {
+    position: absolute;
+    top: 50%;
+    left: var(--espace-3);
+    transform: translateY(-50%);
+    color: var(--graphite);
+    pointer-events: none;
+  }
+
+  .contacts-rech > .champ {
+    padding-left: 34px;
+  }
+
   .contacts-ligne--sel,
   .contacts-ligne[data-selected="true"] {
     background: var(--neutre-teinte);
@@ -3993,6 +4010,7 @@
     color: var(--ok);
   }
 
+  .contacts-statut--partielle,
   .contacts-statut--attente {
     color: var(--attente);
   }

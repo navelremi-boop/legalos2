@@ -1,3 +1,4 @@
+import { heureDeParisDepuisEntete } from "@/lib/dateEntete";
 import { fr } from "@/lib/fr";
 
 const NBSP = "\u00a0";
@@ -149,4 +150,33 @@ export function formatMontant(centimes: number): string {
     currency: "EUR",
   }).format(euros);
   return fr(formate);
+}
+
+/**
+ * Montant français sans centimes quand il est rond (« 50 000 € », « 2 400 € »), avec centimes seulement s'ils
+ * existent (« 2 400,50 € »). Réservé à l'écran Contacts : la facturation garde `formatMontant` (« 2 400,00 € »).
+ * `monnaie` : code ISO 4217 (EUR par défaut).
+ */
+export function formatMontantRond(centimes: number, monnaie = "EUR"): string {
+  const rond = centimes % 100 === 0;
+  const formate = new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: monnaie,
+    minimumFractionDigits: rond ? 0 : 2,
+    maximumFractionDigits: rond ? 0 : 2,
+  }).format(centimes / 100);
+  return fr(formate);
+}
+
+/**
+ * Date et heure de Paris d'un en-tête de mail : « 27 octobre à 10 h 12 », « 14 octobre 2025 à 9 h 05 ».
+ * L'année n'est omise que si c'est l'année courante (passée par l'appelant : horloge injectable).
+ * Chaîne vide quand la date est absente ou illisible.
+ */
+export function formatDateHeureParis(entete: string | null | undefined, anneeCourante: number): string {
+  const paris = heureDeParisDepuisEntete(entete);
+  if (paris === null) return "";
+  const jour = formatDateJourMois(paris.jour, anneeCourante);
+  if (jour === "") return "";
+  return fr(`${jour} à ${formatHeureMur(paris.heure, paris.minute)}`);
 }

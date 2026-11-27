@@ -61,9 +61,9 @@ describe("cohérence de la galerie de Contacts", () => {
       tuile.montant.replaceAll(" ", " ").replaceAll(" ", " "),
     ]);
     assert.deepEqual(tuiles, [
-      ["Facturé en 2026", "6 000,00 €"],
-      ["Encaissé", "2 400,00 €"],
-      ["Encours", "3 600,00 €"],
+      ["Facturé en 2026", "6 000 €"],
+      ["Encaissé", "2 400 €"],
+      ["Encours", "3 600 €"],
     ]);
   });
 

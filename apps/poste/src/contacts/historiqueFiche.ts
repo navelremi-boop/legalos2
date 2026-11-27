@@ -1,4 +1,5 @@
-import { dateCivile, formatDateActe, formatDateJourMois, formatMontant } from "@/lib/format";
+import { instantDepuisEntete } from "@/lib/dateEntete";
+import { dateCivile, formatDateActe, formatDateHeureParis, formatMontantRond } from "@/lib/format";
 import { libelleReferenceDossier } from "@/lib/referenceDossier";
 
 /** Dossier où intervient le contact. `reference` et `chemise` viennent du dossier synchronisé. */
@@ -24,22 +25,30 @@ export type FactureFiche = {
   brouillon: boolean;
 };
 
-/** Mail classé tel que la base locale le porte. */
+/**
+ * Mail classé tel que la base locale le porte. `expediteur` est une adresse seule ; `destinataires` regroupe les
+ * adresses des champs À et Cc, séparées par des virgules (les copies cachées et les noms affichés n'y sont pas).
+ */
 export type MailBrut = {
   id: string;
   objet: string;
   expediteur: string;
   destinataires: string;
   etat: string;
-  /** Date de l'en-tête `Date` (`date_entete`), nulle quand elle manque. */
+  /** Date de l'en-tête `Date` (`date_entete`), nulle quand elle manque. Un instant : lu puis affiché à l'heure de Paris. */
   dateIso: string | null;
 };
 
-/** Mail prêt à afficher : objet, auteur (ou « Vous ») et date. */
+/** Mail reçu (« De : ») ou envoyé par le cabinet (« À : »), l'expéditeur étant une adresse d'un compte mail du cabinet. */
+export type SensMail = "recu" | "envoye";
+
+/** Mail prêt à afficher : objet, sens, correspondants (nom connu de l'annuaire, sinon adresse) et date d'en-tête. */
 export type MailFiche = {
   id: string;
   objet: string;
-  auteur: string;
+  sens: SensMail;
+  /** Expéditeur pour un mail reçu, destinataires pour un mail envoyé. */
+  personnes: string[];
   dateIso: string | null;
 };
 
@@ -65,7 +74,7 @@ export type TuileFacture = {
   montant: string;
 };
 
-export type StatutFacture = "payee" | "attente" | "brouillon";
+export type StatutFacture = "payee" | "partielle" | "attente" | "brouillon";
 
 export type LigneFacture = {
   id: string;
@@ -88,7 +97,8 @@ export type LigneDossier = {
 export type LigneMail = {
   id: string;
   objet: string;
-  auteur: string;
+  /** « De : M. Antoine Ferrand » ou « À : Mme Claire Ferrand, compta@… ». */
+  correspondants: string;
   date: string | null;
 };
 
@@ -201,13 +211,17 @@ export function anneeFacturation(factures: readonly FactureFiche[]): number | nu
   return annee;
 }
 
-/** Encours = reste à payer, jamais négatif. */
+/**
+ * Facturé, encaissé et encours. Un brouillon ne compte dans aucun des trois : il n'a pas de numéro, il peut
+ * disparaître, il n'engage pas encore le client. L'encours est le reste à payer, jamais négatif.
+ */
 export function syntheseFactures(factures: readonly FactureFiche[]): SyntheseFactures {
-  const annee = anneeFacturation(factures);
+  const validees = factures.filter((ligne) => !ligne.brouillon);
+  const annee = anneeFacturation(validees);
   let facture = 0;
   let encaisse = 0;
   let encours = 0;
-  for (const ligne of factures) {
+  for (const ligne of validees) {
     encaisse += ligne.encaisseCentimes;
     const reste = ligne.ttcCentimes - ligne.encaisseCentimes;
     encours += reste > 0 ? reste : 0;
@@ -224,20 +238,26 @@ export function tuilesFactures(factures: readonly FactureFiche[]): TuileFacture[
     {
       id: "facture",
       libelle: synthese.annee === null ? "Facturé" : `Facturé en ${String(synthese.annee)}`,
-      montant: formatMontant(synthese.factureCentimes),
+      montant: formatMontantRond(synthese.factureCentimes),
     },
-    { id: "encaisse", libelle: "Encaissé", montant: formatMontant(synthese.encaisseCentimes) },
-    { id: "encours", libelle: "Encours", montant: formatMontant(synthese.encoursCentimes) },
+    { id: "encaisse", libelle: "Encaissé", montant: formatMontantRond(synthese.encaisseCentimes) },
+    { id: "encours", libelle: "Encours", montant: formatMontantRond(synthese.encoursCentimes) },
   ];
 }
 
+/**
+ * Statut déduit des encaissements : « Payée » (au moins le TTC), « Partiellement payée » (entre zéro exclu et le
+ * TTC exclu), « En attente » (aucun encaissement). Un brouillon reste « Brouillon ».
+ */
 export function statutFacture(facture: FactureFiche): StatutFacture {
   if (facture.brouillon) return "brouillon";
-  return facture.ttcCentimes > 0 && facture.encaisseCentimes >= facture.ttcCentimes ? "payee" : "attente";
+  if (facture.encaisseCentimes <= 0) return "attente";
+  return facture.encaisseCentimes >= facture.ttcCentimes ? "payee" : "partielle";
 }
 
 const LIBELLE_STATUT: Record<StatutFacture, string> = {
   payee: "Payée",
+  partielle: "Partiellement payée",
   attente: "En attente",
   brouillon: "Brouillon",
 };
@@ -267,7 +287,7 @@ export function lignesFactures(factures: readonly FactureFiche[]): LigneFacture[
       reference: facture.reference ?? "Sans numéro",
       date: facture.dateIso === null ? null : formatDateActe(facture.dateIso) || null,
       objet: facture.objet,
-      montant: formatMontant(facture.ttcCentimes),
+      montant: formatMontantRond(facture.ttcCentimes),
       statut,
       statutLibelle: LIBELLE_STATUT[statut],
     };
@@ -282,14 +302,27 @@ export function colonnesFactures(lignes: readonly LigneFacture[]): { date: boole
   };
 }
 
+/** Nom connu d'une adresse (annuaire), sinon l'adresse elle-même. */
+function nomOuAdresse(adresse: string, noms: ReadonlyMap<string, string>): string {
+  return noms.get(adresse) ?? adresse;
+}
+
+/** Instant de la date d'en-tête en millisecondes ; `null` quand elle est absente ou illisible. */
+function instantMail(dateIso: string | null): number | null {
+  return instantDepuisEntete(dateIso)?.getTime() ?? null;
+}
+
 /**
  * Mails classés dont l'expéditeur ou un destinataire est une adresse de la fiche, du plus récent au plus
- * ancien. L'auteur est « Vous » quand l'expéditeur est une adresse d'un compte mail du cabinet.
+ * ancien (comparaison d'instants, quel que soit le décalage écrit dans l'en-tête). Le mail est « envoyé » quand
+ * l'expéditeur est une adresse d'un compte mail du cabinet : « À : » les destinataires ; sinon « De : » l'expéditeur.
+ * `noms` : nom affiché par adresse (en minuscules), pour les adresses de l'annuaire.
  */
 export function mailsDuContact(
   mails: readonly MailBrut[],
   emails: readonly string[],
   adressesCabinet: readonly string[] = [],
+  noms: ReadonlyMap<string, string> = new Map(),
 ): MailFiche[] {
   const connus = new Set(emails.map((email) => email.trim().toLocaleLowerCase("fr")).filter((email) => email !== ""));
   if (connus.size === 0) return [];
@@ -300,27 +333,44 @@ export function mailsDuContact(
       const presents = [...adresses(mail.expediteur), ...adresses(mail.destinataires)];
       return presents.some((adresse) => connus.has(adresse));
     })
-    .map((mail) => ({
-      id: mail.id,
-      objet: mail.objet,
-      auteur: adresses(mail.expediteur).some((adresse) => cabinet.has(adresse))
-        ? "Vous"
-        : nomExpediteur(mail.expediteur),
-      dateIso: mail.dateIso,
-    }))
+    .map((mail): MailFiche => {
+      const expediteurs = adresses(mail.expediteur);
+      const envoye = expediteurs.some((adresse) => cabinet.has(adresse));
+      const personnes = envoye
+        ? [...new Set(adresses(mail.destinataires))].map((adresse) => nomOuAdresse(adresse, noms))
+        : [(expediteurs[0] === undefined ? undefined : noms.get(expediteurs[0])) ?? nomExpediteur(mail.expediteur)];
+      return {
+        id: mail.id,
+        objet: mail.objet,
+        sens: envoye ? "envoye" : "recu",
+        personnes: personnes.filter((personne) => personne !== ""),
+        dateIso: mail.dateIso,
+      };
+    })
     .sort((a, b) => {
-      if (a.dateIso === b.dateIso) return 0;
-      if (a.dateIso === null) return 1;
-      if (b.dateIso === null) return -1;
-      return b.dateIso.localeCompare(a.dateIso);
+      const ia = instantMail(a.dateIso);
+      const ib = instantMail(b.dateIso);
+      if (ia === ib) return 0;
+      if (ia === null) return 1;
+      if (ib === null) return -1;
+      return ib - ia;
     });
 }
 
+const TEXTE_DESTINATAIRE_INCONNU = "destinataire non enregistré";
+
+/** « De : M. Antoine Ferrand » pour un mail reçu, « À : Mme Claire Ferrand, compta@… » pour un mail envoyé. */
+export function correspondantsMail(mail: Pick<MailFiche, "sens" | "personnes">): string {
+  if (mail.sens === "recu") return `De : ${mail.personnes[0] ?? ""}`.trim();
+  return `À : ${mail.personnes.length === 0 ? TEXTE_DESTINATAIRE_INCONNU : mail.personnes.join(", ")}`;
+}
+
+/** Lignes de l'onglet Mails : la date est celle de l'en-tête, à l'heure de Paris. */
 export function lignesMails(mails: readonly MailFiche[], anneeCourante: number): LigneMail[] {
   return mails.map((mail) => ({
     id: mail.id,
     objet: mail.objet,
-    auteur: mail.auteur,
-    date: mail.dateIso === null ? null : formatDateJourMois(mail.dateIso, anneeCourante) || null,
+    correspondants: correspondantsMail(mail),
+    date: formatDateHeureParis(mail.dateIso, anneeCourante) || null,
   }));
 }

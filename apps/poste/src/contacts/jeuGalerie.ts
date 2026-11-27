@@ -1,4 +1,4 @@
-import { champsFicheVides, libelleListeContact, type ContactListe } from "@/contacts/listeContacts";
+import { champsFicheVides, libelleCapital, libelleListeContact, type ContactListe } from "@/contacts/listeContacts";
 import type { LienAffiche } from "@/contacts/liensContacts";
 import type { DossierFiche, FactureFiche, MailFiche, NoteFiche } from "@/contacts/historiqueFiche";
 import { signatureNote } from "@/contacts/signatureNote";
@@ -54,8 +54,7 @@ function societeDemo(fiche: FichePersonneDemo & { capitalEuros: number | null })
     ...champsFicheVides(),
     capitalCentimes: capitalEuros === null ? null : capitalEuros * 100,
     monnaie: capitalEuros === null ? null : "EUR",
-    capitalLibelle:
-      capitalEuros === null ? null : `au capital de ${new Intl.NumberFormat("fr-FR").format(capitalEuros)} €`,
+    capitalLibelle: capitalEuros === null ? null : libelleCapital(capitalEuros * 100, "EUR"),
     ...reste,
   };
 }
@@ -297,7 +296,13 @@ export const HISTORIQUES_GALERIE: readonly HistoriqueGalerie[] = [
     dossiers: [{ ...DOSSIER_FERRAND, qualite: "représentant légal, rattaché à SAS Ferrand Métal" }],
     factures: [],
     mails: [
-      { id: "mail-antoine-1", objet: "Re: Assignation Duclos, pièces complémentaires", auteur: "Vous", dateIso: "2026-10-27" },
+      {
+        id: "mail-antoine-1",
+        objet: "Re: Assignation Duclos, pièces complémentaires",
+        sens: "envoye",
+        personnes: ["M. Antoine Ferrand"],
+        dateIso: "2026-10-27 09:12:00+00",
+      },
     ],
     notes: [],
   },
@@ -325,9 +330,27 @@ export const HISTORIQUES_GALERIE: readonly HistoriqueGalerie[] = [
       },
     ],
     mails: [
-      { id: "mail-ferrand-1", objet: "Re: Assignation Duclos, pièces complémentaires", auteur: "M. Antoine Ferrand", dateIso: "2026-10-27" },
-      { id: "mail-ferrand-2", objet: "Factures fournisseurs Duclos 2025", auteur: "compta@ferrand-metal.example", dateIso: "2026-10-14" },
-      { id: "mail-ferrand-3", objet: "Convocation à l'audience du 6 novembre", auteur: "Vous", dateIso: "2026-10-09" },
+      {
+        id: "mail-ferrand-1",
+        objet: "Re: Assignation Duclos, pièces complémentaires",
+        sens: "recu",
+        personnes: ["M. Antoine Ferrand"],
+        dateIso: "2026-10-27T08:41:00+01:00",
+      },
+      {
+        id: "mail-ferrand-2",
+        objet: "Factures fournisseurs Duclos 2025",
+        sens: "recu",
+        personnes: ["compta@ferrand-metal.example"],
+        dateIso: "Tue, 14 Oct 2026 16:05:00 +0200",
+      },
+      {
+        id: "mail-ferrand-3",
+        objet: "Convocation à l'audience du 6 novembre",
+        sens: "envoye",
+        personnes: ["M. Antoine Ferrand", "compta@ferrand-metal.example"],
+        dateIso: "Fri, 09 Oct 2026 14:30:00 +0000",
+      },
     ],
     notes: [
       noteDemo("note-ferrand-1", "Interlocuteur habituel : M. Antoine Ferrand, joignable de préférence le matin."),

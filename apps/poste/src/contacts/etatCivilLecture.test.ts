@@ -29,10 +29,21 @@ describe("naissance en lecture", () => {
     }
   });
 
-  it("sans date, garde le lieu et signale la date à compléter", () => {
-    const lecture = naissanceLecture(null, "Lyon (Rhône)");
-    assert.equal(lecture?.texte, "Date non renseignée, à Lyon (Rhône)");
-    assert.equal(lecture?.manque, true);
+  it("sans date, écrit « Né à Lyon (Rhône) » ou « Née à Lyon (Rhône) » et signale la date à compléter", () => {
+    const masculin = naissanceLecture(null, "Lyon (Rhône)", "masculin");
+    assert.equal(masculin?.texte, "Né à Lyon (Rhône)");
+    assert.equal(masculin?.manque, true);
+    const feminin = naissanceLecture("", "Lyon (Rhône)", "feminin");
+    assert.equal(feminin?.texte, "Née à Lyon (Rhône)");
+    assert.equal(feminin?.manque, true);
+    // Accord inconnu : la forme par défaut est le masculin, comme le libellé « Né le ».
+    assert.equal(naissanceLecture(null, "Lyon")?.texte, "Né à Lyon");
+    assert.equal(naissanceLecture(null, "  Lyon   (Rhône) ", "feminin")?.texte, "Née à Lyon (Rhône)");
+  });
+
+  it("garde « Né le » pour la date, avec ou sans accord", () => {
+    assert.equal(ordinaire(naissanceLecture("1974-08-21", "Lyon (Rhône)", "feminin")?.texte), "21 août 1974 à Lyon (Rhône)");
+    assert.equal(naissanceLecture("1974-08-21", "Lyon (Rhône)", "feminin")?.manque, false);
   });
 
   it("sans date ni lieu, ne renvoie rien", () => {
@@ -63,6 +74,7 @@ describe("ressort d'un professionnel", () => {
     assert.equal(ressortLecture(" Aix-en-Provence "), "Cour d'appel d'Aix-en-Provence");
     assert.equal(ressortLecture("Agen"), "Cour d'appel d'Agen");
     assert.equal(ressortLecture("Orléans"), "Cour d'appel d'Orléans");
+    assert.equal(ressortLecture("Aix"), "Cour d'appel d'Aix");
   });
 
   it("renvoie null sans cour d'appel", () => {
