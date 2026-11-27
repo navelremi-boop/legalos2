@@ -14,8 +14,16 @@ unused-ignored-advisory = "deny"
 # `lopdf` 0.42, que `pdf-extract` 0.12.1 (dernière version) impose (`lopdf = "0.42"`) ; `lopdf` 0.45 ne l'utilise plus.
 # Il ne sert qu'à l'extraction du texte d'un PDF pour l'indexation. À lever dès qu'un `pdf-extract` accepte
 # `lopdf` 0.45 ou plus ; `unused-ignored-advisory = "deny"` fait alors échouer le contrôle. Voir docs/audit-dependances.md.
+# Exceptions nominatives du 2026-11-27 (B26, décision retenue par le commandement, option (a) de l'état-major).
+# `chrono` 0.4.45 et `chrono-tz` 0.10.4 sont déclarés non maintenus, sans faille connue ; « no safe upgrade is available ».
+# `chrono` est tiré par `icalendar` 0.17.14 et `imap-codec` (io-imap) : non retirable. `chrono-tz` est une dépendance
+# directe de `legalos-messagerie` (fuseaux IANA des invitations de calendrier, J11). À lever dès qu'une alternative
+# maintenue existe (`jiff` pour `chrono-tz`, voir l'avis) ; `unused-ignored-advisory = "deny"` fait alors échouer le
+# contrôle. Voir docs/audit-dependances.md, constat du 27 novembre 2026.
 ignore = [
     { id = "RUSTSEC-2026-0192", reason = "ttf-parser non maintenu, sans faille ; imposé par lopdf 0.42 via pdf-extract 0.12.1 (extraction de texte PDF)" },
+    { id = "RUSTSEC-2026-0543", reason = "chrono non maintenu, sans faille connue ; tiré par icalendar et imap-codec, non retirable" },
+    { id = "RUSTSEC-2026-0555", reason = "chrono-tz non maintenu, sans faille connue ; fuseaux IANA des invitations (legalos-messagerie), à remplacer par jiff quand l'alternative sera retenue" },
 ]
 
 [licenses]
