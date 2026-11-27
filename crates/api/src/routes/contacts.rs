@@ -1384,18 +1384,20 @@ pub async fn creer_lien(
             return Err(ApiError::not_found("Le mandant est introuvable"));
         }
     }
-    if body.represente_societe {
+    // Même règle que la modification : seul un mandat encore en cours est concerné.
+    if body.represente_societe && fin.is_none() {
         let deja = sqlx::query_scalar::<_, bool>(
             r#"
             SELECT EXISTS(
                 SELECT 1 FROM contact_liens
-                WHERE contact_cible_id = $1 AND fonction = $2
+                WHERE cabinet_id = $3 AND contact_cible_id = $1 AND fonction = $2
                   AND represente_societe AND fin IS NULL AND type_lien = 'mandat_social'
             )
             "#,
         )
         .bind(body.contact_cible_id)
         .bind(fonction.as_deref())
+        .bind(claims.cabinet_id)
         .fetch_one(
             tx.acquire()
                 .await

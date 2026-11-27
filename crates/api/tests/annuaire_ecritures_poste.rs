@@ -388,6 +388,38 @@ async fn liens_modification_idempotente_et_controles_refaits_cote_api() {
     .await;
     assert_eq!(st, StatusCode::OK, "{lien2:?}");
 
+    // Création : un mandat terminé qui représentait la société ne compte pas parmi les mandats en
+    // cours (même règle qu'à la modification) ; un mandat en cours est refusé tant que l1 l'est.
+    let l_ancien = Uuid::now_v7();
+    let (st, ancien) = json_auth(
+        &app,
+        "POST",
+        &route_p2,
+        &token_a,
+        corps_lien(
+            l_ancien,
+            serie,
+            societe,
+            json!({ "debut": "2010-01-01", "fin": "2015-01-01" }),
+        ),
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK, "mandat terminé accepté : {ancien:?}");
+    let l_doublon = Uuid::now_v7();
+    let (st, refus) = json_auth(
+        &app,
+        "POST",
+        &route_p2,
+        &token_a,
+        corps_lien(l_doublon, serie, societe, json!({})),
+    )
+    .await;
+    assert_eq!(
+        st,
+        StatusCode::BAD_REQUEST,
+        "second mandat en cours refusé : {refus:?}"
+    );
+
     // Modification : deuxième représentant refusé, rien ne change.
     let (st, refus) = json_auth(
         &app,
