@@ -24,7 +24,7 @@ ammonia = "=4.2.5"
 pimalaya-stream = "0.3.0"
 thiserror = { workspace = true }
 tracing = { workspace = true }
-url = "2.5.8"
+url = "2.5.9"
 
 [dev-dependencies]
 tokio = { workspace = true }

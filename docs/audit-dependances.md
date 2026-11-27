@@ -138,3 +138,13 @@ La CI (run 43207265628 sur `19e05bc`) a échoué à `cargo deny check` sur le po
 **Levée** : dès qu'une version de `powersync` et de `tauri-plugin-powersync` accepte `rusqlite` 0.41 ou plus et date d'au moins quatorze jours. `unused-ignored-advisory = "deny"` fait alors échouer le contrôle. Point ajouté à la revue mensuelle de PowerSync (PLAN.md).
 
 **Workspace racine** : le `Cargo.lock` racine contient `libsqlite3-sys` 0.30.1 via `sqlx-sqlite` 0.8.6, non signalé par l'avis. Si l'étape « cargo-deny, workspace racine » le signale un jour, la traiter de la même façon après avoir vérifié que `sqlx-sqlite` est réellement compilé.
+
+## Constat du 27 novembre 2026 : avis RUSTSEC-2026-0592 (`url`) et RUSTSEC-2026-0594 (`cookie`)
+
+La CI (run 46012087892 sur `06b5166`) a échoué à « cargo-deny, workspace racine ». Lecture locale de `cargo deny check` sur les deux workspaces le même jour (la base d'avis évolue entre deux passages, voir le constat du 24 octobre) :
+
+| Avis | Crate | Workspace | Décision |
+|---|---|---|---|
+| RUSTSEC-2026-0592 (dépassement de pile dans `Url::origin()` sur des `blob:` imbriquées) | `url` 2.5.8 | racine et poste | **monté à 2.5.9** (publié le 2026-11-20, non retiré) : `Cargo.toml` de `legalos-api` et `legalos-messagerie`, `Cargo.lock` des deux workspaces ; `docs/versions.md` à jour |
+| RUSTSEC-2026-0594 (nonces des cookies privés répétés après un `fork`) | `cookie` 0.18.2 (poste, tiré par `tauri` 2.12.0) | poste | **monté à 0.18.3** (publié le 2026-11-23, non retiré) dans `apps/poste/src-tauri/Cargo.lock` seulement ; le poste n'appelle pas `fork` (Windows) et n'emploie pas de cookies privés, la montée ne sert qu'à garder la CI verte. Version de quatre jours : correctif de sécurité sur une dépendance transitive, jugé acceptable par l'état-major, à signaler à l'architecte |
+| RUSTSEC-2026-0543 et -0555 | `chrono`, `chrono-tz` | racine | inchangé : **B26**, décision de l'architecte attendue |
